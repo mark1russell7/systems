@@ -1581,9 +1581,11 @@ Each of the 11 claims except one is a hit, with a Brier score of 0.119. The miss
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-57
+- **Started:** 2026-11-04
+- **Shipped:**
 - **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
 
 The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
@@ -1601,6 +1603,16 @@ The work:
 3. Run the 2 missing runs of the pauses of 500 ms × 2, under the new gate.
 
 This item changes a gate, thus the strategist reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
+
+**The first step has a first answer.** The cause is the read of the conntrack table by the agent of the lab. The clients fill the table, and each agent reads the whole table each second. In one record of the re-dispatch, the table grows from 9,600 to 22,000 lines in the first 75 s. In that time, the read on each of the 3 nodes grows from 91 ms to 205 ms. This is approximately 0.35 of a core, or 9 of the 12 points of idle share. The other 3 points have no name yet. The calibration reads all 9 records.
+
+**The plan.** The prediction came first, and no margin was computed before it.
+
+- The gate becomes `idle >= min(60 %, baseline - margin)`. Thus a cell that is at rest at 60 % or more keeps the gate that it has.
+- The baseline is the highest median of the settled samples of the cell, because a foreign load only lowers the idle share.
+- A floor refuses a cell that a load holds from its start.
+- The records of SYS-57 give the margin and the floor.
+- A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
 
 ## The systems of S1
 
@@ -2448,7 +2460,7 @@ Above the size of the pool, the wait grows with the queue, and a client fails at
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-63
 - **Started:**
@@ -2514,7 +2526,7 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-71
 - **Started:**
@@ -2555,6 +2567,38 @@ A resume from a compacted revision fails with a compaction error (DV-44).
 - **Links:**
 
 A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
+
+### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-76
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-76](#sys-76--the-environment-of-a-record)
+
+The 12 open cell branches come from before SYS-76. A run from such a branch gives a record with no environment, and rule 1 of `docs/S7.md` asks each record to name its environment. Thus each branch takes main before its dispatch.
+
+The slots of CI limit S3. One dispatch starts at each slot notice, thus 12 dispatches wait for 12 notices. A stacked branch holds the cells of the branches under it, thus one dispatch can run them all.
+
+| Dispatch | Branch | Items | Cells |
+| --- | --- | --- | --- |
+| 1 | `cells/etcd-lease` | SYS-67, SYS-74, SYS-73 | 27 |
+| 2 | `cells/port-range` | SYS-63, SYS-64 | 14 |
+| 3 | `cells/pool-bouncer` | SYS-65 | 10 |
+| 4 | `cells/rabbit-confirms` | SYS-62, SYS-60 | 11 |
+| 5 | `cells/kafka-acks` | SYS-71 | 5 |
+| 6 | `cells/mongo-rollback` | SYS-59 | 3 |
+| 7 | `cells/pg-commit` | SYS-61 | 5 |
+
+The work:
+
+- Merge main into a stack when its dispatch is next. Main moves, and each push of a branch costs a full set of checks.
+- Merge, and do not rebase. The commit of each prediction stays in the history.
+- The resolution of each prediction states that the head moved past its commit.
+- SYS-66 follows SYS-63, and SYS-72 follows SYS-71. Each needs a dispatch of its own.
+
+This item is done when each of the 7 dispatches gives a record that names its environment.
 
 ## The items of S7
 
@@ -2812,12 +2856,12 @@ The format of a ladder has budgets on a median, a rate and a worst value. The ti
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-04
+- **Links:** [#352](https://github.com/mark1russell7/systems/pull/352), [the results](https://mark1russell7.github.io/systems/results/recovery/)
 
 A drill stops the store during writes, removes its disk, and recovers from a real backup. A set difference counts each lost write. A timer runs from the fault to the first accepted write. The records go to `ladderVerdict` as `worst` budgets. A restore that nobody tested is not a backup.
 
@@ -2826,9 +2870,18 @@ A drill stops the store during writes, removes its disk, and recovers from a rea
 | `RD.1` | One node, with an oplog | Stop, disk lost | A dump with its oplog | Each write after the end of the dump is lost, and no other |
 | `RD.100.failover` | Three members, `w: "majority"` | Stop the primary, disk lost | An election | No accepted write is lost |
 | `RD.100.restore` | Three members, `w: "majority"` | Stop each member, each disk lost | A dump and the slices of the oplog | Each write after the last slice is lost, and no other |
+| `RD.1000.failover` | Three members, `w: "majority"`, 1 GB | Stop the primary, disk lost | An election | No accepted write is lost |
+| `RD.1000.restore` | Three members, `w: "majority"`, 1 GB | Stop each member, each disk lost | A dump and the slices of the oplog | The same law, and the time at a large size |
 | `RD.control` | One node, with an oplog | Stop after the dump, with no later write | A dump with its oplog | No write is lost |
 
 **What is real and what is not.** A drill cannot wait 24 h. The loss of a backup depends on the age of the newest backup at the fault. So a drill shortens the interval to 60 s, and to 10 s for a slice of the oplog. A test reads the schedule of each rung, and the record adds that interval to the measured excess. Each tenant holds 1 MB of generated data, thus the size of a restore follows the rung. The drill starts the recovery at the fault. Thus the measured RTO has no detection time and no human time, and the record says so in `synthetic`.
+
+**Two gaps that a first small restore showed.** A first restore of a small store gave one reading: a service came back approximately 31 s after the fault, on a loaded machine. That time gives a direction only. It showed two gaps:
+
+- **The size.** The time of a restore at a large size is unknown. Thus the rung of 1,000 tenants holds 1 GB, and the three rungs give the time against three sizes. Its budgets are the RPO of 60 s and the RTO of 900 s of SYS-93.
+- **The secrets.** A dump does not hold the secrets of a service. A store alone has no such secret, thus these drills cannot find this gap. The drill of SYS-93 restores the secrets from their own backup, and a request through the service reads a stored credential before the timer stops. That drill is a condition of the rung of SYS-93.
+
+A hash of the data comes before the service starts, because a service writes. The drills of this item hash only the tenants, and the writes of the second client go to another collection.
 
 **The prediction.**
 
@@ -2843,6 +2896,54 @@ A drill stops the store during writes, removes its disk, and recovers from a rea
 | `RD.control` loses no write | 0.95 |
 | Each measured RTO is at most a tenth of the budget of its rung | 0.90 |
 | The naive claim: an acknowledged write survives a restore | 0.03 |
+
+**The result.** The run [41896338150](https://github.com/mark1russell7/systems/actions/runs/41896338150) at commit 779d47e, on kernel 7.0.0 with HZ 1000, gave a verdict on the first dispatch. Each of the 6 drills holds in 4 of 4 counted runs, with no void run and no fix to a drill.
+
+| Rung | RPO budget | Worst RPO | RTO budget | Worst RTO | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Rung 1 | 24 h | 23 h | 4 h | 2.65 s | holds |
+| Rung 100 | 5 min | 4 min | 30 min | 16.42 s | holds |
+| Rung 1000 | 60 s | 44.8 s | 15 min | 22.95 s | holds |
+
+- **The law.** Each restore lost real writes: 1,155 to 1,157 in `RD.1`, and 173 to 191 in the two restores of slices. In each run, the lost writes are equal to the writes after the last backup, and no restore left a hole. Each hash of the data after a restore is equal to the hash before the fault.
+- **The copies.** Each election lost no accepted write, at 100 MB and at 1 GB. `RD.control` lost no write.
+- **The miss.** The prediction of the large size gave a ratio of 3 to 12 between the restores of 1 GB and 100 MB. The ratio is 1.44. The naive claim of a ratio under 1.5 was right. A fixed part is large at these sizes: three members start, the set starts again, and an election follows. The records do not split that part. Two sizes give no law for a far larger store.
+- **The first small restore.** Its 31 s and the 15 s to 22 s of these drills are on different machines, under different load. They agree only on the order of size.
+- **The lock.** Each rung is locked. Each Sunday, the workflow Cells repeats the drills, and a step fails that run when a rung is not within its budgets. A check of this step with a budget of 44 s failed with exit code 1 on these records. A test on each pull request reads the last record against the budgets. The first scheduled run is on 2026-11-08, and it has not run yet.
+
+### SYS-97 · A third size of a restore
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-94
+- **Started:**
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+The restores of 100 MB and 1 GB differ by a ratio of 1.44, and the forecast was 3 to 12. A fixed part is large at these sizes. Two sizes give no law for a far larger store. Thus no claim on the page goes past 1 GB until a third size has a record.
+
+The work:
+
+- Read the free disk and the memory of a runner in the job of the drill. Three members, a dump and the slices take approximately 4 times the size of the data.
+- Try 8 GB. If a runner cannot hold it, the drill ends as void and names the reason, and the page states the limit.
+- Write the prediction first. It gives the ratio to the 1 GB restore, and the fixed part from a fit of the three sizes.
+- Add the drill to the Sunday cells, if the job stays within its time limit.
+
+### SYS-98 · Recovery rungs 10 and 10,000
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-94, SYS-97, SYS-85
+- **Started:**
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, thus they have different dates.
+
+- **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
+- **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+
+A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
 ## Decisions for Mark
 
