@@ -300,6 +300,16 @@ Kind run 41654669260 gave 2 counted runs and 2 void runs. In each void run, the 
 
 <KindResults template="T07" group="zone" copy="sys-53" client:visible />
 
+### A lost owner of a topic (Pulsar)
+
+One broker of Pulsar owns the bundle of a topic through its session in ZooKeeper. The crash stops that broker. Two producers send to the topic each 200 ms, and each tries again on its backoff.
+
+The law gives a change of the owner 20.5 s to 33 s after the crash. Each producer is back at the first try of its backoff after that change. The return is a race between two timers of 30 s: the session of the broker and the mandatory stop of the producer. If the bundle moves first, the producer is back at approximately 30 s. If the stop try comes first, the next delay is approximately 50 s, and the producer is back at approximately 80 s. A difference of less than 1 s adds 50 s.
+
+The cell held in each of its 4 counted runs in kind run 41870080724: 2 runs at approximately 30 s and 2 runs at approximately 80 s. In 3 of the 4 runs, the crashed broker took the bundle back after its restart.
+
+<KindResults template="T07" group="broker" copy="sys-56" client:visible />
+
 ## Where the data comes from
 
 Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its clusters. It also has each run with the lines of the clients, of the watcher and of the agent of each node.

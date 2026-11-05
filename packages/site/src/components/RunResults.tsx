@@ -27,6 +27,7 @@ import s2Zone from "../data/s2-zone-2026-10-27.json";
 import s2Slow from "../data/s2-slow-2026-10-27.json";
 import s2Gate from "../data/s2-gate-2026-10-27.json";
 import s2Metallb from "../data/s2-metallb-2026-11-03.json";
+import s2Pulsar from "../data/s2-pulsar-2026-11-04.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s2Cilium from "../data/s2-cilium-2026-10-27.json";
 import s2PartitionCilium from "../data/s2-partition-cilium-2026-10-27.json";
@@ -466,11 +467,11 @@ const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells
 /**
  * A later copy of the kind page has cells that a page shows apart. SYS-48 judges the stall cells of C again
  * with the backlog band, thus its cells have the IDs of the earlier cells. SYS-53 is the MetalLB cell, whose
- * group is the lost zone, but whose section is its own.
+ * group is the lost zone, but whose section is its own. SYS-56 is the Pulsar cell, with a section of its own.
  */
-const LATER_COPIES = { "sys-48": s2StallBand.cells, "sys-53": s2Metallb.cells } as const;
+const LATER_COPIES = { "sys-48": s2StallBand.cells, "sys-53": s2Metallb.cells, "sys-56": s2Pulsar.cells } as const;
 export type LaterCopy = keyof typeof LATER_COPIES;
-type KindCell = (typeof KIND_CELLS)[number] | (typeof s2StallBand.cells)[number] | (typeof s2Metallb.cells)[number];
+type KindCell = (typeof KIND_CELLS)[number] | (typeof s2StallBand.cells)[number] | (typeof s2Metallb.cells)[number] | (typeof s2Pulsar.cells)[number];
 
 /** A dispatch is one workflow run of a pooled cell, with the reason of each of its void runs. */
 interface Dispatch {
