@@ -143,7 +143,7 @@ export function RecoveryRungs(): ReactElement {
         </table>
       </div>
       <figcaption>
-        The worst value of 4 counted runs of each drill, and the part of the budget that it uses. The RPO is the backup schedule of the rung plus the excess that the drill measured, thus the schedule gives most of it. Each rung has{" "}
+        The worst value of 4 counted runs of each drill, and the part of the budget that it uses. The RPO is the backup schedule of the rung plus the excess that the drill measured, thus the schedule gives most of it. Each RTO starts at the fault, thus it has no detection time and no human time. Each rung has{" "}
         <a href={`https://github.com/mark1russell7/systems/actions/runs/${RECOVERY_RUN}`}>the same CI run</a> as its record.
       </figcaption>
     </figure>
@@ -320,7 +320,7 @@ export function RecoveryTimes(): ReactElement {
         </span>
       </div>
       {view === "chart" ? <Chart rows={rows} /> : <Table rows={rows} />}
-      <figcaption>The time from the fault to the first accepted write. A dot is a counted run, and the dashed line and the number at the right are the median. The time has no detection and no human.</figcaption>
+      <figcaption>The time from the fault to the first accepted write. A dot is a counted run, and the dashed line and the number at the right are the median. The time has no detection time and no human time.</figcaption>
     </figure>
   );
 }
