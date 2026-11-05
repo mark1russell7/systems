@@ -2992,6 +2992,30 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
+### SYS-100 · A flip test for each gate check of a measure
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:**
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:**
+
+A gate check of a measure can pass for a reason that is not the measure. A flip test shows that the check can fail. In one job, the test passes on the copy with no fault. Then one source fault of a stated size turns the same test red on its named assertion. A crash does not count as a red.
+
+The workflow `flip.yml` holds these faults. It starts at a change to a fault site or to a test of a bound, and at a weekly run.
+
+| Check | Bound | Fault | Result of the fault | Bound of the test |
+| --- | --- | --- | --- | --- |
+| Redis OK | request timeout | 2 x the timeout | 4 s | 3.5 s |
+| Redis OK | close at the shutdown | 3 x the bound of the QUIT | 3 s | 2.05 s |
+| HTTP OK | idle close | 2 s late | 4 s | 2.3 s |
+| HTTP OK | drain of a worker | 1 s past the deadline | deadline + 1 s | deadline + 100 ms |
+| Process OK | timeout of a command | 40 x the timeout | 40 s | 30 s |
+| Process OK | timeout of a status read | 20 x the timeout | 20 s | 15 s |
+
+The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
+
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions

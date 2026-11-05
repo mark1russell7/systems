@@ -1,0 +1,205 @@
+# The flip tests of the gates that read a measure (SYS-100). For each bound, the same job operates the
+# test on the copy with no fault and on a copy with one source fault of a stated size. The fault must
+# turn that test red on its bound. A bound with no flip can pass for a reason that is not the measure.
+#
+# The check itself stays in redis.yml, http.yml and process.yml. This workflow is not a required check.
+# A pull request that changes a fault site or a test of a bound starts it, and a weekly run shows a rot.
+# Start it with: gh workflow run flip.yml -R mark1russell7/systems
+name: Flip
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
+    shell: bash
+
+concurrency:
+  group: flip-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
+        with:
+          paths: |
+            .github/workflows/flip.yml
+            .github/actions/flip/**
+            packages/service/src/redis/client.ts
+            packages/service/src/redis/redis-it.test.ts
+            packages/service/src/redis/f6-redis.test.ts
+            packages/service/src/http/transport.ts
+            packages/service/src/http/http-it.test.ts
+            packages/service/src/worker.ts
+            packages/service/src/worker.test.ts
+            packages/service/src/conformance.ts
+            packages/service/src/host/node.ts
+            packages/service/src/host-it.test.ts
+
+  redis:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Redis OK, the request timeout (2 x the timeout, 4 s against 3.5 s)
+        uses: ./.github/actions/flip
+        env:
+          REDIS_IT: "1"
+        with:
+          what: Redis OK, the request timeout, 2 x the timeout
+          file: packages/service/src/redis/client.ts
+          from: "commandTimeout: requestTimeout,"
+          to: "commandTimeout: requestTimeout * 2,"
+          test: pnpm --filter @mark1russell7/service exec vitest run src/redis/redis-it.test.ts -t "a command that the server holds fails at the request timeout"
+          fails: expected [0-9.]+ to be less than 3500
+
+  f6:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-24.04
+    # the harness's image builds its Rust injector on the runner
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Redis OK, the close at the shutdown (3 x the bound of the QUIT, 3 s against 2.05 s)
+        uses: ./.github/actions/flip
+        env:
+          REDIS_F6: "1"
+        with:
+          what: Redis OK, the close at the shutdown, 3 x the bound of the QUIT
+          file: packages/service/src/redis/client.ts
+          from: "withinBound(clock, ms(knobs.close_bound), c.quit())"
+          to: "withinBound(clock, 3 * ms(knobs.close_bound), c.quit())"
+          # the probe image installs the tarballs of quantity, algebra and service, which pack build/
+          prepare: pnpm build
+          test: pnpm --filter @mark1russell7/service exec vitest run src/redis/f6-redis.test.ts -t "a shutdown in the middle of a black hole"
+          fails: expected [0-9.]+ to be less than or equal to 2050
+
+  http:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The fault goes in at the start. The test reads the timer and the hint before the start, thus only the real close moves
+      - name: HTTP OK, the idle close (2 s late, 4 s against 2.3 s)
+        uses: ./.github/actions/flip
+        env:
+          HTTP_IT: "1"
+        with:
+          what: HTTP OK, the idle close, 2 s late
+          file: packages/service/src/http/transport.ts
+          from: "async start(_signal, given) {"
+          to: "async start(_signal, given) { Object.assign(server, { keepAliveTimeoutBuffer: 3000 });"
+          test: pnpm --filter @mark1russell7/service exec vitest run src/http/http-it.test.ts -t "closes an idle connection at server_idle_close"
+          fails: expected [0-9.]+ to be less than or equal to 2300
+      - name: HTTP OK, the drain of a worker (1 s past its deadline)
+        uses: ./.github/actions/flip
+        env:
+          WORKERS_IT: "1"
+        with:
+          what: HTTP OK, the drain of a worker, 1 s past its deadline
+          file: packages/service/src/worker.ts
+          from: "return running.drain(deadline, signal);"
+          to: "return running.drain(deadline + 1000, signal);"
+          test: pnpm --filter @mark1russell7/service exec vitest run src/worker.test.ts -t "on the real clock.*drain holds to its deadline"
+          fails: drain did not end in [0-9]+ ms
+
+  process:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    name: process (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Process OK, the timeout of a command (40 x the timeout, 40 s against 30 s)
+        uses: ./.github/actions/flip
+        env:
+          HOST_IT: "1"
+        with:
+          what: Process OK, the timeout of a command, 40 x the timeout
+          file: packages/service/src/host/node.ts
+          from: "timeout: options.timeout ?? 0, windowsHide"
+          to: "timeout: (options.timeout ?? 0) * 40, windowsHide"
+          test: pnpm --filter @mark1russell7/service exec vitest run src/host-it.test.ts -t "124 at the timeout"
+          fails: expected [0-9.]+ to be less than 30000
+      - name: Process OK, the timeout of a status read (20 x the timeout, 20 s against 15 s)
+        uses: ./.github/actions/flip
+        env:
+          HOST_IT: "1"
+        with:
+          what: Process OK, the timeout of a status read, 20 x the timeout
+          file: packages/service/src/host/node.ts
+          from: "AbortSignal.timeout(timeout), redirect"
+          to: "AbortSignal.timeout(timeout * 20), redirect"
+          test: pnpm --filter @mark1russell7/service exec vitest run src/host-it.test.ts -t "null at a closed port and at a timeout"
+          fails: expected [0-9.]+ to be less than 15000
+
+  flip-ok:
+    name: Flip OK
+    if: always()
+    needs: [changes, redis, f6, http, process]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@f48f29fe5b00772951e0910a90fbbe312343338c # main
+        with:
+          needs: ${{ toJSON(needs) }}
