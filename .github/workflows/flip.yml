@@ -1,6 +1,7 @@
-# The flip tests of the gates that read a measure (SYS-100). For each bound, the same job operates the
-# test on the copy with no fault and on a copy with one source fault of a stated size. The fault must
+# The flip tests of the gates that read a measure (SYS-100). For each bound here, the same job operates
+# the test on the copy with no fault and on a copy with one source fault of a stated size. The fault must
 # turn that test red on its bound. A bound with no flip can pass for a reason that is not the measure.
+# Not each bound of these checks is here: docs/ROADMAP.md names the bounds with no flip.
 #
 # The check itself stays in redis.yml, http.yml and process.yml. This workflow is not a required check.
 # A pull request that changes a fault site or a test of a bound starts it, and a weekly run shows a rot.

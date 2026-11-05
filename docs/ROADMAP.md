@@ -3016,6 +3016,8 @@ The workflow `flip.yml` holds these faults. It starts at a change to a fault sit
 
 The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
 
+These bounds have no flip: the lower bound of the request timeout, the rows of the F6 matrix other than the shutdown, the other time bounds of `http-it.test.ts`, and the cases of the conformance kit other than the drain to its deadline.
+
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
