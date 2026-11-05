@@ -82,7 +82,7 @@ describe("the cut of a Kafka cell", () => {
   });
 
   it("refuses a cut with no law", () => {
-    expect(() => kafkaCutOf(KAFKA, members, part("10.0.0.4"), "k1", "client")).toThrow(/no cut client/);
+    expect(() => kafkaCutOf(KAFKA, members, part("10.0.0.4"), "k1", "clients")).toThrow(/no cut clients/);
   });
 });
 
