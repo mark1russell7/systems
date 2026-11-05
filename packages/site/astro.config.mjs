@@ -2,14 +2,25 @@
 import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import { fileURLToPath } from "node:url";
+import { writeSiteKpi } from "./src/lib/kpi.ts";
 
 const base = process.env.SITE_BASE ?? "/systems";
+
+/** This integration adds `kpi.json` to the built site. A fault in the data stops the build. */
+const kpi = {
+  name: "site-kpi",
+  hooks: {
+    "astro:build:done": ({ dir }) => writeSiteKpi(fileURLToPath(dir), fileURLToPath(new URL("../../", import.meta.url))),
+  },
+};
 
 export default defineConfig({
   site: "https://mark1russell7.github.io",
   base,
   trailingSlash: "ignore",
   integrations: [
+    kpi,
     starlight({
       title: "systems",
       description: "How long until a client knows that its peer is gone, computed and then measured.",

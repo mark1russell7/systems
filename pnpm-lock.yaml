@@ -499,6 +499,9 @@ importers:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
+      '@mark1russell7/site-pages':
+        specifier: ^0.2.13
+        version: 0.2.13
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
@@ -1167,6 +1170,11 @@ packages:
   '@mark1russell7/rigor-statistics@0.1.9':
     resolution: {integrity: sha512-J/hfIHyiVlguOZVfA6/B7L3ReAQAW1xUbT50e4KVxMCOHJfTVC1HIj0u+Qd+Vrn+J1JoDhAF/DJ7Elfpe12gjw==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/site-pages@0.2.13':
+    resolution: {integrity: sha512-vLoQZ3YrnTgTKqIr6JosAxS9OVAe1m0kejNq0fFVlxQVgnA9lvoqqwBDP4O77DSbkRRqcJfu9eUwIDz+cgni9w==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
     resolution: {gitHosted: true, integrity: sha512-HDxumpWNUeciZKaXbAGFPyoOTrt0trj7L3/koNvWnTN/vEuF0gYzqVJdsgfTQ9bE/DhSxfNMRxtrh4KYnbbimA==, tarball: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7}
@@ -4005,6 +4013,10 @@ snapshots:
   '@mark1russell7/rigor-statistics@0.1.9':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.5
+
+  '@mark1russell7/site-pages@0.2.13':
+    dependencies:
+      '@mark1russell7/rigor-statistics': 0.1.9
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
     dependencies:
