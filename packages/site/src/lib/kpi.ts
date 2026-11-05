@@ -62,5 +62,5 @@ export function roadmapMeasures(roadmap: string): readonly RoadmapMeasure[] {
 export function writeSiteKpi(out: string, repoDir: string): void {
   const commit = process.env["GITHUB_SHA"] ?? execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).trim();
   const measures = roadmapMeasures(readFileSync(join(repoDir, "docs/ROADMAP.md"), "utf8"));
-  writeKpi(out, { project: KPI_PROJECT, at: commitTime(process.env, repoDir), commit, measures });
+  writeKpi(out, { project: KPI_PROJECT, at: commitTime(process.env, repoDir), commit, measures: [...measures] });
 }

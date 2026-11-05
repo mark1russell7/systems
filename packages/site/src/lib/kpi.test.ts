@@ -4,7 +4,7 @@ import { roadmapMeasures } from "./kpi.ts";
 
 /** This function gives a roadmap with an entry for each item that a measure reads. */
 function roadmap(status: (id: string) => string, rungs = ""): string {
-  const ids = [...Array.from({ length: 18 }, (_, index) => `SYS-${58 + index}`), "SYS-81", "SYS-90", "SYS-94"];
+  const ids = [...Array.from({ length: 18 }, (_, index) => `SYS-${58 + index}`), "SYS-77", "SYS-81", "SYS-90", "SYS-94"];
   return ids.map((id) => `### ${id} · A title\n\n- **Status:** ${status(id)}\n${id === "SYS-94" ? rungs : ""}\n`).join("");
 }
 
