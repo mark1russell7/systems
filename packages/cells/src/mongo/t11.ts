@@ -307,7 +307,7 @@ export const T11_MONGO_WAITING: readonly Waiting[] = [
   { plan: "T11.defaults.15", trigger: "cpu-throttle", why: "the harness has no CPU limit of a member" },
   { plan: "T11.defaults.16", trigger: "event:rolling-upgrade", why: "the harness has no restart of a member on a second image" },
   { plan: "T11.defaults.17", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
-  { plan: "T11.defaults.18", trigger: "event:restore-without-volume", why: "the harness has no restart of a member without its volume" },
+  { plan: "T11.defaults.18", trigger: "event:restore-without-volume", why: "the recovery drills of SYS-94 (RD.) remove the volume of a member after a real backup: their cell states the reading of this event" },
   ...REASONS.flatMap(([from, to, why]) =>
     Array.from({ length: to - from + 1 }, (_, at) => from + at).map((n): Waiting => ({ plan: `T11.border-off.${n}`, trigger: "border", why })),
   ),

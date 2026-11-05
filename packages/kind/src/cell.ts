@@ -353,6 +353,10 @@ export interface ResetReuse<A = Quantity> {
  *   the socket of its last request before the fault. With `window`, the failed requests also start in that window.
  *   With `of: "tunnel"`, the HBONE connection of the ztunnel of each client ends in the band instead.
  *   With `answer`, the close of the peer in that band is an answer to the close of the client.
+ * - `reconnects`: a producer of a message broker gets its connection again after its broker stops
+ *   (`ReconnectsPrediction`). The lookups name another broker in the band `flip`. Each producer is back
+ *   at the first try of its backoff after that change, and its sends fail only until then.
+ *   With `owner: "either"`, the stopped broker can start again and take the topic back.
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction<A = Quantity> =
@@ -392,7 +396,49 @@ export type Prediction<A = Quantity> =
       readonly answer?: Band<A> | undefined;
       readonly why: string;
     }
+  | ReconnectsPrediction<A>
   | { readonly kind: "measured"; readonly why: string };
+
+/**
+ * A backoff is the delays of a client between its tries to connect again. The first delay is
+ * `initial`, and each next delay is two times the last, up to `max`. One delay is shorter: the try
+ * after it comes `mandatoryStop` after the first delay. The client takes a random share of up to
+ * `jitter` from each delay. A failed try takes up to `attempt`.
+ */
+export interface Backoff<A = Quantity> {
+  readonly initial: A;
+  readonly max: A;
+  readonly mandatoryStop: A;
+  readonly jitter: number;
+  readonly attempt: A;
+}
+
+/**
+ * A reconnects prediction is the return of the producers of a broker after the stop of the broker
+ * that owns their topic (SYS-56). Each band is from the fault.
+ */
+export interface ReconnectsPrediction<A = Quantity> {
+  readonly kind: "reconnects";
+  /** This band is the first lookup that names another broker as the owner of the topic. */
+  readonly flip: Band<A>;
+  /**
+   * This value says which broker owns the topic after the change. With `other`, the default, a lookup
+   * names another broker. With `either`, the stopped broker can start again and take the topic back.
+   * Then the lookups name one broker before and after the change, and only `flip` bounds the tries.
+   */
+  readonly owner?: "other" | "either" | undefined;
+  /** This time is the most from the change of the owner to the first lookup that names it. */
+  readonly probe: A;
+  /** This band is the first delay of each producer before its first try. */
+  readonly disconnect: Band<A>;
+  /** This backoff is the delays of each producer between its tries. */
+  readonly backoff: Backoff<A>;
+  /** This band is from the try that succeeds to the producer on the new owner. */
+  readonly setup: Band<A>;
+  /** These outcomes are the only failures of a send. */
+  readonly outcomes: readonly string[];
+  readonly why: string;
+}
 
 /** A prediction of no failure: no request fails in the run, or none with an outcome of `outcomes`. */
 export interface NonePrediction {
@@ -551,6 +597,8 @@ export interface KindRun {
   readonly target: Replica | null;
   /** This node is the node whose kube-proxy paused, or null. */
   readonly paused: string | null;
+  /** This pod is the broker that owned the topic at the fault, for a cell with a broker (`KindCell.pulsar`). */
+  readonly broker?: string | undefined;
   readonly replicas: readonly Replica[];
   readonly void: string | null;
   readonly lines: ReadonlyArray<{ readonly ev: string; readonly t: number; readonly [field: string]: unknown }>;
@@ -590,6 +638,19 @@ export interface KindCell<A = Quantity> {
    * each request to the VIP. Without it, the cell has no VIP.
    */
   readonly vip?: VipSettings | undefined;
+  /**
+   * This broker is Apache Pulsar (SYS-56). With it, the cluster has Pulsar, and `clients` more pods
+   * send messages to one topic and look up its owner. Without it, the cell has no broker.
+   */
+  readonly pulsar?: PulsarSettings | undefined;
+}
+
+/** These are the settings of the broker of a cell (`KindCell.pulsar`). */
+export interface PulsarSettings {
+  /** This count is the pods of the producers, one on each worker. */
+  readonly clients: number;
+  /** This time is between two lookups of the owner of the topic by each client pod. */
+  readonly probe: Quantity;
 }
 
 /** This name is an announcer of a VIP: kube-vip in ARP mode (SYS-51), or MetalLB in L2 mode (SYS-53). */
@@ -601,4 +662,17 @@ export interface VipSettings {
   readonly clients: number;
   /** This name is the announcer of the VIP (`announcer.ts`). Without it, the announcer is kube-vip. */
   readonly announcer?: VipAnnouncerName | undefined;
+  /**
+   * These are the settings of memberlist for the speakers of MetalLB (SYS-57). With them, the install
+   * writes the config file of memberlist, with each other value of `DefaultLANConfig`. Without them,
+   * the install writes no file.
+   */
+  readonly memberlist?: MemberlistSettings | undefined;
+}
+
+/** A cell can change these settings of memberlist: the probe interval, the wait for an ack, and the multiplier of the suspicion timeout. */
+export interface MemberlistSettings {
+  readonly probeInterval: Quantity;
+  readonly probeTimeout: Quantity;
+  readonly suspicionMult: number;
 }
