@@ -2804,10 +2804,12 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
 | One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
-| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| One gap | 46 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain.
 
 The closed-loop families:
 
