@@ -5,7 +5,7 @@ import { cloudOf, commitProblems, manifestProblems, measure, noiseOf, pairingsOf
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
-import { catalogs } from "./all.ts";
+import { catalogs, selectedOf } from "./all.ts";
 import { codeHere } from "./commit.ts";
 import { environmentOf } from "./environments.ts";
 import type { BenchTime, PairCell, PairSlot } from "./limiter.ts";
@@ -87,7 +87,7 @@ const pairTimes = (slot: PairSlot, times: readonly BenchTime[]): void => {
   const lines = pairedLines(first, { slot, times });
   appendFileSync(`${OUT}/paired.ndjson`, lines.map((line) => `${JSON.stringify(line)}\n`).join(""));
 };
-const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
+const selected = selectedOf(source, ONLY, shard, of);
 
 /** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */
 const environment = environmentOf(cloudOf(readHost().vendor));

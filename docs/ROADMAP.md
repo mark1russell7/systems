@@ -1678,6 +1678,9 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - In CI, a close frame came up to 1.017 ms after its `drop` line. Two such drops failed their cells, with their times in the band. These are the runs 39390222333 and 39903020657 of the client repository.
 - The high bound of each drop by a heartbeat in WS and WST adds the same 1.5 ms. The other bands do not change.
 - The CI run 40123441278 holds 27 cells of WS and WST and measures 6. Its largest gap from a `drop` line to its act was 0.726 ms.
+- Correction, 2026-11-05 (SYS-99): green scheduled nights of this repository held three failing cells of this kind, and the check could not see them. The run 39094984746 held one, and the run 39897216424 held two.
+- Two of these three read 1.005364 s and 1.004087 s, outside the band of that day, [0.997, 1.004] s. They hold only through the wider high bound, [0.997, 1.0055] s. These nights came before the wider bound, so they do not test it. The third has its times in the band, and the pairing window alone fixes it.
+- The run 39903020657 of the client repository reads again with its times in the band of its day, and the head reads `holds`. The first try of the run 39390222333 failed and has no records left, so that half of the line above cannot be read again.
 
 ### WS-070 · The WebSocket cells on @procedures/client 0.7.0
 
@@ -1689,6 +1692,8 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/mark1russell7/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
+
+Correction, 2026-11-05 (SYS-99): this sentence is true of the run 39073727730. The next scheduled night, 39094984746, held one failing cell, and its check could not see that cell. Refer to the correction in the section WS.
 
 ### TOX · The toxics of Toxiproxy
 
@@ -2989,6 +2994,30 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 
 - **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
 - **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+
+### SYS-99 · The scheduled cells can fail on a failing cell
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** WS, SYS-94
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+
+The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
+
+- **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
+- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
+- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+- **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
+- **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
+
+This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
+
+- Seven of these nights came before the wider bound of the section WS, thus they do not test it. Two failing cells of these nights hold only through that bound.
+- The 12 nights after the run 40123441278 have no failing cell as written. Zero of 12 bound the rate of false blocks only near 22 percent, at 95 percent confidence.
+- A slowdown of 1.5 x from the slowest run turns 22 of the 27 timed cells red. The 5 other cells read 0.04 ms to 0.12 ms against a band top near 5 ms. Their slack is approximately 5 ms, thus they hide no large slowdown.
 
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
