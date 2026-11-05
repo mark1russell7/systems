@@ -7,7 +7,7 @@ import type { Manifest } from "./lab.ts";
 import { harnessImage, mongoClientImage } from "./image.ts";
 import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
 import { drillSpan } from "./recovery.ts";
-import { substrateOn } from "./substrate.ts";
+import { substrateHere } from "./substrate.ts";
 
 /**
  * This module is the lab of a replica set: a replicated group with no external authority, whose
@@ -483,7 +483,7 @@ export const openReplicaSetLab = async (set: ReplicaSet, backups = false): Promi
           architecture: await output(holder, ["uname", "-m"]),
           hz: /^CONFIG_HZ=(\d+)$/m.exec(config)?.[1] ?? null,
           boot_id: await output(holder, ["cat", "/proc/sys/kernel/random/boot_id"]),
-          substrate: substrateOn("E1"),
+          substrate: substrateHere("E1"),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: { image: set.image, id: list[0]!.id, settings: list[0]!.settings, sysctls: {} },
           harness: {
