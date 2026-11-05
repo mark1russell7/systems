@@ -9,7 +9,7 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
-import { kafkaOnce, openKafkaLab } from "./kafka.ts";
+import { kafkaOnce, kafkaPauseOnce, openKafkaLab } from "./kafka.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
 
@@ -793,14 +793,15 @@ const inKafkaEnvironment = async (
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
   const lab = await openKafkaLab(cell.kafka!);
+  const once = cell.kafka!.pause === undefined ? kafkaOnce : kafkaPauseOnce;
   try {
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
-    const warmed = await kafkaOnce(lab, cell, environment, -1);
+    const warmed = await once(lab, cell, environment, -1);
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = await kafkaOnce(lab, cell, environment, index);
+      const run = await once(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

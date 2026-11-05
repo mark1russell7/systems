@@ -2340,14 +2340,16 @@ Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-71
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
 - **Links:**
 
-The group rebalances at `session.timeout.ms`, and a stale commit fails with a fenced error (T13).
+The source at the tag 4.3.2 changes the first sentence of this item. In the consumer protocol the session is a setting of the broker, `group.consumer.session.timeout.ms`, not of the client. A commit after the fence gets UNKNOWN_MEMBER_ID, not a fenced error, and the client throws `CommitFailedException`.
+
+The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation. The cells have not run.
 
 ### SYS-73 · etcd: a lock holder past its lease
 

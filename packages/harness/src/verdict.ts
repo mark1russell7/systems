@@ -463,6 +463,17 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
+    // a paused consumer: its law is each reading of each run, and a run outside it is a failure
+    if (prediction.pause !== undefined) {
+      const off = new Set(outside.map((each) => each.run)).size;
+      return {
+        ...empty,
+        decision: off === 0 ? "holds" : "fails",
+        band: null,
+        outside,
+        why: `${counted.length - off} of ${counted.length} runs hold the law of the paused consumer. ${prediction.why}`,
+      };
+    }
     // a calibration of a proxy: its time in each direction, over all the requests of the runs
     const crossed = counted.flatMap((run) => (run.crossings === undefined ? [] : [run.crossings]));
     if (crossed.length > 0) {
