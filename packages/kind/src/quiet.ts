@@ -23,10 +23,15 @@ export interface QuietGate {
 }
 
 /**
- * These are the terms of the lab. The flat share is the share of SYS-42. The margin and the floor
- * come from the calibration of SYS-95, and they are not numbers until it runs: a test fails on that.
+ * These are the terms of the lab. The flat share is the share of SYS-42. The other terms come from the
+ * calibration of SYS-95, over the 9 records of SYS-57, with no foreign container in them:
+ *
+ * - The margin is the 99th percentile of the fall from the settled median of an environment: 4.88
+ *   points of 93 samples, rounded up.
+ * - The floor is the lowest settled median of an environment, 48 %, minus the margin.
+ * - The time to settle holds the slowest environment. Its conntrack table was at its plateau at 105 s.
  */
-export const QUIET_GATE: QuietGate = { flat: 0.6, margin: Number.NaN, floor: Number.NaN, settle: 120_000, samples: 3 };
+export const QUIET_GATE: QuietGate = { flat: 0.6, margin: 0.05, floor: 0.43, settle: 120_000, samples: 3 };
 
 /**
  * This function gives the idle share that a run needs. With no baseline, it is the floor: a warm-up
