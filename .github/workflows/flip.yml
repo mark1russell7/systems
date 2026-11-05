@@ -267,7 +267,7 @@ jobs:
           what: HTTP OK, the close of an idle connection at the stop, at the first sweep
           file: packages/service/src/http/transport.ts
           from: "if (!throughDrain()) closeListener();"
-          to: "if (!throughDrain()) closeListener(); const closeIdleConnections = (): void => {};"
+          to: "if (!throughDrain()) clock.after(sweepEvery, closeListener); const closeIdleConnections = (): void => {};"
           test: pnpm --filter @mark1russell7/service exec vitest run src/http/http-it.test.ts -t "refuses new connections, closes idle connections at once"
           fails: |
             expected [0-9.]+ to be less than 150
