@@ -124,6 +124,8 @@ export interface Verdict {
   readonly median: Quantity | null;
   /** This interval is the order-statistic interval of the median at 95 %, or the whole range for fewer than six runs. */
   readonly medianInterval: Interval | null;
+  /** This time is the slowest reply of a cell that measures a distribution. A closed loop hides the sends in a stall, thus a quantile is a lower bound, and this maximum is not. */
+  readonly slowest?: Quantity;
   /** This record is the sum of what reordering did in each counted run of a measurement-only cell. */
   readonly reordering?: Reordering;
   /** This record is the time of the proxy of a calibration cell, in each direction. */
@@ -538,6 +540,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
       band: null,
       outside: [],
       median: samples.length === 0 ? null : s(middle(samples)),
+      ...(samples.length === 0 ? {} : { slowest: s(samples.at(-1)!) }),
       ...(reordering === undefined ? {} : { reordering }),
       why,
     };
