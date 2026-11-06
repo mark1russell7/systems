@@ -53,9 +53,9 @@ export interface Subjects {
  * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 come next,
- * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30), of a pool
- * at its limit, of the accept queue, of the port range and of the routed fabric come next. The retry
- * count of T14 (O08) follows. The recovery drills are last.
+ * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) and of a pool
+ * at its limit come next. The cells of the accept queue, of the port range and of the routed fabric
+ * are after them. The retry count of T14 (O08) follows. The recovery drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
