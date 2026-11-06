@@ -14,6 +14,7 @@ export type {
   Client,
   ClientImage,
   Cluster,
+  Kafka,
   ClusterClientAt,
   ClusterStage,
   DriverBand,
@@ -188,6 +189,7 @@ export {
   nodeHttpImage,
   pgClientImage,
   hikariClientImage,
+  kafkaClientImage,
   planOf,
   programOf,
   routerImage,
@@ -283,5 +285,20 @@ export {
 } from "./etcd.ts";
 export type { HistoryLine, HistoryMeasured, OpCounts } from "./history.ts";
 export { historyOf, historyText, measureEtcd, verdictOfText } from "./history.ts";
+export type { KafkaLab, PartitionView } from "./kafka.ts";
+export {
+  KAFKA_TAIL_MS,
+  bootstrapOf,
+  brokerEnv,
+  controllerEnv,
+  envOf,
+  kafkaArgs,
+  kafkaCutOf,
+  kafkaOnce,
+  kafkaViewOf,
+  nodeIdOf,
+  openKafkaLab,
+  topicOf,
+} from "./kafka.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";

@@ -122,6 +122,18 @@ These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its
 - **The verdict.** The band of extra copies judges the cell (`GroupPrediction.duplicates`). A read that found no write is a finding, so a control cannot pass with an empty read.
 - **The source.** Each term cites ioredis 6.0.0 or Valkey 9.1.2 by file and line, in the comment of the module.
 
+## The cells of acks
+
+These cells are SYS-71 of S3 (`src/kafka/acks.ts`). They use a group of three brokers and one controller of Apache Kafka 4.3.2. The client is the producer of kafka-clients 4.3.2 on Java. The question: which writes does Kafka lose at each `acks`?
+
+- **The fault.** A cut stops the traffic between the leader and the other brokers and the controller. The client keeps its route to the leader.
+- **The law of `acks=1`.** The lost writes are the writes that the old leader answers from the cut to its step-down (`lostOf`). The leader has no timer that stops it, thus the count reads the hold. The bound is the end of the log of the new leader at its election, not the high watermark.
+- **The law of `acks=all`.** No write is lost. A cut leader cannot shrink its in-sync replicas, thus its high watermark stays and each write waits. At the step-down each write gets NOT_LEADER_OR_FOLLOWER, and the producer sends it to the new leader. A minimum of 1 gives the same count as a minimum of 2.
+- **The cells.** `K1.acks.1` and `K1.acks.2` read the band of lost writes at holds of 20 s and 40 s. `K1.acks.3` is a hold of 3 s, with no fence and no loss. `K1.acks.4` and `K1.acks.5` are `acks=all`, at a minimum of 2 and of 1, with 4 writers.
+- **The verdict.** The bands of lost writes and of extra copies judge the cell (`GroupPrediction.lost`, `GroupPrediction.duplicates`). The leader after the run tells if a failover came.
+- **The omitted cell.** Idempotence off has no cell. A copy needs a batch that a follower got and whose answer the client did not get. That window is one round trip at the cut. Thus the true band is 0 to W, and a cell with that band cannot fail.
+- **The source.** Each term cites Apache Kafka 4.3.2 by file and line, in the document `kafka-partition` and in the comment of the module.
+
 ## The HTTP catalog
 
 The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
@@ -199,6 +211,24 @@ These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the 
 - **The borders.** A Retry-After of 30 s holds O30 (O30.1), and one of 60 s sends each retry 30 s early (O30.2). Five retries of 30 s are the window of the agent. Thus 150 s holds O29 at its border (O29.1), and 151 s ends with `UND_ERR_REQ_RETRY` (O29.2).
 - **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
 - **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
+
+## The cells of a pool at its limit
+
+These cells are SYS-65, in Q19 of S3 (`src/pg/pool.ts`). The question: what does a pool do at its limit? `Q19.pool.1` to `Q19.pool.5` measure HikariCP alone, and `Q19.pool.6` to `Q19.pool.10` put PgBouncer behind it.
+
+- **The client.** HikariCP 7.1.0 over pgjdbc 42.7.13 has a fixed size. The client sends a burst: one query each 50 ms, each on its own thread. Each query is `SELECT pg_sleep(H)`.
+- **The law.** The bag gives each returned connection to the oldest wait, through a fair `SynchronousQueue`. Thus a query at place `k` of a pool of `P` gets its reply after `⌊k / P⌋ + 1` holds, plus `k mod P` gaps.
+- **The timeout.** One `connectionTimeout` bounds a borrow. At its end, the borrow fails with `SQLTransientConnectionException`, and the query leaves the queue. The next query gets the next connection.
+- **The bands.** Each query is a later band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+- **The times.** The low end is the exact hold. The high end adds one round trip and one step of the JVM to each hold. It adds the same once more, for the check of a connection that was idle for 500 ms.
+- **The margin.** `turnsOf` stops with an error if a query comes within 0.25 s of the timeout of its borrow. Such a query is not a prediction.
+- **The lines.** A `pool` line gives the deepest queue. The `burst` line gives the counts of replies and failures, and it shows each connection idle again. A `pool` line above the size of the pool is a finding.
+- **PgBouncer.** PgBouncer 1.26.1 in transaction pooling has the queue, and HikariCP has one connection for each query. The law is the same, with `default_pool_size` as `P`. A `pool` line shows each connection of HikariCP in use and no query waiting in HikariCP.
+- **The first use of a server.** PgBouncer opens a server only for a waiting client, and a server idle for 30 s has a check. `SERVER_LOGIN_MS` (30 ms, an assumption) bounds either one, on each server but the first.
+- **The timeout of the queue.** `query_wait_timeout` counts from the first packet of a query, and the janitor tests it once in each pass. Thus a late query ends up to 343 ms after its timeout, with FATAL 08P01. HikariCP evicts the connection, so the end of that burst does not name the size of the pool.
+- **The check of a borrow.** HikariCP checks a connection that was idle for more than 500 ms. The check is an empty query, and it joins the queue of PgBouncer. `Q19.pool.6` to `Q19.pool.9` set the window to one hour with an option of the lab, thus they measure the queue alone.
+- **Two waits in place of one.** `Q19.pool.10` keeps the check at its default, with the burst of `Q19.pool.9`. A query waits in its check and then in its query, and `query_wait_timeout` counts each part from zero. Thus no query fails. Those queries come back approximately one round trip apart, so their order is not a prediction. Each one has the band of the whole set, and the end of the burst has the sharp band.
+- **Left out.** A failure after a check has no cell. A failed check is hidden: the borrow closes the connection and tries the next one. `turnsOf` stops with an error on such a spec.
 
 ## The cells of the accept queue
 
@@ -531,7 +561,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 
 ## The runner
 
-`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12`, `CAL`, `WS` or `WST`. The name of a MongoDB cell starts with its cell of the plan, for example `T11.defaults.9`, and it names `mongodb-node-7.7`.
+`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12`, `CAL`, `WS` or `WST`. The name of a MongoDB cell starts with its cell of the plan, for example `T11.defaults.9`, and it names `mongodb-node-7.7`. The name of a Kafka cell starts with `K1`.
 
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.

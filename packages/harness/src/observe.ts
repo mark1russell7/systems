@@ -474,7 +474,7 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 const measureSocket = (cell: Cell, run: Run): Measured => {
   // a cluster of etcd: the checker judges the history, and no socket
   if (cell.etcd !== undefined) return measureEtcd(cell, run);
-  if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined) {
+  if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined || cell.kafka !== undefined) {
     const read = measureGroup(cell, run);
     return {
       environment: run.environment,
