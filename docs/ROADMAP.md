@@ -2787,14 +2787,22 @@ The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each ce
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
-- **Started:**
+- **Started:** 2026-11-06
 - **Shipped:**
 - **Links:**
 
 A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. SYS-73 and D-CHECKER are done, thus nothing blocks this item.
+
+The work has three steps, each in its own PR:
+
+1. The checker: a program in Go over Porcupine v1.3.1, with a register for each key. It reads a history of JSON lines and prints one verdict line. CI runs its format check, its vet and its tests. It imports nothing from this repository, thus it can move whole to `mark1russell7/rigor`.
+2. A cluster of etcd in the harness: three members, each in its own network namespace, as the replica set of MongoDB. Thus the partition faults of a group act on one member, and its clients stay connected to it.
+3. The cells: clients write and read through each member, with linearizable reads and with serializable reads, before, during and after the partition of one member. The target gives its history to the checker, and the prediction comes before the first dispatch.
+
+The cluster is a group of the harness and not three members in one container. In one namespace the members share the loopback device, thus a cut of one member needs a rule for each process. The groups of the harness already have the faults, and each part has its own namespace.
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
 
