@@ -1678,6 +1678,9 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - In CI, a close frame came up to 1.017 ms after its `drop` line. Two such drops failed their cells, with their times in the band. These are the runs 39390222333 and 39903020657 of the client repository.
 - The high bound of each drop by a heartbeat in WS and WST adds the same 1.5 ms. The other bands do not change.
 - The CI run 40123441278 holds 27 cells of WS and WST and measures 6. Its largest gap from a `drop` line to its act was 0.726 ms.
+- Correction, 2026-11-05 (SYS-99): green scheduled nights of this repository held three failing cells of this kind, and the check could not see them. The run 39094984746 held one, and the run 39897216424 held two.
+- Two of these three read 1.005364 s and 1.004087 s, outside the band of that day, [0.997, 1.004] s. They hold only through the wider high bound, [0.997, 1.0055] s. These nights came before the wider bound, so they do not test it. The third has its times in the band, and the pairing window alone fixes it.
+- The run 39903020657 of the client repository reads again with its times in the band of its day, and the head reads `holds`. The first try of the run 39390222333 failed and has no records left, so that half of the line above cannot be read again.
 
 ### WS-070 · The WebSocket cells on @procedures/client 0.7.0
 
@@ -1689,6 +1692,8 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/mark1russell7/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
+
+Correction, 2026-11-05 (SYS-99): this sentence is true of the run 39073727730. The next scheduled night, 39094984746, held one failing cell, and its check could not see that cell. Refer to the correction in the section WS.
 
 ### TOX · The toxics of Toxiproxy
 
@@ -2489,14 +2494,24 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-05
+- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/mark1russell7/systems/actions/runs/42101390324), [#325](https://github.com/mark1russell7/systems/pull/325)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
+
+The design: one target process holds a chain of listeners on loopback, each with a real retry client. Each listener writes a line for each arrival, with the trail of the tries above it. Thus each term is visible, and a loaded runner cannot move a count.
+
+The law: the target sees the product of the tries of each caller. A `RetryAgent` of undici 8.12.2 gives 6 tries (`lib/handler/retry-handler.js:125-133`, `:348`, `:380`). A method or a status out of its lists gives 1 (`:332`, `:338`). The `Transport` of Go 1.27.2 gives 1 for a status, and 2 for a GET that meets a close on a reused connection (`src/net/http/transport.go:727-737`, `:858`, `:877-881`). `retry` of service 0.6.5 gives its `tries` (`packages/service/src/retrier.ts:121-125`).
+
+The prediction: nine cells, `T14.count.1` to `T14.count.9`, with 6, 36, 36, 108, 6, 1, 6, 36 and 2 arrivals at the target. Each listener has its own exact count.
+
+The rule: each cell has 4 counted runs. A void or infrastructure run gets one more dispatch, and the first counted runs count. A count that differs in a counted run fails its cell. The counts do not change after a result.
+
+The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cell has 4 counted runs and no void run. Each run gave the exact count at each listener, thus the law holds at each hop.
 
 ### SYS-68 · An open-loop load schedule
 
@@ -2557,23 +2572,29 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 - **Status:** in progress
 - **Area:** catalogs
-- **Depends on:** SYS-58
+- **Depends on:** SYS-74
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42103497696), [#329](https://github.com/mark1russell7/systems/pull/329)
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
+
+The cells `EL.1` to `EL.11` test the band of the end, the floor of the TTL, a promotion and the live control. They also test the stale write, the fence and a waiter that lost its lease. The target has its own etcd, thus this item does not need the Valkey work of SYS-58. It needs only the order after SYS-74, because it copies the frame of that target.
+
+The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each cell has 4 counted runs and no void run, and each run gave the exact counts of its law. The item merges after SYS-74, because its branch is on the branch of SYS-74.
 
 ### SYS-74 · etcd: a watcher after a compaction
 
 - **Status:** in progress
 - **Area:** catalogs
-- **Depends on:** SYS-73
+- **Depends on:** SYS-67
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/mark1russell7/systems/pull/327)
 
-A resume from a compacted revision fails with a compaction error (DV-44).
+A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
+
+The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error.
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
@@ -2809,10 +2830,12 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
 | One request | 322 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
-| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
 
 The closed-loop families:
 
@@ -3004,6 +3027,30 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 
 - **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
 - **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+
+### SYS-99 · The scheduled cells can fail on a failing cell
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** WS, SYS-94
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+
+The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
+
+- **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
+- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
+- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+- **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
+- **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
+
+This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
+
+- Seven of these nights came before the wider bound of the section WS, thus they do not test it. Two failing cells of these nights hold only through that bound.
+- The 12 nights after the run 40123441278 have no failing cell as written. Zero of 12 bound the rate of false blocks only near 22 percent, at 95 percent confidence.
+- A slowdown of 1.5 x from the slowest run turns 22 of the 27 timed cells red. The 5 other cells read 0.04 ms to 0.12 ms against a band top near 5 ms. Their slack is approximately 5 ms, thus they hide no large slowdown.
 
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 

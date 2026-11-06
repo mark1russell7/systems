@@ -16,7 +16,7 @@ describe("the pacing of each cell", () => {
   it("keeps the counts of the table of SYS-91", () => {
     expect(pacingCounts(ALL, KIND_CATALOG), TABLE).toEqual({
       "one request": 322,
-      "one gap": 37,
+      "one gap": 64,
       "closed loop, reply times": 11,
       "closed loop, first write": 48,
       timer: 222,
