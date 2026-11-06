@@ -11,6 +11,7 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
+import { kafkaOnce, openKafkaLab } from "./kafka.ts";
 import { openStandby, pairOnce } from "./standby.ts";
 import { readCpu, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
@@ -715,6 +716,7 @@ const inEnvironment = async (
   if (cell.group !== undefined) return inGroupEnvironment(cell, environment, count, say);
   if (cell.replicaSet !== undefined) return inReplicaSetEnvironment(cell, environment, count, say);
   if (cell.cluster !== undefined) return inClusterEnvironment(cell, environment, count, say);
+  if (cell.kafka !== undefined) return inKafkaEnvironment(cell, environment, count, say);
   if (cell.pair !== undefined) return inPairEnvironment(cell, environment, count, say);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
@@ -859,6 +861,34 @@ const inClusterEnvironment = async (
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
       const run = await clusterOnce(lab, cell, environment, index);
+      runs.push(run);
+      say(line(cell, run, measure(cell, run)));
+    }
+    return { manifest, runs, warmup };
+  } finally {
+    await lab.close();
+  }
+};
+
+/**
+ * This function does the part of the runs of a Kafka cell in one environment. The warm-up is a whole
+ * run with its fault, as for a cluster. Each run makes its own topic.
+ */
+const inKafkaEnvironment = async (
+  cell: Cell,
+  environment: number,
+  count: number,
+  say: (line: string) => void,
+): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  const lab = await openKafkaLab(cell.kafka!);
+  try {
+    const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
+    const warmed = await kafkaOnce(lab, cell, environment, -1);
+    const warmup: Run = { ...warmed, warmup: true };
+    say(line(cell, warmup, measure(cell, warmup)));
+    const runs: Run[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const run = await kafkaOnce(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

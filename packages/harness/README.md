@@ -141,6 +141,14 @@ Each run starts from a queue that converged (`rabbitmq-queues quorum_status`): o
 
 A step-down (`step-down`) moves the leadership to the first follower (`rabbitmq-queues transfer_leadership`). A drain (`drain`) puts the node in maintenance mode (`rabbitmq-upgrade drain`), and the run revives the node after it. Each of them starts an Erlang VM for the tools first. Thus its stamp is a line of the log, and not the command. For a step-down it is the NOTICE of the old leader that gives the leadership away (`GIVES_AWAY`). A drain stops the member of the leader, thus its stamp is the first follower that sees its monitor of the leader go down (`MONITOR_DOWN`).
 
+A Kafka group (`Kafka`, `Cell.kafka`) is a group of Kafka brokers in KRaft mode with one controller, as data. The group replaces the target of its cell.
+
+- **The nodes.** Each node is a container from one stock image, pinned by digest, in its own network namespace. The image starts by its own command, and each setting comes from the environment (`envOf`). The controller is a node of its own. A fault does not go on it.
+- **The topic.** Each run makes one new topic with one partition, a replica on each broker, and `Kafka.minInsync`. The first broker in the replica list leads. A run starts when each broker is not fenced and the partition is whole.
+- **The sidecars.** Each node has an injector sidecar in its network namespace and in its process namespace. A `partition` with `cuts: "group"` cuts the leader from the other brokers and the controller. The client keeps its route to the leader.
+- **The client.** The client of each run is the producer of kafka-clients, in `image/kafka/ClientKafka.java`. Each of `Kafka.writers` threads has one write at a time. Each entry of `Cell.driverOptions` is a producer setting.
+- **The record.** A Kafka group has no log lines in its record, and `Run.group.sentinels` holds the controller. After the run the partition converges again, and the admin (`image/kafka/AdminKafka.java`) reads the whole partition to its high watermark. The leader after the run tells if a failover came.
+
 ## The clients and the agents
 
 - **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines. Its image is a stock image by its name, or the source of the image of a subject (`ImageSource`).
@@ -214,6 +222,9 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - `client-amqp.mjs` opens one connection and one channel. Each operation is an RPC of the channel: the first declares a queue that the broker names, and each later one declares it passively (checkQueue). The queue is exclusive, because RabbitMQ 4.3 refuses a transient queue that is not.
   - The options of the cell (`Cell.driverOptions`) give `heartbeat` in seconds, the user and its password (guest at the defaults), and the socket options of amqplib.
   - It prints the lines of the pg client on the same clock. A `connection` line gives each event of the connection, and a `channel` line each event of the channel. The errno of a failure is the error of the connection when it has one.
+- **The Kafka client image** (`image/kafka`) is kafka-clients 4.3.2 on Java 21, on the base image of the HikariCP client. The digest of the image and the hash of each jar (`jars.sha256`) pin them. A Kafka lab starts it (`Cell.kafka`), not a probe of a driver.
+  - `ClientKafka.java` writes the sequence numbers to partition 0 of the topic of the run, with the settings of the cell. It prints `sent`, `ack` and `fail` lines on the monotonic clock.
+  - `AdminKafka.java` makes a topic, gives a view of the partition, and reads the whole partition.
 - **The gRPC client image** (`image/grpc`) is grpc-js 1.14.6 on Node 24.21.0. The digest of the image and an npm lockfile pin them. The probe is `{ driver: { name: "grpc", hold } }`.
   - `client-grpc.mjs` opens one channel with no TLS. Each operation is a unary call of `grpc.health.v1.Health/Check`, with the messages encoded in the script. The first call makes the connection.
   - The options of the cell (`Cell.driverOptions`) are the channel options of grpc-js (`grpc.*`), and `deadline_ms` for the deadline of each call. With `hold`, the call in flight asks the server of the harness to hold its reply that long.
