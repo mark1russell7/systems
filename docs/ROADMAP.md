@@ -2469,14 +2469,36 @@ The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cel
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332)
 
-A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at most the commands in flight at each close, from the source of ioredis 6.0.0.
+A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
+
+- A resend adds a copy only if the first copy was applied and it survives. Thus the extra copies are W × c, with W commands in flight at each of c closes from `ready`, if the first copies survive.
+- No fault of T12 gives a copy at the defaults. The close must come from a timer of the client, while the server holds the first copy unread.
+- `socketTimeout` is that timer. Its doc comment says that the client rejects the running commands, and the close path keeps them for the resend.
+
+[S3.md](S3.md#the-law-of-sys-62-the-resend) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Hold | Client | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- |
+| `T12.resend.1` | 29 s | `socketTimeout` 1 s, W 1 | 1 | 0.938 s to 1.072 s |
+| `T12.resend.2` | 29 s | `socketTimeout` 1 s, W 4 | 4 | 0.938 s to 1.072 s |
+| `T12.resend.3` | 40 s, a failover | `socketTimeout` 1 s, W 4 | 0 | 0.938 s to 1.072 s |
+| `T12.resend.4` | 29 s | No timer, W 4 | 0, first write 29 s to 29.012 s | None |
+| `T12.resend.5` | 29 s | `socketTimeout` 1 s, resend off, `commandTimeout` 40 s, W 4 | 0 | 0.938 s to 1.072 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The band of extra copies judges each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s.
+
+**The result.** [Run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `T12.resend.1` makes 1 extra copy and `T12.resend.2` makes 4, the writes in flight at the close. The other three cells make 0. `socketTimeout` rejects no running command. With the resend off, 4 writes time out that the server kept. The prediction hit 12 of 14 claims, Brier 0.0983. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-62) has each run.
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
@@ -2862,7 +2884,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 56 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 61 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
@@ -2876,6 +2898,7 @@ The closed-loop families:
 | E3.F1 | 1 | Reply times |
 | T10.commit | 5 | First write |
 | T11.writes | 3 | First write |
+| T12.resend | 5 | First write |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |

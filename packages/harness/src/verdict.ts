@@ -188,6 +188,8 @@ export interface StageVerdict {
  * - `unknown` counts the writes whose outcome the client did not see, and how many the group kept.
  * - `errors` are the errors on the way: the runs that met each, and the median of its first time.
  * - `lags` is the spread of the delays of the stamps, for a calibration.
+ * - `duplicates` counts the extra copies that the group holds, in each run. A cell with no band of
+ *   copies has no such count.
  */
 export interface GroupVerdict {
   readonly stages: readonly StageVerdict[];
@@ -197,6 +199,7 @@ export interface GroupVerdict {
   readonly unknown: { readonly total: number; readonly held: number };
   readonly errors: ReadonlyArray<{ readonly name: string; readonly runs: number; readonly first: Quantity }>;
   readonly lags?: Spread | null;
+  readonly duplicates?: { readonly runs: number; readonly total: number; readonly median: number | null; readonly max: number | null };
 }
 
 const s = (value: number): Quantity => quantity(Math.round(value * 1e6) / 1e6, "s");
@@ -420,6 +423,10 @@ export const groupVerdictOf = (prediction: Prediction, counted: readonly Measure
   for (const run of counted)
     for (const error of run.group?.errors ?? []) errors.set(error.name, [...(errors.get(error.name) ?? []), valueIn(error.first, "s")]);
   const lags = counted.flatMap((run) => run.group?.lags ?? []);
+  const copyCounts = counted.flatMap((run) => {
+    const copies = run.group?.writes.duplicates;
+    return copies === null || copies === undefined ? [] : [copies.length];
+  });
   return {
     stages,
     medians,
@@ -433,6 +440,16 @@ export const groupVerdictOf = (prediction: Prediction, counted: readonly Measure
     unknown: { total: unknown.length, held: unknown.filter((each) => each.held === true).length },
     errors: [...errors].map(([error, firsts]) => ({ name: error, runs: firsts.length, first: s(middle(firsts.sort((a, b) => a - b))) })),
     ...(lags.length === 0 ? {} : { lags: spreadOf(lags) }),
+    ...(prediction.group?.duplicates === undefined
+      ? {}
+      : {
+          duplicates: {
+            runs: copyCounts.length,
+            total: copyCounts.reduce((sum, n) => sum + n, 0),
+            median: medianCount(copyCounts),
+            max: copyCounts.length === 0 ? null : Math.max(...copyCounts),
+          },
+        }),
   };
 };
 
@@ -492,17 +509,22 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
           why: `${counted.length - outside.length} of ${counted.length} runs gave the exact counts (${exact}); ${outcomes}; ${timed}. ${prediction.why}`,
         };
       }
-      // a band of lost writes judges the cell: the time stays a measurement, and each finding of a run counts
+      // a band of lost writes or of extra copies judges the cell: the time stays a measurement, and each finding of a run counts
       const lost = prediction.group?.lost;
-      if (lost !== undefined) {
+      const copies = prediction.group?.duplicates;
+      if (lost !== undefined || copies !== undefined) {
         const off = new Set(outside.map((each) => each.run)).size;
+        const bands = [
+          ...(lost === undefined ? [] : [`lost writes [${lost.low}, ${lost.high}]`]),
+          ...(copies === undefined ? [] : [`extra copies [${copies.low}, ${copies.high}]`]),
+        ];
         return {
           ...empty,
           decision: off === 0 ? "holds" : "fails",
           band: null,
           outside,
           median: times.length === 0 ? null : s(middle(times)),
-          why: `${counted.length - off} of ${counted.length} runs inside the band of lost writes [${lost.low}, ${lost.high}]; ${outcomes}; ${timed}. ${prediction.why}`,
+          why: `${counted.length - off} of ${counted.length} runs inside the band of ${bands.join(" and the band of ")}; ${outcomes}; ${timed}. ${prediction.why}`,
         };
       }
       // the end has no band, but each wait of the reconnect has one: a wait outside it is a finding of its run
