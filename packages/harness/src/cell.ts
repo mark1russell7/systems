@@ -534,6 +534,8 @@ export interface StageBand {
  * - `lost` is the band of the count of accepted writes that the group did not keep, in each run. A
  *   count outside it is a finding. A measurement-only cell with this band gets its decision from
  *   the findings of its runs, thus the law of the count judges the cell.
+ * - `duplicates` is the band of the count of extra copies that the group holds, in each run. It
+ *   judges a cell as `lost` does. Only a list can show a copy, thus the cell needs `op: "rpush"`.
  */
 export interface GroupPrediction {
   readonly lands: "new" | "same";
@@ -543,6 +545,7 @@ export interface GroupPrediction {
   readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
   readonly quiet?: readonly Stage[];
   readonly lost?: { readonly low: number; readonly high: number };
+  readonly duplicates?: { readonly low: number; readonly high: number };
   /** These are the bands of the commits of a pair (`Cell.pair`), each by its set. A set with no band is a measurement. */
   readonly outcomes?: Outcomes;
 }
@@ -793,7 +796,73 @@ export type Prediction =
        * finding of its run. A measurement-only cell with a reference and counts gets a decision from them.
        */
       readonly counts?: readonly LineCount[];
+      /**
+       * This record is the law of an accept queue: its limit, its count, its counters, and what each
+       * connection sees. A value outside it is a finding of its run.
+       */
+      readonly queue?: QueuePrediction;
     };
+
+/** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
+export interface QueueBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/** This prediction tells how one connection of a queue cell ends. */
+export interface QueueEnd {
+  readonly errno: string;
+  /** This name is the line of the connection that the time of the end counts from. */
+  readonly from: "dial" | "connected" | "sent";
+  readonly within: QueueBand;
+  /**
+   * This band is the time from the last retransmission of the connection to its end. With an
+   * `expiry`, the retransmission before the last comes before the expiry, and the last comes after it.
+   */
+  readonly retransmitted?: QueueBand;
+}
+
+/** This prediction tells what one connection of a queue cell sees, by its name in the client. */
+export interface QueueConnection {
+  readonly name: string;
+  /** This choice says if the connect of the connection succeeds. */
+  readonly connects: boolean;
+  /** These bands are the waits of the SYN: the first from the dial, each next one from the SYN before it. */
+  readonly syns?: readonly QueueBand[];
+  /** These bands are the waits of each SYN-ACK sent again: the first from the dial, each next one from the SYN-ACK before it. */
+  readonly synAcks?: readonly QueueBand[];
+  /** This prediction tells how the connection ends. It is null for a connection that lives to the end of the run. */
+  readonly ends: QueueEnd | null;
+  /** This count is the segments that the peer has not acknowledged at the end of the run. */
+  readonly unacked?: number;
+}
+
+/**
+ * This prediction is the law of an accept queue. It reads the lines of the queue client and of the
+ * queue target. The counters count from the `opened` line of the run.
+ */
+export interface QueuePrediction {
+  /** This count is the limit of the queue: `sk_max_ack_backlog`, as TCP_INFO of the listener gives it. */
+  readonly max: number;
+  /** This count is the most connections that the queue holds at one time. */
+  readonly held: number;
+  /** This count is the connections that connect, and the kernel of the client tells this. */
+  readonly connected: number;
+  /** These counts are the bounds of `ListenOverflows`. */
+  readonly overflows: { readonly low: number; readonly high: number };
+  /** This count is `EmbryonicRsts`: the handshakes that the target reset. */
+  readonly resets: number;
+  /** These predictions are the connections with a law of their own. */
+  readonly connections: readonly QueueConnection[];
+  /** A run where this connection did not take the last place in the queue is void: its burst did not land in its sequence. */
+  readonly admitted?: string;
+  /** This record tells when the kernel of the target forgets the handshakes: the `TCPTimeouts` of their last firings, from the first dial of the burst. */
+  readonly expiry?: { readonly timeouts: number; readonly within: QueueBand };
+  /** This record tells when the count of the queue gets back to `count`, from the first dial of the burst, after an accept. */
+  readonly rise?: { readonly count: number; readonly within: QueueBand };
+  /** This count is the connections that the target accepted in the run. */
+  readonly drained?: number;
+}
 
 /** A target is the server that a cell connects to: a stock image. */
 export interface Target {
@@ -1042,7 +1111,9 @@ export interface Cell {
     /**
      * This driver replaces the TCP client of the harness, with its own options. The driver then
      * ignores `keepalive` and `userTimeout`:
-     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket.
+     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket. In a group cell,
+     *   its write is `SET w:<n> <n>`, or `RPUSH w <n>` with `op: "rpush"`, thus a list keeps each
+     *   copy. `window` is the count of writers, each with one write in flight: 1 at the default.
      * - the MongoDB driver on Node, against the replica set `set`. Its operation is a write, or
      *   the read of a long document (`read-long`). `Cell.driverOptions` are its options.
      * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
@@ -1066,7 +1137,7 @@ export interface Cell {
      * that long. With `op: "watch"`, the operation in flight is a stream of Health/Watch, which stays open.
      */
     readonly driver?:
-      | { readonly name: "ioredis"; readonly keepAlive: Quantity }
+      | { readonly name: "ioredis"; readonly keepAlive: Quantity; readonly op?: "set" | "rpush"; readonly window?: number }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
       | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string; readonly burst?: { readonly count: number; readonly gap: Quantity } }
@@ -1368,7 +1439,7 @@ export interface RunGroup {
   readonly timeline: readonly SentinelEvent[];
   /** This name is the member that was the primary when the group converged after the run, or null when it did not converge. */
   readonly after: string | null;
-  /** These are the sequence numbers that the group holds after the run, when it converged, or null. */
+  /** These are the sequence numbers that the group holds after the run, one entry for each copy, when it converged, or null. */
   readonly holds: readonly number[] | null;
   /** These are the sequence numbers that the old primary of a pair holds after its crash recovery. */
   readonly oldHolds?: readonly number[];

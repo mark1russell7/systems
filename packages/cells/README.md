@@ -110,6 +110,18 @@ The cells of SYS-59 (`src/mongo/writes.ts`) ask the same question for MongoDB. T
 - **The verdict.** The first write on a new primary has two modes, thus the band of lost writes judges each cell.
 - **The source.** Each term cites MongoDB r9.0.4 by file and line, in the comment of the module.
 
+## The cells of the resend
+
+These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its defaults, with `RPUSH w <n>` as the write. The question: does the resend of ioredis at a reconnect duplicate a write?
+
+- **The history.** The list `w` keeps each copy, and `writesOf` gives one entry for each extra copy. A `SET` has no cell, because a key holds one copy by construction.
+- **The law.** The extra copies are W × c, with W commands in flight at each of c closes from `ready`, if the first copies survive (`copiesOf`).
+- **The close.** A fault of T12 gives no close while the server holds the first copy unread. Thus these cells set `socketTimeout`, and a freeze of the primary holds that copy in its kernel.
+- **The cells.** W 1 gives 1 copy and W 4 gives 4 copies (`T12.resend.1`, `T12.resend.2`). A failover gives 0, as the first copies die with the old primary (`T12.resend.3`).
+- **The controls.** No close gives 0 (`T12.resend.4`), and so does the resend off (`T12.resend.5`).
+- **The verdict.** The band of extra copies judges the cell (`GroupPrediction.duplicates`). A read that found no write is a finding, so a control cannot pass with an empty read.
+- **The source.** Each term cites ioredis 6.0.0 or Valkey 9.1.2 by file and line, in the comment of the module.
+
 ## The HTTP catalog
 
 The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
@@ -205,6 +217,20 @@ These cells are SYS-65, in Q19 of S3 (`src/pg/pool.ts`). The question: what does
 - **The check of a borrow.** HikariCP checks a connection that was idle for more than 500 ms. The check is an empty query, and it joins the queue of PgBouncer. `Q19.pool.6` to `Q19.pool.9` set the window to one hour with an option of the lab, thus they measure the queue alone.
 - **Two waits in place of one.** `Q19.pool.10` keeps the check at its default, with the burst of `Q19.pool.9`. A query waits in its check and then in its query, and `query_wait_timeout` counts each part from zero. Thus no query fails. Those queries come back approximately one round trip apart, so their order is not a prediction. Each one has the band of the whole set, and the end of the burst has the sharp band.
 - **Left out.** A failure after a check has no cell. A failed check is hidden: the borrow closes the connection and tries the next one. `turnsOf` stops with an error on such a spec.
+
+## The cells of the accept queue
+
+These cells (`src/accept-queue.ts`, SYS-63) give the law of an accept queue on the kernel of the runner. Each term of the law is visible in a record. The source of each term is in the comment of the catalog, at Linux v7.0.
+
+- **The two ends.** The native program `queue` is a listener that does not accept, and a client of many connections. The harness ships it in its image. Its target takes commands on its control port, thus each run starts with an empty queue.
+- **The count.** `AQ.1` to `AQ.3` connect one at a time, with no accept. The queue holds the limit plus one, and each later SYN is one overflow. `listen(2)` clamps the backlog to `somaxconn`, and a backlog of 0 still holds one connection.
+- **A SYN at a full queue.** `AQ.4` follows one connect through the 10 retransmissions of its SYN to ETIMEDOUT at 131 s. Each of the 11 SYNs is one overflow.
+- **A final ACK at a full queue.** A burst of 3 connections has its SYNs inside one round trip, thus each SYN finds a place in the queue. `in` takes the last place. A run where it does not is void.
+- **The client that the target forgot.** `AQ.5` keeps `busy` and `quiet` as `ESTABLISHED` sockets that the target does not have. The target forgets them at 63 s. The next segment of each one meets a reset.
+- **The reset of an overflow.** `AQ.6` sets `tcp_abort_on_overflow`. The client connects, and it gets ECONNRESET one round trip later. A SYN at the full queue stays silent.
+- **The recovery.** `AQ.7` accepts 3 connections at 2.5 s. The SYN-ACK at 3 s brings a challenge ACK, which is a new final ACK. No connection fails, and the target accepts all 8.
+- **The counters.** `ListenOverflows`, `EmbryonicRsts` and `TCPReqQFullDoCookies` are the changes in the run, from `/proc/net/netstat` of the namespace of the target. The law has no SYN cookie, thus one cookie is a finding.
+- **The time.** `TCPTimeouts` counts each firing of a SYN-ACK timer, thus its 12th change dates the expiry of two requests in `AQ.5`.
 
 ## The cells of the retry count
 
