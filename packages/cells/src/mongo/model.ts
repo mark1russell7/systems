@@ -436,6 +436,13 @@ export const stepDownOf = (repl: ReplTimes, driver: DriverTimes, rtt: number): S
   return plus(span(-gap, rtt), repl.liveness);
 };
 
+/**
+ * This function gives the latest time that two members hear each other after a cut from 0 to `hold`.
+ * A segment in the cut goes out again after one RTO, and each later gap is double the one before it.
+ * Thus the last try before the lift is at `hold` at most, and the try after it at 2 `hold` + RTO at most.
+ */
+export const contactAfterCut = (hold: number, rto: number): number => 2 * hold + rto;
+
 /** This function gives when the monitor writes off a primary that goes silent at 0. Its last reply came in the heartbeat before. */
 export const writeOffOf = (driver: DriverTimes, heartbeatFrequency: number): Span =>
   plus(span(-heartbeatFrequency, 0), driver.writeOff);
