@@ -490,9 +490,22 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
-      // a band of lost writes judges the cell: the time stays a measurement, and each finding of a run counts
-      const counts = prediction.group?.lost;
+      // exact counts judge the cell: the times have no band
+      const { counts } = prediction;
       if (counts !== undefined) {
+        const exact = counts.map((each) => `${each.what} ${each.count}`).join(", ");
+        return {
+          ...empty,
+          decision: outside.length === 0 ? "holds" : "fails",
+          band: null,
+          outside,
+          median: times.length === 0 ? null : s(middle(times)),
+          why: `${counted.length - outside.length} of ${counted.length} runs gave the exact counts (${exact}); ${outcomes}; ${timed}. ${prediction.why}`,
+        };
+      }
+      // a band of lost writes judges the cell: the time stays a measurement, and each finding of a run counts
+      const lost = prediction.group?.lost;
+      if (lost !== undefined) {
         const off = new Set(outside.map((each) => each.run)).size;
         return {
           ...empty,
@@ -500,7 +513,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
           band: null,
           outside,
           median: times.length === 0 ? null : s(middle(times)),
-          why: `${counted.length - off} of ${counted.length} runs inside the band of lost writes [${counts.low}, ${counts.high}]; ${outcomes}; ${timed}. ${prediction.why}`,
+          why: `${counted.length - off} of ${counted.length} runs inside the band of lost writes [${lost.low}, ${lost.high}]; ${outcomes}; ${timed}. ${prediction.why}`,
         };
       }
       // the end has no band, but each wait of the reconnect has one: a wait outside it is a finding of its run
