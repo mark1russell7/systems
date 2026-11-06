@@ -2435,12 +2435,12 @@ A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
+- **Shipped:** 2026-11-06
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue), [run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), [#326](https://github.com/mark1russell7/systems/pull/326)
 
 The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
 
@@ -2458,6 +2458,22 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 **The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `AQ.1` to `AQ.3` is exact. The timer bands use the document of Linux TCP and the timer wheel at the HZ of the runner.
 
 **The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
+
+**The result.** [Run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), the first dispatch, holds all 7 cells with 4 counted runs each and 0 void. The kernel is 7.0 at HZ 1000.
+
+| Cell | What each run measured |
+| --- | --- |
+| `AQ.1` | The queue holds 5 at a backlog of 4, with 2 overflows. |
+| `AQ.2` | `somaxconn` 8 clamps a backlog of 511, and the queue holds 9. |
+| `AQ.3` | A backlog of 0 holds 1. |
+| `AQ.4` | 10 SYN retransmissions, each wait inside its band, then `ETIMEDOUT` at 134.430 s to 134.716 s, with 11 overflows. |
+| `AQ.5` | The client connects, and it gets 5 SYN-ACKs. The target forgets the request at 63.802 s to 64.017 s. A send at 70 s meets a reset 20 ms later. |
+| `AQ.6` | With `tcp_abort_on_overflow` 1, a reset comes 20 ms after the connect. 2 resets, 3 overflows. |
+| `AQ.7` | A drain at 2.5 s recovers each connection, and the count gets back to 4 at 3.077 s to 3.099 s. 12 overflows. |
+
+- A client with data in flight learns at its first retransmission after the expiry, 114.208 s to 117.684 s after its dial.
+- No cell sends a SYN cookie.
+- The prediction hit 11 of its 12 claims, with a Brier score of 0.0869. The miss is the build claim: a fix from the checks of the PR came before the dispatch. It removed a parameter that the queue measure did not read.
 
 ### SYS-64 · The port range: its count and its error
 
