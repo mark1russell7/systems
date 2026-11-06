@@ -38,6 +38,9 @@ export type {
   MiddleboxExpectation,
   MiddleboxForm,
   Observer,
+  Outcomes,
+  Pair,
+  CountBand,
   Fault,
   PinnedImage,
   KernelRecord,
@@ -105,7 +108,7 @@ export type { QueueConnectionReading, QueueReading } from "./queue.ts";
 export { measureQueue } from "./queue.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
 export { fieldOf, matches, measureDriver, referenceOf, socketAt, socketsOf } from "./driver.ts";
-export type { ErrorOnTheWay, GroupMeasured, GroupReading, Writes } from "./timeline.ts";
+export type { ErrorOnTheWay, GroupMeasured, GroupReading, PairSets, Writes } from "./timeline.ts";
 export {
   CLUSTER_STAGES,
   MEMBER_MARKS,
@@ -137,8 +140,9 @@ export {
   spreadOf,
   verdictOf,
 } from "./verdict.ts";
-export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
+export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
+export { INSERT, RESTART, STANDBY_READY, cancelsOf, numbersOf, openStandby, pairArgs, pairOnce, standbyCommand } from "./standby.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
 export {
   DAEMONS,
