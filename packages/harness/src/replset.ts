@@ -5,7 +5,7 @@ import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.t
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import type { Manifest } from "./lab.ts";
 import { harnessImage, mongoClientImage } from "./image.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, containers, harnessRecord, lines, netnsOf, output, shippedClientRecord, withPid } from "./lab.ts";
 import { drillSpan } from "./recovery.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -490,8 +490,9 @@ export const openReplicaSetLab = async (set: ReplicaSet, backups = false): Promi
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "mongodb", image: mongo },
+          client: shippedClientRecord("mongodb", mongo),
           netns: { client: clientNetns, target: members[set.members[0]!]!.netns },
           sysctls,
           group: { members: list, sentinels: [], observer: { image: mongo } },

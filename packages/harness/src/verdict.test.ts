@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Prediction } from "./cell.ts";
+import { countFinding } from "./driver.ts";
 import type { Measured } from "./observe.ts";
 import { hzOf } from "./lab.ts";
 import { spread } from "./run.ts";
@@ -133,6 +134,28 @@ describe("a cell's verdict", () => {
     expect(held).toMatchObject({ decision: "holds", band: { low: s(1.613), high: s(1.709) } });
     // a reply back after the firing the stall should have ended before: the next, 1.6 s later
     expect(verdictOf(stall, back([1.664, 1.665, 3.329])).decision).toBe("fails");
+  });
+
+  it("judges a measurement-only cell by its exact counts, and it stays a measurement without them", () => {
+    const counts = [{ what: "the arrivals at the target", match: { ev: "arrive", where: { hop: 1 } }, count: 36 }];
+    const counted: Prediction = { detects: null, window: s(30), why: "the tries multiply", from: "request-sent", counts };
+    const held = verdictOf(counted, runs([1.2, 1.3]));
+    expect(held).toMatchObject({ decision: "holds", counted: 2, band: null, outside: [] });
+    expect(held.why).toMatch(/^2 of 2 runs gave the exact counts \(the arrivals at the target 36\)/);
+    const [first, second] = runs([1.2, 1.3]);
+    const finding = countFinding(counts, Array.from({ length: 35 }, (_, n) => ({ ev: "arrive", t: n, hop: 1 })));
+    expect(finding).toBe("the arrivals at the target: 35 lines, and the law gives 36");
+    const failed = verdictOf(counted, [first!, { ...second!, finding }]);
+    expect(failed).toMatchObject({ decision: "fails", outside: [{ run: "env 1 run 1", why: finding }] });
+    expect(failed.why).toMatch(/^1 of 2 runs gave/);
+    expect(verdictOf({ detects: null, window: s(30), why: "measured", from: "request-sent" }, runs([1.2])).decision).toBe("measured");
+  });
+
+  it("counts only the lines that match, and a count above the law is a finding too", () => {
+    const counts = [{ what: "the arrivals at hop 0", match: { ev: "arrive", where: { hop: 0 } }, count: 1 }];
+    const line = (ev: string, hop: number) => ({ ev, t: 0, hop });
+    expect(countFinding(counts, [line("arrive", 0), line("arrive", 1), line("gave-up", 0)])).toBeNull();
+    expect(countFinding(counts, [line("arrive", 0), line("arrive", 0)])).toBe("the arrivals at hop 0: 2 lines, and the law gives 1");
   });
 
   it("spreads a cell's runs over its environments as evenly as they go", () => {
