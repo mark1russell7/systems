@@ -19,6 +19,7 @@ import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
+import { LEASE_CELLS } from "./etcd-lease.ts";
 import { WATCH_CELLS } from "./etcd-watch.ts";
 import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
@@ -76,6 +77,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...FABRIC_CELLS,
     ...COUNT_CELLS,
     ...WATCH_CELLS,
+    ...LEASE_CELLS,
     ...RECOVERY_CELLS,
   ];
 };
