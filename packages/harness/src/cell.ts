@@ -543,6 +543,50 @@ export interface GroupPrediction {
   readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
   readonly quiet?: readonly Stage[];
   readonly lost?: { readonly low: number; readonly high: number };
+  /** These are the bands of the commits of a pair (`Cell.pair`), each by its set. A set with no band is a measurement. */
+  readonly outcomes?: Outcomes;
+}
+
+/** A count band is the least and the most of a count, both included. */
+export interface CountBand {
+  readonly low: number;
+  readonly high: number;
+}
+
+/**
+ * These are the bands of the sets of a pair. A commit with no reply is in one set, by the two final reads:
+ * - `kept`: the new primary holds it.
+ * - `stranded`: only the old primary holds it, after its crash recovery.
+ * - `absent`: no server holds it.
+ */
+export interface Outcomes {
+  /** This band is the count of the writes with no reply, of each set. */
+  readonly unknown?: CountBand;
+  readonly kept?: CountBand;
+  readonly stranded?: CountBand;
+  readonly absent?: CountBand;
+  /** This band is the count of the acknowledged writes that the old primary does not hold after its crash recovery. */
+  readonly missing?: CountBand;
+  /** This band is the count of the WARNING notices that the client reads. */
+  readonly warnings?: CountBand;
+}
+
+/**
+ * A pair is a PostgreSQL primary, the target of a cell, and one standby on its network. The topology
+ * of the cell stays in front of the primary. Nothing in the pair fails over by itself: the harness
+ * does each step, in the order of `pairOnce`.
+ */
+export interface Pair {
+  /** This flag names the standby in `synchronous_standby_names`. Without it, the standby is asynchronous. */
+  readonly synchronous: boolean;
+  /** This count is the writers of the client, each with its own connection of the pool. */
+  readonly writers: number;
+  /** This time is the pause of a writer after each reply. */
+  readonly interval: Quantity;
+  /** This place is what the black hole cuts the primary from: the standby, or each peer. */
+  readonly cuts: "standby" | "all";
+  /** This count is the cancels of the waits of the primary, spread across the hold. */
+  readonly cancels?: number;
 }
 
 /**
@@ -1099,6 +1143,8 @@ export interface Cell {
    * record, and the cluster does not read it.
    */
   readonly cluster?: Cluster;
+  /** This pair adds a standby to the target (`Pair`). The client is then node-postgres, in a stream of K writers. */
+  readonly pair?: Pair;
   /** This place is the node of the client in a cluster: the node of the leader, or of a follower. Without it, the node of a follower. */
   readonly clientAt?: ClusterClientAt;
   /**
@@ -1323,6 +1369,8 @@ export interface RunGroup {
   readonly after: string | null;
   /** These are the sequence numbers that the group holds after the run, when it converged, or null. */
   readonly holds: readonly number[] | null;
+  /** These are the sequence numbers that the old primary of a pair holds after its crash recovery. */
+  readonly oldHolds?: readonly number[];
   /** This record tells what a recovery drill did. */
   readonly drill?: RunDrill;
 }
