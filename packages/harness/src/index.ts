@@ -129,7 +129,7 @@ export {
   verdictOf,
 } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
-export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
 export {
   DAEMONS,
@@ -149,7 +149,10 @@ export {
 } from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
 export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
-export type { ImagePlan } from "./image.ts";
+export type { BuildRecord, ImagePlan } from "./image.ts";
+export type { ContextFile } from "./locks.ts";
+export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
+export { commitProblems, manifestProblems } from "./pins.ts";
 export {
   CLIENT_NAMES,
   PINNED,
@@ -157,9 +160,12 @@ export {
   SHIPPED_CLIENTS,
   SHIPPED_NAMES,
   amqpClientImage,
+  basesOf,
+  buildRecordOf,
   goHttpImage,
   grpcClientImage,
   harnessImage,
+  harnessVersion,
   imageOf,
   imageProblems,
   inContext,
@@ -171,6 +177,7 @@ export {
   planOf,
   programOf,
   routerImage,
+  shippedSource,
   subjectClient,
   subjectProblems,
   targetImageOf,

@@ -54,6 +54,11 @@ permissions:
 
 # The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch has a group
 # of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of other cells.
+# With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

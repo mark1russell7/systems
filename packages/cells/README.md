@@ -491,6 +491,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.
 - `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that the private repository lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
+- Each record has the code that operated (`code`, from `codeHere`). It is the commit of the checkout of this repository, and if a tracked file had changes. It is not the commit of a repository that calls the runner. Each line of `summary.ndjson` has its `pins`: each problem that stops the record from pinning its programs (`manifestProblems`, `commitProblems`). An empty list means that the record pins each program.
 
 `KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
 
