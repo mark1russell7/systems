@@ -49,6 +49,10 @@ export type {
   ProbeEvent,
   ProxyHop,
   ProxyTime,
+  QueueBand,
+  QueueConnection,
+  QueueEnd,
+  QueuePrediction,
   Reconnects,
   Recovers,
   Reference,
@@ -98,6 +102,8 @@ export {
 } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { QueueConnectionReading, QueueReading } from "./queue.ts";
+export { measureQueue } from "./queue.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
 export { fieldOf, matches, measureDriver, referenceOf, socketAt, socketsOf } from "./driver.ts";
 export type { ErrorOnTheWay, GroupMeasured, GroupReading, PairSets, Writes } from "./timeline.ts";

@@ -828,7 +828,73 @@ export type Prediction =
        * finding of its run. A measurement-only cell with a reference and counts gets a decision from them.
        */
       readonly counts?: readonly LineCount[];
+      /**
+       * This record is the law of an accept queue: its limit, its count, its counters, and what each
+       * connection sees. A value outside it is a finding of its run.
+       */
+      readonly queue?: QueuePrediction;
     };
+
+/** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
+export interface QueueBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/** This prediction tells how one connection of a queue cell ends. */
+export interface QueueEnd {
+  readonly errno: string;
+  /** This name is the line of the connection that the time of the end counts from. */
+  readonly from: "dial" | "connected" | "sent";
+  readonly within: QueueBand;
+  /**
+   * This band is the time from the last retransmission of the connection to its end. With an
+   * `expiry`, the retransmission before the last comes before the expiry, and the last comes after it.
+   */
+  readonly retransmitted?: QueueBand;
+}
+
+/** This prediction tells what one connection of a queue cell sees, by its name in the client. */
+export interface QueueConnection {
+  readonly name: string;
+  /** This choice says if the connect of the connection succeeds. */
+  readonly connects: boolean;
+  /** These bands are the waits of the SYN: the first from the dial, each next one from the SYN before it. */
+  readonly syns?: readonly QueueBand[];
+  /** These bands are the waits of each SYN-ACK sent again: the first from the dial, each next one from the SYN-ACK before it. */
+  readonly synAcks?: readonly QueueBand[];
+  /** This prediction tells how the connection ends. It is null for a connection that lives to the end of the run. */
+  readonly ends: QueueEnd | null;
+  /** This count is the segments that the peer has not acknowledged at the end of the run. */
+  readonly unacked?: number;
+}
+
+/**
+ * This prediction is the law of an accept queue. It reads the lines of the queue client and of the
+ * queue target. The counters count from the `opened` line of the run.
+ */
+export interface QueuePrediction {
+  /** This count is the limit of the queue: `sk_max_ack_backlog`, as TCP_INFO of the listener gives it. */
+  readonly max: number;
+  /** This count is the most connections that the queue holds at one time. */
+  readonly held: number;
+  /** This count is the connections that connect, and the kernel of the client tells this. */
+  readonly connected: number;
+  /** These counts are the bounds of `ListenOverflows`. */
+  readonly overflows: { readonly low: number; readonly high: number };
+  /** This count is `EmbryonicRsts`: the handshakes that the target reset. */
+  readonly resets: number;
+  /** These predictions are the connections with a law of their own. */
+  readonly connections: readonly QueueConnection[];
+  /** A run where this connection did not take the last place in the queue is void: its burst did not land in its sequence. */
+  readonly admitted?: string;
+  /** This record tells when the kernel of the target forgets the handshakes: the `TCPTimeouts` of their last firings, from the first dial of the burst. */
+  readonly expiry?: { readonly timeouts: number; readonly within: QueueBand };
+  /** This record tells when the count of the queue gets back to `count`, from the first dial of the burst, after an accept. */
+  readonly rise?: { readonly count: number; readonly within: QueueBand };
+  /** This count is the connections that the target accepted in the run. */
+  readonly drained?: number;
+}
 
 /** A target is the server that a cell connects to: a stock image. */
 export interface Target {

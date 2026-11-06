@@ -2502,14 +2502,45 @@ The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `command
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue), [run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), [#326](https://github.com/mark1russell7/systems/pull/326)
 
 The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
+
+**The design.** Seven harness cells (`AQ.1` to `AQ.7`) use one listener that does not accept and one client of many connections. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient and a kind lab adds nothing. A new native program, `queue`, is the two ends. Its target reads the count of the queue from `TCP_INFO` each 5 ms, and the counters from `/proc/net/netstat`. The prober gives each SYN, each SYN-ACK and each retransmission.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners.
+
+- **The count.** [`sk_acceptq_is_full`](https://github.com/torvalds/linux/blob/v7.0/include/net/sock.h#L1097-L1100) compares with `>`, thus the queue holds the limit plus one. [`listen(2)`](https://github.com/torvalds/linux/blob/v7.0/net/socket.c#L1922-L1924) clamps the backlog to `somaxconn`.
+- **A SYN at a full queue.** The kernel [drops it](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L7679-L7682) with no answer. The client retransmits at 1, 2, 3, 4, 5, 7, 11, 19, 35 and 67 s, and it [gets ETIMEDOUT at 131 s](https://github.com/torvalds/linux/blob/v7.0/Documentation/networking/ip-sysctl.rst#L1061-L1067).
+- **A final ACK at a full queue.** With `tcp_abort_on_overflow` 0, the target [keeps the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L947-L955) and drops the ACK. The client is `ESTABLISHED` and the target has no connection. With 1, the target sends a reset.
+- **The SYN-ACK ladder.** The target [sends the SYN-ACK again](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1099-L1107) at 1, 3, 7, 15 and 31 s. It [forgets the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1139-L1141) at 63 s.
+- **The answer of the client.** A SYN-ACK at an `ESTABLISHED` socket gets a [challenge ACK](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L6472-L6476). That ACK is a new final ACK, thus a place in the queue recovers the connection.
+- **After the expiry.** A segment of the client [meets the listener](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L1907-L1915) and gets a reset.
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `AQ.1` to `AQ.3` is exact. The timer bands use the document of Linux TCP and the timer wheel at the HZ of the runner.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
+
+**The result.** [Run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), the first dispatch, holds all 7 cells with 4 counted runs each and 0 void. The kernel is 7.0 at HZ 1000.
+
+| Cell | What each run measured |
+| --- | --- |
+| `AQ.1` | The queue holds 5 at a backlog of 4, with 2 overflows. |
+| `AQ.2` | `somaxconn` 8 clamps a backlog of 511, and the queue holds 9. |
+| `AQ.3` | A backlog of 0 holds 1. |
+| `AQ.4` | 10 SYN retransmissions, each wait inside its band, then `ETIMEDOUT` at 134.430 s to 134.716 s, with 11 overflows. |
+| `AQ.5` | The client connects, and it gets 5 SYN-ACKs. The target forgets the request at 63.802 s to 64.017 s. A send at 70 s meets a reset 20 ms later. |
+| `AQ.6` | With `tcp_abort_on_overflow` 1, a reset comes 20 ms after the connect. 2 resets, 3 overflows. |
+| `AQ.7` | A drain at 2.5 s recovers each connection, and the count gets back to 4 at 3.077 s to 3.099 s. 12 overflows. |
+
+- A client with data in flight learns at its first retransmission after the expiry, 114.208 s to 117.684 s after its dial.
+- No cell sends a SYN cookie.
+- The prediction hit 11 of its 12 claims, with a Brier score of 0.0869. The miss is the build claim: a fix from the checks of the PR came before the dispatch. It removed a parameter that the queue measure did not read.
 
 ### SYS-64 · The port range: its count and its error
 
@@ -2900,7 +2931,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 322 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 66 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
