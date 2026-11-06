@@ -2502,12 +2502,12 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-65 · A pool at its limit
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [#328](https://github.com/mark1russell7/systems/pull/328)
+- **Shipped:** 2026-11-06
+- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [the PgBouncer run](https://github.com/mark1russell7/systems/actions/runs/42140605157), [#328](https://github.com/mark1russell7/systems/pull/328), [#330](https://github.com/mark1russell7/systems/pull/330)
 
 Above the size of the pool, the wait grows with the queue. A client fails at `connectionTimeout` in HikariCP, or with FATAL 08P01 at `query_wait_timeout` in PgBouncer. HikariCP and PgBouncer are in the harness.
 
@@ -2548,6 +2548,14 @@ A failure after a check has no cell. A failed check is hidden from the client: t
 An assumption with no source: the first use of a server adds up to 30 ms (`SERVER_LOGIN_MS`). The other assumptions are the ones of the documents.
 
 The rule of the PgBouncer half: the prediction `sys-65-bouncer` came before any run, and its thresholds do not change. The first 4 counted runs of each cell decide. A void run or an infrastructure failure gets one more dispatch. A code bug on the first run is a build miss.
+
+The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each ack of `Q19.pool.7` and `Q19.pool.8` is inside its band, 143 of 143. The rounds come in their order in each run.
+- The queue is in PgBouncer, not in HikariCP: each pool line has each connection in use and no wait.
+- `Q19.pool.9` fails queries 6 and 7 with FATAL 08P01 at 2.351 s to 2.419 s, in one pass of the janitor. Queries 4 and 5 get their replies after them.
+- `Q19.pool.10` has no failure in 11 of 11 runs. Its queued queries come back in 2 rounds, and the burst ends at 4.559 s.
+- The prediction hit 12 of its 13 claims, with a Brier score of 0.1397. The miss is the naive claim, false as predicted.
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
