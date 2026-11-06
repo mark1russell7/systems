@@ -2596,14 +2596,60 @@ The side that closes second holds its port in `LAST_ACK` until its FIN has an AC
 
 ### SYS-65 · A pool at its limit
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [the PgBouncer run](https://github.com/mark1russell7/systems/actions/runs/42140605157), [#328](https://github.com/mark1russell7/systems/pull/328), [#330](https://github.com/mark1russell7/systems/pull/330)
 
-Above the size of the pool, the wait grows with the queue, and a client fails at `connectionTimeout`. HikariCP and PgBouncer are in the harness.
+Above the size of the pool, the wait grows with the queue. A client fails at `connectionTimeout` in HikariCP, or with FATAL 08P01 at `query_wait_timeout` in PgBouncer. HikariCP and PgBouncer are in the harness.
+
+The design: the client of HikariCP sends a burst, one query each 50 ms, each on its own thread. Each query is a band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+
+The prediction: five cells, `Q19.pool.1` to `Q19.pool.5`. In the table, a pool of `P` gets `M` queries of `H` seconds.
+
+| Cell | `P` | `M` | `H` | `connectionTimeout` | Replies | Failures |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Q19.pool.1` | 2 | 2 | 1 s | 30 s | 2, with no queue | 0 |
+| `Q19.pool.2` | 2 | 6 | 1 s | 30 s | 6, in 3 rounds | 0 |
+| `Q19.pool.3` | 3 | 7 | 1 s | 30 s | 7, in 3 rounds | 0 |
+| `Q19.pool.4` | 2 | 8 | 1 s | 2.25 s | 6 | 2, at the timeout |
+| `Q19.pool.5` | 2 | 8 | 12 s | 30 s | 6 | 2, at the timeout |
+
+The rule: each cell has 11 runs, and each query has its own band. A query in a band of another round fails the law, not the noise. The bands do not change after a result.
+
+The result of HikariCP (run 42140281705, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each query acks in its own band, and the rounds come in their order in each run. With holds of 1 s, each ack is 1.5 ms to 7.4 ms after the time of the law. With holds of 12 s, it is 2.9 ms to 39.5 ms after it.
+- `Q19.pool.4` fails queries 8 and 9 at 2.553 s and 2.600 s, and `Q19.pool.5` fails them at 30.303 s and 30.350 s. Query 7 still gets its reply after them.
+- The queue reaches `M - P` with each connection in use, and the pool does not grow.
+
+The PgBouncer half: five cells, `Q19.pool.6` to `Q19.pool.10`. HikariCP has one connection for each query, thus PgBouncer 1.26.1 has the queue. In the table, `P` is `default_pool_size`. The column `Check` tells if a borrow has the check of HikariCP. An option of the lab sets the window of that check to one hour, so that the first cells measure the queue alone.
+
+| Cell | `P` | `M` | `H` | `query_wait_timeout` | Check | Replies | Failures |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Q19.pool.6` | 2 | 2 | 1 s | 120 s | no | 2, with no queue | 0 |
+| `Q19.pool.7` | 2 | 6 | 1 s | 120 s | no | 6, in 3 rounds | 0 |
+| `Q19.pool.8` | 3 | 7 | 1 s | 120 s | no | 7, in 3 rounds | 0 |
+| `Q19.pool.9` | 2 | 6 | 1.5 s | 2 s | no | 4 | 2, FATAL 08P01 |
+| `Q19.pool.10` | 2 | 6 | 1.5 s | 2 s | yes | 6, in 3 rounds | 0 |
+
+The law has one term for each check. In `Q19.pool.10` a queued query waits in its check, and then in its query. `query_wait_timeout` counts each wait from zero, thus the failures of `Q19.pool.9` do not occur. The queries come back from their checks approximately one round trip apart, thus their order is not a prediction. Each of them has the band of the whole set, and the end of the burst has the sharp band.
+
+A failure after a check has no cell. A failed check is hidden from the client: the borrow closes the connection and tries the next one. The law has no band for it, thus `turnsOf` refuses such a spec.
+
+An assumption with no source: the first use of a server adds up to 30 ms (`SERVER_LOGIN_MS`). The other assumptions are the ones of the documents.
+
+The rule of the PgBouncer half: the prediction `sys-65-bouncer` came before any run, and its thresholds do not change. The first 4 counted runs of each cell decide. A void run or an infrastructure failure gets one more dispatch. A code bug on the first run is a build miss.
+
+The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each ack of `Q19.pool.7` and `Q19.pool.8` is inside its band, 143 of 143. The rounds come in their order in each run.
+- The queue is in PgBouncer, not in HikariCP: each pool line has each connection in use and no wait.
+- `Q19.pool.9` fails queries 6 and 7 with FATAL 08P01 at 2.351 s to 2.419 s, in one pass of the janitor. Queries 4 and 5 get their replies after them.
+- `Q19.pool.10` has no failure in 11 of 11 runs. Its queued queries come back in 2 rounds, and the burst ends at 4.559 s.
+- The prediction hit 12 of its 13 claims, with a Brier score of 0.1397. The miss is the naive claim, false as predicted.
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
@@ -2672,14 +2718,33 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-71 · Kafka: the writes at each `acks`
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), [#338](https://github.com/mark1russell7/systems/pull/338)
 
-`acks=1` loses the writes that no follower has. `acks=all` with `min.insync.replicas` 2 and idempotence loses none and duplicates none. This item adds Kafka to the set, with a new group of three brokers.
+This item adds Kafka to the set, with a new group of three brokers and one controller. The plan said that `acks=1` loses the writes after the high watermark, and that `min.insync.replicas` 2 makes `acks=all` safe. The source of Apache Kafka 4.3.2 gives a different law:
+
+- `acks=1` loses each write after the end of the new leader's log at its election. The old leader has no timer that stops it, thus the count reads the hold.
+- `acks=all` loses none and duplicates none. A cut leader cannot shrink its in-sync replicas, thus `min.insync.replicas` is not the reason.
+
+[S3.md](S3.md#the-law-of-sys-71-the-writes-at-each-acks) has each term with its file and line.
+
+| Cell | `acks` | Minimum | Writers | Hold | Failover | Lost writes | Copies |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `K1.acks.1` | 1 | 2 | 1 | 20 s | Yes | 321 to 440 | Not read |
+| `K1.acks.2` | 1 | 2 | 1 | 40 s | Yes | 644 to 840 | Not read |
+| `K1.acks.3` | 1 | 2 | 1 | 3 s | No | 0 | Not read |
+| `K1.acks.4` | all | 2 | 4 | 20 s | Yes | 0 | 0 |
+| `K1.acks.5` | all | 1 | 4 | 20 s | Yes | 0 | 0 |
+
+The decision rule: a run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run, or a run that fails for an infrastructure reason, is dispatched again once, alone. A code bug on the first run is a build miss. The band of each cell judges it, and no threshold changes after a result is read.
+
+Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a cell with that band cannot fail.
+
+**The result.** [Run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `K1.acks.1` loses 392 to 404 writes, and `K1.acks.2` loses 783 to 795. `K1.acks.3` to `K1.acks.5` lose 0, and `acks=all` makes 0 copies. The last lost write is acked 0.47 s to 1.18 s after the lift. The prediction hit 11 of 13 claims, Brier 0.1463. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-71) has each run.
 
 ### SYS-72 · Kafka: a paused consumer
 
@@ -2953,10 +3018,10 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 329 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 61 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 66 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
@@ -2971,6 +3036,7 @@ The closed-loop families:
 | T10.commit | 5 | First write |
 | T11.writes | 3 | First write |
 | T12.resend | 5 | First write |
+| K1.acks | 5 | First write |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |

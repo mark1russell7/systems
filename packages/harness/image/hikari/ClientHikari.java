@@ -1,5 +1,6 @@
 // client-hikari HOST PORT --mode idle|inflight|stream [--interval-ms N] [--max-s N] [--go PATH]
 //               [--query TEXT] [--inflight-query TEXT] [--before] [--options JSON]
+//               [--burst N --burst-gap-ms N]
 //
 // The client of a HikariCP cell: HikariCP 7.1.0 over pgjdbc 42.7.13, on Java 21. Each event is a
 // JSON line with `ev` and `t`, the time on CLOCK_MONOTONIC in nanoseconds (System.nanoTime, which
@@ -18,6 +19,7 @@
 // - sent, ack, fail: each query by its sequence number, with its error.
 // - data, error: the end of the query in flight, as the TCP client of the harness tells it. In idle
 //   mode, the close of the socket of the first connection is an error line too: the pool closed it.
+// - burst: the end of a burst: its counts of replies and of failures, then the counts of the pool.
 // - done, deadline: the end of the client.
 //
 // The modes are those of the pg client. idle sends one query, closes its connection (the
@@ -27,9 +29,15 @@
 // already: the start of its pool meets it. --inflight-query is the text of the query in flight
 // (query 2 of inflight), and --query is the text of each other query.
 //
+// --burst sends N queries in flight in place of one, each on its own thread, query 2 to query N + 1.
+// The starts are --burst-gap-ms apart, thus the queue of the pool has the order of the numbers. The
+// burst starts when each connection of the pool is idle.
+//
 // The options are one flat JSON object. A name with the prefix `dataSource.` is a property of
-// pgjdbc. Each other name is a property of HikariConfig. A cell gives each option that it changes,
-// and HikariCP and pgjdbc give the others.
+// pgjdbc. A name with the prefix `system.` is a system property of the JVM. The client sets it
+// after its warm-up and before its pool, for example `system.com.zaxxer.hikari.aliveBypassWindowMs`,
+// which HikariPool reads when the pool starts. Each other name is a property of HikariConfig. A cell
+// gives each option that it changes, and HikariCP and pgjdbc give the others.
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -46,12 +54,15 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import org.postgresql.core.PGStream;
 import org.postgresql.jdbc.PgConnection;
 import org.postgresql.util.PSQLException;
@@ -61,6 +72,9 @@ public final class ClientHikari {
   private static final PrintStream OUT = new PrintStream(new FileOutputStream(FileDescriptor.out), false, StandardCharsets.UTF_8);
   private static final Object LOCK = new Object();
   private static final Set<String> SEEN = ConcurrentHashMap.newKeySet();
+  /** This time is the start of a burst after its threads start, in nanoseconds: each thread then waits for its own start. */
+  private static final long BURST_LEAD = 50_000_000L;
+  private static final String SYSTEM = "system.";
   private static volatile boolean stopped = false;
   private static volatile HikariDataSource pool;
   private static volatile String connected;
@@ -405,6 +419,58 @@ public final class ClientHikari {
     failure(cancelled);
   }
 
+  /**
+   * This function loads the code of a borrow that times out, before the first line of a burst. One
+   * borrow waits on a pool that cannot connect, for the 250 ms floor of connectionTimeout
+   * (HikariConfig.java:189-200). A new JVM would otherwise load that code in the band of the first
+   * failure.
+   */
+  private static void warmTimeout() {
+    HikariConfig empty = new HikariConfig();
+    empty.setJdbcUrl("jdbc:postgresql://127.0.0.1:1/warmup");
+    empty.setUsername("warmup");
+    empty.setPoolName("warmup");
+    empty.setInitializationFailTimeout(-1);
+    empty.setMinimumIdle(0);
+    empty.setConnectionTimeout(250);
+    try (HikariDataSource ds = new HikariDataSource(empty); Connection connection = ds.getConnection()) {
+      throw new IllegalStateException("the warm-up pool gave a connection");
+    } catch (SQLException expected) {
+      failure(expected);
+    }
+  }
+
+  /**
+   * This function sends the queries of a burst, each on its own thread, and writes the burst line
+   * when each query ended. Each thread waits for its start on the clock, thus a slow start of one
+   * thread does not move the next one.
+   */
+  private static void burst(int count, long gap) throws InterruptedException {
+    HikariPoolMXBean bean = pool.getHikariPoolMXBean();
+    while (bean.getIdleConnections() < config.getMaximumPoolSize()) Thread.sleep(2);
+    AtomicInteger acks = new AtomicInteger();
+    AtomicInteger fails = new AtomicInteger();
+    long first = now() + BURST_LEAD;
+    List<Thread> threads = new ArrayList<>();
+    for (int k = 0; k < count; k += 1) {
+      int n = k + 2;
+      long start = first + k * gap;
+      Thread thread = new Thread(() -> {
+        for (long left = start - now(); left > 0; left = start - now()) LockSupport.parkNanos(left);
+        (operate(n, inflightQuery) == null ? acks : fails).incrementAndGet();
+      }, "burst-" + n);
+      thread.setDaemon(true);
+      thread.start();
+      threads.add(thread);
+    }
+    for (Thread thread : threads) thread.join();
+    emit("burst", "\"acks\":" + acks.get() + ",\"fails\":" + fails.get()
+        + ",\"total\":" + bean.getTotalConnections()
+        + ",\"active\":" + bean.getActiveConnections()
+        + ",\"idle\":" + bean.getIdleConnections()
+        + ",\"waiting\":" + bean.getThreadsAwaitingConnection());
+  }
+
   public static void main(String[] args) throws Exception {
     List<String> argv = List.of(args);
     String mode = flag(argv, "--mode", null);
@@ -421,7 +487,10 @@ public final class ClientHikari {
     inflightQuery = flag(argv, "--inflight-query", query);
     boolean before = argv.contains("--before");
     Map<String, String> options = parseObject(flag(argv, "--options", "{}"));
+    int burst = Integer.parseInt(flag(argv, "--burst", "0"));
+    long burstGap = Long.parseLong(flag(argv, "--burst-gap-ms", "0")) * 1_000_000L;
     warmUp();
+    if (burst > 0) warmTimeout();
 
     String bootId;
     try {
@@ -443,7 +512,10 @@ public final class ClientHikari {
         + ",\"mode\":" + q(mode) + ",\"query\":" + q(query) + ",\"inflight_query\":" + q(inflightQuery) + ",\"options\":" + given);
 
     Properties properties = new Properties();
-    for (Map.Entry<String, String> each : options.entrySet()) properties.setProperty(each.getKey(), each.getValue());
+    for (Map.Entry<String, String> each : options.entrySet()) {
+      if (each.getKey().startsWith(SYSTEM)) System.setProperty(each.getKey().substring(SYSTEM.length()), each.getValue());
+      else properties.setProperty(each.getKey(), each.getValue());
+    }
     config = new HikariConfig(properties);
     config.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/postgres");
     // the user of a cell, when it gives one: Supavisor routes a client by its user, <db_user>.<tenant>
@@ -492,9 +564,12 @@ public final class ClientHikari {
     if (mode.equals("idle")) watchIdle();
     if (mode.equals("inflight")) {
       while (!Files.exists(go)) Thread.sleep(2);
-      Throwable error = operate(2, inflightQuery);
-      if (error == null) emit("data", "\"n\":2");
-      else emit("error", "\"errno\":" + q(errnoOf(error)) + ",\"message\":" + q(error.getMessage()));
+      if (burst > 0) burst(burst, burstGap);
+      else {
+        Throwable error = operate(2, inflightQuery);
+        if (error == null) emit("data", "\"n\":2");
+        else emit("error", "\"errno\":" + q(errnoOf(error)) + ",\"message\":" + q(error.getMessage()));
+      }
     }
     Thread.sleep(Long.MAX_VALUE);
   }
