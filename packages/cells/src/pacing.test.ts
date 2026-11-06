@@ -18,7 +18,7 @@ describe("the pacing of each cell", () => {
       "one request": 315,
       "one gap": 64,
       "closed loop, reply times": 11,
-      "closed loop, first write": 53,
+      "closed loop, first write": 56,
       timer: 222,
     });
   });
@@ -34,6 +34,7 @@ describe("the pacing of each cell", () => {
       "RD.control: closed loop, first write": 1,
       "T01: closed loop, reply times": 8,
       "T10.commit: closed loop, first write": 5,
+      "T11.writes: closed loop, first write": 3,
       "T11.border-off: closed loop, first write": 10,
       "T11.defaults: closed loop, first write": 16,
       "T12.border-off: closed loop, first write": 4,

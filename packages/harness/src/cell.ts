@@ -1148,6 +1148,11 @@ export interface Cell {
    * that instant, on the clock of the VM. On a direct pair, a frozen target thaws after it.
    */
   readonly hold?: Quantity;
+  /**
+   * This time is how much longer a run of a replica set continues after the lift. A prediction of
+   * no failover after a short hold needs it: the run must outlast the timers of an election.
+   */
+  readonly watch?: Quantity;
   /** This flag makes a planned failover coordinated: `SENTINEL FAILOVER <group> COORDINATED`. */
   readonly coordinated?: boolean;
   /**

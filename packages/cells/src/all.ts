@@ -8,6 +8,7 @@ import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { FABRIC_CELLS } from "./fabric.ts";
 import { LIMITER_CELLS } from "./limiter.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
+import { T11_WRITES_CELLS } from "./mongo/writes.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
@@ -43,11 +44,11 @@ export interface Subjects {
  * calibration of the stamps of its Sentinels come next, then the cells of the writes of S3 on the
  * same group. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
- * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
- * come next, then the PostgreSQL cells of T01, T03 and T10. The cells of a COMMIT with no reply follow.
- * The RabbitMQ cells of T01 and T11 come next, then the gRPC cells of T01, T03 and T02. The cells of the
- * keyed limiter (O29 and O30) and of the routed fabric come next, then the retry count of T14 (O08).
- * The recovery drills are last.
+ * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
+ * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
+ * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 come next,
+ * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) and of the
+ * routed fabric come next, then the retry count of T14 (O08). The recovery drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -64,6 +65,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),
     ...wstCells(subjects.procedures),
+    ...T11_WRITES_CELLS,
     ...MONGO_CELLS,
     ...T01_PG,
     ...T01_HIKARI,

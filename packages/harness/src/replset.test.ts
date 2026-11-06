@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Cell, ReplicaSet, Run } from "./cell.ts";
 import { measure } from "./observe.ts";
 import {
+  afterLiftOf,
   clockOffsetOf,
   cutOf,
   initiateScript,
@@ -233,5 +234,10 @@ describe("a run of a replica set cell, measured", () => {
     expect(args).toContain("--w");
     expect(args[args.indexOf("--w") + 1]).toBe("1");
     expect(args.at(-1)).toBe('{"heartbeatFrequencyMS":2000}');
+  });
+
+  it("continues a run for its tail after the lift, and for the watch of the cell", () => {
+    expect(afterLiftOf(CELL)).toBe(2000);
+    expect(afterLiftOf({ ...CELL, watch: s(10) })).toBe(12000);
   });
 });
