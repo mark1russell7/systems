@@ -1,4 +1,5 @@
 import type { Cell, Subject } from "@mark1russell7/harness";
+import { ACCEPT_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
@@ -48,8 +49,9 @@ export interface Subjects {
  * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 come next,
- * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) and of the
- * routed fabric come next, then the retry count of T14 (O08). The recovery drills are last.
+ * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30), of the
+ * accept queue and of the routed fabric come next, then the retry count of T14 (O08). The recovery
+ * drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -81,6 +83,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T03_GRPC,
     ...T02_GRPC,
     ...LIMITER_CELLS,
+    ...ACCEPT_QUEUE_CELLS,
     ...FABRIC_CELLS,
     ...COUNT_CELLS,
     ...WATCH_CELLS,
