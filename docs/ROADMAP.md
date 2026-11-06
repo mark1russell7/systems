@@ -2474,7 +2474,7 @@ The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cel
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332)
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332), [the real-fault test, #376](https://github.com/mark1russell7/systems/pull/376)
 
 A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
 
