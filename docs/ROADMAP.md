@@ -2553,12 +2553,12 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-71 · Kafka: the writes at each `acks`
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), [#338](https://github.com/mark1russell7/systems/pull/338)
 
 This item adds Kafka to the set, with a new group of three brokers and one controller. The plan said that `acks=1` loses the writes after the high watermark, and that `min.insync.replicas` 2 makes `acks=all` safe. The source of Apache Kafka 4.3.2 gives a different law:
 
@@ -2578,6 +2578,8 @@ This item adds Kafka to the set, with a new group of three brokers and one contr
 The decision rule: a run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run, or a run that fails for an infrastructure reason, is dispatched again once, alone. A code bug on the first run is a build miss. The band of each cell judges it, and no threshold changes after a result is read.
 
 Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a cell with that band cannot fail.
+
+**The result.** [Run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `K1.acks.1` loses 392 to 404 writes, and `K1.acks.2` loses 783 to 795. `K1.acks.3` to `K1.acks.5` lose 0, and `acks=all` makes 0 copies. The last lost write is acked 0.47 s to 1.18 s after the lift. The prediction hit 11 of 13 claims, Brier 0.1463. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-71) has each run.
 
 ### SYS-72 · Kafka: a paused consumer
 
