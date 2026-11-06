@@ -8,7 +8,7 @@ The harness does not compute predictions. The author of a cell computes the pred
 
 A **cell** (`cell.ts`) is all that one measurement needs, as data:
 
-- **The topology.** A stock target image, pinned by digest, and the hops between the client and the target (`Cell.topology`). Without hops, the client and the target are a direct pair. A replicated group under its Sentinels can replace the target (`Cell.group`).
+- **The topology.** A stock target image, pinned by digest, and the hops between the client and the target (`Cell.topology`). Without hops, the client and the target are a direct pair. A replicated group under its Sentinels can replace the target (`Cell.group`). A PostgreSQL target can have one standby, with a final read of each server (`Cell.pair`).
 - **The subject.** The program under test, as data. Its image is an image pinned by digest, a build context, or an image that the harness ships (`Cell.client`, `Target.subject`).
 - **The settings.** The sysctls of the client namespace, and the socket options of the client.
 - **The workload.** A connection that stays idle, a connection with a request in flight, or a stream of requests. A stream of `GET` requests for a long value keeps many segments in flight.
