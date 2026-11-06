@@ -6,7 +6,7 @@ import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, GroupPlace, MongoBand, MongoCell, MongoGroupPrediction, MongoPrediction, MongoSpec, StageBand, Waiting } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { GroupCause, Span, Timeline } from "./model.ts";
-import { INTERVAL, driverTimes, driverValues, firstOn, linuxValues, lostOf, plus, replTimes, span, timelineOf } from "./model.ts";
+import { INTERVAL, contactAfterCut, driverTimes, driverValues, electionOf, firstOn, linuxValues, lostOf, plus, replTimes, span, stepDownOf, timelineOf } from "./model.ts";
 import { FAULT, POOL_SENT, WRITE_OFF, bandOf } from "./single.ts";
 
 /**
@@ -148,6 +148,23 @@ const giveUpOf = (spec: MongoSpec, rttMs: number): Span | null => {
   return plus(span(0, INTERVAL + 2 * rto + 0.01), pool.band);
 };
 
+/**
+ * This function tells if the members hear each other again before an election and a step-down can
+ * start. Then a cut from the group changes nothing in the set. A hold that can end on either side
+ * has no band, and a hold past the win is a failover.
+ */
+const endsBeforeElection = (spec: MongoSpec, rttMs: number): boolean => {
+  if (spec.at?.cuts !== "group" || spec.hold === undefined) return false;
+  const rtt = rttMs / 1000;
+  const repl = replTimes(spec.settings, rttMs);
+  const driver = driverTimes(spec.options, rttMs);
+  const rto = seconds(timerOf(LINUX_TCP, "retransmit", given(linuxValues(spec.linux, rttMs)), 0).duration, "the RTO");
+  const e = electionOf(repl, driver, rtt);
+  if (contactAfterCut(spec.hold, rto) < Math.min(e.start.lo, stepDownOf(repl, driver, rtt).lo)) return true;
+  if (!(spec.hold > e.elected.hi)) throw new Error(`${spec.name}: the hold can end on either side of the election`);
+  return false;
+};
+
 /** This function gives the cause of a fault at the primary, for the timeline. */
 const causeOf = (spec: MongoSpec): GroupCause => {
   if (spec.fault === "step-down") return { kind: "step-down" };
@@ -189,8 +206,9 @@ export const predictT11At = (spec: MongoSpec, rttMs: number): MongoPrediction =>
   const rtt = rttMs / 1000;
   const window = sec((spec.hold ?? 40) + 20);
   // a primary cut from one secondary, or its segments to one secondary dropped: the other secondary
-  // keeps the majority, and it has the newest data, thus it refuses each vote to the one that is cut
-  if (spec.at?.cuts === "one" || spec.at?.cuts === "one-way") {
+  // keeps the majority, and it has the newest data, thus it refuses each vote to the one that is cut.
+  // A short cut of the group: contact comes back before a timer of the election can end
+  if (spec.at?.cuts === "one" || spec.at?.cuts === "one-way" || endsBeforeElection(spec, rttMs)) {
     const repl = replTimes(spec.settings, rttMs);
     const driver = driverTimes(spec.options, rttMs);
     const first = span(0, INTERVAL + 2 * rtt + repl.work + 2 * driver.slack);

@@ -2391,14 +2391,37 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42139463631), [#331](https://github.com/mark1russell7/systems/pull/331)
 
-`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the election.
+`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the step-down. [S3](S3.md#the-second-cell-sys-59) has each term, with its file and line in MongoDB r9.0.4.
+
+The law: the old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after the cut. Each write takes 50 ms to 72 ms. A cut of 3 s ends before each timer, so nothing diverges.
+
+| Cell | Concern | Hold | Lost writes | Failover | Recorded control |
+| --- | --- | --- | --- | --- | --- |
+| `T11.writes.1` | `w: 1` | 40 s | 135 to 202 | Yes | `T11.border-off.66`: median 195, max 196, 11 runs |
+| `T11.writes.2` | `w: "majority"` | 40 s | 0 | Yes | `T11.defaults.10`: 0, 11 runs |
+| `T11.writes.3` | `w: 1` | 3 s | 0 | No | None |
+
+The decision rule:
+
+- Each cell has 4 counted runs. A cell holds if each counted run is inside its band and has no finding.
+- A dispatch can repeat one time, for void runs or infrastructure runs only.
+- A code bug on the first run is a miss of the build.
+- The thresholds do not change after a result is read.
+
+The result (run 42139463631, 2026-11-06): each of the three cells holds. Each cell has 4 counted runs and no void run.
+
+- `T11.writes.1` lost 195, 195, 194 and 196 writes, median 195. Each lost set is one run of sequence numbers. The rollback log of the old primary counts the same writes.
+- `T11.writes.2` and `T11.writes.3` lost 0 writes. In `T11.writes.3`, the last ack comes 15 s after the cut, with no election.
+- The naive claim was false, as predicted: the cut of 3 s lost 0 writes, not 30 or more.
+
+A finding that is not a claim: at `w: "majority"`, the old primary rolls back 1 write in each run. It did not acknowledge that write, thus no acknowledged write is lost.
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
@@ -2817,7 +2840,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 51 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
@@ -2829,6 +2852,7 @@ The closed-loop families:
 | T01 | 8 | Reply times |
 | CAL | 2 | Reply times |
 | E3.F1 | 1 | Reply times |
+| T11.writes | 3 | First write |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |

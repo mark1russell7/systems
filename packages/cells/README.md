@@ -102,6 +102,14 @@ These cells start S3 (`src/writes.ts`, SYS-58). They use the group and the clien
 - **The verdict.** A partition has no band of time, because no document gives the time of the conversion. The band of lost writes judges the cell (`GroupPrediction.lost`).
 - **The source.** Each term cites Valkey 9.1.2 by file and line, in the comment of the module.
 
+The cells of SYS-59 (`src/mongo/writes.ts`) ask the same question for MongoDB. They use the set and the client of T11, with the write concern as the knob.
+
+- **`w: 1`.** The old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after a cut. Thus the set loses 135 to 202 writes (`T11.writes.1`).
+- **`w: "majority"`.** The same cut loses no write (`T11.writes.2`).
+- **A short cut.** Contact comes back before each timer of an election. Thus `w: 1` loses no write, and no election comes (`T11.writes.3`). The run outlasts those timers (`Cell.watch`).
+- **The verdict.** The first write on a new primary has two modes, thus the band of lost writes judges each cell.
+- **The source.** Each term cites MongoDB r9.0.4 by file and line, in the comment of the module.
+
 ## The HTTP catalog
 
 The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
