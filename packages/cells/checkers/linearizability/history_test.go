@@ -78,7 +78,7 @@ const twoKeys = `
 {"client":0,"op":"put","key":"y","value":"2","call":20,"return":30,"result":"ok"}
 {"client":1,"op":"get","key":"x","value":"1","call":40,"return":50,"result":"ok"}
 {"client":1,"op":"get","key":"y","value":"1","call":40,"return":50,"result":"ok"}
-{"client":1,"op":"get","key":"y","value":null,"call":60,"return":61,"result":"unknown"}
+{"client":1,"op":"get","key":"y","value":null,"call":60,"result":"unknown"}
 `
 
 var cases = []struct {
