@@ -2686,7 +2686,7 @@ The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each ce
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:** 2026-11-06
 - **Shipped:**
-- **Links:**
+- **Links:** [The read cells](../packages/cells/README.md#the-read-cells-of-etcd), [#374](https://github.com/mark1russell7/systems/pull/374), [#375](https://github.com/mark1russell7/systems/pull/375)
 
 A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. SYS-73 and D-CHECKER are done, thus nothing blocks this item.
 
