@@ -2572,12 +2572,16 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 - **Status:** in progress
 - **Area:** catalogs
-- **Depends on:** SYS-58
+- **Depends on:** SYS-74
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42103497696), [#329](https://github.com/mark1russell7/systems/pull/329)
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
+
+The cells `EL.1` to `EL.11` test the band of the end, the floor of the TTL, a promotion and the live control. They also test the stale write, the fence and a waiter that lost its lease. The target has its own etcd, thus this item does not need the Valkey work of SYS-58. It needs only the order after SYS-74, because it copies the frame of that target.
+
+The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each cell has 4 counted runs and no void run, and each run gave the exact counts of its law. The item merges after SYS-74, because its branch is on the branch of SYS-74.
 
 ### SYS-74 · etcd: a watcher after a compaction
 
@@ -2826,12 +2830,12 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
 | One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
-| One gap | 53 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 51 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
-The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error.
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
 
 The closed-loop families:
 
