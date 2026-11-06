@@ -47,6 +47,18 @@ export interface Writes {
   readonly old: number;
   readonly lost: readonly number[] | null;
   readonly unknown: ReadonlyArray<{ readonly n: number; readonly held: boolean | null }>;
+  /** These are the counts of a pair (`Cell.pair`), from its two final reads. */
+  readonly sets?: PairSets;
+}
+
+/** These are the counts that the bands of `Outcomes` judge: each one has the same name there. */
+export interface PairSets {
+  readonly unknown: number;
+  readonly kept: number;
+  readonly stranded: number;
+  readonly absent: number;
+  readonly missing: number;
+  readonly warnings: number;
 }
 
 /** A group measurement is what one run of a group cell measured, beside its time. */
@@ -241,7 +253,25 @@ export const writesOf = (run: Run, after: number, primary: string): Writes => {
       const n = Number(event["n"]);
       return { n, held: kept === null ? null : kept.has(n) };
     });
-  return { sent: sent.length, acked: acks.size, old, lost, unknown };
+  const oldHolds = run.group?.oldHolds;
+  return { sent: sent.length, acked: acks.size, old, lost, unknown, ...(oldHolds === undefined ? {} : { sets: setsOf(run, acks.keys(), unknown, new Set(oldHolds)) }) };
+};
+
+/**
+ * This function splits the writes of a pair by its two final reads. A write with no reply is `kept`
+ * on the new primary. It is `stranded` on the old primary alone, or `absent` from each server.
+ */
+const setsOf = (run: Run, acked: Iterable<number>, unknown: Writes["unknown"], old: ReadonlySet<number>): PairSets => {
+  const kept = unknown.filter((each) => each.held === true).length;
+  const stranded = unknown.filter((each) => each.held !== true && old.has(each.n)).length;
+  return {
+    unknown: unknown.length,
+    kept,
+    stranded,
+    absent: unknown.length - kept - stranded,
+    missing: [...acked].filter((n) => !old.has(n)).length,
+    warnings: run.events.filter((event) => event.ev === "notice" && event["severity"] === "WARNING").length,
+  };
 };
 
 /** This function gives the errors that the client met after an instant: each kind, its first time, and its count. */
@@ -455,6 +485,12 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     const lost = group.writes.lost;
     if (lost === null) findings.push("the group did not converge, thus the count of its lost writes is not known");
     else if (lost.length < low || lost.length > high) findings.push(`the group lost ${lost.length} accepted writes, outside [${low}, ${high}]`);
+  }
+  const { sets } = group.writes;
+  for (const [name, band] of Object.entries(expected?.outcomes ?? {})) {
+    const count = sets?.[name as keyof PairSets];
+    if (count === undefined) findings.push(`the run has no count of ${name}`);
+    else if (count < band.low || count > band.high) findings.push(`the count of ${name} is ${count}, outside [${band.low}, ${band.high}]`);
   }
   if (group.recovery !== undefined) findings.push(...recoveryFindings(group.recovery, group.writes));
   if (accepted === undefined) {

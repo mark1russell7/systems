@@ -1,5 +1,5 @@
 // client-pg HOST PORT --mode idle|inflight|stream [--interval-ms N] [--max-s N] [--go PATH]
-//           [--query TEXT] [--inflight-query TEXT] [--before] [--options JSON]
+//           [--query TEXT] [--inflight-query TEXT] [--before] [--options JSON] [--writers K]
 //
 // The client of a PostgreSQL cell: node-postgres (pg 8.23.1 with pg-pool 3.14.0) on Node 24.21.0.
 // Each event is a JSON line with `ev` and `t`, the time on CLOCK_MONOTONIC in nanoseconds
@@ -16,6 +16,7 @@
 // - ready: the reply to the first query: the connection is idle in the pool (idle, inflight), or
 //   the stream starts (stream).
 // - sent, ack, fail: each query by its sequence number, with its error.
+// - notice: a notice of the server, with its severity, its code, its message and its detail.
 // - data, error: the end of the query in flight, as the TCP client of the harness tells it. In idle
 //   mode, an error of the pool for the first socket is an error line too: the pool removes it.
 // - done, deadline: the end of the client.
@@ -26,7 +27,11 @@
 // SIGTERM. --before starts the client into a fault that holds already: its first connect meets it.
 // --inflight-query is the text of the query in flight (query 2 of inflight), and --query is the
 // text of each other query. Thus a slow query in flight does not delay the reply that makes the
-// client ready.
+// client ready. In a text, $n is the sequence number of the query.
+//
+// --writers K makes a stream of K writers on one sequence of numbers, each on its own connection
+// of the pool. Their phases are spread across one --interval-ms. A writer stops at its first
+// failure, and the file --go stops the client. Thus each writer leaves at most one query with no reply.
 
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
@@ -51,6 +56,7 @@ const go = flag("--go") ?? "/tmp/go";
 const query = flag("--query") ?? "SELECT 1";
 const inflightQuery = flag("--inflight-query") ?? query;
 const before = argv.includes("--before");
+const writers = flag("--writers") === undefined ? null : Number(flag("--writers"));
 // the options of the pool. A cell gives each option that it changes, and pg-pool gives the others
 const options = JSON.parse(flag("--options") ?? "{}");
 
@@ -93,6 +99,7 @@ pool.on("connect", (client) => {
   }
   socket.once("close", (hadError) => emit("socket-end", { role: "pool", local, error: hadError }));
   socket.once("error", (error) => emit("socket-error", { role: "pool", local, errno: errnoOf(error), message: error.message }));
+  client.on("notice", (notice) => emit("notice", { local, severity: notice.severity ?? null, code: notice.code ?? null, message: notice.message, detail: notice.detail ?? null }));
 });
 pool.on("acquire", (client) => emit("pool", { event: "acquire", local: localOf(client) }));
 pool.on("release", (error, client) => emit("pool", { event: "release", local: localOf(client), failure: failure(error) }));
@@ -123,7 +130,7 @@ setTimeout(() => {
 /** This function sends query n through the pool, with the text of n. Its stamp is before the call. It gives null for a reply, or the error. */
 const operate = async (n, text = query) => {
   const at = now();
-  const reply = pool.query(text);
+  const reply = pool.query(text.replaceAll("$n", String(n)));
   // a band of a cell that starts into a fault counts from the start of the first connect
   if (n === 1) emit("connecting", { at: `${host}:${port}` }, at);
   emit("sent", { n }, at);
@@ -139,7 +146,27 @@ const operate = async (n, text = query) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-if (mode === "stream") {
+if (mode === "stream" && writers !== null) {
+  emit("ready", { at: `${host}:${port}` });
+  const told = setInterval(() => {
+    if (!existsSync(go)) return;
+    clearInterval(told);
+    stop(0);
+  }, 2);
+  let next = 1;
+  const writer = async (index) => {
+    await sleep((index * interval) / writers);
+    while (!stopped) {
+      const n = next;
+      next += 1;
+      if ((await operate(n)) !== null) return;
+      await sleep(interval);
+    }
+  };
+  await Promise.all(Array.from({ length: writers }, (_, index) => writer(index)));
+  clearInterval(told);
+  stop(0);
+} else if (mode === "stream") {
   emit("ready", { at: `${host}:${port}` });
   for (let n = 1; !stopped; n += 1) {
     await operate(n);
