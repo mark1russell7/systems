@@ -2424,12 +2424,12 @@ The client cannot know the outcome of a COMMIT with no reply (DV-38). A final re
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332)
 
 A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
 
@@ -2451,7 +2451,9 @@ The predictions, written before the first dispatch:
 
 The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The band of extra copies judges each cell, with each finding of a run. The thresholds do not change after any result is read.
 
-The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s. No cell has run. The loop of writers, the `RPUSH` and the read of the list have not run in a lab.
+The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s.
+
+**The result.** [Run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `T12.resend.1` makes 1 extra copy and `T12.resend.2` makes 4, the writes in flight at the close. The other three cells make 0. `socketTimeout` rejects no running command. With the resend off, 4 writes time out that the server kept. The prediction hit 12 of 14 claims, Brier 0.0983. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-62) has each run.
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
