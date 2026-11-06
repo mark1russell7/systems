@@ -1152,12 +1152,17 @@ export interface Cell {
      * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
      *   `SELECT 1`. `Cell.driverOptions` are the options of its pool.
      * - HikariCP over pgjdbc on Java, as a `HikariDataSource` against one server. Its operation is
-     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig, and a name
-     *   with the prefix `dataSource.` is a property of pgjdbc.
+     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig. A name
+     *   with the prefix `dataSource.` is a property of pgjdbc, and a name with the prefix `system.`
+     *   is a system property of the JVM.
      *
      * A pg or hikari driver can send a different text in flight (`inflight`): the second query of
      * an in-flight run. The first query then makes the pool ready at once, and only the query in
      * flight is slow, for example `SELECT pg_sleep(20)`.
+     *
+     * A hikari driver can send a burst in place of one query in flight. A burst is `count` queries,
+     * query 2 and the next ones. Each one has its own thread, and it starts `gap` after the one before
+     * it. The client writes a `burst` line at the end of the last one, with its counts.
      *
      * A grpc driver is grpc-js on Node, with one channel. Its operation is a unary call of
      * grpc.health.v1.Health/Check. `Cell.driverOptions` are its channel options (`grpc.*`) and
@@ -1168,7 +1173,7 @@ export interface Cell {
       | { readonly name: "ioredis"; readonly keepAlive: Quantity; readonly op?: "set" | "rpush"; readonly window?: number }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
-      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string }
+      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string; readonly burst?: { readonly count: number; readonly gap: Quantity } }
       | { readonly name: "amqp" }
       | { readonly name: "grpc"; readonly hold?: Quantity; readonly op?: "check" | "watch" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */

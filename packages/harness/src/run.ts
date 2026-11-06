@@ -128,6 +128,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     // node-postgres or HikariCP: its query, and the options of its pool. amqplib: the options of its connection
     if (probe.driver.name !== "amqp" && probe.driver.query !== undefined) args.push("--query", probe.driver.query);
     if (probe.driver.name !== "amqp" && probe.driver.inflight !== undefined) args.push("--inflight-query", probe.driver.inflight);
+    if (probe.driver.name === "hikari" && probe.driver.burst !== undefined)
+      args.push("--burst", String(probe.driver.burst.count), "--burst-gap-ms", String(Math.round(valueIn(probe.driver.burst.gap, "ms"))));
     if (cell.before === true) args.push("--before");
     if (cell.driverOptions !== undefined) args.push("--options", JSON.stringify(cell.driverOptions));
     args.push("--max-s", String(Math.ceil(longest * 2 + 10)));

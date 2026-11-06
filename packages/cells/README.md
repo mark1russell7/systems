@@ -212,6 +212,24 @@ These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the 
 - **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
 - **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
 
+## The cells of a pool at its limit
+
+These cells are SYS-65, in Q19 of S3 (`src/pg/pool.ts`). The question: what does a pool do at its limit? `Q19.pool.1` to `Q19.pool.5` measure HikariCP alone, and `Q19.pool.6` to `Q19.pool.10` put PgBouncer behind it.
+
+- **The client.** HikariCP 7.1.0 over pgjdbc 42.7.13 has a fixed size. The client sends a burst: one query each 50 ms, each on its own thread. Each query is `SELECT pg_sleep(H)`.
+- **The law.** The bag gives each returned connection to the oldest wait, through a fair `SynchronousQueue`. Thus a query at place `k` of a pool of `P` gets its reply after `⌊k / P⌋ + 1` holds, plus `k mod P` gaps.
+- **The timeout.** One `connectionTimeout` bounds a borrow. At its end, the borrow fails with `SQLTransientConnectionException`, and the query leaves the queue. The next query gets the next connection.
+- **The bands.** Each query is a later band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+- **The times.** The low end is the exact hold. The high end adds one round trip and one step of the JVM to each hold. It adds the same once more, for the check of a connection that was idle for 500 ms.
+- **The margin.** `turnsOf` stops with an error if a query comes within 0.25 s of the timeout of its borrow. Such a query is not a prediction.
+- **The lines.** A `pool` line gives the deepest queue. The `burst` line gives the counts of replies and failures, and it shows each connection idle again. A `pool` line above the size of the pool is a finding.
+- **PgBouncer.** PgBouncer 1.26.1 in transaction pooling has the queue, and HikariCP has one connection for each query. The law is the same, with `default_pool_size` as `P`. A `pool` line shows each connection of HikariCP in use and no query waiting in HikariCP.
+- **The first use of a server.** PgBouncer opens a server only for a waiting client, and a server idle for 30 s has a check. `SERVER_LOGIN_MS` (30 ms, an assumption) bounds either one, on each server but the first.
+- **The timeout of the queue.** `query_wait_timeout` counts from the first packet of a query, and the janitor tests it once in each pass. Thus a late query ends up to 343 ms after its timeout, with FATAL 08P01. HikariCP evicts the connection, so the end of that burst does not name the size of the pool.
+- **The check of a borrow.** HikariCP checks a connection that was idle for more than 500 ms. The check is an empty query, and it joins the queue of PgBouncer. `Q19.pool.6` to `Q19.pool.9` set the window to one hour with an option of the lab, thus they measure the queue alone.
+- **Two waits in place of one.** `Q19.pool.10` keeps the check at its default, with the burst of `Q19.pool.9`. A query waits in its check and then in its query, and `query_wait_timeout` counts each part from zero. Thus no query fails. Those queries come back approximately one round trip apart, so their order is not a prediction. Each one has the band of the whole set, and the end of the burst has the sharp band.
+- **Left out.** A failure after a check has no cell. A failed check is hidden: the borrow closes the connection and tries the next one. `turnsOf` stops with an error on such a spec.
+
 ## The cells of the accept queue
 
 These cells (`src/accept-queue.ts`, SYS-63) give the law of an accept queue on the kernel of the runner. Each term of the law is visible in a record. The source of each term is in the comment of the catalog, at Linux v7.0.
