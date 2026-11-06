@@ -2555,42 +2555,42 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 ### SYS-73 · etcd: a lock holder past its lease
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-74
 - **Started:** 2026-11-03
-- **Shipped:**
+- **Shipped:** 2026-11-06
 - **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42103497696), [#329](https://github.com/mark1russell7/systems/pull/329)
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
 
 The cells `EL.1` to `EL.11` test the band of the end, the floor of the TTL, a promotion and the live control. They also test the stale write, the fence and a waiter that lost its lease. The target has its own etcd, thus this item does not need the Valkey work of SYS-58. It needs only the order after SYS-74, because it copies the frame of that target.
 
-The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each cell has 4 counted runs and no void run, and each run gave the exact counts of its law. The item merges after SYS-74, because its branch is on the branch of SYS-74.
+The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each cell has 4 counted runs and no void run, and each run gave the exact counts of its law. The item merged after SYS-74 (#329, 9dd214e), because its branch was on the branch of SYS-74.
 
 ### SYS-74 · etcd: a watcher after a compaction
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-67
 - **Started:** 2026-11-03
-- **Shipped:**
+- **Shipped:** 2026-11-06
 - **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/mark1russell7/systems/pull/327)
 
 A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
 
-The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error.
+The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error. The item merged as #327 (dad2547).
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** blocked
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:**
 - **Shipped:**
 - **Links:**
 
-A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
+A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. SYS-73 and D-CHECKER are done, thus nothing blocks this item.
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
 
