@@ -12,6 +12,7 @@ import { T11_WRITES_CELLS } from "./mongo/writes.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
+import { COMMIT_CELLS } from "./pg/commit.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { CONFIRM_CELLS } from "./rabbit/confirms.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
@@ -47,9 +48,10 @@ export interface Subjects {
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
- * T10 follow. The RabbitMQ cells of T01 and T11 and of the confirms come next, then the gRPC cells
- * of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) and of the routed fabric come
- * next, then the retry count of T14 (O08). The recovery drills are last.
+ * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
+ * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
+ * (O29 and O30) and of the routed fabric come next, then the retry count of T14 (O08). The recovery
+ * drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -74,6 +76,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T03_HIKARI,
     ...T10_HIKARI,
     ...T10_PG,
+    ...COMMIT_CELLS,
     ...T01_AMQP,
     ...T11_RABBIT,
     ...CONFIRM_CELLS,

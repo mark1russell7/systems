@@ -11,6 +11,7 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
+import { openStandby, pairOnce } from "./standby.ts";
 import { readCpu, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
@@ -714,6 +715,7 @@ const inEnvironment = async (
   if (cell.group !== undefined) return inGroupEnvironment(cell, environment, count, say);
   if (cell.replicaSet !== undefined) return inReplicaSetEnvironment(cell, environment, count, say);
   if (cell.cluster !== undefined) return inClusterEnvironment(cell, environment, count, say);
+  if (cell.pair !== undefined) return inPairEnvironment(cell, environment, count, say);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
@@ -799,6 +801,36 @@ const inReplicaSetEnvironment = async (
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
       const run = await once(lab, cell, environment, index);
+      runs.push(run);
+      say(line(cell, run, measure(cell, run)));
+    }
+    return { manifest, runs, warmup };
+  } finally {
+    await lab.close();
+  }
+};
+
+/**
+ * This function does the part of the runs of a pair cell in one environment. The warm-up is a dry
+ * run. The run promotes the standby, thus a pair cell has an environment for each run.
+ */
+const inPairEnvironment = async (
+  cell: Cell,
+  environment: number,
+  count: number,
+  say: (line: string) => void,
+): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
+  try {
+    await lab.warm();
+    const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
+    const standby = await openStandby(lab, cell);
+    const warmed = await pairOnce(lab, standby, cell, environment, -1, true);
+    const warmup: Run = { ...warmed, warmup: true };
+    say(line(cell, warmup, measure(cell, warmup)));
+    const runs: Run[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const run = await pairOnce(lab, standby, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }
