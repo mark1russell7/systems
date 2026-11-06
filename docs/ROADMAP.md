@@ -2391,14 +2391,37 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42139463631), [#331](https://github.com/mark1russell7/systems/pull/331)
 
-`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the election.
+`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the step-down. [S3](S3.md#the-second-cell-sys-59) has each term, with its file and line in MongoDB r9.0.4.
+
+The law: the old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after the cut. Each write takes 50 ms to 72 ms. A cut of 3 s ends before each timer, so nothing diverges.
+
+| Cell | Concern | Hold | Lost writes | Failover | Recorded control |
+| --- | --- | --- | --- | --- | --- |
+| `T11.writes.1` | `w: 1` | 40 s | 135 to 202 | Yes | `T11.border-off.66`: median 195, max 196, 11 runs |
+| `T11.writes.2` | `w: "majority"` | 40 s | 0 | Yes | `T11.defaults.10`: 0, 11 runs |
+| `T11.writes.3` | `w: 1` | 3 s | 0 | No | None |
+
+The decision rule:
+
+- Each cell has 4 counted runs. A cell holds if each counted run is inside its band and has no finding.
+- A dispatch can repeat one time, for void runs or infrastructure runs only.
+- A code bug on the first run is a miss of the build.
+- The thresholds do not change after a result is read.
+
+The result (run 42139463631, 2026-11-06): each of the three cells holds. Each cell has 4 counted runs and no void run.
+
+- `T11.writes.1` lost 195, 195, 194 and 196 writes, median 195. Each lost set is one run of sequence numbers. The rollback log of the old primary counts the same writes.
+- `T11.writes.2` and `T11.writes.3` lost 0 writes. In `T11.writes.3`, the last ack comes 15 s after the cut, with no election.
+- The naive claim was false, as predicted: the cut of 3 s lost 0 writes, not 30 or more.
+
+A finding that is not a claim: at `w: "majority"`, the old primary rolls back 1 write in each run. It did not acknowledge that write, thus no acknowledged write is lost.
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
@@ -2413,14 +2436,36 @@ A quorum queue loses no confirmed message. A republish of an unconfirmed message
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61), [the run](https://github.com/mark1russell7/systems/actions/runs/42139841145), [#337](https://github.com/mark1russell7/systems/pull/337)
 
-The client cannot know the outcome of a COMMIT with no reply (DV-38). A final read splits those commits into two sets. A synchronous standby bounds the lost set.
+The client cannot know the outcome of a COMMIT with no reply (DV-38). The source of PostgreSQL 17.11 changes the plan in two ways. Two final reads split those commits into three sets: kept, stranded and absent. A synchronous standby bounds the lost set until a cancel: the cancel gives a WARNING, and then a reply with success (`src/backend/replication/syncrep.c:317`).
+
+The prediction came before the first dispatch. K is 4 writers. Each hold is 10 s.
+
+| Cell | The cut | Synchronous standby | Lost writes | No reply | Other bands |
+| --- | --- | --- | --- | --- | --- |
+| `T10.commit.1` | Each peer | No | 0 to 4 | 4 | 0 warnings |
+| `T10.commit.2` | Each peer | Yes | 0 | 4 | 0 warnings |
+| `T10.commit.3` | The standby | No | 567 to 804 | 4 | 0 kept, 0 warnings |
+| `T10.commit.4` | The standby | Yes | 0 | 4 | 0 absent, 0 warnings |
+| `T10.commit.5` | The standby, two cancels | Yes | 4 to 8 | 4 | 0 absent, 8 warnings |
+
+In each cell, the old primary holds each ack.
+
+**The decision rule.** A run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run or an infrastructure failure gets one more dispatch, alone. A code bug on the first run is a build miss. The thresholds do not change after any result is read.
+
+The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cell has 4 counted runs and no void run. Each run has 4 commits with no reply and 0 missing writes.
+
+- `T10.commit.1` lost 0, 0, 1 and 0 writes. `T10.commit.2` lost 0.
+- `T10.commit.3` lost 790, 790, 786 and 785 writes, median 788, with 0 kept.
+- `T10.commit.4` lost 0 writes, and each commit with no reply is stranded: 4 stranded, 0 absent.
+- `T10.commit.5` lost 8 writes in each run, the top of its band, with 8 warnings and 0 absent.
+- The two naive claims were false, as predicted: two cancels lose acks, and the stranded set is not empty.
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
@@ -2462,7 +2507,7 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 - **Depends on:** S1
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:** [The law](S3.md#q19-the-exhaustion)
+- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [#328](https://github.com/mark1russell7/systems/pull/328)
 
 Above the size of the pool, the wait grows with the queue. A client fails at `connectionTimeout` in HikariCP, or with FATAL 08P01 at `query_wait_timeout` in PgBouncer. HikariCP and PgBouncer are in the harness.
 
@@ -2479,6 +2524,12 @@ The prediction: five cells, `Q19.pool.1` to `Q19.pool.5`. In the table, a pool o
 | `Q19.pool.5` | 2 | 8 | 12 s | 30 s | 6 | 2, at the timeout |
 
 The rule: each cell has 11 runs, and each query has its own band. A query in a band of another round fails the law, not the noise. The bands do not change after a result.
+
+The result of HikariCP (run 42140281705, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each query acks in its own band, and the rounds come in their order in each run. With holds of 1 s, each ack is 1.5 ms to 7.4 ms after the time of the law. With holds of 12 s, it is 2.9 ms to 39.5 ms after it.
+- `Q19.pool.4` fails queries 8 and 9 at 2.553 s and 2.600 s, and `Q19.pool.5` fails them at 30.303 s and 30.350 s. Query 7 still gets its reply after them.
+- The queue reaches `M - P` with each connection in use, and the pool does not grow.
 
 The PgBouncer half: five cells, `Q19.pool.6` to `Q19.pool.10`. HikariCP has one connection for each query, thus PgBouncer 1.26.1 has the queue. In the table, `P` is `default_pool_size`. The column `Check` tells if a borrow has the check of HikariCP. An option of the lab sets the window of that check to one hour, so that the first cells measure the queue alone.
 
@@ -2587,38 +2638,42 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 ### SYS-73 · etcd: a lock holder past its lease
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
-- **Depends on:** SYS-58
+- **Depends on:** SYS-74
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42103497696), [#329](https://github.com/mark1russell7/systems/pull/329)
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
 
+The cells `EL.1` to `EL.11` test the band of the end, the floor of the TTL, a promotion and the live control. They also test the stale write, the fence and a waiter that lost its lease. The target has its own etcd, thus this item does not need the Valkey work of SYS-58. It needs only the order after SYS-74, because it copies the frame of that target.
+
+The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each cell has 4 counted runs and no void run, and each run gave the exact counts of its law. The item merged after SYS-74 (#329, 9dd214e), because its branch was on the branch of SYS-74.
+
 ### SYS-74 · etcd: a watcher after a compaction
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-67
 - **Started:** 2026-11-03
-- **Shipped:**
+- **Shipped:** 2026-11-06
 - **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/mark1russell7/systems/pull/327)
 
 A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
 
-The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error.
+The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error. The item merged as #327 (dad2547).
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** blocked
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:**
 - **Shipped:**
 - **Links:**
 
-A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
+A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. SYS-73 and D-CHECKER are done, thus nothing blocks this item.
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
 
@@ -2843,12 +2898,12 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
 | One request | 325 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
-| One gap | 53 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 56 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
-The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error.
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
 
 The closed-loop families:
 
@@ -2857,6 +2912,8 @@ The closed-loop families:
 | T01 | 8 | Reply times |
 | CAL | 2 | Reply times |
 | E3.F1 | 1 | Reply times |
+| T10.commit | 5 | First write |
+| T11.writes | 3 | First write |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |

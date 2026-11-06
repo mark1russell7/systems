@@ -102,6 +102,14 @@ These cells start S3 (`src/writes.ts`, SYS-58). They use the group and the clien
 - **The verdict.** A partition has no band of time, because no document gives the time of the conversion. The band of lost writes judges the cell (`GroupPrediction.lost`).
 - **The source.** Each term cites Valkey 9.1.2 by file and line, in the comment of the module.
 
+The cells of SYS-59 (`src/mongo/writes.ts`) ask the same question for MongoDB. They use the set and the client of T11, with the write concern as the knob.
+
+- **`w: 1`.** The old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after a cut. Thus the set loses 135 to 202 writes (`T11.writes.1`).
+- **`w: "majority"`.** The same cut loses no write (`T11.writes.2`).
+- **A short cut.** Contact comes back before each timer of an election. Thus `w: 1` loses no write, and no election comes (`T11.writes.3`). The run outlasts those timers (`Cell.watch`).
+- **The verdict.** The first write on a new primary has two modes, thus the band of lost writes judges each cell.
+- **The source.** Each term cites MongoDB r9.0.4 by file and line, in the comment of the module.
+
 ## The HTTP catalog
 
 The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
@@ -220,6 +228,19 @@ These cells answer one question of S3 (`src/etcd-watch.ts`, SYS-74): what does a
 - **The exact border.** The victim moves `minRev` to the next revision. Thus 132 writes put `minRev` at the compact revision, and nothing is lost (`WC.4`). One more write puts it below, thus the watch ends with 131 events and the compaction error (`WC.5`).
 - **The controls.** `WC.3` has no stall, and `WC.6` has no compaction. Neither one loses an event. `WC.7` has 300 short writes. They fit in the window of the stream, thus the bytes decide and not the count.
 - **The verdict.** The prediction gives an exact count for each line (`counts`). Each term cites etcd v3.6.15 or grpc-go v1.83.2 by file and line, in the comment of the module.
+
+## The lease cells of etcd
+
+The cells `EL.1` to `EL.11` (SYS-73) ask when a lock holder loses its etcd lease. The lease ends in a band after its last renewal. A frozen holder can then write after the next holder, and a compare on the creation revision stops that write (T13).
+
+- **The target.** `targets/etcd-lease` is one etcd v3.6.15 member and a program on Node.js. Each lock is a real `etcdctl lock`, thus each client is clientv3 and its concurrency recipe.
+- **The freeze.** The exec form of `etcdctl lock` starts a section of sh. SIGSTOP on the process group stops the keepalive and the section together. The exec form does not look at the session, thus a holder that lost its lease ends with code 0.
+- **The band.** The end of a lease comes one TTL after the last renewal, and the expiry loop adds at most 500 ms. A stop after renewals opens the low end by the gap of two renewals, TTL/3 + 500 ms. The margin of 300 ms has no source.
+- **The floor.** A TTL of 1 s gets the floor of 2 s. A leader promotion gives each lease a whole TTL plus the election timeout of 1 s.
+- **The token.** The creation revision of the lock key is the fencing token. `ETCD_LOCK_REV` is that number only for a client that did not wait. After a wait it is the head, thus a fence with it fails on the key of the client (`EL.10`).
+- **The queue.** A waiter that loses its lease gets the session error at the release, and no lock (`EL.11`). This is the fix of the bug in the Jepsen analysis of etcd 3.4.3.
+- **The verdict.** The store has no other writer, thus each cell counts exact revisions from the head at its start. A time is a boolean field of its line, and the raw times stay in the line.
+- **The runs.** The target stays up between the runs of an environment. Each scenario stops its clients and revokes each lease before its last line.
 
 ## The WS catalog
 

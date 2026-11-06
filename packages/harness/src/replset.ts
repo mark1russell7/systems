@@ -515,6 +515,9 @@ export const STEADY = 20;
 /** This time is how long a run continues after its outcome, so that the record shows what came next. */
 export const TAIL_MS = 2_000;
 
+/** This function gives how long a run of a cell continues after its lift, in ms: the tail, and the watch of the cell. */
+export const afterLiftOf = (cell: Cell): number => TAIL_MS + (cell.watch === undefined ? 0 : valueIn(cell.watch, "s") * 1000);
+
 /** This function gives the arguments of the client of a replica set cell: each member, and the stream of writes. */
 export const replicaSetArgs = (cell: Cell, members: Readonly<Record<string, RunPart>>): string[] => {
   const set = cell.replicaSet!;
@@ -659,7 +662,7 @@ export const replicaSetOnce = async (lab: ReplicaSetLab, cell: Cell, environment
     // the whole hold: a prediction that no failover occurs reads the set in each moment of it
     if (healing !== null) {
       await healed.catch(() => undefined);
-      await sleep(TAIL_MS);
+      await sleep(afterLiftOf(cell));
     }
   } finally {
     // each fault that is still on goes, and a killed server starts again
