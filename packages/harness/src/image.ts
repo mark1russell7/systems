@@ -7,6 +7,10 @@ import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import type { BuildImage, Client, ClientImage, ImageSource, Shipped, ShippedImage, Subject, Target } from "./cell.ts";
+import { LOCK_NAMES, locksOf, versionsOf, type ContextFile } from "./locks.ts";
+
+/** These are the manifests of packages that `versionsOf` reads beside the lockfiles. */
+const READ_FOR_VERSIONS: ReadonlySet<string> = new Set(["package.json", "Cargo.toml"]);
 
 /**
  * This module resolves the source of each image (`ImageSource`) to an image that a lab can start.
@@ -85,7 +89,12 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
 export const SHIPPED_NAMES: readonly [Shipped, ...Shipped[]] = Object.keys(SHIPPED) as [Shipped, ...Shipped[]];
 
 /** This function gives the source of a shipped image. */
-const shipped = (name: Shipped): ImageSource => ({ kind: "shipped", name });
+export const shippedSource = (name: Shipped): ImageSource => ({ kind: "shipped", name });
+const shipped = shippedSource;
+
+/** This function gives the version of the package of the harness, from its package.json. */
+export const harnessVersion = (): string =>
+  (JSON.parse(readFileSync(join(ROOTS["harness"]!, "package.json"), "utf8")) as { version: string }).version;
 
 /**
  * These are the clients that the harness ships, by their names (`Client`): the image of each, and
@@ -194,7 +203,13 @@ export const subjectProblems = (subject: Subject): string[] => {
  * by its name, or of `scratch`, needs no digest. A base from an `ARG` has no digest that the harness
  * can read, thus it is in the list too.
  */
-export const unpinnedBases = (dockerfile: string): string[] => {
+export const unpinnedBases = (dockerfile: string): string[] => basesOf(dockerfile).filter((image) => !PINNED.test(image));
+
+/**
+ * This function gives each base of a Dockerfile, in the sequence of the file. A base is the image of
+ * a `FROM` that is not `scratch` or an earlier stage by its name.
+ */
+export const basesOf = (dockerfile: string): string[] => {
   const stages = new Set<string>(["scratch"]);
   const found: string[] = [];
   for (const line of dockerfile.replace(/\\\r?\n/g, " ").split(/\r?\n/)) {
@@ -202,7 +217,7 @@ export const unpinnedBases = (dockerfile: string): string[] => {
     if (from === undefined) continue;
     const [image, as, stage] = from.split(/\s+/).filter((word) => !word.startsWith("--"));
     if (image === undefined) continue;
-    if (!stages.has(image.toLowerCase()) && !PINNED.test(image)) found.push(image);
+    if (!stages.has(image.toLowerCase())) found.push(image);
     if (as?.toLowerCase() === "as" && stage !== undefined) stages.add(stage.toLowerCase());
   }
   return found;
@@ -243,7 +258,25 @@ export type ImagePlan =
       readonly tag: string;
       readonly dockerfile: string;
       readonly files: ReadonlyArray<{ readonly file: string; readonly at: string }>;
+      /** This record tells what the image holds, for the manifest of a run. */
+      readonly record: BuildRecord;
     };
+
+/**
+ * A build record tells what an image that the harness builds holds, for the manifest of a run. The
+ * tag is a sha256 of each file of the context. The bases are pinned by digest, and each lockfile
+ * has its sha256. Thus the record pins each program of the image. The versions are the part that a
+ * person reads.
+ */
+export interface BuildRecord {
+  readonly tag: string;
+  /** These are the bases of its Dockerfile, each pinned by digest (`basesOf`). */
+  readonly bases: readonly string[];
+  /** These are the lockfiles of its context by their path, each with the sha256 of its content (`locksOf`). */
+  readonly locks: Readonly<Record<string, string>>;
+  /** These are the versions of the packages that its manifests name directly, by their names (`versionsOf`). */
+  readonly versions: Readonly<Record<string, string>>;
+}
 
 /** This function gives each file under a path, in a stable sequence, but not the output of a local build. */
 const sources = (path: string): string[] => {
@@ -302,7 +335,8 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
   );
   const docker = files.find((each) => each.at === dockerfile);
   if (docker === undefined) throw new Error(`${labelOf(source)}: the context has no ${dockerfile}`);
-  const unpinned = unpinnedBases(readFileSync(docker.file, "utf8"));
+  const bases = basesOf(readFileSync(docker.file, "utf8"));
+  const unpinned = bases.filter((image) => !PINNED.test(image));
   const unlocked = unlockedManifests(files.map((each) => each.at));
   if (unpinned.length > 0 || unlocked.length > 0)
     throw new Error(
@@ -313,11 +347,16 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
     );
   const hash = createHash("sha256");
   hash.update(dockerfile);
+  const read: ContextFile[] = [];
   for (const { file, at } of files) {
+    const content = readFileSync(file);
     hash.update(at);
-    hash.update(readFileSync(file));
+    hash.update(content);
+    if (LOCK_NAMES.has(posix.basename(at)) || READ_FOR_VERSIONS.has(posix.basename(at))) read.push({ at, content });
   }
-  const plan: ImagePlan = { kind: "build", tag: `${name}:${hash.digest("hex").slice(0, 12)}`, dockerfile, files };
+  const tag = `${name}:${hash.digest("hex").slice(0, 12)}`;
+  const record: BuildRecord = { tag, bases, locks: locksOf(read), versions: versionsOf(read) };
+  const plan: ImagePlan = { kind: "build", tag, dockerfile, files, record };
   if (source.kind === "shipped") shippedPlans.set(source.name, plan);
   return plan;
 };
@@ -417,6 +456,15 @@ export const buildOnce = (
 export const imageOf = async (source: string | ImageSource): Promise<string> => {
   const plan = planOf(source);
   return plan.kind === "pull" ? plan.image : buildOnce(plan);
+};
+
+/**
+ * This function gives the build record of the image of a source, for the manifest of a run. A
+ * stock image by its name, or a pinned image, is a pull, and it has no build record.
+ */
+export const buildRecordOf = (source: string | ImageSource): BuildRecord | undefined => {
+  const plan = planOf(source);
+  return plan.kind === "build" ? plan.record : undefined;
 };
 
 /** This function gives the image of the harness: the prober, the TCP client, the injector and the namespace admin. */

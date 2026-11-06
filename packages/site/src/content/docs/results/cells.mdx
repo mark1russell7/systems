@@ -8,7 +8,7 @@ import { Summary } from "../../../components/Ledger.tsx";
 
 <Summary of="cells" />
 
-These are the latest results of the twelve S1 cells, from 2026-10-13. The target is a stock Redis 7.4 container on Linux 6.6, with HZ 250. Each cell has 11 runs in two fresh environments. The prober measures each interval from the records of the kernel.
+These are the results of the twelve S1 cells, from 2026-10-13. The target is a stock Redis 7.4 container on Linux 6.6, with HZ 250. Each cell has 11 runs in two fresh environments. The prober measures each interval from the records of the kernel.
 
 Each prediction comes from the algebra. The algebra reads the state machines of Linux TCP, Redis and ioredis, and the settings of the cell. A run outside the band is a finding, and so is a median outside the band.
 
@@ -50,4 +50,4 @@ These cells observe Redis and its hold on the connection of the client: the serv
 
 ## Where the data comes from
 
-Each run lands in a private chaos ledger as a record. The record has the cell, the manifests of its environments, each run and the records of the kernel. This page shows the latest landing of each cell. The [first results](../harness/), from 2026-10-08, stay on their own page.
+Each run lands in a private chaos ledger as a record. The record has the cell, the manifests of its environments, each run and the records of the kernel. This page shows the landing of each cell on that date. The [first results](../harness/), from 2026-10-08, stay on their own page.

@@ -204,6 +204,42 @@ These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the 
 - **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
 - **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
 
+## The cells of the retry count
+
+These cells start Q18 of S3 (`src/retries.ts`, SYS-67). The question: how many tries does one request cost across hops? Law O08 gives a product: the deepest listener sees the tries of each caller, multiplied.
+
+- **The target.** One process holds a chain of listeners on loopback (`targets/retry-chain/`). Each hop calls the next listener with a real retry client: the `RetryAgent` of undici 8.12.2, or `retry` of service 0.6.5. An npm lockfile pins them. The deepest listener fails each request with a status, or with a close and no reply.
+- **The client.** The first caller is the real client of the harness: the `RetryAgent` of undici, or the `Transport` of Go 1.27.2. Listener 0 answers `GET /` with 200, thus the client is ready, and each other path is the logical request.
+- **The record.** Each listener writes a line `arrive` for each arrival, with its `trail`: the arrival numbers above it, then its own number. The trails of a run are the tree of its tries, thus each term is visible.
+- **The law.** `lawOf` goes from the deepest listener up, because each answer sets the tries of the caller above it. Each term cites its source by file and line, in the comment of the module.
+- **The verdict.** The prediction gives an exact count for each listener (`counts`). A count that differs is a finding of its run. The times have no band, because a count reads no timer. Thus a loaded runner cannot move a count.
+- **The delays.** `T14.count.2` and `T14.count.3` are one chain at two delays, 500 ms and 1 ms. The second chain shows that the delays do not enter the count, thus the other cells use 1 ms.
+- **The late lines.** The lines of the target come on their own stream. Thus a run with counts waits for them after the end of its client, up to 5 s. A pause catches a line above a count.
+
+## The watch cells of etcd
+
+These cells answer one question of S3 (`src/etcd-watch.ts`, SYS-74): what does a watcher see after a stall or a compaction? The law: a stall alone loses nothing, and a compaction alone loses nothing. A watcher fails if it falls out of the synced group and a compaction then passes it.
+
+- **The target.** One program starts etcd v3.6.15 (`targets/etcd-watch/`). Each write, compaction and watch is a real `etcdctl`, thus the watcher is clientv3. SIGSTOP and SIGCONT give the stall.
+- **The border.** `WC.1` and `WC.2` are a watch one revision below the compaction and a watch at it. The test of etcd is strict, thus the second one gets each event.
+- **The buffers.** A stopped watcher leaves the synced group only when the buffers are full. Long values hold 131 events: 1 in the transport, 1 in the hand of `sendLoop`, 128 in the channel of the stream, and 1 victim.
+- **The exact border.** The victim moves `minRev` to the next revision. Thus 132 writes put `minRev` at the compact revision, and nothing is lost (`WC.4`). One more write puts it below, thus the watch ends with 131 events and the compaction error (`WC.5`).
+- **The controls.** `WC.3` has no stall, and `WC.6` has no compaction. Neither one loses an event. `WC.7` has 300 short writes. They fit in the window of the stream, thus the bytes decide and not the count.
+- **The verdict.** The prediction gives an exact count for each line (`counts`). Each term cites etcd v3.6.15 or grpc-go v1.83.2 by file and line, in the comment of the module.
+
+## The lease cells of etcd
+
+The cells `EL.1` to `EL.11` (SYS-73) ask when a lock holder loses its etcd lease. The lease ends in a band after its last renewal. A frozen holder can then write after the next holder, and a compare on the creation revision stops that write (T13).
+
+- **The target.** `targets/etcd-lease` is one etcd v3.6.15 member and a program on Node.js. Each lock is a real `etcdctl lock`, thus each client is clientv3 and its concurrency recipe.
+- **The freeze.** The exec form of `etcdctl lock` starts a section of sh. SIGSTOP on the process group stops the keepalive and the section together. The exec form does not look at the session, thus a holder that lost its lease ends with code 0.
+- **The band.** The end of a lease comes one TTL after the last renewal, and the expiry loop adds at most 500 ms. A stop after renewals opens the low end by the gap of two renewals, TTL/3 + 500 ms. The margin of 300 ms has no source.
+- **The floor.** A TTL of 1 s gets the floor of 2 s. A leader promotion gives each lease a whole TTL plus the election timeout of 1 s.
+- **The token.** The creation revision of the lock key is the fencing token. `ETCD_LOCK_REV` is that number only for a client that did not wait. After a wait it is the head, thus a fence with it fails on the key of the client (`EL.10`).
+- **The queue.** A waiter that loses its lease gets the session error at the release, and no lock (`EL.11`). This is the fix of the bug in the Jepsen analysis of etcd 3.4.3.
+- **The verdict.** The store has no other writer, thus each cell counts exact revisions from the head at its start. A time is a boolean field of its line, and the raw times stay in the line.
+- **The runs.** The target stays up between the runs of an environment. Each scenario stops its clients and revokes each lease before its last line.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
@@ -479,6 +515,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.
 - `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that the private repository lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
+- Each record has the code that operated (`code`, from `codeHere`). It is the commit of the checkout of this repository, and if a tracked file had changes. It is not the commit of a repository that calls the runner. Each line of `summary.ndjson` has its `pins`: each problem that stops the record from pinning its programs (`manifestProblems`, `commitProblems`). An empty list means that the record pins each program.
 
 `KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
 
