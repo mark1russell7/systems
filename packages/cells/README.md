@@ -203,6 +203,19 @@ These cells answer one question of S3 (`src/etcd-watch.ts`, SYS-74): what does a
 - **The controls.** `WC.3` has no stall, and `WC.6` has no compaction. Neither one loses an event. `WC.7` has 300 short writes. They fit in the window of the stream, thus the bytes decide and not the count.
 - **The verdict.** The prediction gives an exact count for each line (`counts`). Each term cites etcd v3.6.15 or grpc-go v1.83.2 by file and line, in the comment of the module.
 
+## The lease cells of etcd
+
+The cells `EL.1` to `EL.11` (SYS-73) ask when a lock holder loses its etcd lease. The lease ends in a band after its last renewal. A frozen holder can then write after the next holder, and a compare on the creation revision stops that write (T13).
+
+- **The target.** `targets/etcd-lease` is one etcd v3.6.15 member and a program on Node.js. Each lock is a real `etcdctl lock`, thus each client is clientv3 and its concurrency recipe.
+- **The freeze.** The exec form of `etcdctl lock` starts a section of sh. SIGSTOP on the process group stops the keepalive and the section together. The exec form does not look at the session, thus a holder that lost its lease ends with code 0.
+- **The band.** The end of a lease comes one TTL after the last renewal, and the expiry loop adds at most 500 ms. A stop after renewals opens the low end by the gap of two renewals, TTL/3 + 500 ms. The margin of 300 ms has no source.
+- **The floor.** A TTL of 1 s gets the floor of 2 s. A leader promotion gives each lease a whole TTL plus the election timeout of 1 s.
+- **The token.** The creation revision of the lock key is the fencing token. `ETCD_LOCK_REV` is that number only for a client that did not wait. After a wait it is the head, thus a fence with it fails on the key of the client (`EL.10`).
+- **The queue.** A waiter that loses its lease gets the session error at the release, and no lock (`EL.11`). This is the fix of the bug in the Jepsen analysis of etcd 3.4.3.
+- **The verdict.** The store has no other writer, thus each cell counts exact revisions from the head at its start. A time is a boolean field of its line, and the raw times stay in the line.
+- **The runs.** The target stays up between the runs of an environment. Each scenario stops its clients and revokes each lease before its last line.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
