@@ -1,9 +1,16 @@
 ---
-// The title of a page, with the name of its section above it, as a notebook labels each page.
+// The title of a page, with the name of its section above it, as a notebook labels each page. A page with a fixed study
+// shows its data stamp under the title. The build starts in the folder of this package.
+import { join } from "node:path";
+import { renderDataStamp } from "@mark1russell7/site-pages";
+import { stampOfPage } from "../lib/stamps.ts";
+
 const { entry } = Astro.locals.starlightRoute;
 const SECTIONS: Record<string, string> = { results: "Results", lab: "Lab" };
 const section = SECTIONS[entry.id.split("/")[0] ?? ""] ?? "The program";
+const stamp = stampOfPage(join(process.cwd(), "src/data"), entry.id);
 ---
 
 <p class="sy-eyebrow">{section}</p>
 <h1 id="_top">{entry.data.title}</h1>
+{stamp !== undefined && <Fragment set:html={renderDataStamp(stamp)} />}

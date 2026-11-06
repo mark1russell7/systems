@@ -586,6 +586,17 @@ export interface LineMatch {
 }
 
 /**
+ * A line count is an exact count of the lines of the target in one run, for a cell whose law gives a
+ * count (SYS-67). A count reads no timer, thus it has no band and no noise. The judge compares it with
+ * `count`, and `what` names it in the finding.
+ */
+export interface LineCount {
+  readonly what: string;
+  readonly match: LineMatch;
+  readonly count: number;
+}
+
+/**
  * A driver step is one more band of a driver after the band of its cell. An example is the error
  * of the retry after the interruption. It has its own reference on a socket of the driver, its
  * line, and its band. A run whose step is outside its band, or absent, has a finding.
@@ -736,6 +747,11 @@ export type Prediction =
        * the client. The end has no band, but each wait has one. A wait outside its band is a finding of its run.
        */
       readonly reconnects?: Reconnects;
+      /**
+       * These are the exact counts of the lines of the target in each run. A count that differs is a
+       * finding of its run. A measurement-only cell with a reference and counts gets a decision from them.
+       */
+      readonly counts?: readonly LineCount[];
     };
 
 /** A target is the server that a cell connects to: a stock image. */
