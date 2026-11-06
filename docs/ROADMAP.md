@@ -2474,7 +2474,7 @@ The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cel
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332)
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332), [the real-fault test, #376](https://github.com/mark1russell7/systems/pull/376)
 
 A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
 
@@ -2541,6 +2541,19 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 - A client with data in flight learns at its first retransmission after the expiry, 114.208 s to 117.684 s after its dial.
 - No cell sends a SYN cookie.
 - The prediction hit 11 of its 12 claims, with a Brier score of 0.0869. The miss is the build claim: a fix from the checks of the PR came before the dispatch. It removed a parameter that the queue measure did not read.
+
+### SYS-103 · A declared listen backlog
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** SYS-63
+- **Started:**
+- **Shipped:**
+- **Links:** [the result of SYS-63](#sys-63--the-accept-queue-its-count-and-what-a-client-sees), [the cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
+
+The HTTP transport of the service calls `server.listen` with the options of the caller, and it sets no backlog. The host of procedures gives only a port and a host. Thus each server gets the default of Node, 511, and `somaxconn` clamps it.
+
+SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, or it gets a reset with `tcp_abort_on_overflow` 1. This item adds a declared backlog to the listener of the service. Its default keeps the old behavior. The cells `AQ.1` to `AQ.7` are its test: a server of the service with a declared backlog gives the count of the law.
 
 ### SYS-64 · The port range: its count and its error
 
