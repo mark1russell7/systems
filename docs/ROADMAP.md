@@ -2462,7 +2462,7 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 - **Depends on:** S1
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:** [The law](S3.md#q19-the-exhaustion)
+- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [#328](https://github.com/mark1russell7/systems/pull/328)
 
 Above the size of the pool, the wait grows with the queue, and a client fails at `connectionTimeout`. HikariCP and PgBouncer are in the harness.
 
@@ -2479,6 +2479,12 @@ The prediction: five cells, `Q19.pool.1` to `Q19.pool.5`. In the table, a pool o
 | `Q19.pool.5` | 2 | 8 | 12 s | 30 s | 6 | 2, at the timeout |
 
 The rule: each cell has 11 runs, and each query has its own band. A query in a band of another round fails the law, not the noise. The bands do not change after a result.
+
+The result of HikariCP (run 42140281705, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each query acks in its own band, and the rounds come in their order in each run. With holds of 1 s, each ack is 1.5 ms to 7.4 ms after the time of the law. With holds of 12 s, it is 2.9 ms to 39.5 ms after it.
+- `Q19.pool.4` fails queries 8 and 9 at 2.553 s and 2.600 s, and `Q19.pool.5` fails them at 30.303 s and 30.350 s. Query 7 still gets its reply after them.
+- The queue reaches `M - P` with each connection in use, and the pool does not grow.
 
 PgBouncer stays open in this item. Its documents have no knob for `default_pool_size`. Its janitor ends a wait up to one pass late, thus a cell needs longer holds. The empty query of a check of HikariCP also joins the queue of PgBouncer.
 
