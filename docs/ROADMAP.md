@@ -2413,16 +2413,16 @@ A quorum queue loses no confirmed message. A republish of an unconfirmed message
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61)
+- **Shipped:** 2026-11-06
+- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61), [the run](https://github.com/mark1russell7/systems/actions/runs/42139841145), [#337](https://github.com/mark1russell7/systems/pull/337)
 
 The client cannot know the outcome of a COMMIT with no reply (DV-38). The source of PostgreSQL 17.11 changes the plan in two ways. Two final reads split those commits into three sets: kept, stranded and absent. A synchronous standby bounds the lost set until a cancel: the cancel gives a WARNING, and then a reply with success (`src/backend/replication/syncrep.c:317`).
 
-The prediction comes before the first dispatch, and no cell of this item has run. K is 4 writers. Each hold is 10 s.
+The prediction came before the first dispatch. K is 4 writers. Each hold is 10 s.
 
 | Cell | The cut | Synchronous standby | Lost writes | No reply | Other bands |
 | --- | --- | --- | --- | --- | --- |
@@ -2435,6 +2435,14 @@ The prediction comes before the first dispatch, and no cell of this item has run
 In each cell, the old primary holds each ack.
 
 **The decision rule.** A run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run or an infrastructure failure gets one more dispatch, alone. A code bug on the first run is a build miss. The thresholds do not change after any result is read.
+
+The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cell has 4 counted runs and no void run. Each run has 4 commits with no reply and 0 missing writes.
+
+- `T10.commit.1` lost 0, 0, 1 and 0 writes. `T10.commit.2` lost 0.
+- `T10.commit.3` lost 790, 790, 786 and 785 writes, median 788, with 0 kept.
+- `T10.commit.4` lost 0 writes, and each commit with no reply is stranded: 4 stranded, 0 absent.
+- `T10.commit.5` lost 8 writes in each run, the top of its band, with 8 warnings and 0 absent.
+- The two naive claims were false, as predicted: two cancels lose acks, and the stranded set is not empty.
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
