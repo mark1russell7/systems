@@ -139,6 +139,17 @@ Each run starts from a queue that converged (`rabbitmq-queues quorum_status`): o
 
 A step-down (`step-down`) moves the leadership to the first follower (`rabbitmq-queues transfer_leadership`). A drain (`drain`) puts the node in maintenance mode (`rabbitmq-upgrade drain`), and the run revives the node after it. Each of them starts an Erlang VM for the tools first. Thus its stamp is a line of the log, and not the command. For a step-down it is the NOTICE of the old leader that gives the leadership away (`GIVES_AWAY`). A drain stops the member of the leader, thus its stamp is the first follower that sees its monitor of the leader go down (`MONITOR_DOWN`).
 
+## The clusters of etcd
+
+A cluster of etcd (`EtcdCluster`, `Cell.etcd`) is a cluster of etcd members, as data. The members elect their leader by Raft. The cluster replaces the target of its cell, and a checker of linearizability judges the history of each run.
+
+- **The members.** Each member is a container of one image in its own network namespace, for example the etcd image of the harness (`{ kind: "shipped", name: "etcd" }`). Its hostname is its name, and the members form the cluster from the list of their names. Its server is the child of a shell, and each member has an injector sidecar.
+- **The commander.** The client of the cell is an image (`Cell.client`) with the client `etcd-kv`, the checker `linearizability` and etcdctl. The lab reads the cluster with `etcdctl endpoint status` from it, and it runs the checker in it.
+- **The client.** The client runs in the network namespace of the holder. Each worker has its own client of clientv3 with one member, and it puts unique values or gets keys (`probe.kv`). Its gets are linearizable or serializable. It writes one `op` line for each operation, with its call, its return and its result.
+- **The faults.** A partition cuts one member from the other members (`cuts: "group"`), and its clients stay connected to it. A blackhole or a reset cuts it from all. A freeze stops its server.
+
+Each run starts from a cluster that converged: each member names one leader, in one term and at one applied index. The run then waits for 20 operations, and it applies the fault to the member that `Cell.faultAt` names. After the run, the cluster converges again.
+
 ## The clients and the agents
 
 - **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines. Its image is a stock image by its name, or the source of the image of a subject (`ImageSource`).
@@ -364,6 +375,9 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - **The timeline.** A log line of a member marks each stage. The first stages are a member that marks the old primary DOWN, the start of an election and its win. The last stages are the end of the catch-up, the first write of the new primary, and the step-down of the old primary.
   - The lines of the client mark the discovery of the new primary, the write-off of the old one, and the first accepted write.
   - A stage that the prediction names as quiet (`GroupPrediction.quiet`) is a finding when a run shows it. An election that another member wins is a failover.
+- **A cluster of etcd** (`measureEtcd`, `history.ts`). The outcome is the verdict of the checker on the history of the run. The run also counts each operation by its result, and the operations of the cut member in the hold by their kind.
+  - A run is void with no `ready` or no `done` line of the client, thus the history can miss an operation. It is void with no operation of the cut member in the hold. It is also void with no verdict, or when the check reaches its timeout on a key.
+  - A verdict other than the one of the prediction (`Prediction.history`) is a finding, with each key that has no linearization.
 - **A driver band** (`measureDriver`, `driver.ts`). A driver with more than one socket names the socket of its band (`DriverBand.socket`).
   - The band counts from its reference on that socket. It ends at a line of the client (`ends`), or at the report of the kernel on the socket.
   - A band that a line ends is a timer of the driver. It counts from the last segment with data that the socket received or sent. The idle timer of a Node socket starts again at each read and each write of data.
@@ -399,6 +413,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - A run that did not announce the stage is outside too. A stage outside its band fails that stage. The decision of the cell stays the decision of its band.
   - The verdict also gives the median of each stage, the lost writes of each run, and the errors on the way.
 
+- **A history** (`Prediction.history`). The cell holds when each counted run gives the verdict of the prediction. The reason gives the count of each verdict.
 - **An HTTP client** (`Verdict.requests`). The verdict counts each outcome of the second request over the counted runs. A measurement-only cell also gives them in its reason.
 - **The reconnect** (`Verdict.reconnect`). A wait outside its band is a finding of its run, thus the cell fails. The verdict gives the spread of each wait, of the first SYN, of the first ESTABLISHED and of the work before each connect(2). Its reason says the medians.
 - **A call in flight** (`Verdict.calls`). The verdict counts each outcome of the call in flight of a WebSocket client, and its reason says them.

@@ -2643,6 +2643,23 @@ The work has three steps, each in its own PR:
 2. A cluster of etcd in the harness: three members, each in its own network namespace, as the replica set of MongoDB. Thus the partition faults of a group act on one member, and its clients stay connected to it.
 3. The cells: clients write and read through each member, with linearizable reads and with serializable reads, before, during and after the partition of one member. The target gives its history to the checker, and the prediction comes before the first dispatch.
 
+Step 1 is [#374](https://github.com/mark1russell7/systems/pull/374). Steps 2 and 3 are one PR, because a cluster with no cell has nothing that runs it.
+
+The cluster is `Cell.etcd`. Each member is an image with a shell, because the image of etcd has none. The commander is the image of `etcd-kv`, with the checker and etcdctl. The client runs in the namespace of the holder, and each worker talks to one member.
+
+The four cells `LR` cut one member from the other members for 10 s. The client stays connected to it. The law comes from the source of etcd v3.6.15 and of Raft v3.6.0 (`packages/cells/src/etcd-reads.ts`):
+
+| Cell | Reads | Cut member | Verdict |
+| --- | --- | --- | --- |
+| LR.1 | linearizable | a follower | Ok |
+| LR.2 | linearizable | the leader | Ok |
+| LR.3 | serializable | a follower | Illegal |
+| LR.4 | serializable | the leader | Illegal |
+
+A linearizable get needs a quorum of heartbeat acks, thus each get through the cut member fails. A serializable get reads the local store of the member. The other members elect a leader and accept puts, thus a get after a put reads the old value.
+
+A run is void when it has no operation of the cut member in the cut, or when the checker reaches its timeout.
+
 The cluster is a group of the harness and not three members in one container. In one namespace the members share the loopback device, thus a cut of one member needs a rule for each process. The groups of the harness already have the faults, and each part has its own namespace.
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
@@ -2871,6 +2888,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 56 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, history | 4 | The verdict of the checker of linearizability on the history of a run | A stall lowers the operations in the cut. The verdict reads no time, thus a run with no operation in the cut is void. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
@@ -2894,6 +2912,10 @@ The closed-loop families:
 | RD.100 | 2 | First write |
 | RD.1000 | 2 | First write |
 | RD.control | 1 | First write |
+| LR.1 | 1 | History |
+| LR.2 | 1 | History |
+| LR.3 | 1 | History |
+| LR.4 | 1 | History |
 
 What the audit found:
 

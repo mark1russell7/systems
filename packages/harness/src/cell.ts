@@ -353,6 +353,57 @@ export type ClusterStage = "monitor-down" | "elected" | "followed" | "old-leader
 /** This type is the node of the client in a cluster at the start of a run. It is the node of the leader of the queue, or of a follower. */
 export type ClusterClientAt = "leader" | "follower";
 
+/**
+ * An etcd cluster is a cluster of etcd whose members elect their leader by Raft (SYS-75). Each
+ * member is a container of the same image in its own network namespace. The members form the
+ * cluster from a fixed list of names. The client is a ClientImage of `etcd-kv`
+ * (`Cell.client`): its workers write a history of puts and gets, and the checker of
+ * linearizability reads it.
+ */
+export interface EtcdCluster {
+  /** This source is the image of each member: an image with a shell, thus a member holds its server as the child of a shell. */
+  readonly image: ImageSource;
+  /** These are the names of the members, and the host name of each one. */
+  readonly members: readonly string[];
+  readonly port: number;
+  readonly peerPort: number;
+  /** These are flags of etcd over its defaults. A cell at the defaults has none. */
+  readonly args?: readonly string[];
+  /** These are the programs of the image: the server, whose process a signal acts on. */
+  readonly programs: { readonly server: string };
+}
+
+/**
+ * A key-value probe is the workload of the client of an etcd cluster (`Cell.etcd`). Each worker
+ * has its own client with one endpoint. It puts a unique value or gets a key, then it waits
+ * `Cell.probe.interval`.
+ * - `reads` is the kind of each get: `linearizable` goes through the ReadIndex of etcd, and
+ *   `serializable` reads the local store of the member.
+ * - `timeout` is the deadline of each operation.
+ */
+export interface KvProbe {
+  readonly reads: "linearizable" | "serializable";
+  readonly workers: number;
+  readonly keys: number;
+  readonly timeout: Quantity;
+}
+
+/**
+ * A history verdict is the line of the checker of linearizability for the history of one run. The
+ * result is `Ok`, `Illegal`, or `Unknown` at the timeout of a key. `illegal` names each key with
+ * no linearization, and `undecided` each key at the timeout. `dropped` counts the failed operations
+ * and the unknown gets, which the check does not use, and `unknown` counts the open writes.
+ */
+export interface HistoryVerdict {
+  readonly result: "Ok" | "Illegal" | "Unknown";
+  readonly operations: number;
+  readonly keys: number;
+  readonly illegal: readonly string[];
+  readonly undecided: readonly string[];
+  readonly dropped: number;
+  readonly unknown: number;
+}
+
 /** A group role is a part of a group by its role at the start of a run: the primary, a replica, or a Sentinel. */
 export type GroupRole = "primary" | "replica" | "sentinel";
 
@@ -793,6 +844,12 @@ export type Prediction =
        * finding of its run. A measurement-only cell with a reference and counts gets a decision from them.
        */
       readonly counts?: readonly LineCount[];
+      /**
+       * This result is the verdict of the checker of linearizability on the history of each run of
+       * an etcd cluster (`Cell.etcd`). A run with another result has a finding. A measurement-only
+       * cell with a reference and a history result gets a decision from them.
+       */
+      readonly history?: "Ok" | "Illegal";
     };
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -1071,6 +1128,8 @@ export interface Cell {
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is the client of a procedures subject). The client then ignores `keepalive` and `userTimeout`. */
     readonly ws?: WsProbe;
+    /** This workload is the workload of the client of an etcd cluster (`Cell.etcd`). */
+    readonly kv?: KvProbe;
   };
   readonly fault: Fault;
   /** This time is the length of a stall, from the send of the request. */
@@ -1139,6 +1198,12 @@ export interface Cell {
    * record, and the cluster does not read it.
    */
   readonly cluster?: Cluster;
+  /**
+   * This cluster replaces the target: a cluster of etcd. The client is then the image of `etcd-kv`
+   * (`Cell.client`) with the workload `probe.kv`, and the checker of linearizability judges its
+   * history. `target` stays for the record, and the cluster does not read it.
+   */
+  readonly etcd?: EtcdCluster;
   /** This pair adds a standby to the target (`Pair`). The client is then node-postgres, in a stream of K writers. */
   readonly pair?: Pair;
   /** This place is the node of the client in a cluster: the node of the leader, or of a follower. Without it, the node of a follower. */
@@ -1299,6 +1364,11 @@ export interface Run {
   readonly middlebox?: readonly MiddleboxEvent[];
   /** This record is the group of a group cell: its parts, and what it did in the run. */
   readonly group?: RunGroup;
+  /**
+   * This record is the verdict of the checker on the history of a run of an etcd cluster. It is null
+   * when the checker gave no verdict. Such a run has no prober: its `kernel` is empty and its `lost` is null.
+   */
+  readonly history?: HistoryVerdict | null;
   /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
   readonly server?: readonly ProbeEvent[];
   /** This record is the fabric of a cell with `Topology.fabric`. */

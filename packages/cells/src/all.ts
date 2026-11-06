@@ -22,6 +22,7 @@ import { T03_CELLS } from "./t03.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { LEASE_CELLS } from "./etcd-lease.ts";
+import { READ_CELLS } from "./etcd-reads.ts";
 import { WATCH_CELLS } from "./etcd-watch.ts";
 import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
@@ -48,7 +49,8 @@ export interface Subjects {
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 come next,
  * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) and of the
- * routed fabric come next, then the retry count of T14 (O08). The recovery drills are last.
+ * routed fabric come next, then the retry count of T14 (O08). The watch, lease and read cells of etcd
+ * follow. The recovery drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -83,6 +85,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...COUNT_CELLS,
     ...WATCH_CELLS,
     ...LEASE_CELLS,
+    ...READ_CELLS,
     ...RECOVERY_CELLS,
   ];
 };

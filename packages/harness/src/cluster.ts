@@ -138,9 +138,10 @@ export const clusterViewOf = (cluster: Cluster, rows: readonly StatusRow[]): Gro
  * This function gives the peers that a fault on a node cuts it from. `all` is each other node and the
  * client, `group` is the other nodes, and `clients` is the client. `one` is the first other node in
  * the sequence of the cluster, and `one-way` is the same node for the segments from the part only.
+ * The cluster is any list of members by name: a cluster of RabbitMQ or of etcd.
  */
 export const clusterCutOf = (
-  cluster: Cluster,
+  cluster: { readonly members: readonly string[] },
   members: Readonly<Record<string, RunPart>>,
   client: string,
   part: string,
