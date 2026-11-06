@@ -22,7 +22,9 @@
 //!    closes it, and waits `--settle-ms`.
 //!
 //! The control connection takes a port of the range. Its destination is not a destination of the
-//! search, thus it does not change a count.
+//! search, thus it does not change a count. It has SO_LINGER 0 from its connect, so that its close is a
+//! reset and holds no port. A FIN at the exit of the client holds that port in TIME_WAIT for 60 s. A
+//! range of 3 has only 2 ports for a search. Thus the third run of an environment had no control port.
 
 use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
@@ -187,6 +189,11 @@ impl Control {
 
 /// Closes a connection with a reset: SO_LINGER with a time of 0, then close(2).
 fn reset(stream: TcpStream) -> std::io::Result<()> {
+    abortive(&stream)
+}
+
+/// Sets SO_LINGER with a time of 0, so that each later close of the socket is a reset.
+fn abortive(stream: &TcpStream) -> std::io::Result<()> {
     let linger = libc::linger { l_onoff: 1, l_linger: 0 };
     // SAFETY: the option value is on this stack, passed with its exact size
     let status = unsafe {
@@ -292,6 +299,8 @@ fn client(args: &[String]) -> Result<(), Box<dyn Error>> {
     let plan = plan_of(args)?;
     let ip: Ipv4Addr = plan.host.parse()?;
     let stream = TcpStream::connect((ip, plan.port + 1))?;
+    // a reset at each close, the exit included: the port of this connection is free for the next run
+    abortive(&stream)?;
     stream.set_nodelay(true)?;
     let mut control = Control { reader: BufReader::new(stream.try_clone()?), writer: stream };
     let destinations: Vec<SocketAddrV4> = (0..plan.destinations).map(|at| SocketAddrV4::new(ip, plan.port + 2 * at)).collect();
@@ -340,5 +349,26 @@ mod tests {
     #[test]
     fn a_range_with_no_free_port_is_refused_with_its_name() {
         assert_eq!(errno_of(&std::io::Error::from_raw_os_error(libc::EADDRNOTAVAIL)), "EADDRNOTAVAIL");
+    }
+
+    #[test]
+    fn the_control_connection_closes_with_a_reset_and_holds_no_port() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("a listener");
+        let stream = TcpStream::connect(listener.local_addr().expect("an address")).expect("a connect");
+        abortive(&stream).expect("SO_LINGER");
+        let mut linger = libc::linger { l_onoff: 0, l_linger: -1 };
+        let mut size = std::mem::size_of::<libc::linger>() as libc::socklen_t;
+        // SAFETY: the buffer is on this stack, passed with its exact size
+        let status = unsafe {
+            libc::getsockopt(
+                stream.as_raw_fd(),
+                libc::SOL_SOCKET,
+                libc::SO_LINGER,
+                (&mut linger as *mut libc::linger).cast(),
+                &mut size,
+            )
+        };
+        assert_eq!(status, 0);
+        assert_eq!((linger.l_onoff, linger.l_linger), (1, 0));
     }
 }
