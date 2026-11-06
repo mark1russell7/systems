@@ -192,6 +192,17 @@ These cells start Q18 of S3 (`src/retries.ts`, SYS-67). The question: how many t
 - **The delays.** `T14.count.2` and `T14.count.3` are one chain at two delays, 500 ms and 1 ms. The second chain shows that the delays do not enter the count, thus the other cells use 1 ms.
 - **The late lines.** The lines of the target come on their own stream. Thus a run with counts waits for them after the end of its client, up to 5 s. A pause catches a line above a count.
 
+## The watch cells of etcd
+
+These cells answer one question of S3 (`src/etcd-watch.ts`, SYS-74): what does a watcher see after a stall or a compaction? The law: a stall alone loses nothing, and a compaction alone loses nothing. A watcher fails if it falls out of the synced group and a compaction then passes it.
+
+- **The target.** One program starts etcd v3.6.15 (`targets/etcd-watch/`). Each write, compaction and watch is a real `etcdctl`, thus the watcher is clientv3. SIGSTOP and SIGCONT give the stall.
+- **The border.** `WC.1` and `WC.2` are a watch one revision below the compaction and a watch at it. The test of etcd is strict, thus the second one gets each event.
+- **The buffers.** A stopped watcher leaves the synced group only when the buffers are full. Long values hold 131 events: 1 in the transport, 1 in the hand of `sendLoop`, 128 in the channel of the stream, and 1 victim.
+- **The exact border.** The victim moves `minRev` to the next revision. Thus 132 writes put `minRev` at the compact revision, and nothing is lost (`WC.4`). One more write puts it below, thus the watch ends with 131 events and the compaction error (`WC.5`).
+- **The controls.** `WC.3` has no stall, and `WC.6` has no compaction. Neither one loses an event. `WC.7` has 300 short writes. They fit in the window of the stream, thus the bytes decide and not the count.
+- **The verdict.** The prediction gives an exact count for each line (`counts`). Each term cites etcd v3.6.15 or grpc-go v1.83.2 by file and line, in the comment of the module.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
