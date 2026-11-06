@@ -8,10 +8,11 @@ import { redisClient, redisLimiterStore, tcpDial } from "../redis.ts";
 import { fakeClock, seeded } from "../testing.ts";
 
 /**
- * The Redis client against a real Redis 7.4 and the real ioredis 6, opt-in: `REDIS_IT=1`. These tests
- * check what the fake cannot: the options that ioredis really takes, the server's id of the connection,
- * and the replies of a real server. They connect through the port that Docker maps, which is correct for
- * these behaviours. The timing of faults is the work of the F6 cells, which run in the VM of Docker.
+ * These tests run the Redis client against a real Redis 7.4 and the real ioredis 6, opt-in: `REDIS_IT=1`.
+ * They check what the fake cannot: the options that ioredis really takes, the server's id of the
+ * connection, and the replies of a real server. They connect through the port that Docker maps, which is
+ * correct for these behaviours. The timing of faults is the work of the F6 cells, which run in the VM of
+ * Docker. One fault is here: a server that holds a write unread, from `DEBUG SLEEP` (SYS-62).
  */
 
 const RUN = process.env["REDIS_IT"] === "1";
@@ -39,7 +40,12 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
   let port: number;
 
   beforeAll(async () => {
-    redis = await new GenericContainer(REDIS).withExposedPorts(6379).withWaitStrategy(Wait.forLogMessage("Ready to accept connections")).start();
+    // DEBUG SLEEP holds the server for the test of the resend (SYS-62)
+    redis = await new GenericContainer(REDIS)
+      .withCommand(["redis-server", "--enable-debug-command", "yes"])
+      .withExposedPorts(6379)
+      .withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+      .start();
     host = redis.getHost();
     port = redis.getMappedPort(6379);
   }, 120_000);
@@ -157,4 +163,49 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
     expect(took).toBeLessThan(3500);
     await cache.handle.close();
   }, 20_000);
+
+  /** This client is raw ioredis, for the server commands of a test and for the control at the defaults of ioredis. */
+  const raw = async (options: Record<string, unknown> = {}) => {
+    const { default: Redis } = (await import("ioredis")) as unknown as {
+      readonly default: new (options: Record<string, unknown>) => { call(...args: Array<string | number>): Promise<unknown>; disconnect(): void };
+    };
+    return new Redis({ host, port, ...options });
+  };
+  const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
+  // the socket timer closes the connection at 500 ms, while DEBUG SLEEP holds the server for 2 s with the write unread
+  const HELD: RedisKnobs = { ...KNOBS, driver_writeoff_time: ms(500), request_timeout: ms(4000) };
+  // the promise is in a record: an async function that gave it bare would wait for the end of the sleep
+  const hold = async (admin: { call(...args: Array<string | number>): Promise<unknown> }) => {
+    const held = admin.call("DEBUG", "SLEEP", "2");
+    await sleep(200);
+    return { held };
+  };
+
+  // The cells T12.resend of SYS-62: with autoResendUnfulfilledCommands at its default, ioredis sends a
+  // write again at the next ready, and the server runs the first copy too. The client of the service turns
+  // the resend off, and it does not send again a command that is not idempotent
+  it("writes one copy of an RPUSH that a socket timer closes while the server holds it unread, and raw ioredis writes two (SYS-62)", async () => {
+    const admin = await raw();
+    const control = await raw({ socketTimeout: 500 });
+    await control.call("PING");
+    let { held } = await hold(admin);
+    const resent = control.call("RPUSH", "it:resend:control", "1");
+    await held;
+    await Promise.race([resent, sleep(10_000)]);
+    expect(await admin.call("LLEN", "it:resend:control")).toBe(2);
+    control.disconnect();
+
+    const cache = redisClient("cache-resend", { host, port, system: "systems.component.redis", knobs: HELD, heartbeatMisses: 2 });
+    await cache.handle.connect(new AbortController().signal);
+    await sleep(100);
+    ({ held } = await hold(admin));
+    const result = await cache.send("RPUSH", ["it:resend:service", "1"]);
+    expect(result).toMatchObject({ outcome: "indeterminate", attempts: 1 });
+    await held;
+    await sleep(1000);
+    expect(await admin.call("LLEN", "it:resend:service")).toBe(1);
+    expect(await cache.send("LLEN", ["it:resend:service"])).toMatchObject({ outcome: "ok", value: 1 });
+    await cache.handle.close();
+    admin.disconnect();
+  }, 30_000);
 });

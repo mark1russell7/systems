@@ -5,6 +5,7 @@
 #   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
 #           (reusable-release-build.yml of the template, with the release scripts of the template).
 #   site    The conventions check (check:conventions), and the site, as pages.yml builds it for GitHub Pages.
+#   checker The format, the vet and the tests of the checker of linearizability, in Go.
 #   ci      The required check of main. It fails when a different job of this file fails.
 name: CI
 
@@ -71,11 +72,30 @@ jobs:
         env:
           ASTRO_TELEMETRY_DISABLED: "1"
 
+  # The checker of linearizability (packages/cells/checkers/linearizability): its format, its vet and
+  # its tests, with the Go of the images of the harness, pinned by digest. Go downloads Porcupine and
+  # checks it against go.sum.
+  checker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Format, vet and tests
+        run: >-
+          docker run --rm -e CGO_ENABLED=0
+          -v "$PWD/packages/cells/checkers/linearizability:/src" -w /src
+          golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
+          sh -c 'test -z "$(gofmt -l .)" || { gofmt -d .; exit 1; }; go vet ./... && go test -count=1 ./...'
+
   # The required check of main (the ruleset ci-required). Its name stays "ci". It fails when a job
   # fails or stops. The job pack can be skipped only in a release run.
   ci:
     if: always()
-    needs: [checks, pack, site]
+    needs: [checks, pack, site, checker]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
@@ -85,9 +105,11 @@ jobs:
           CHECKS: ${{ needs.checks.result }}
           PACK: ${{ needs.pack.result }}
           SITE: ${{ needs.site.result }}
+          CHECKER: ${{ needs.checker.result }}
           WORKFLOW: ${{ github.workflow }}
         run: |
-          echo "checks: $CHECKS, pack: $PACK, site: $SITE"
+          echo "checks: $CHECKS, pack: $PACK, site: $SITE, checker: $CHECKER"
           test "$CHECKS" = success
           test "$SITE" = success
+          test "$CHECKER" = success
           if [ "$WORKFLOW" = CI ]; then test "$PACK" = success; else test "$PACK" = skipped; fi
