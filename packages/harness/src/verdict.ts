@@ -496,13 +496,26 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
-      // a band of lost writes judges the cell: the time stays a measurement, and each finding of a run counts
-      const counts = prediction.group?.lost;
+      // exact counts judge the cell: the times have no band
+      const { counts } = prediction;
+      if (counts !== undefined) {
+        const exact = counts.map((each) => `${each.what} ${each.count}`).join(", ");
+        return {
+          ...empty,
+          decision: outside.length === 0 ? "holds" : "fails",
+          band: null,
+          outside,
+          median: times.length === 0 ? null : s(middle(times)),
+          why: `${counted.length - outside.length} of ${counted.length} runs gave the exact counts (${exact}); ${outcomes}; ${timed}. ${prediction.why}`,
+        };
+      }
+      // a band of lost writes or of extra copies judges the cell: the time stays a measurement, and each finding of a run counts
+      const lost = prediction.group?.lost;
       const copies = prediction.group?.duplicates;
-      if (counts !== undefined || copies !== undefined) {
+      if (lost !== undefined || copies !== undefined) {
         const off = new Set(outside.map((each) => each.run)).size;
         const bands = [
-          ...(counts === undefined ? [] : [`lost writes [${counts.low}, ${counts.high}]`]),
+          ...(lost === undefined ? [] : [`lost writes [${lost.low}, ${lost.high}]`]),
           ...(copies === undefined ? [] : [`extra copies [${copies.low}, ${copies.high}]`]),
         ];
         return {

@@ -21,6 +21,9 @@ import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
+import { LEASE_CELLS } from "./etcd-lease.ts";
+import { WATCH_CELLS } from "./etcd-watch.ts";
+import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
 import { WRITES_CELLS } from "./writes.ts";
@@ -44,7 +47,8 @@ export interface Subjects {
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
  * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
- * (O29 and O30) and of the routed fabric come next. The recovery drills are last.
+ * (O29 and O30) and of the routed fabric come next, then the retry count of T14 (O08). The recovery
+ * drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -76,9 +80,26 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T02_GRPC,
     ...LIMITER_CELLS,
     ...FABRIC_CELLS,
+    ...COUNT_CELLS,
+    ...WATCH_CELLS,
+    ...LEASE_CELLS,
     ...RECOVERY_CELLS,
   ];
 };
 
 /** These are the cells of each catalog, on the subjects that the harness ships. */
 export const ALL: readonly Cell[] = catalogs();
+
+/**
+ * These are the selections of the scheduled runs of the workflow Cells, by name. The read of the
+ * records takes a name and not a regular expression. The name `night` selects the nightly run. The
+ * name `drills` selects the Sunday run.
+ */
+export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/ };
+
+/**
+ * This function gives the cells of one shard: the cells whose names match `only`, then each `of`-th
+ * cell from the `shard`-th. The runner and the read of its records use this one selection.
+ */
+export const selectedOf = (source: readonly Cell[], only: RegExp, shard: number, of: number): readonly Cell[] =>
+  source.filter((each) => only.test(each.name)).filter((_, at) => at % of === shard);

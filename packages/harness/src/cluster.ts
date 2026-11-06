@@ -5,7 +5,7 @@ import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.t
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import { amqpClientImage, harnessImage } from "./image.ts";
 import type { Manifest } from "./lab.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, containers, harnessRecord, lines, netnsOf, output, shippedClientRecord, withPid } from "./lab.ts";
 import type { Cut } from "./replset.ts";
 import { clockOffsetOf } from "./replset.ts";
 import { substrateHere } from "./substrate.ts";
@@ -499,8 +499,9 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "amqp", image: amqp },
+          client: shippedClientRecord("amqp", amqp),
           netns: { client: clientNetns, target: members[cluster.members[0]!]!.netns },
           sysctls,
           group: { members: list, sentinels: [], observer: { image: amqp } },
