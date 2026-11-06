@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, Group, Run, SentinelEvent } from "./cell.ts";
-import { deadlineOf, fieldsOf, infoOf, memberConfig, peersOf, sentinelConfig, subscriptionsOf, viewOf } from "./group.ts";
+import { deadlineOf, fieldsOf, holdsOf, infoOf, memberConfig, peersOf, sentinelConfig, subscriptionsOf, viewOf } from "./group.ts";
 import { measure } from "./observe.ts";
 import { judge } from "./run.ts";
 import { errorsOf, lagsOf, writesOf } from "./timeline.ts";
@@ -183,7 +183,7 @@ describe("a run of a group cell, measured", () => {
 
   it("tells what became of each write: kept, lost, and unknown", () => {
     // 6 failed and 9 went after the stop. The group keeps 1–5, 7 and 8, and loses none of its acknowledged writes
-    expect(writesOf(groupRun(), ms(0), "m1")).toEqual({ sent: 7, acked: 5, old: 0, lost: [], unknown: [{ n: 6, held: false }] });
+    expect(writesOf(groupRun(), ms(0), "m1")).toEqual({ sent: 7, acked: 5, old: 0, lost: [], unknown: [{ n: 6, held: false }], duplicates: [] });
     // a group that kept only the writes before the fault lost 4 and 5
     expect(writesOf(groupRun({}, [1, 2, 3]), ms(0), "m1").lost).toEqual([4, 5]);
     expect(writesOf(groupRun({}, null), ms(0), "m1").lost).toBeNull();
@@ -269,6 +269,41 @@ describe("a run of a group cell, measured", () => {
     // with no band, the same cell stays a measurement
     const plain: Cell = { ...counted, prediction: { detects: null, window: s(120), why: "measured", from: "fault", group: { lands: "new", failover: true, stages: [] } } };
     expect(verdictOf(plain.prediction, [measure(plain, groupRun())]).decision).toBe("measured");
+  });
+
+  it("counts each extra copy of a write that the group holds, and a third copy twice", () => {
+    expect(writesOf(groupRun({}, [1, 2, 2, 3, 3, 3, 4, 5, 7]), ms(0), "m1").duplicates).toEqual([2, 3, 3]);
+    expect(writesOf(groupRun({}, [3, 1, 3, 2, 4, 5]), ms(0), "m1").duplicates).toEqual([3]);
+    expect(writesOf(groupRun({}, null), ms(0), "m1").duplicates).toBeNull();
+  });
+
+  it("reads the keys of a stream of SET and the entries of a list, and keeps each copy of the list", () => {
+    expect(holdsOf("w:3\nw:1\nw:2\n", "")).toEqual([1, 2, 3]);
+    expect(holdsOf("", "1\n2\n2\n3\n")).toEqual([1, 2, 2, 3]);
+    expect(holdsOf("", "")).toEqual([]);
+  });
+
+  it("judges a measurement-only cell by its band of extra copies, and a read of no write says nothing", () => {
+    const copied: Cell = {
+      ...CELL,
+      prediction: { detects: null, window: s(120), why: "measured", from: "fault", group: { lands: "new", failover: true, stages: [], duplicates: { low: 1, high: 1 } } },
+    };
+    const inside = verdictOf(copied.prediction, [measure(copied, groupRun({}, [1, 2, 3, 4, 4, 5, 7, 8]))]);
+    expect(inside.decision).toBe("holds");
+    expect(inside.why).toMatch(/^1 of 1 runs inside the band of extra copies \[1, 1\]/);
+    expect(inside.group?.duplicates).toEqual({ runs: 1, total: 1, median: 1, max: 1 });
+    const none = measure(copied, groupRun());
+    expect(none.finding).toBe("the group holds 0 extra copies, outside [1, 1]");
+    expect(verdictOf(copied.prediction, [none]).decision).toBe("fails");
+    expect(measure(copied, groupRun({}, null)).finding).toBe("the group did not converge, thus the count of its extra copies is not known");
+    // a control at 0 fails when the read found nothing: its zero would be empty
+    const control: Cell = { ...copied, prediction: { ...copied.prediction, group: { lands: "new", failover: true, stages: [], duplicates: { low: 0, high: 0 } } } };
+    expect(measure(control, groupRun()).finding).toBeNull();
+    expect(measure(control, groupRun({}, [])).finding).toBe("the group holds no write, thus the count of its extra copies says nothing");
+    // both bands judge a cell, and a cell with no band of copies has no count of them
+    const both: Cell = { ...copied, prediction: { ...copied.prediction, group: { lands: "new", failover: true, stages: [], lost: { low: 0, high: 0 }, duplicates: { low: 1, high: 1 } } } };
+    expect(verdictOf(both.prediction, [measure(both, groupRun({}, [1, 2, 3, 4, 4, 5, 7, 8]))]).why).toMatch(/band of lost writes \[0, 0\] and the band of extra copies \[1, 1\]/);
+    expect(verdictOf(CELL.prediction, [measure(CELL, groupRun())]).group?.duplicates).toBeUndefined();
   });
 
   it("waits for the outcome of a group cell up to its band, or its window, and 10 s more", () => {
