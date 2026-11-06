@@ -40,6 +40,9 @@ export interface ErrorOnTheWay {
  *   of a split brain. It is null when the group did not converge after the run.
  * - `unknown` are the writes that the client sent and did not see accepted: an error, or no answer.
  *   `held` tells if the group kept each one, or null when it did not converge.
+ * - `duplicates` has one entry for each extra copy that the group holds: a write held three times
+ *   has two entries. It is null when the group did not converge. A key holds one copy by
+ *   construction, thus only a list can show a copy.
  */
 export interface Writes {
   readonly sent: number;
@@ -47,6 +50,7 @@ export interface Writes {
   readonly old: number;
   readonly lost: readonly number[] | null;
   readonly unknown: ReadonlyArray<{ readonly n: number; readonly held: boolean | null }>;
+  readonly duplicates?: readonly number[] | null;
   /** These are the counts of a pair (`Cell.pair`), from its two final reads. */
   readonly sets?: PairSets;
 }
@@ -253,8 +257,10 @@ export const writesOf = (run: Run, after: number, primary: string): Writes => {
       const n = Number(event["n"]);
       return { n, held: kept === null ? null : kept.has(n) };
     });
+  // each entry that repeats the one before it, in order, is one extra copy
+  const duplicates = holds === null ? null : [...holds].sort((a, b) => a - b).filter((n, at, all) => all[at - 1] === n);
   const oldHolds = run.group?.oldHolds;
-  return { sent: sent.length, acked: acks.size, old, lost, unknown, ...(oldHolds === undefined ? {} : { sets: setsOf(run, acks.keys(), unknown, new Set(oldHolds)) }) };
+  return { sent: sent.length, acked: acks.size, old, lost, unknown, duplicates, ...(oldHolds === undefined ? {} : { sets: setsOf(run, acks.keys(), unknown, new Set(oldHolds)) }) };
 };
 
 /**
@@ -485,6 +491,14 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     const lost = group.writes.lost;
     if (lost === null) findings.push("the group did not converge, thus the count of its lost writes is not known");
     else if (lost.length < low || lost.length > high) findings.push(`the group lost ${lost.length} accepted writes, outside [${low}, ${high}]`);
+  }
+  if (expected?.duplicates !== undefined) {
+    const { low, high } = expected.duplicates;
+    const copies = group.writes.duplicates ?? null;
+    if (copies === null) findings.push("the group did not converge, thus the count of its extra copies is not known");
+    // a read that found no write counts no copy: that zero says nothing
+    else if (run.group?.holds?.length === 0) findings.push("the group holds no write, thus the count of its extra copies says nothing");
+    else if (copies.length < low || copies.length > high) findings.push(`the group holds ${copies.length} extra copies, outside [${low}, ${high}]`);
   }
   const { sets } = group.writes;
   for (const [name, band] of Object.entries(expected?.outcomes ?? {})) {

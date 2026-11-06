@@ -15,10 +15,10 @@ describe("the pacing of each cell", () => {
 
   it("keeps the counts of the table of SYS-91", () => {
     expect(pacingCounts(ALL, KIND_CATALOG), TABLE).toEqual({
-      "one request": 315,
+      "one request": 322,
       "one gap": 64,
       "closed loop, reply times": 11,
-      "closed loop, first write": 56,
+      "closed loop, first write": 61,
       "closed loop, history": 4,
       timer: 222,
     });
@@ -40,6 +40,7 @@ describe("the pacing of each cell", () => {
       "T01: closed loop, reply times": 8,
       "T10.commit: closed loop, first write": 5,
       "T11.writes: closed loop, first write": 3,
+      "T12.resend: closed loop, first write": 5,
       "T11.border-off: closed loop, first write": 10,
       "T11.defaults: closed loop, first write": 16,
       "T12.border-off: closed loop, first write": 4,

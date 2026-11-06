@@ -2469,25 +2469,78 @@ The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cel
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332)
 
-A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at most the commands in flight at each close, from the source of ioredis 6.0.0.
+A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
+
+- A resend adds a copy only if the first copy was applied and it survives. Thus the extra copies are W × c, with W commands in flight at each of c closes from `ready`, if the first copies survive.
+- No fault of T12 gives a copy at the defaults. The close must come from a timer of the client, while the server holds the first copy unread.
+- `socketTimeout` is that timer. Its doc comment says that the client rejects the running commands, and the close path keeps them for the resend.
+
+[S3.md](S3.md#the-law-of-sys-62-the-resend) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Hold | Client | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- |
+| `T12.resend.1` | 29 s | `socketTimeout` 1 s, W 1 | 1 | 0.938 s to 1.072 s |
+| `T12.resend.2` | 29 s | `socketTimeout` 1 s, W 4 | 4 | 0.938 s to 1.072 s |
+| `T12.resend.3` | 40 s, a failover | `socketTimeout` 1 s, W 4 | 0 | 0.938 s to 1.072 s |
+| `T12.resend.4` | 29 s | No timer, W 4 | 0, first write 29 s to 29.012 s | None |
+| `T12.resend.5` | 29 s | `socketTimeout` 1 s, resend off, `commandTimeout` 40 s, W 4 | 0 | 0.938 s to 1.072 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The band of extra copies judges each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s.
+
+**The result.** [Run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `T12.resend.1` makes 1 extra copy and `T12.resend.2` makes 4, the writes in flight at the close. The other three cells make 0. `socketTimeout` rejects no running command. With the resend off, 4 writes time out that the server kept. The prediction hit 12 of 14 claims, Brier 0.0983. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-62) has each run.
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue), [run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), [#326](https://github.com/mark1russell7/systems/pull/326)
 
 The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
+
+**The design.** Seven harness cells (`AQ.1` to `AQ.7`) use one listener that does not accept and one client of many connections. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient and a kind lab adds nothing. A new native program, `queue`, is the two ends. Its target reads the count of the queue from `TCP_INFO` each 5 ms, and the counters from `/proc/net/netstat`. The prober gives each SYN, each SYN-ACK and each retransmission.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners.
+
+- **The count.** [`sk_acceptq_is_full`](https://github.com/torvalds/linux/blob/v7.0/include/net/sock.h#L1097-L1100) compares with `>`, thus the queue holds the limit plus one. [`listen(2)`](https://github.com/torvalds/linux/blob/v7.0/net/socket.c#L1922-L1924) clamps the backlog to `somaxconn`.
+- **A SYN at a full queue.** The kernel [drops it](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L7679-L7682) with no answer. The client retransmits at 1, 2, 3, 4, 5, 7, 11, 19, 35 and 67 s, and it [gets ETIMEDOUT at 131 s](https://github.com/torvalds/linux/blob/v7.0/Documentation/networking/ip-sysctl.rst#L1061-L1067).
+- **A final ACK at a full queue.** With `tcp_abort_on_overflow` 0, the target [keeps the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L947-L955) and drops the ACK. The client is `ESTABLISHED` and the target has no connection. With 1, the target sends a reset.
+- **The SYN-ACK ladder.** The target [sends the SYN-ACK again](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1099-L1107) at 1, 3, 7, 15 and 31 s. It [forgets the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1139-L1141) at 63 s.
+- **The answer of the client.** A SYN-ACK at an `ESTABLISHED` socket gets a [challenge ACK](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L6472-L6476). That ACK is a new final ACK, thus a place in the queue recovers the connection.
+- **After the expiry.** A segment of the client [meets the listener](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L1907-L1915) and gets a reset.
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `AQ.1` to `AQ.3` is exact. The timer bands use the document of Linux TCP and the timer wheel at the HZ of the runner.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
+
+**The result.** [Run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), the first dispatch, holds all 7 cells with 4 counted runs each and 0 void. The kernel is 7.0 at HZ 1000.
+
+| Cell | What each run measured |
+| --- | --- |
+| `AQ.1` | The queue holds 5 at a backlog of 4, with 2 overflows. |
+| `AQ.2` | `somaxconn` 8 clamps a backlog of 511, and the queue holds 9. |
+| `AQ.3` | A backlog of 0 holds 1. |
+| `AQ.4` | 10 SYN retransmissions, each wait inside its band, then `ETIMEDOUT` at 134.430 s to 134.716 s, with 11 overflows. |
+| `AQ.5` | The client connects, and it gets 5 SYN-ACKs. The target forgets the request at 63.802 s to 64.017 s. A send at 70 s meets a reset 20 ms later. |
+| `AQ.6` | With `tcp_abort_on_overflow` 1, a reset comes 20 ms after the connect. 2 resets, 3 overflows. |
+| `AQ.7` | A drain at 2.5 s recovers each connection, and the count gets back to 4 at 3.077 s to 3.099 s. 12 overflows. |
+
+- A client with data in flight learns at its first retransmission after the expiry, 114.208 s to 117.684 s after its dial.
+- No cell sends a SYN cookie.
+- The prediction hit 11 of its 12 claims, with a Brier score of 0.0869. The miss is the build claim: a fix from the checks of the PR came before the dispatch. It removed a parameter that the queue measure did not read.
 
 ### SYS-64 · The port range: its count and its error
 
@@ -2884,10 +2937,10 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 322 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 56 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 61 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Closed loop, history | 4 | The verdict of the checker of linearizability on the history of a run | A stall lowers the operations in the cut. The verdict reads no time, thus a run with no operation in the cut is void. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
@@ -2902,6 +2955,7 @@ The closed-loop families:
 | E3.F1 | 1 | Reply times |
 | T10.commit | 5 | First write |
 | T11.writes | 3 | First write |
+| T12.resend | 5 | First write |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |
