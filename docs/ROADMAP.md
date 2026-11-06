@@ -1678,6 +1678,9 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - In CI, a close frame came up to 1.017 ms after its `drop` line. Two such drops failed their cells, with their times in the band. These are the runs 39390222333 and 39903020657 of the client repository.
 - The high bound of each drop by a heartbeat in WS and WST adds the same 1.5 ms. The other bands do not change.
 - The CI run 40123441278 holds 27 cells of WS and WST and measures 6. Its largest gap from a `drop` line to its act was 0.726 ms.
+- Correction, 2026-11-05 (SYS-99): green scheduled nights of this repository held three failing cells of this kind, and the check could not see them. The run 39094984746 held one, and the run 39897216424 held two.
+- Two of these three read 1.005364 s and 1.004087 s, outside the band of that day, [0.997, 1.004] s. They hold only through the wider high bound, [0.997, 1.0055] s. These nights came before the wider bound, so they do not test it. The third has its times in the band, and the pairing window alone fixes it.
+- The run 39903020657 of the client repository reads again with its times in the band of its day, and the head reads `holds`. The first try of the run 39390222333 failed and has no records left, so that half of the line above cannot be read again.
 
 ### WS-070 · The WebSocket cells on @procedures/client 0.7.0
 
@@ -1689,6 +1692,8 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/mark1russell7/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
+
+Correction, 2026-11-05 (SYS-99): this sentence is true of the run 39073727730. The next scheduled night, 39094984746, held one failing cell, and its check could not see that cell. Refer to the correction in the section WS.
 
 ### TOX · The toxics of Toxiproxy
 
@@ -2488,14 +2493,24 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-05
+- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/mark1russell7/systems/actions/runs/42101390324), [#325](https://github.com/mark1russell7/systems/pull/325)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
+
+The design: one target process holds a chain of listeners on loopback, each with a real retry client. Each listener writes a line for each arrival, with the trail of the tries above it. Thus each term is visible, and a loaded runner cannot move a count.
+
+The law: the target sees the product of the tries of each caller. A `RetryAgent` of undici 8.12.2 gives 6 tries (`lib/handler/retry-handler.js:125-133`, `:348`, `:380`). A method or a status out of its lists gives 1 (`:332`, `:338`). The `Transport` of Go 1.27.2 gives 1 for a status, and 2 for a GET that meets a close on a reused connection (`src/net/http/transport.go:727-737`, `:858`, `:877-881`). `retry` of service 0.6.5 gives its `tries` (`packages/service/src/retrier.ts:121-125`).
+
+The prediction: nine cells, `T14.count.1` to `T14.count.9`, with 6, 36, 36, 108, 6, 1, 6, 36 and 2 arrivals at the target. Each listener has its own exact count.
+
+The rule: each cell has 4 counted runs. A void or infrastructure run gets one more dispatch, and the first counted runs count. A count that differs in a counted run fails its cell. The counts do not change after a result.
+
+The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cell has 4 counted runs and no void run. Each run gave the exact count at each listener, thus the law holds at each hop.
 
 ### SYS-68 · An open-loop load schedule
 
@@ -2567,12 +2582,14 @@ The lease ends at its TTL, and a contender gets the lock. The frozen holder can 
 
 - **Status:** in progress
 - **Area:** catalogs
-- **Depends on:** SYS-73
+- **Depends on:** SYS-67
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/mark1russell7/systems/pull/327)
 
-A resume from a compacted revision fails with a compaction error (DV-44).
+A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
+
+The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error.
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
@@ -2808,10 +2825,12 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
 | One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
-| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| One gap | 53 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 53 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error.
 
 The closed-loop families:
 
@@ -3005,7 +3024,126 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 - **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
 - **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
 
+### SYS-99 · The scheduled cells can fail on a failing cell
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** WS, SYS-94
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+
+The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
+
+- **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
+- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
+- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+- **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
+- **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
+
+This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
+
+- Seven of these nights came before the wider bound of the section WS, thus they do not test it. Two failing cells of these nights hold only through that bound.
+- The 12 nights after the run 40123441278 have no failing cell as written. Zero of 12 bound the rate of false blocks only near 22 percent, at 95 percent confidence.
+- A slowdown of 1.5 x from the slowest run turns 22 of the 27 timed cells red. The 5 other cells read 0.04 ms to 0.12 ms against a band top near 5 ms. Their slack is approximately 5 ms, thus they hide no large slowdown.
+
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
+
+### SYS-100 · A flip test for each gate check of a measure
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:**
+- **Started:** 2026-11-05
+- **Shipped:** 2026-11-05
+- **Links:** [the run of the 22 flips](https://github.com/mark1russell7/systems/actions/runs/41990179106), [pull request](https://github.com/mark1russell7/systems/pull/365)
+
+A gate check of a measure can pass for a reason that is not the measure. A flip test shows that the check can fail. In one job, the test passes on the copy with no fault. Then one source fault of a stated size turns the same test red on its named assertion. A crash does not count as a red.
+
+The workflow `flip.yml` holds these faults. It starts at a change to a fault site or to a test of a bound, and at a weekly run.
+
+| Check | Bound | Fault | Result of the fault | Bound of the test |
+| --- | --- | --- | --- | --- |
+| Redis OK | request timeout, high | 2 x the timeout | 4 s | 3.5 s |
+| Redis OK | request timeout, low | half the timeout | 1 s | 1.9 s |
+| Redis OK | close at the shutdown | 3 x the bound of the QUIT | approximately 800 ms | 350 ms |
+| Redis OK | trip of readiness, late, 5 rows | 2 polls late | 4.2 s or more | 4.05 s |
+| Redis OK | trip of liveness, late, 5 rows | 2 s late | 5.8 s or more | 4.65 s |
+| Redis OK | trip of readiness, early | at the first failure | 1.2 s at the most | 1.55 s |
+| Redis OK | trip of liveness, early | 2 s early | 2.2 s at the most | 2.95 s |
+| Redis OK | release of readiness | 6 polls late | 4.8 s or more | 4 s |
+| Redis OK | release of liveness | 5 s late | 5 s or more | 4 s |
+| Redis OK | first failure of a check that only reports | 2 s late | 2 s or more | 1.65 s |
+| HTTP OK | idle close, high | 2 s late | 4 s | 2.3 s |
+| HTTP OK | idle close, low | 1 s early | 1 s | 1.85 s |
+| HTTP OK | close of an idle connection at the stop | at the first sweep | 200 ms | 150 ms |
+| HTTP OK | sweep | 3 x its interval | 600 ms | 350 ms |
+| HTTP OK | hold of a phase | half its cap | 150 ms | 295 ms |
+| HTTP OK | cut at the deadline of the drain | 2 x the cap of a phase | 3 s | 1.65 s |
+| HTTP OK | drain of a worker, late | 1 s past the deadline | deadline + 1 s | deadline + 100 ms |
+| HTTP OK | drain of a worker, early | 500 ms before the deadline | deadline - 500 ms | deadline - 100 ms |
+| HTTP OK | cooperative abort of a worker | the signal does not arrive | no abort | 100 ms |
+| HTTP OK | close of a worker | 2 s late | 2 s | 1 s |
+| Process OK | timeout of a command | 40 x the timeout | 40 s | 30 s |
+| Process OK | timeout of a status read | 20 x the timeout | 20 s | 15 s |
+
+The first flip found a defect of the test. The shutdown of the F6 matrix had a bound of 2,050 ms, and the caps of the phases hold a slow close to 2 s. A close of 3 x its bound stayed green at 806 ms. Six green runs read 306 ms to 312 ms, thus the bound is the bound of the close and the noise of the test: 350 ms.
+
+In [run 41990179106](https://github.com/mark1russell7/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
+
+The method of the bound of 350 ms: the design gives it (a close of 300 ms and a noise of 50 ms), and the runs check it. The worst of the seven runs plus their spread is 312 ms + 6 ms = 318 ms, thus the margin is 32 ms. The run numbers stand next to the bound in `f6-redis.test.ts`.
+
+A scheduled Flip run that fails stops each claim on these bounds until its owner reads that run.
+
+This item does not cover the checks of the scheduled cells. SYS-99 holds these.
+
+The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
+
+These assertions have no flip:
+
+- The `steady` assertion of a check that only reports. It is not a time bound.
+- The other cases of the conformance kit on the real clock. They read counts and order, and the mutants of `conformance.test.ts` hold the kit on the fake clock.
+- The bounds of the HTTP test that are not time bounds, for example status codes and headers.
+
+### SYS-101 · A 30-day limit for the studies of the site that depend on current code
+
+- **Status:** in progress
+- **Area:** site
+- **Depends on:** SYS-99
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368)
+
+A page with a fixed study has no age limit today. Thus a page can show old numbers about code that changed. This item gives each study an age limit of 30 days and a scheduled refresh inside that limit. The study can drop the limit only if its numbers do not depend on current code. The stamp and the text of the page then say this.
+
+The word "current" needs a test, because each dated study can say that its numbers came from older code. A study does not depend on current code only if both of these are true:
+
+- No run of current code can reproduce its numbers.
+- The page makes no claim about the current code.
+
+This is the first read of the 17 pages, from their text, their data files and their imports. No cell operated for this read.
+
+| Pages | Why | Limit |
+| --- | --- | --- |
+| `results/kind`, `results/faults`, `results/topologies`, `results/r3` | The subject is code of this repository: the service, or the TCP client of the harness. The page `results/r3` is read only from its first rows. | 30 days |
+| `results/sentinel`, `results/http`, `results/mongodb`, `results/pg`, `results/rabbitmq`, `results/grpc`, `results/mesh` | The subject has a pinned version, but the driver, the prober and the bands of the catalog are code of this repository. | 30 days |
+| `results/calibration` | Its text says that stage 0 occurs again after each change. | 30 days |
+| `results/timers` | The rule for a void run is in the current harness. | 30 days |
+| The home page, `lab/detection` | The band comes from the current algebra at each build, beside the runs of 2026-10-08. | 30 days |
+| `results/harness`, `results/cells` | These are records of one lab machine, on kernel 6.6 at HZ 250. Their Q cells are not in the catalog, thus no run can reproduce them. The text says that they are history and links to `results/faults`. | none |
+
+These commits came after 2026-10-17: 55 in the machines, 33 in the image of the harness and 9 in the algebra. The verdict has 5 and the prober has 4. The kernel of the runner also changed from 6.17 to 7.0. Thus the first refresh can fail some cells. Each failure is a finding, and no band gets wider to hide it. A prediction comes before the first dispatch.
+
+The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2. Four weekly rounds at 3 jobs take approximately 12 hours each.
+
+The order of the work:
+
+1. By 2026-11-14: the schedule, the commits in the stamps, and the public text of the limit.
+2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
+3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
+
+The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
 
 ## Decisions for Mark
 

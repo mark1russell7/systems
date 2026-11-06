@@ -18,7 +18,7 @@ import {
 import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
-import { measureDriver, proxiedClose } from "./driver.ts";
+import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
 import type { Pairing } from "./verdict.ts";
@@ -737,12 +737,14 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     const reconnect =
       prediction.reconnects === undefined || ended === undefined ? undefined : reconnectOf(run, ended, cookie, drop?.line.t ?? ended);
     const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect, noiseOf(cell));
+    // the exact counts of the lines of the target: a count reads no timer
+    const counted = prediction.counts === undefined ? null : countFinding(prediction.counts, run.server ?? []);
     return {
       ...base,
       ...nothing,
       ...chain,
       ...(reconnect === undefined ? {} : { reconnect }),
-      finding: late,
+      finding: late ?? counted,
       outcome: ended !== undefined ? outcome : { kind: "answered" },
       ...(from === undefined || until === undefined ? {} : { elapsed: between(from, until) }),
       noticed: prediction.from === undefined ? null : noticed,

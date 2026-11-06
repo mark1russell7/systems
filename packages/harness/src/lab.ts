@@ -24,7 +24,7 @@ import type {
 } from "./cell.ts";
 import type { FabricLab } from "./fabric.ts";
 import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
-import { SHIPPED_CLIENTS, harnessImage, imageOf, routerImage, targetImageOf } from "./image.ts";
+import { SHIPPED_CLIENTS, buildRecordOf, harnessImage, harnessVersion, imageOf, routerImage, shippedSource, targetImageOf, targetSourceOf, type BuildRecord } from "./image.ts";
 import type { Substrate } from "./substrate.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -149,13 +149,20 @@ export interface Manifest {
     readonly files?: Readonly<Record<string, string>>;
     /** This line is the first line of a target that writes them: a server that tells its settings as it reads them. */
     readonly first?: ProbeEvent;
+    /** This record tells what the image of a target holds when the harness builds it: the image of a subject (`buildRecordOf`). */
+    readonly build?: BuildRecord;
   };
-  readonly harness: { readonly image: string; readonly id: string; readonly packages: string[] };
+  /**
+   * This record is the harness: its image, the id of that image and its Alpine packages. It also
+   * has the version of the package of the harness, and the build of its image. The record of a
+   * cell gives the commit of the code that operated.
+   */
+  readonly harness: { readonly image: string; readonly id: string; readonly packages: string[]; readonly version?: string; readonly build?: BuildRecord };
   /**
    * This record is the client of each run: the TCP client of the harness, a driver, or an image that
    * the cell gives. `source` is the source of its image, when it is not a stock image by its name.
    */
-  readonly client: { readonly kind: Client | "image"; readonly image: string; readonly source?: ImageSource };
+  readonly client: { readonly kind: Client | "image"; readonly image: string; readonly source?: ImageSource; readonly build?: BuildRecord };
   /** These are the namespaces that the prober watched, by inode. */
   readonly netns: {
     readonly client: number;
@@ -505,6 +512,24 @@ export const netnsOf = async (container: StartedTestContainer): Promise<number> 
   if (inode === undefined) throw new Error(`not a network namespace: ${link}`);
   return Number(inode);
 };
+
+/** This function gives the build record of a source as a part of a manifest: `{ build }`, or nothing for an image that the harness pulls. */
+export const buildOf = (source: Parameters<typeof buildRecordOf>[0]): { readonly build?: BuildRecord } => {
+  const build = buildRecordOf(source);
+  return build === undefined ? {} : { build };
+};
+
+/** This function gives the version of the harness and the build of its image, as a part of the harness record of a manifest. */
+export const harnessRecord = (): { readonly version: string; readonly build?: BuildRecord } => ({
+  version: harnessVersion(),
+  ...buildOf(shippedSource("harness")),
+});
+
+/**
+ * This function gives the record of the client of a run that the harness ships, for a manifest:
+ * its kind, its image, and its build.
+ */
+export const shippedClientRecord = (kind: Client, image: string): Manifest["client"] => ({ kind, image, ...buildOf(SHIPPED_CLIENTS[kind].image) });
 
 /**
  * This function gives the image and the command of the client of each run, its kind for the
@@ -1192,13 +1217,15 @@ export const openLab = async (
                   ),
                 }),
             ...(serverLines.seen[0] === undefined ? {} : { first: serverLines.seen[0] }),
+            ...buildOf(targetSourceOf(target)),
           },
           harness: {
             image,
             id: (await inspect(client)).Image,
             packages: (await output(client, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: clientKind, image: clientImage, ...(source === undefined ? {} : { source }) },
+          client: { kind: clientKind, image: clientImage, ...(source === undefined ? {} : { source, ...buildOf(source) }) },
           netns,
           sysctls,
           ...(inChain.length === 0 ? {} : { hops: await hopsOf() }),

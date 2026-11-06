@@ -1,0 +1,10 @@
+---
+// The data stamp of the home page. The lab above it shows the runs of one fixed study. The build starts in the folder of
+// this package.
+import { join } from "node:path";
+import { homeStampHtml } from "../lib/stamps.ts";
+
+const html = homeStampHtml(join(process.cwd(), "src/data"));
+---
+
+<Fragment set:html={html} />
