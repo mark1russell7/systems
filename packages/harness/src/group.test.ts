@@ -46,6 +46,7 @@ describe("a group as data", () => {
     expect(peersOf(parts, CLIENT, "m1", "all")).toEqual(["10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.6", "10.0.0.7", CLIENT]);
     expect(peersOf(parts, CLIENT, "m1", "group")).toEqual(["10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.6", "10.0.0.7"]);
     expect(peersOf(parts, CLIENT, "m1", "clients")).toEqual([CLIENT]);
+    expect(peersOf(parts, CLIENT, "m1", "to-clients")).toEqual([CLIENT]);
     expect(peersOf(parts, CLIENT, "s2", "all")).toEqual(["10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.7", CLIENT]);
     // one other member, as the replica set and the cluster cut it: not all of the peers
     expect(peersOf(parts, CLIENT, "m1", "one")).toEqual(["10.0.0.3"]);

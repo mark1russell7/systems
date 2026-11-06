@@ -395,10 +395,12 @@ export type GroupRole = "primary" | "replica" | "sentinel";
  * - `clients`: the clients, but not the group.
  * - `one`: one other member, in both directions.
  * - `one-way`: one other member, for the segments from the part only.
+ * - `to-clients`: the clients, for the segments from the part only. Each write of a client reaches
+ *   the part, and no reply reaches the client.
  */
 export interface GroupPlace {
   readonly role: GroupRole;
-  readonly cuts?: "all" | "group" | "clients" | "one" | "one-way";
+  readonly cuts?: "all" | "group" | "clients" | "one" | "one-way" | "to-clients";
 }
 
 /** A toxic is one toxic of Toxiproxy, as its API takes it. Its toxicity is 1. */

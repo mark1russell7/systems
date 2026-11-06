@@ -138,6 +138,7 @@ export const clusterViewOf = (cluster: Cluster, rows: readonly StatusRow[]): Gro
  * This function gives the peers that a fault on a node cuts it from. `all` is each other node and the
  * client, `group` is the other nodes, and `clients` is the client. `one` is the first other node in
  * the sequence of the cluster, and `one-way` is the same node for the segments from the part only.
+ * `to-clients` is the client, for the segments from the part only.
  */
 export const clusterCutOf = (
   cluster: Cluster,
@@ -151,6 +152,7 @@ export const clusterCutOf = (
   if (cuts === "group") return { peers: others };
   if (cuts === "one") return { peers: others.slice(0, 1) };
   if (cuts === "one-way") return { peers: others.slice(0, 1), direction: "out" };
+  if (cuts === "to-clients") return { peers: [client], direction: "out" };
   return { peers: [...others, client] };
 };
 
