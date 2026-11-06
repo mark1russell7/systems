@@ -1,8 +1,8 @@
 import { valueIn } from "@mark1russell7/quantity";
-import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
+import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { drillOnce } from "./drill.ts";
-import { longestOf, settled as driverSettled } from "./driver.ts";
+import { countOf, longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
@@ -318,6 +318,21 @@ const dials = (probe: Probe, count: number, within: number): Promise<void> =>
     look();
   });
 
+/** This time is the most that a run waits for the lines of the target after the end of its client. */
+const LINES_MS = 5_000;
+
+/**
+ * This function waits for the lines of a run's counts. The lines of the target come on their own
+ * stream, thus they can come after the last line of the client. A line above a count comes in the
+ * pause after the wait, thus it is in the run that wrote it.
+ */
+const linesCounted = async (lab: Lab, from: number, counts: readonly LineCount[]): Promise<void> => {
+  const started = Date.now();
+  const short = () => counts.some((each) => countOf(lab.server.slice(from), each.match) < each.count);
+  while (short() && Date.now() - started < LINES_MS) await sleep(20);
+  await sleep(QUIET_MS);
+};
+
 /** This function gives the netem specification of a cell: its latency, then the netem of its fault when it has one. */
 const netemSpec = (cell: Cell, fault: string | undefined): string | null => {
   const parts = [
@@ -574,6 +589,7 @@ const once = async (
           const gap = cell.probe.http?.gap === undefined ? 0 : valueIn(cell.probe.http.gap, "s");
           const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
           await probe.until(HTTP_DONE, (gap + window) * 2_000 + 10_000).catch(() => undefined);
+          if (prediction.detects === null && prediction.counts !== undefined) await linesCounted(lab, serverFrom, prediction.counts);
         } else if (cell.fault === "stall") {
           if (cell.stall === undefined) throw new Error(`${cell.name} says no stall's length`);
           // the injector holds the end in the VM until the length of the stall after the send. An idle

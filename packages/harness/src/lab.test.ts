@@ -5,9 +5,10 @@ import { describe, expect, it } from "vitest";
 import type { Cell, Cluster, Group, ImageSource, ProxyHop, ReplicaSet, Subject, Target } from "./cell.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
-import { nodeClientImage, programOf } from "./image.ts";
+import { buildRecordOf, nodeClientImage, programOf } from "./image.ts";
 import { openLab } from "./lab.ts";
 import { measure } from "./observe.ts";
+import { manifestProblems } from "./pins.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { runCell } from "./run.ts";
 
@@ -706,7 +707,10 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       const manifest = await lab.manifest({});
       expect(manifest.target).toMatchObject({ subject: image, base: subject.base, first: { ev: "listening", heartbeat: null } });
       expect(manifest.target.image).toMatch(/^caller-procedures:[0-9a-f]{12}$/);
-      expect(manifest.client).toEqual({ kind: "image", image: manifest.target.image, source: image });
+      expect(manifest.client).toEqual({ kind: "image", image: manifest.target.image, source: image, build: buildRecordOf(image) });
+      // the manifest pins each program of the run: the build of the subject, the harness and the client
+      expect(manifest.target.build?.tag).toBe(manifest.target.image);
+      expect(manifestProblems(manifest)).toEqual([]);
     } finally {
       await lab.close();
     }
