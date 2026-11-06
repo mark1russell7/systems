@@ -2391,12 +2391,12 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42139463631), [#331](https://github.com/mark1russell7/systems/pull/331)
 
 `w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the step-down. [S3](S3.md#the-second-cell-sys-59) has each term, with its file and line in MongoDB r9.0.4.
 
@@ -2414,6 +2414,14 @@ The decision rule:
 - A dispatch can repeat one time, for void runs or infrastructure runs only.
 - A code bug on the first run is a miss of the build.
 - The thresholds do not change after a result is read.
+
+The result (run 42139463631, 2026-11-06): each of the three cells holds. Each cell has 4 counted runs and no void run.
+
+- `T11.writes.1` lost 195, 195, 194 and 196 writes, median 195. Each lost set is one run of sequence numbers. The rollback log of the old primary counts the same writes.
+- `T11.writes.2` and `T11.writes.3` lost 0 writes. In `T11.writes.3`, the last ack comes 15 s after the cut, with no election.
+- The naive claim was false, as predicted: the cut of 3 s lost 0 writes, not 30 or more.
+
+A finding that is not a claim: at `w: "majority"`, the old primary rolls back 1 write in each run. It did not acknowledge that write, thus no acknowledged write is lost.
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
