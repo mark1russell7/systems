@@ -2402,12 +2402,12 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42147415024](https://github.com/mark1russell7/systems/actions/runs/42147415024), [#336](https://github.com/mark1russell7/systems/pull/336)
 
 A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The source of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 keeps those sentences and gives a tighter law:
 
@@ -2431,7 +2431,22 @@ The predictions, written before the first dispatch:
 
 The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The bands of lost messages and extra copies judge each cell, with each finding of a run. The thresholds do not change after any result is read.
 
-The chosen constants have no source: a heartbeat of 2 s, a cut of 10 s and 4 writers. No cell has run. The writers of the cluster client ran only against a fake of amqplib, and the cut `to-clients` has not run in a lab.
+The chosen constants have no source: a heartbeat of 2 s, a cut of 10 s and 4 writers.
+
+**The result.** In run 42147415024, each of the 6 cells holds with 4 counted runs and 0 void. No run loses a confirmed message.
+
+| Cell | Extra copies in each run | First `Error` from the fault |
+| --- | --- | --- |
+| `T11.confirms.1` | 0, 0, 0, 0 | None |
+| `T11.confirms.2` | 0, 0, 0, 0 | None |
+| `T11.confirms.3` | 1, 1, 1, 1 | 4.967 s to 4.980 s |
+| `T11.confirms.4` | 4, 4, 4, 4 | 5.752 s to 5.757 s |
+| `T11.confirms.5` | 0, 0, 0, 0 | None |
+| `T11.confirms.6` | 0, 0, 4, 0 | 5.753 s to 5.757 s |
+
+- The copies of `T11.confirms.3` and `.4` are exactly the publishes that the close failed.
+- One run of `T11.confirms.6` holds all 4 copies. Thus the band [0, W] is necessary.
+- The prediction: 12 of 15 claims hit, Brier 0.0927. [S3.md](S3.md#the-result-of-sys-60) has the details.
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
