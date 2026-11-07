@@ -503,8 +503,8 @@ importers:
         specifier: github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
       '@mark1russell7/site-pages':
-        specifier: ^0.2.21
-        version: 0.2.21
+        specifier: ^0.3.4
+        version: 0.3.4
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
@@ -1174,8 +1174,8 @@ packages:
     resolution: {integrity: sha512-J/hfIHyiVlguOZVfA6/B7L3ReAQAW1xUbT50e4KVxMCOHJfTVC1HIj0u+Qd+Vrn+J1JoDhAF/DJ7Elfpe12gjw==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/site-pages@0.2.21':
-    resolution: {integrity: sha512-+6loToDcF6XjvG8mzcHZ63dMsXvQNvaoH1L+U446hsctbDvT3fQKrDTIMIIpROpUPXS0Ix9OKj8AbVwYfyPdRQ==}
+  '@mark1russell7/site-pages@0.3.4':
+    resolution: {integrity: sha512-xxYaeElE6/HvADgO+2yu00c7svWw0ICQ99iD/2rYQVTLEvRqn40MDzi0gnCk37/LakH443xwYVvRw/YeZhj4PQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -4017,7 +4017,7 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.5
 
-  '@mark1russell7/site-pages@0.2.21':
+  '@mark1russell7/site-pages@0.3.4':
     dependencies:
       '@mark1russell7/rigor-statistics': 0.1.9
 
