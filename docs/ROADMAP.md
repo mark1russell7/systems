@@ -3248,7 +3248,7 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction replaces the probabilities below, which are not from the base rates.
 4. **The gates.** A scheduled workflow and a release check call `ladderVerdict`. A run under a chaos schedule measures the availability.
 
-**A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.5.2`, and this repository has 0.6.5. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The fix is a range that takes 0.6 in the peer, in its own repository. Slice 1 waits for that release. Until then, the package can use a `github:` reference to the commit of the fix.
+**A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.6.0` as a plain dependency. In this workspace the service is a workspace link, thus pnpm gives the peer its own copy from npm. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The general fix is in the client repository: the service becomes a peer dependency of each client package that passes values of the service (`CLI-117`). Until that release, an override at the root of this workspace sets the service to `workspace:*`. A comment on it names `CLI-117`, and an item of this roadmap removes it.
 
 **The first prediction, not from the base rates.**
 
@@ -3260,6 +3260,17 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 | Near capacity, the p99 of an open loop is at least twice that of a closed loop | 0.85 |
 | A heavy tenant at 10 times its share moves the median of the others by less than 50 % | 0.55 |
 | The naive claim: an open and a closed loop agree on the p99 near capacity | 0.08 |
+
+### SYS-104 · Remove the override of the service when the client release ships
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** SYS-93, `CLI-117` in the client repository
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`. Without it, `@procedures/peer` gets a second copy of the service. `CLI-117` makes the service a peer dependency of the client packages, in a MINOR release. This item takes that release and removes the override. The test: `pnpm why @mark1russell7/service` shows one copy, and the tests of the reference service pass.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
