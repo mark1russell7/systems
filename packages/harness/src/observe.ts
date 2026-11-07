@@ -18,8 +18,12 @@ import {
 import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
-import { measureDriver, proxiedClose } from "./driver.ts";
+import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
+import type { PortsReading } from "./ports.ts";
+import { measurePorts } from "./ports.ts";
+import type { QueueReading } from "./queue.ts";
+import { measureQueue } from "./queue.ts";
 import { measureGroup } from "./timeline.ts";
 import type { Pairing } from "./verdict.ts";
 import { INJECT, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
@@ -98,6 +102,10 @@ export interface Measured {
   readonly crossings?: Crossings;
   /** This record is what a run of a group cell measured: the stages of its timeline, and what became of each write. */
   readonly group?: GroupMeasured;
+  /** This record is what a run of a queue cell measured: the count of the queue, its counters, and each connection. */
+  readonly queue?: QueueReading;
+  /** This record is what a run of a port cell measured: the count of each search, and when each port came back. */
+  readonly ports?: PortsReading;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
   /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
@@ -464,7 +472,7 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
-  if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined) {
+  if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined || cell.kafka !== undefined) {
     const read = measureGroup(cell, run);
     return {
       environment: run.environment,
@@ -482,6 +490,10 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       group: read.group,
     };
   }
+  if (cell.prediction.detects === null && cell.prediction.queue !== undefined)
+    return measureQueue(run, cell.prediction.queue);
+  if (cell.prediction.detects === null && cell.prediction.ports !== undefined)
+    return measurePorts(run, cell.prediction.ports);
   // a driver with more than one socket: its bands name their socket and their line
   if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;
@@ -737,12 +749,14 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     const reconnect =
       prediction.reconnects === undefined || ended === undefined ? undefined : reconnectOf(run, ended, cookie, drop?.line.t ?? ended);
     const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect, noiseOf(cell));
+    // the exact counts of the lines of the target: a count reads no timer
+    const counted = prediction.counts === undefined ? null : countFinding(prediction.counts, run.server ?? []);
     return {
       ...base,
       ...nothing,
       ...chain,
       ...(reconnect === undefined ? {} : { reconnect }),
-      finding: late,
+      finding: late ?? counted,
       outcome: ended !== undefined ? outcome : { kind: "answered" },
       ...(from === undefined || until === undefined ? {} : { elapsed: between(from, until) }),
       noticed: prediction.from === undefined ? null : noticed,

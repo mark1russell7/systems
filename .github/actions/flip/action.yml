@@ -1,0 +1,83 @@
+name: Flip
+description: >-
+  A copy with no fault passes a test of a gate. A copy with one source fault of a stated size fails the
+  same test on the named assertion, in the same job. A crash does not count as a red.
+inputs:
+  what:
+    description: The name of the check and the size of the fault, for the log and the summary.
+    required: true
+  file:
+    description: The source file that takes the fault.
+    required: true
+  from:
+    description: The exact text of the fault site. It must occur one time in the file.
+    required: true
+  to:
+    description: The text with the fault.
+    required: true
+  test:
+    description: The command of the test, with a filter that selects only the test of the bound.
+    required: true
+  fails:
+    description: Extended regular expressions, one on each line. The output of the red run must hold each one.
+    required: true
+  prepare:
+    description: A command to start before each of the two runs, for example a build.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        FLIP_WHAT: ${{ inputs.what }}
+        FLIP_FILE: ${{ inputs.file }}
+        FLIP_FROM: ${{ inputs.from }}
+        FLIP_TO: ${{ inputs.to }}
+        FLIP_TEST: ${{ inputs.test }}
+        FLIP_FAILS: ${{ inputs.fails }}
+        FLIP_PREPARE: ${{ inputs.prepare }}
+        NO_COLOR: "1"
+      run: |
+        logs="$RUNNER_TEMP/flip"
+        mkdir -p "$logs"
+
+        echo "::group::$FLIP_WHAT: the copy with no fault"
+        if [ -n "$FLIP_PREPARE" ]; then bash -c "$FLIP_PREPARE"; fi
+        bash -c "$FLIP_TEST" 2>&1 | tee "$logs/clean.log"
+        echo "::endgroup::"
+        # A filter that selects nothing also exits with 0, and a skipped test passes nothing
+        if ! grep -Eq 'Tests +[1-9][0-9]* passed' "$logs/clean.log"; then
+          echo "::error::$FLIP_WHAT: no test passed on the copy with no fault"
+          exit 1
+        fi
+
+        node -e 'const fs = require("node:fs"); const { FLIP_FILE: file, FLIP_FROM: from, FLIP_TO: to } = process.env; const text = fs.readFileSync(file, "utf8"); const found = text.split(from).length - 1; if (found !== 1) { console.error(`::error::the fault site occurs ${found} times in ${file}`); process.exit(1); } fs.writeFileSync(file, text.replace(from, () => to));'
+        if git diff --quiet -- "$FLIP_FILE"; then
+          echo "::error::$FLIP_WHAT: the fault did not change the source"
+          exit 1
+        fi
+
+        echo "::group::$FLIP_WHAT: the copy with the fault"
+        if [ -n "$FLIP_PREPARE" ]; then bash -c "$FLIP_PREPARE"; fi
+        if bash -c "$FLIP_TEST" 2>&1 | tee "$logs/fault.log"; then
+          echo "::endgroup::"
+          echo "::error::$FLIP_WHAT: the test stays green with the fault"
+          exit 1
+        fi
+        echo "::endgroup::"
+        # A crash or a failed start also exits with 1, thus the red must name its bound
+        if ! grep -Eq 'Tests +[1-9][0-9]* failed' "$logs/fault.log"; then
+          echo "::error::$FLIP_WHAT: the run is red, but no test failed"
+          exit 1
+        fi
+        while IFS= read -r pattern; do
+          if [ -z "$pattern" ]; then continue; fi
+          if ! grep -Eq -- "$pattern" "$logs/fault.log"; then
+            echo "::error::$FLIP_WHAT: the test is red, but not on the bound: $pattern"
+            exit 1
+          fi
+        done <<< "$FLIP_FAILS"
+
+        git checkout -- "$FLIP_FILE"
+        echo "right: $FLIP_WHAT" | tee -a "$GITHUB_STEP_SUMMARY"

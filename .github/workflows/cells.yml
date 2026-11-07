@@ -64,6 +64,11 @@ env:
 # The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch and each
 # schedule has a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a
 # dispatch of other cells.
+# With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -79,7 +84,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
+        uses: mark1russell7/template/.github/actions/changes@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -147,7 +152,7 @@ jobs:
       - name: The prober on its own, after a failure
         if: failure()
         run: |
-          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^loom-harness:' | head -n 1)"
+          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^loom-harness:' | head -n 1 || true)"
           echo "image: $image"
           if [ -n "$image" ]; then
             timeout 20 docker run --rm --privileged --network none "$image" /opt/harness/prober "$(stat -Lc %i /proc/self/ns/net)" 2>&1 | head -n 400 || true
@@ -307,8 +312,17 @@ jobs:
           if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
           export CELLS_HZ
           pnpm --filter @systems/cells exec vitest run src/run.test.ts
-      # A failing cell does not fail this workflow, but a lost rung fails it: this step reads the records of
-      # the drills again, and it fails when a rung is not within its budgets, or when a drill has no record.
+      # A failing cell of a manual run is a finding, thus it does not fail this workflow. The night claims
+      # that its cells hold: this step judges each record again, and it fails unless each cell of the shard
+      # has a record and holds. In the same job, its flip test turns the check red with an injected fault
+      # and with a record gone, and the clean copy stays green.
+      - name: The cells of the night hold
+        if: ${{ github.event.schedule == '30 3 * * *' || (inputs.only == '^WS' && inputs.shards == '4') }}
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
+      # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
+      # when a rung is not within its budgets, or when a drill has no record.
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
@@ -340,7 +354,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@f48f29fe5b00772951e0910a90fbbe312343338c # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells
