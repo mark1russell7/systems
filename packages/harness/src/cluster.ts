@@ -5,7 +5,7 @@ import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.t
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import { amqpClientImage, harnessImage } from "./image.ts";
 import type { Manifest } from "./lab.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, containers, harnessRecord, lines, netnsOf, output, shippedClientRecord, withPid } from "./lab.ts";
 import type { Cut } from "./replset.ts";
 import { clockOffsetOf } from "./replset.ts";
 import { substrateHere } from "./substrate.ts";
@@ -138,6 +138,7 @@ export const clusterViewOf = (cluster: Cluster, rows: readonly StatusRow[]): Gro
  * This function gives the peers that a fault on a node cuts it from. `all` is each other node and the
  * client, `group` is the other nodes, and `clients` is the client. `one` is the first other node in
  * the sequence of the cluster, and `one-way` is the same node for the segments from the part only.
+ * `to-clients` is the client, for the segments from the part only.
  */
 export const clusterCutOf = (
   cluster: Cluster,
@@ -151,6 +152,7 @@ export const clusterCutOf = (
   if (cuts === "group") return { peers: others };
   if (cuts === "one") return { peers: others.slice(0, 1) };
   if (cuts === "one-way") return { peers: others.slice(0, 1), direction: "out" };
+  if (cuts === "to-clients") return { peers: [client], direction: "out" };
   return { peers: [...others, client] };
 };
 
@@ -497,8 +499,9 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "amqp", image: amqp },
+          client: shippedClientRecord("amqp", amqp),
           netns: { client: clientNetns, target: members[cluster.members[0]!]!.netns },
           sysctls,
           group: { members: list, sentinels: [], observer: { image: amqp } },

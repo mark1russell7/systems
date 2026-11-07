@@ -34,6 +34,9 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
     ...PB_COMMON,
     { ref: `${PB} include/bouncer.h:69-89 and src/objects.c:292-369 the states of a server, each a list: SV_LOGIN, SV_IDLE, SV_ACTIVE, SV_USED, SV_TESTED. An idle server goes to the head of its list`, rung: "implemented" },
     { ref: `${PB} src/objects.c:1876-1897 launch_new_connection: one connect of a pool at a time, and none for server_login_retry from the launch of a failed one`, rung: "implemented" },
+    { ref: `${PB} src/server.c:294-303 pool_pool_size: the pool_size of the user, else the pool_size of the database, else default_pool_size`, rung: "implemented" },
+    { ref: `${PB} src/objects.c:1927-1955 launch_new_connection: a pool with default_pool_size servers starts no more, and the client stays in the queue. reserve_pool_size is 0 at the defaults (src/main.c:317)`, rung: "implemented" },
+    { ref: `${PB} src/janitor.c:166-169 a waiting client with no idle server starts one server. Thus the pool opens each server only when a client needs it, and min_pool_size is 0 at the defaults (src/main.c:308)`, rung: "implemented" },
     { ref: `${PB} src/objects.c:1990-2008 the launch sets the time of the connect, before the DNS lookup and the TCP connect`, rung: "implemented" },
     { ref: `${PB} src/objects.c:1638-1641 and src/sbuf.c:163-203, :1064-1102 the TCP connect waits for EV_WRITE with a timeout of libevent of server_connect_timeout in whole seconds. A timeout or an error is 'connect failed' (src/server.c:851-853)`, rung: "implemented" },
     { ref: `${PB} src/janitor.c:558-570 the janitor closes a server in SV_LOGIN that is older than server_connect_timeout, from its launch: 'connect timeout'`, rung: "implemented" },
@@ -92,6 +95,13 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
     "timer.check-delay": { kind: "timer", note: "A pass of the janitor finds the server idle for longer than server_check_delay" },
   },
   knobs: {
+    default_pool_size: {
+      key: "pgbouncer default_pool_size",
+      scope: "proxy",
+      unit: "count",
+      default: 20,
+      note: "src/main.c:284. The most servers of a pool, for one database and one user (src/server.c:294-303, src/objects.c:1927-1955)",
+    },
     server_connect_timeout: {
       key: "pgbouncer server_connect_timeout",
       scope: "proxy",
@@ -186,9 +196,9 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
       from: "[none]",
       to: "connecting",
       on: "local.launch",
-      guard: "no connect of the pool is in progress",
+      guard: "a client waits, no connect of the pool is in progress, and the pool has fewer servers than default_pool_size",
       timer: "connect_timeout",
-      source: "src/objects.c:1876-1887, :1990-2008",
+      source: "src/janitor.c:166-169, src/objects.c:1876-1887, :1927-1955, :1990-2008",
     },
     { id: "pbs.connected", from: "connecting", to: "login", on: "socket.connect", timer: "login_timeout", source: "src/sbuf.c:1064-1102, src/server.c:851-858" },
     {

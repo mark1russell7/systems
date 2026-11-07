@@ -102,6 +102,14 @@ These cells start S3 (`src/writes.ts`, SYS-58). They use the group and the clien
 - **The verdict.** A partition has no band of time, because no document gives the time of the conversion. The band of lost writes judges the cell (`GroupPrediction.lost`).
 - **The source.** Each term cites Valkey 9.1.2 by file and line, in the comment of the module.
 
+The cells of SYS-59 (`src/mongo/writes.ts`) ask the same question for MongoDB. They use the set and the client of T11, with the write concern as the knob.
+
+- **`w: 1`.** The old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after a cut. Thus the set loses 135 to 202 writes (`T11.writes.1`).
+- **`w: "majority"`.** The same cut loses no write (`T11.writes.2`).
+- **A short cut.** Contact comes back before each timer of an election. Thus `w: 1` loses no write, and no election comes (`T11.writes.3`). The run outlasts those timers (`Cell.watch`).
+- **The verdict.** The first write on a new primary has two modes, thus the band of lost writes judges each cell.
+- **The source.** Each term cites MongoDB r9.0.4 by file and line, in the comment of the module.
+
 ## The cells of the resend
 
 These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its defaults, with `RPUSH w <n>` as the write. The question: does the resend of ioredis at a reconnect duplicate a write?
@@ -113,6 +121,18 @@ These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its
 - **The controls.** No close gives 0 (`T12.resend.4`), and so does the resend off (`T12.resend.5`).
 - **The verdict.** The band of extra copies judges the cell (`GroupPrediction.duplicates`). A read that found no write is a finding, so a control cannot pass with an empty read.
 - **The source.** Each term cites ioredis 6.0.0 or Valkey 9.1.2 by file and line, in the comment of the module.
+
+## The cells of the confirms
+
+These cells are SYS-60 of S3 (`src/rabbit/confirms.ts`). They use the cluster of T11, and the final read of the harness drains the quorum queue. The question: does a confirmed publish survive a failure, and does a republish duplicate it?
+
+- **The law of the lost messages.** A confirm comes after a commit on a majority, thus each cell has the band 0.
+- **The law of the copies.** A leader change gives 0, as `rabbit_fifo` drops a repeat of one enqueuer (`T11.confirms.1`, `T11.confirms.2`). A close gives W, as a new channel is a new enqueuer (`T11.confirms.3`, `T11.confirms.4`).
+- **The cut.** `to-clients` drops the segments from the node of the leader to the client. Each publish arrives, and each confirm drops.
+- **The control.** The default heartbeat gives no close inside the cut, thus no copy (`T11.confirms.5`).
+- **The race.** A freeze of the node of the client gives the band [0, W], as a thawed first copy races the end of its channel (`T11.confirms.6`).
+- **The verdict.** The bands of lost messages and extra copies judge each cell (`GroupPrediction.lost`, `GroupPrediction.duplicates`).
+- **The source.** [S3](../../docs/S3.md#the-law-of-sys-60-the-confirms) cites each term of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 by file and line.
 
 ## The cells of acks
 
@@ -203,6 +223,85 @@ These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the 
 - **The borders.** A Retry-After of 30 s holds O30 (O30.1), and one of 60 s sends each retry 30 s early (O30.2). Five retries of 30 s are the window of the agent. Thus 150 s holds O29 at its border (O29.1), and 151 s ends with `UND_ERR_REQ_RETRY` (O29.2).
 - **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
 - **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
+
+## The cells of a pool at its limit
+
+These cells are SYS-65, in Q19 of S3 (`src/pg/pool.ts`). The question: what does a pool do at its limit? `Q19.pool.1` to `Q19.pool.5` measure HikariCP alone, and `Q19.pool.6` to `Q19.pool.10` put PgBouncer behind it.
+
+- **The client.** HikariCP 7.1.0 over pgjdbc 42.7.13 has a fixed size. The client sends a burst: one query each 50 ms, each on its own thread. Each query is `SELECT pg_sleep(H)`.
+- **The law.** The bag gives each returned connection to the oldest wait, through a fair `SynchronousQueue`. Thus a query at place `k` of a pool of `P` gets its reply after `⌊k / P⌋ + 1` holds, plus `k mod P` gaps.
+- **The timeout.** One `connectionTimeout` bounds a borrow. At its end, the borrow fails with `SQLTransientConnectionException`, and the query leaves the queue. The next query gets the next connection.
+- **The bands.** Each query is a later band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+- **The times.** The low end is the exact hold. The high end adds one round trip and one step of the JVM to each hold. It adds the same once more, for the check of a connection that was idle for 500 ms.
+- **The margin.** `turnsOf` stops with an error if a query comes within 0.25 s of the timeout of its borrow. Such a query is not a prediction.
+- **The lines.** A `pool` line gives the deepest queue. The `burst` line gives the counts of replies and failures, and it shows each connection idle again. A `pool` line above the size of the pool is a finding.
+- **PgBouncer.** PgBouncer 1.26.1 in transaction pooling has the queue, and HikariCP has one connection for each query. The law is the same, with `default_pool_size` as `P`. A `pool` line shows each connection of HikariCP in use and no query waiting in HikariCP.
+- **The first use of a server.** PgBouncer opens a server only for a waiting client, and a server idle for 30 s has a check. `SERVER_LOGIN_MS` (30 ms, an assumption) bounds either one, on each server but the first.
+- **The timeout of the queue.** `query_wait_timeout` counts from the first packet of a query, and the janitor tests it once in each pass. Thus a late query ends up to 343 ms after its timeout, with FATAL 08P01. HikariCP evicts the connection, so the end of that burst does not name the size of the pool.
+- **The check of a borrow.** HikariCP checks a connection that was idle for more than 500 ms. The check is an empty query, and it joins the queue of PgBouncer. `Q19.pool.6` to `Q19.pool.9` set the window to one hour with an option of the lab, thus they measure the queue alone.
+- **Two waits in place of one.** `Q19.pool.10` keeps the check at its default, with the burst of `Q19.pool.9`. A query waits in its check and then in its query, and `query_wait_timeout` counts each part from zero. Thus no query fails. Those queries come back approximately one round trip apart, so their order is not a prediction. Each one has the band of the whole set, and the end of the burst has the sharp band.
+- **Left out.** A failure after a check has no cell. A failed check is hidden: the borrow closes the connection and tries the next one. `turnsOf` stops with an error on such a spec.
+
+## The cells of the accept queue
+
+These cells (`src/accept-queue.ts`, SYS-63) give the law of an accept queue on the kernel of the runner. Each term of the law is visible in a record. The source of each term is in the comment of the catalog, at Linux v7.0.
+
+- **The two ends.** The native program `queue` is a listener that does not accept, and a client of many connections. The harness ships it in its image. Its target takes commands on its control port, thus each run starts with an empty queue.
+- **The count.** `AQ.1` to `AQ.3` connect one at a time, with no accept. The queue holds the limit plus one, and each later SYN is one overflow. `listen(2)` clamps the backlog to `somaxconn`, and a backlog of 0 still holds one connection.
+- **A SYN at a full queue.** `AQ.4` follows one connect through the 10 retransmissions of its SYN to ETIMEDOUT at 131 s. Each of the 11 SYNs is one overflow.
+- **A final ACK at a full queue.** A burst of 3 connections has its SYNs inside one round trip, thus each SYN finds a place in the queue. `in` takes the last place. A run where it does not is void.
+- **The client that the target forgot.** `AQ.5` keeps `busy` and `quiet` as `ESTABLISHED` sockets that the target does not have. The target forgets them at 63 s. The next segment of each one meets a reset.
+- **The reset of an overflow.** `AQ.6` sets `tcp_abort_on_overflow`. The client connects, and it gets ECONNRESET one round trip later. A SYN at the full queue stays silent.
+- **The recovery.** `AQ.7` accepts 3 connections at 2.5 s. The SYN-ACK at 3 s brings a challenge ACK, which is a new final ACK. No connection fails, and the target accepts all 8.
+- **The counters.** `ListenOverflows`, `EmbryonicRsts` and `TCPReqQFullDoCookies` are the changes in the run, from `/proc/net/netstat` of the namespace of the target. The law has no SYN cookie, thus one cookie is a finding.
+- **The time.** `TCPTimeouts` counts each firing of a SYN-ACK timer, thus its 12th change dates the expiry of two requests in `AQ.5`.
+
+## The cells of the port range
+
+These cells (`src/port-range.ts`, SYS-64) give the law of `ip_local_port_range` on the kernel of the runner. The sysctl is set for each network namespace, thus a cell uses a small range. The source of each term is in the comment of the catalog, at Linux v7.0.
+
+- **The two ends.** The native program `ports` is a target that accepts each connection, and a client that connects until a connect fails. The harness ships it in its image. The target closes its sockets at a command on its control port, thus a cell chooses the side that closes first.
+- **An even range.** `PR.1` gets 16 connects from a range of 16, then `EADDRNOTAVAIL` at once. The first 8 connects get the ports of the parity of the low port.
+- **An odd range.** The search rounds the size down to an even number. `PR.2` gets 2 connects from a range of 3, and the search does not reach the top port. `PR.3` gets 4 or 5 from a range of 5. Each round starts from the same table, and `searchShares` gives the exact share of each count.
+- **The unit of the count.** `PR.4` connects to two ports of one target. The search refuses a 4-tuple, not a port, thus the count is for each destination.
+- **TIME_WAIT.** `PR.5` closes the client first. Each port stays held for 60 s from the FIN of the target, plus the timer wheel. `PR.6` sets `tcp_tw_reuse` to 1, and each port comes back 1000 ms after that FIN. The default of 2 is for loopback only.
+- **The other ways to close.** A reset holds nothing, thus each round of `PR.1` to `PR.4` starts with each port free. `PR.7` closes the target first. The client holds no port, and each new SYN passes the TIME_WAIT of the target.
+
+## The cells of the retry count
+
+These cells start Q18 of S3 (`src/retries.ts`, SYS-67). The question: how many tries does one request cost across hops? Law O08 gives a product: the deepest listener sees the tries of each caller, multiplied.
+
+- **The target.** One process holds a chain of listeners on loopback (`targets/retry-chain/`). Each hop calls the next listener with a real retry client: the `RetryAgent` of undici 8.12.2, or `retry` of service 0.6.5. An npm lockfile pins them. The deepest listener fails each request with a status, or with a close and no reply.
+- **The client.** The first caller is the real client of the harness: the `RetryAgent` of undici, or the `Transport` of Go 1.27.2. Listener 0 answers `GET /` with 200, thus the client is ready, and each other path is the logical request.
+- **The record.** Each listener writes a line `arrive` for each arrival, with its `trail`: the arrival numbers above it, then its own number. The trails of a run are the tree of its tries, thus each term is visible.
+- **The law.** `lawOf` goes from the deepest listener up, because each answer sets the tries of the caller above it. Each term cites its source by file and line, in the comment of the module.
+- **The verdict.** The prediction gives an exact count for each listener (`counts`). A count that differs is a finding of its run. The times have no band, because a count reads no timer. Thus a loaded runner cannot move a count.
+- **The delays.** `T14.count.2` and `T14.count.3` are one chain at two delays, 500 ms and 1 ms. The second chain shows that the delays do not enter the count, thus the other cells use 1 ms.
+- **The late lines.** The lines of the target come on their own stream. Thus a run with counts waits for them after the end of its client, up to 5 s. A pause catches a line above a count.
+
+## The watch cells of etcd
+
+These cells answer one question of S3 (`src/etcd-watch.ts`, SYS-74): what does a watcher see after a stall or a compaction? The law: a stall alone loses nothing, and a compaction alone loses nothing. A watcher fails if it falls out of the synced group and a compaction then passes it.
+
+- **The target.** One program starts etcd v3.6.15 (`targets/etcd-watch/`). Each write, compaction and watch is a real `etcdctl`, thus the watcher is clientv3. SIGSTOP and SIGCONT give the stall.
+- **The border.** `WC.1` and `WC.2` are a watch one revision below the compaction and a watch at it. The test of etcd is strict, thus the second one gets each event.
+- **The buffers.** A stopped watcher leaves the synced group only when the buffers are full. Long values hold 131 events: 1 in the transport, 1 in the hand of `sendLoop`, 128 in the channel of the stream, and 1 victim.
+- **The exact border.** The victim moves `minRev` to the next revision. Thus 132 writes put `minRev` at the compact revision, and nothing is lost (`WC.4`). One more write puts it below, thus the watch ends with 131 events and the compaction error (`WC.5`).
+- **The controls.** `WC.3` has no stall, and `WC.6` has no compaction. Neither one loses an event. `WC.7` has 300 short writes. They fit in the window of the stream, thus the bytes decide and not the count.
+- **The verdict.** The prediction gives an exact count for each line (`counts`). Each term cites etcd v3.6.15 or grpc-go v1.83.2 by file and line, in the comment of the module.
+
+## The lease cells of etcd
+
+The cells `EL.1` to `EL.11` (SYS-73) ask when a lock holder loses its etcd lease. The lease ends in a band after its last renewal. A frozen holder can then write after the next holder, and a compare on the creation revision stops that write (T13).
+
+- **The target.** `targets/etcd-lease` is one etcd v3.6.15 member and a program on Node.js. Each lock is a real `etcdctl lock`, thus each client is clientv3 and its concurrency recipe.
+- **The freeze.** The exec form of `etcdctl lock` starts a section of sh. SIGSTOP on the process group stops the keepalive and the section together. The exec form does not look at the session, thus a holder that lost its lease ends with code 0.
+- **The band.** The end of a lease comes one TTL after the last renewal, and the expiry loop adds at most 500 ms. A stop after renewals opens the low end by the gap of two renewals, TTL/3 + 500 ms. The margin of 300 ms has no source.
+- **The floor.** A TTL of 1 s gets the floor of 2 s. A leader promotion gives each lease a whole TTL plus the election timeout of 1 s.
+- **The token.** The creation revision of the lock key is the fencing token. `ETCD_LOCK_REV` is that number only for a client that did not wait. After a wait it is the head, thus a fence with it fails on the key of the client (`EL.10`).
+- **The queue.** A waiter that loses its lease gets the session error at the release, and no lock (`EL.11`). This is the fix of the bug in the Jepsen analysis of etcd 3.4.3.
+- **The verdict.** The store has no other writer, thus each cell counts exact revisions from the head at its start. A time is a boolean field of its line, and the raw times stay in the line.
+- **The runs.** The target stays up between the runs of an environment. Each scenario stops its clients and revokes each lease before its last line.
 
 ## The WS catalog
 
@@ -479,6 +578,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.
 - `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that the private repository lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
+- Each record has the code that operated (`code`, from `codeHere`). It is the commit of the checkout of this repository, and if a tracked file had changes. It is not the commit of a repository that calls the runner. Each line of `summary.ndjson` has its `pins`: each problem that stops the record from pinning its programs (`manifestProblems`, `commitProblems`). An empty list means that the record pins each program.
 
 `KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
 
