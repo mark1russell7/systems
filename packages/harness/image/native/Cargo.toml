@@ -3,7 +3,7 @@ name = "harness-native"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "The harness's native side: the cell client and the injector"
+description = "The harness's native side: the cell client, the injector and the HTTP load driver"
 
 [dependencies]
 # the clock, the quantities and the errno names, without the collector

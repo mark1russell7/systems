@@ -24,6 +24,7 @@
 //!    It makes connect M + 1 with the poll on, and it writes `stall` with the lowest count and the
 //!    count after the connect.
 
+use harness_native::emit;
 use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
 use std::error::Error;
@@ -55,14 +56,6 @@ const WAIT_MS: u64 = 100;
 /// the longest wait for the count to reach 0 after a reset, in seconds: 10 s and one scan of 60 s, with a margin
 const DRAIN_S: u64 = 90;
 const SECOND_NS: u64 = 1_000_000_000;
-
-fn emit(event: &str, fields: Value) {
-    let mut line = json!({ "ev": event, "t": monotonic_ns() });
-    if let (Some(line), Value::Object(fields)) = (line.as_object_mut(), fields) {
-        line.extend(fields);
-    }
-    println!("{line}");
-}
 
 fn sleep_ms(time: u64) {
     std::thread::sleep(Duration::from_millis(time));

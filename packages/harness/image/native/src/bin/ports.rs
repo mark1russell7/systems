@@ -26,6 +26,7 @@
 //! reset and holds no port. A FIN at the exit of the client holds that port in TIME_WAIT for 60 s. A
 //! range of 3 has only 2 ports for a search. Thus the third run of an environment had no control port.
 
+use harness_native::emit;
 use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
 use std::error::Error;
@@ -39,14 +40,6 @@ use std::time::Duration;
 const LIMIT: usize = 256;
 /// how long `close COUNT` waits for the accept of the last connection, in milliseconds
 const ACCEPT_WAIT_MS: u64 = 2_000;
-
-fn emit(event: &str, fields: Value) {
-    let mut line = json!({ "ev": event, "t": monotonic_ns() });
-    if let (Some(line), Value::Object(fields)) = (line.as_object_mut(), fields) {
-        line.extend(fields);
-    }
-    println!("{line}");
-}
 
 fn locked(held: &Mutex<Vec<TcpStream>>) -> MutexGuard<'_, Vec<TcpStream>> {
     held.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
