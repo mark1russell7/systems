@@ -3,6 +3,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { LADDER_FORMAT, ladderVerdict, type Ladder, type LadderVerdict, type RungEvidence, type RungRecord } from "@mark1russell7/rigor-bench";
 import { ms, s, sysctlsOf } from "./catalog.ts";
+import { FAULT_FACTOR } from "./held.ts";
 import { MONGO_IMAGE } from "./mongo/cells.ts";
 import { MEMBER_STAMPS, SET_DEFAULTS, replicaSetOf } from "./mongo/harness.ts";
 import { INTERVAL, linuxValues } from "./mongo/model.ts";
@@ -225,6 +226,45 @@ export const RECOVERY_LADDER: Ladder = {
 
 /** This function gives the verdict of the ladder of recovery, with `now` as the time of the verdict in ISO 8601. */
 export const recoveryVerdict = (records: readonly RungRecord[], now: string): LadderVerdict => ladderVerdict(RECOVERY_LADDER, records, { now });
+
+/**
+ * This function gives a copy of a rung record with one measure past its budget (SYS-99). Each value
+ * of that measure becomes `FAULT_FACTOR` times the limit, or 1 for a limit of 0. This is the injected
+ * fault of the flip test of the lock. The other measures stay as the drills gave them.
+ */
+export const breached = (record: RungRecord, measure: string): RungRecord => {
+  const budget = RECOVERY_LADDER.rungs.find((rung) => rung.name === record.rung)?.budgets.find((each) => each.measure === measure);
+  if (budget === undefined) throw new Error(`the rung ${record.rung} has no budget of ${measure}`);
+  const past = budget.limit === 0 ? 1 : budget.limit * FAULT_FACTOR;
+  // each budget of this ladder is a worst case: a median budget has rounds, and this fault does not apply to it
+  if (budget.kind !== "worst") throw new Error(`the budget of ${measure} is not a worst case`);
+  return { ...record, evidence: record.evidence.map((each) => (each.measure === measure && each.kind === "worst" ? { ...each, values: each.values.map(() => past) } : each)) };
+};
+
+/** The read of one injected fault is the rung, the measure past its budget, and the outcome of that rung. */
+export interface BudgetFlip {
+  readonly rung: string;
+  readonly measure: string;
+  readonly outcome: string;
+  readonly red: boolean;
+}
+
+/**
+ * This function is the flip test of the lock. For each rung and each of its budgets, it puts that one
+ * measure past its budget (`breached`) and reads the verdict again. The fault is red only when that
+ * rung reads `beyond` and the verdict fails. Thus a budget that cannot fail its rung shows here.
+ */
+export const budgetFlip = (records: readonly RungRecord[], now: string): BudgetFlip[] =>
+  records.flatMap((record) =>
+    (RECOVERY_LADDER.rungs.find((rung) => rung.name === record.rung)?.budgets ?? []).map((budget) => {
+      const verdict = recoveryVerdict(
+        records.map((each) => (each === record ? breached(each, budget.measure) : each)),
+        now,
+      );
+      const outcome = verdict.rungs.find((rung) => rung.rung === record.rung)?.outcome ?? "no read";
+      return { rung: record.rung, measure: budget.measure, outcome, red: outcome === "beyond" && verdict.failed };
+    }),
+  );
 
 /** This list states what a drill does not do. A rung shows it beside its verdict. */
 const SYNTHETIC: readonly string[] = [

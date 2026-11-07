@@ -4,7 +4,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { checkLadder, ladderVerdict, type RungRecord } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
-import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
+import { HOLES, RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, RTO, breached, budgetFlip, recoveryRecord, recoveryVerdict } from "./recovery.ts";
 
 const AT = "2026-11-04T12:00:00.000Z";
 
@@ -104,6 +104,27 @@ describe("the ladder of recovery", () => {
     const verdict = recoveryVerdict(copy.records, copy.records[0]!.at);
     expect(verdict.reason).toBe("Each of the 3 locked rungs is within.");
     expect(verdict.failed).toBe(false);
+  });
+
+  it("turns each rung red with each budget alone past its limit, in the flip test of the lock", () => {
+    const flips = budgetFlip(recordsOf(), AT);
+    expect(flips).toHaveLength(RECOVERY_LADDER.rungs.reduce((sum, rung) => sum + rung.budgets.length, 0));
+    expect(flips.filter((flip) => !flip.red)).toEqual([]);
+    expect(recoveryVerdict(recordsOf(), AT).failed).toBe(false);
+  });
+
+  it("puts only one measure past its budget, at 1.5 x the limit, or 1 for a limit of 0", () => {
+    const [record] = recordsOf();
+    const rto = breached(record!, RTO).evidence;
+    expect(rto.find((each) => each.measure === RTO)?.values).toEqual([21_600, 21_600, 21_600, 21_600]);
+    expect(rto.find((each) => each.measure === RPO)).toEqual(record!.evidence.find((each) => each.measure === RPO));
+    expect(breached(record!, HOLES).evidence.find((each) => each.measure === HOLES)?.values).toEqual([1, 1, 1, 1]);
+    expect(() => breached(record!, "no such measure")).toThrow(/no budget/);
+  });
+
+  it("holds each locked rung with the last record, and each budget of that record can still fail", () => {
+    const copy = JSON.parse(readFileSync(new URL("../../site/src/data/recovery-2026-11-04.json", import.meta.url), "utf8")) as { readonly records: RungRecord[] };
+    expect(budgetFlip(copy.records, copy.records[0]!.at).filter((flip) => !flip.red)).toEqual([]);
   });
 
   it("states what is real and what is made up", () => {

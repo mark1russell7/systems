@@ -5,7 +5,7 @@
 // A cell in a later folder replaces the same cell of an earlier folder, thus the folder of a re-run
 // goes last. These functions read the folders, and they round each time for the copy of the site.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { cpSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { median } from "@mark1russell7/rigor-statistics";
 import { duration } from "../src/lib/format.ts";
@@ -60,6 +60,21 @@ export const readFolders = <R extends { readonly cell: { readonly name: string }
 };
 
 /** This function gives the one value that each folder gives, or it stops. */
+/** This function copies a folder into another folder without its first record and the line of that record, and it gives the copy. The flip tests read this copy. */
+export const withoutOne = (folder: string, into: string): string => {
+  const copy = join(into, "gone");
+  cpSync(folder, copy, { recursive: true });
+  const file = readdirSync(copy).filter((name) => name.endsWith(".json")).sort()[0];
+  if (file === undefined) throw new Error(`${folder} has no record`);
+  const { cell } = JSON.parse(readFileSync(join(copy, file), "utf8")) as { readonly cell: { readonly name: string } };
+  rmSync(join(copy, file));
+  const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
+    .split("\n")
+    .filter((line) => line.trim() !== "" && (JSON.parse(line) as { readonly name: string }).name !== cell.name);
+  writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
+  return copy;
+};
+
 export const only = (what: string, values: readonly string[]): string => {
   const set = [...new Set(values)];
   if (set.length !== 1) throw new Error(`the records disagree on ${what}: ${set.join(", ")}`);

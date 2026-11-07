@@ -13,7 +13,8 @@
 // --flip is the flip test of this check. It runs this script on the clean folders and with --fault.
 // It also runs it on three copies: one with a record gone, one with a target by the tag redis:7.4 and
 // no digest, and one with a checkout with changes. It exits with 0 only if the clean read passes, each
-// cell turns red under the fault, and each other read exits with 1.
+// cell turns red under the fault, and each other read exits with 1 and names its cause. A crash also
+// exits with 1, thus a red read that does not name its cause does not pass.
 
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -26,7 +27,7 @@ import { catalogs, SCHEDULED_CELLS, selectedOf } from "../../cells/src/all.ts";
 import { FAULT_FACTOR, faultedVerdict, heldRead, slowdownSeen } from "../../cells/src/held.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
-import { readFolders } from "./records.ts";
+import { readFolders, withoutOne } from "./records.ts";
 
 const args = process.argv.slice(2);
 const option = (name: string): string => {
@@ -62,12 +63,13 @@ const problems = new Map([...found].map(([name, entry]) => [name, recordProblems
 const verdictsOf = (underFault: boolean): Map<string, Verdict> =>
   new Map([...readings].map(([name, reading]) => [name, underFault ? faultedVerdict(reading.cell, reading.measured) : reading.verdict]));
 
-/** This function starts this script on the folders that it gets, and it gives its exit code. */
-const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null => {
-  const script = fileURLToPath(import.meta.url);
-  const done = spawnSync(process.execPath, [...process.execArgv, script, "--cells", selection, "--shard", shardText, ...flags, ...given], { stdio: "ignore" });
-  return done.status;
-};
+/** This function starts this script on the folders that it gets, and it gives its exit code and its output. */
+const readOf = (given: readonly string[], ...flags: readonly string[]) =>
+  spawnSync(process.execPath, [...process.execArgv, fileURLToPath(import.meta.url), "--cells", selection, "--shard", shardText, ...flags, ...given], { encoding: "utf8" });
+
+/** This function tells if a read is red for its cause: exit 1, the line "not held", and a line that names the cause. A crash prints neither line. */
+const redFor = (done: { readonly status: number | null; readonly stdout: string }, cause: string): boolean =>
+  done.status === 1 && done.stdout.includes("not held: ") && done.stdout.includes(cause);
 
 /** This function copies a folder into a new folder of a name, and it gives the copy and the file of its first record. */
 const copyOf = (folder: string, into: string, name: string): { readonly copy: string; readonly file: string } => {
@@ -76,18 +78,6 @@ const copyOf = (folder: string, into: string, name: string): { readonly copy: st
   const file = readdirSync(copy).filter((each) => each.endsWith(".json")).sort()[0];
   if (file === undefined) throw new Error(`${folder} has no record`);
   return { copy, file: join(copy, file) };
-};
-
-/** This function copies a folder without its first record and the line of that record, and it gives the copy. */
-const withoutOne = (folder: string, into: string): string => {
-  const { copy, file } = copyOf(folder, into, "gone");
-  const { cell } = JSON.parse(readFileSync(file, "utf8")) as CellRecord;
-  rmSync(file);
-  const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
-    .split("\n")
-    .filter((line) => line.trim() !== "" && (JSON.parse(line) as Summary).name !== cell.name);
-  writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
-  return copy;
 };
 
 /** This function copies a folder with a change to its first record, and it gives the copy. */
@@ -118,18 +108,21 @@ if (flip) {
     const power = slowdownSeen(reading.cell, reading.measured);
     return power === null ? [] : [power];
   });
-  const results: ReadonlyArray<readonly [string, number | null, number]> = [
-    ["the clean copy", exitOf(folders), 0],
-    [`a fault of ${FAULT_FACTOR} x the top of each band`, exitOf(folders, "--fault"), 1],
-    ["a copy with one record gone", exitOf([withoutOne(folders[0]!, scratch)]), 1],
-    ["a copy with a target by the tag redis:7.4 and no digest", exitOf([changed(folders[0]!, scratch, "tag", byTag)]), 1],
-    ["a copy from a checkout with changes", exitOf([changed(folders[0]!, scratch, "dirty", dirty)]), 1],
+  const pass = readOf(folders);
+  const reads: ReadonlyArray<readonly [string, ReturnType<typeof readOf>, string | null]> = [
+    ["the clean copy", pass, null],
+    [`a fault of ${FAULT_FACTOR} x the top of each band`, readOf(folders, "--fault"), "did not hold"],
+    ["a copy with one record gone", readOf([withoutOne(folders[0]!, scratch)]), "no record: "],
+    ["a copy with a target by the tag redis:7.4 and no digest", readOf([changed(folders[0]!, scratch, "tag", byTag)]), "not a record: "],
+    ["a copy from a checkout with changes", readOf([changed(folders[0]!, scratch, "dirty", dirty)]), "not a record: "],
   ];
   rmSync(scratch, { recursive: true, force: true });
-  for (const [what, exit, wanted] of results) process.stdout.write(`${what}: exit ${exit}, wanted ${wanted}\n`);
+  // a crash also exits with 1: each red read names its cause, thus a crash does not pass as red
+  const results = reads.map(([what, done, cause]) => [what, done.status, cause === null ? done.status === 0 : redFor(done, cause)] as const);
+  for (const [what, exit, right] of results) process.stdout.write(`${right ? "right" : "WRONG"}: ${what}: exit ${exit}\n`);
   for (const cell of stayed) process.stdout.write(`the fault left this cell green: ${cell.name}\n`);
   if (seen.length > 0) process.stdout.write(`a slowdown turns a cell red from ${Math.min(...seen).toFixed(3)} x to ${Math.max(...seen).toFixed(3)} x\n`);
-  process.exit(results.every(([, exit, wanted]) => exit === wanted) && stayed.length === 0 ? 0 : 1);
+  process.exit(results.every(([, , right]) => right) && stayed.length === 0 ? 0 : 1);
 }
 
 const result = heldRead(expected, verdictsOf(fault), problems);
