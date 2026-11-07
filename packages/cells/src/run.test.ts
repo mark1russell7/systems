@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell, CellResult, Subject } from "@mark1russell7/harness";
-import { cloudOf, commitProblems, manifestProblems, measure, noiseOf, pairingsOf, readHost, runCell, substrateKey, substrateOf } from "@mark1russell7/harness";
+import { cloudOf, measure, noiseOf, pairingsOf, readHost, recordProblems, runCell, substrateKey, substrateOf } from "@mark1russell7/harness";
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
@@ -98,17 +98,18 @@ const inEnvironment = (cell: Cell): Cell =>
 const code = codeHere();
 
 /**
- * This function gives each problem that stops a record from pinning the programs of its runs. It
- * examines the commit of the code, and each image of each manifest (`manifestProblems`). The
- * summary line of the cell holds them. SYS-101 then makes a record with a problem fail.
+ * CELLS_DEBUG=1 marks a local debug run. Its records are marked so (`debug`), and no page reads
+ * them. Only such a run can operate from a checkout with changes, or with an image that no digest
+ * pins.
  */
-const pinsOf = (manifests: CellResult["manifests"]): string[] => [
-  ...new Set([
-    ...commitProblems(code?.commit),
-    ...(code?.dirty === true ? ["the checkout has changes to tracked files that no commit holds"] : []),
-    ...manifests.flatMap((manifest) => manifestProblems(manifest)),
-  ]),
-];
+const DEBUG = process.env["CELLS_DEBUG"] === "1";
+
+/**
+ * This function gives each problem that stops a record from pinning the programs of its runs
+ * (`recordProblems`). The summary line of the cell holds them. A record with a problem is not a
+ * record, thus its cell fails unless the run is a debug run (SYS-101).
+ */
+const pinsOf = (manifests: CellResult["manifests"]): string[] => recordProblems({ code, manifests, debug: DEBUG });
 
 /** This function gives a file name for a cell: its name in lower case, with a dash for each other character. */
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -124,11 +125,13 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
         again = result.measured.map((run) => run.void);
         result = await runCell(inEnvironment(cell), (line) => console.log(line));
       }
+      const pins = pinsOf(result.manifests);
       writeFileSync(
         `${OUT}/${slug(cell.name)}.json`,
         JSON.stringify({
           format: "loom.cell-record/1",
           ...(code === undefined ? {} : { code }),
+          ...(DEBUG ? { debug: true } : {}),
           cell: result.cell,
           case: null,
           ...(slot === undefined ? {} : { pair: slot }),
@@ -152,7 +155,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           outside: verdict.outside,
           why: verdict.why,
           substrate: substrateKey(substrateOf(result.manifests[0] ?? {}, result.at.started)),
-          pins: pinsOf(result.manifests),
+          pins,
           ...(verdict.reordering === undefined ? {} : { reordering: verdict.reordering }),
           ...(verdict.proxy === undefined ? {} : { proxy: verdict.proxy }),
           ...(verdict.requests === undefined ? {} : { requests: verdict.requests }),
@@ -173,6 +176,8 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
       console.log(`${cell.name}: ${verdict.decision}, ${verdict.why}`);
       if (slot !== undefined) pairTimes(slot, timesOf(slot, result));
       expect(result.runs.length).toBeGreaterThan(0);
+      // a record that does not pin its programs is not a record: the run exits with 1 (SYS-101)
+      if (!DEBUG) expect(pins, `${cell.name}: the record does not pin its programs`).toEqual([]);
     });
   }
 });
