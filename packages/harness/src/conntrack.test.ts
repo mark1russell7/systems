@@ -120,6 +120,18 @@ describe("the reading of a conntrack cell", () => {
     expect(finding([FULL, CLOSED])).toMatch(/no connect after the close/);
   });
 
+  it("reads the floor as a band when the law gives its highest value", () => {
+    const banded: ConntrackPrediction = { max: 1024, pressure: { ...PRESSURE.pressure!, highest: 973 } };
+    const got = (fields: Record<string, unknown>) => line("stall", 23 * NS, { errno: "none", elapsed: 19.2 * NS, drops: 18, retrans_fail: 7, ...fields });
+    const finding = (events: readonly ProbeEvent[]) => measure(cellOf(banded), runOf(events)).finding;
+    expect(finding([FULL, CLOSED, got({ lowest: 959, after: 960 })])).toBeNull();
+    expect(finding([FULL, CLOSED, got({ lowest: 964, after: 965 })])).toBeNull();
+    expect(finding([FULL, CLOSED, got({ lowest: 973, after: 974 })])).toBeNull();
+    expect(finding([FULL, CLOSED, got({ lowest: 949, after: 950 })])).toMatch(/lowest count was 949, outside 959 to 973/);
+    expect(finding([FULL, CLOSED, got({ lowest: 974, after: 975 })])).toMatch(/lowest count was 974, outside 959 to 973/);
+    expect(finding([FULL, CLOSED, got({ lowest: 964, after: 960 })])).toMatch(/read 960 after the connect, not 965/);
+  });
+
   it("gives a verdict on the law, and names the table in it", () => {
     const cell = cellOf(REFUSED);
     const clean = [0, 1, 2, 3].map((index) => measure(cell, runOf([FULL, STALL], { index })));

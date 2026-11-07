@@ -88,8 +88,15 @@ const findingsOf = (read: ConntrackReading, failed: unknown, expected: Conntrack
   if (pressure !== undefined) {
     const stall = read.stall;
     if (read.closed !== max) found.push(`the count read ${read.closed ?? "nothing"} after each side closed, not ${max}`);
-    if (read.lowest !== pressure.lowest) found.push(`the lowest count was ${read.lowest ?? "nothing"}, not ${pressure.lowest}`);
-    if (read.after !== pressure.after) found.push(`the count read ${read.after ?? "nothing"} after the connect, not ${pressure.after}`);
+    const { highest } = pressure;
+    if (highest === undefined) {
+      if (read.lowest !== pressure.lowest) found.push(`the lowest count was ${read.lowest ?? "nothing"}, not ${pressure.lowest}`);
+      if (read.after !== pressure.after) found.push(`the count read ${read.after ?? "nothing"} after the connect, not ${pressure.after}`);
+    } else if (read.lowest === null || read.lowest < pressure.lowest || read.lowest > highest) {
+      found.push(`the lowest count was ${read.lowest ?? "nothing"}, outside ${pressure.lowest} to ${highest}`);
+    } else if (read.after !== read.lowest + 1) {
+      found.push(`the count read ${read.after ?? "nothing"} after the connect, not ${read.lowest + 1}`);
+    }
     if (stall === null) found.push("no connect after the close ended");
     else {
       if (stall.errno !== NONE) found.push(`the connect after the close ended with ${stall.errno}`);

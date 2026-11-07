@@ -1,4 +1,4 @@
-import { conntrackFloor, timerOf } from "@mark1russell7/algebra";
+import { conntrackFloor, synGiveUpSends, timerOf } from "@mark1russell7/algebra";
 import type { Cell, ConntrackPrediction, HostSysctl, QueueBand, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { count, given, HZ, LINUX_66, s, seconds } from "./catalog.ts";
@@ -15,13 +15,15 @@ import { count, given, HZ, LINUX_66, s, seconds } from "./catalog.ts";
  *   lines 2050-2052). The field `drop` rises by one for each SYN.
  * - The connect. `tcp_connect` ignores that error and arms the timer (`net/ipv4/tcp_output.c`, lines
  *   4376-4395). Thus the connect stalls, and it does not get a refusal. It ends with ETIMEDOUT after
- *   its normal schedule (`net/ipv4/tcp_timer.c`, lines 254-261). Each try after the first one adds one
- *   to TCPRetransFail (`tcp_output.c`, lines 3684-3685).
+ *   its normal schedule (`net/ipv4/tcp_timer.c`, lines 242-284). That end is the first firing that
+ *   passes the count test or the time test: 7 s at 2 retries. Each try after the first one adds one to
+ *   TCPRetransFail (`tcp_output.c`, lines 3684-3685).
  * - A reset. The entry goes to CLOSE, with a timeout of 10 s (`nf_conntrack_proto_tcp.c`, lines 69 and
  *   1283-1284). An entry goes only at a scan, and a scan comes at most 60 s after the one before it.
  * - A FIN. The entry goes to TIME_WAIT for 120 s (the same file, line 68). A drop at a full table sets
  *   the pressure of the next scan, which drops such entries down to a floor, `conntrackFloor`. A connect
- *   gets its slot at the next SYN after that scan.
+ *   gets its slot at the next SYN after that scan. The expired entries of other namespaces share the cap
+ *   of that scan, thus the floor is a band (`EXPIRED`).
  */
 
 /** This image is the stock base of the image of the harness, for the record. */
@@ -49,6 +51,12 @@ const GIVE_UP_RETRIES = 2;
 const LINEAR_TIMEOUTS = 4;
 /** This count is the retries of a connect that waits for a slot: the default of the kernel, as in `LINUX_66`. */
 const WAIT_RETRIES = 6;
+/**
+ * This count is the most entries of other namespaces that one scan finds expired before its cap. It
+ * has no source: the 4 runs of CT.4 in cells run 42397236518 gave 2 to 5. At 14 the floor at the limit
+ * of 1000 does not move, because the point of 95 hundredths stops that scan after 51 drops.
+ */
+const EXPIRED = 14;
 /** This count is the last point of the schedule of a connect that gets a slot. That point is 67 s, one gap of the scans after the first. */
 const POINTS = 10;
 
@@ -143,14 +151,14 @@ const conntrackCell = (spec: ConntrackSpec): Cell => ({
   concurrency: 1,
 });
 
-/** This count is the SYNs of a connect that finds no entry, which the settings give: the first one and each retry. */
-const TRIES = GIVE_UP_RETRIES + LINEAR_TIMEOUTS + 1;
+/** This count is the SYNs of a connect that finds no entry, until the firing that gives up: the first one and each retry. */
+const TRIES = synGiveUpSends(GIVE_UP_RETRIES, LINEAR_TIMEOUTS);
 
 const REFUSED = { within: giveUpBand(), errno: "ETIMEDOUT", drops: TRIES, retransFail: TRIES - 1 };
 
 const pressure = (max: number): NonNullable<ConntrackPrediction["pressure"]> => {
   const lowest = conntrackFloor(max, HZ);
-  return { lowest, after: lowest + 1, points: schedulePoints() };
+  return { lowest, highest: conntrackFloor(max, HZ, EXPIRED), after: lowest + 1, points: schedulePoints() };
 };
 
 /** These are the laws that the cells check, one cell for each. */
@@ -163,7 +171,7 @@ export const CONNTRACK_SPECS: readonly ConntrackSpec[] = [
     fill: null,
     retries: GIVE_UP_RETRIES,
     settle: SETTLE_RESET,
-    why: "the hook drops each SYN after the limit, and tcp_connect ignores that error, so the connect has its normal schedule",
+    why: "the hook drops each SYN after the limit, and tcp_connect ignores that error, so the connect has its normal schedule. At 2 retries the time test ends it first",
     law: { refused: REFUSED },
   },
   {
@@ -196,7 +204,7 @@ export const CONNTRACK_SPECS: readonly ConntrackSpec[] = [
     fill: null,
     retries: WAIT_RETRIES,
     settle: SETTLE_FIN,
-    why: "the drop of a SYN sets the pressure, and one scan drops at most 64000 / HZ + 1 entries, down to 95 hundredths of the limit",
+    why: "the drop of a SYN sets the pressure, and one scan counts at most 64000 / HZ + 1 entries. The expired entries of other namespaces share that count",
     law: { pressure: pressure(MAX) },
   },
   {

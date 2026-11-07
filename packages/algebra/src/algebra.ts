@@ -267,6 +267,61 @@ const synWait = (fired: bigint, linear: bigint): Rational =>
 const synWaits = (retries: bigint, linear: bigint): Rational[] =>
   Array.from({ length: Number(linear + 1n + retries) }, (_, fired) => synWait(BigInt(fired), linear));
 
+/**
+ * This function gives the waits of the SYN of a connect up to the firing that gives up, from 6.5
+ * (`tcp_write_timeout` in `net/ipv4/tcp_timer.c` at v7.0, lines 242-284). A firing applies two tests.
+ *
+ * - The count test: the retransmissions before it are `tcp_syn_retries` + `tcp_syn_linear_timeouts`.
+ * - The time test: `retransmits_timed_out` with the boundary `tcp_syn_retries` and no linear term. Its
+ *   budget is `tcp_model_timeout` from an RTO of 1 s, (2^(retries + 1) - 1) s, from the first SYN
+ *   (`tcp_connect` sets `retrans_stamp`, `tcp_output.c` line 4370). It needs one retransmission.
+ *
+ * The first firing that passes one test gives up. At the defaults both tests give 131 s. At
+ * `tcp_syn_retries` 2 and 4 linear waits, the time test gives 7 s and the count test gives 11 s.
+ */
+const synGiveUpWaits = (retries: bigint, linear: bigint): Rational[] => {
+  const budget = retransBudget(retries, TCP_TIMEOUT_INIT, TCP_RTO_MAX);
+  const waits = synWaits(retries, linear);
+  let at = whole(0n);
+  for (let fired = 0; fired < waits.length; fired += 1) {
+    at = r.add(at, waits[fired]!);
+    // the firing after this wait has `fired` retransmissions before it, and the time test needs one
+    if (fired >= 1 && r.cmp(at, budget) >= 0) return waits.slice(0, fired + 1);
+  }
+  return waits;
+};
+
+/**
+ * This function gives how early the connect can give up, in seconds. The time test reads the real
+ * time of a firing, and the wheel makes that time late. A firing before the nominal one can pass it when its
+ * lateness takes it past the budget. With `tcp_usec_ts`, the test adds one jiffy (line 233).
+ */
+const synGiveUpEarly = (retries: bigint, linear: bigint, hz: Rational): Rational => {
+  const budget = retransBudget(retries, TCP_TIMEOUT_INIT, TCP_RTO_MAX);
+  const waits = synGiveUpWaits(retries, linear);
+  const end = waits.reduce((total, wait) => r.add(total, wait), whole(0n));
+  const jiffy = r.div(whole(1n), hz);
+  let at = whole(0n);
+  let late = whole(0n);
+  for (let fired = 0; fired < waits.length - 1; fired += 1) {
+    at = r.add(at, waits[fired]!);
+    late = r.add(late, r.div(whole(granularity(jiffiesOf(waits[fired]!, hz))), hz));
+    if (fired >= 1 && r.cmp(r.add(r.add(at, late), jiffy), budget) >= 0) {
+      const low = r.sub(budget, jiffy);
+      return r.sub(end, r.cmp(low, at) >= 0 ? low : at);
+    }
+  }
+  return whole(0n);
+};
+
+/**
+ * This function gives the SYNs that a connect sends before it gives up: the first SYN and each
+ * retransmission (`synGiveUpWaits`). A connect whose SYN does not leave adds each of them to the field
+ * `drop` of conntrack, and each retransmission to `TCPRetransFail`.
+ */
+export const synGiveUpSends = (retries: number, linear: number): number =>
+  synGiveUpWaits(BigInt(retries), BigInt(linear)).length;
+
 /** This function gives the whole jiffies of a time at HZ, rounded up, as `msecs_to_jiffies` and `usecs_to_jiffies` round. */
 const jiffiesOf = (seconds: Rational, hz: Rational): bigint => r.ceil(r.mul(seconds, hz)).n;
 
@@ -467,16 +522,17 @@ const MODELS: Readonly<Record<string, Model>> = {
     source: "include/linux/jiffies.h",
   },
   // 6.5 and later: the first tcp_syn_linear_timeouts retransmissions wait the initial RTO, the
-  // others double it, and the SYN gives up after syn_retries + linear_timeouts retransmissions
+  // others double it. The SYN gives up at the first firing after syn_retries + linear_timeouts
+  // retransmissions, or after the budget of tcp_model_timeout for syn_retries, which comes first
   "linux.syn-giveup": {
     knobs: [null, null],
     seconds: ([retries, linear]) =>
-      synWaits(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts")).reduce(
+      synGiveUpWaits(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts")).reduce(
         (total, wait) => r.add(total, wait),
         whole(0n),
       ),
     source:
-      "net/ipv4/tcp_timer.c tcp_write_timeout and Documentation/networking/ip-sysctl.rst at v6.6",
+      "net/ipv4/tcp_timer.c tcp_write_timeout, retransmits_timed_out and tcp_model_timeout at v7.0 (lines 187-284)",
   },
   // the rounding of each of those waits on the timer wheel, at the level that its length puts it in:
   // 6.08 s at the defaults and HZ 1000, because the last wait of 64 s can be 4.096 s late
@@ -485,7 +541,7 @@ const MODELS: Readonly<Record<string, Model>> = {
     seconds: ([retries, linear, hz]) =>
       r.div(
         whole(
-          synWaits(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts")).reduce(
+          synGiveUpWaits(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts")).reduce(
             (total, wait) => total + granularity(jiffiesOf(wait, hz!)),
             0n,
           ),
@@ -493,6 +549,14 @@ const MODELS: Readonly<Record<string, Model>> = {
         hz!,
       ),
     source: "net/ipv4/tcp_timer.c tcp_retransmit_timer and kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // how early the SYN can give up: a late firing before the nominal one can pass the time test.
+  // 0 at the defaults and at syn_retries 2, because no such firing comes near the budget
+  "linux.syn-giveup-early": {
+    knobs: [null, null, "Hz"],
+    seconds: ([retries, linear, hz]) =>
+      synGiveUpEarly(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts"), hz!),
+    source: "net/ipv4/tcp_timer.c retransmits_timed_out at v7.0 (lines 214-239) and kernel/time/timer.c calc_wheel_index",
   },
   // one wait of the SYN of a connect, after `fired` firings: 1 s for the waits 0 to
   // tcp_syn_linear_timeouts, then doubled at each firing, up to TCP_RTO_MAX

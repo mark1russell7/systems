@@ -1012,9 +1012,14 @@ export interface ConntrackPrediction {
   };
   /** This band is the time from the `closing` line to the first fall of the count, and to its zero. */
   readonly drained?: QueueBand;
-  /** This record is the law of a scan under pressure. It has the lowest count, the count after the connect, and the times of that connect. */
+  /**
+   * This record is the law of a scan under pressure. It has the lowest count, the count after the
+   * connect, and the times of that connect. With `highest`, the lowest count is a band from `lowest` to
+   * `highest`. Then the count after the connect is one more than the lowest count of the run.
+   */
   readonly pressure?: {
     readonly lowest: number;
+    readonly highest?: number;
     readonly after: number;
     readonly points: readonly QueueBand[];
   };

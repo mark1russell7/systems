@@ -32,11 +32,14 @@ describe("the cells of the conntrack table", () => {
     }
   });
 
-  it("gives a connect that finds no entry its schedule of 7 SYNs in 11 s", () => {
+  it("gives a connect that finds no entry the end of the time test: 6 SYNs in 7 s, not the 7 SYNs in 11 s of the count", () => {
     const within = giveUpBand();
-    expect(valueIn(within.low, "s")).toBeCloseTo(11, 2);
-    expect(valueIn(within.high, "s")).toBeGreaterThan(11);
-    expect(lawOf("CT.1").refused).toMatchObject({ errno: "ETIMEDOUT", drops: 7, retransFail: 6 });
+    expect(valueIn(within.low, "s")).toBeCloseTo(7, 6);
+    // six waits of 1 s and 2 s, each up to 8 jiffies late at HZ 250 and 64 at HZ 1000, and the slack of the
+    // client. At HZ 1000, cells run 42397236518 read 7.157 to 7.201 s
+    expect(valueIn(within.high, "s")).toBeCloseTo(7 + (6 * (HZ === 1000 ? 64 : 8)) / HZ + 0.05, 6);
+    expect(lawOf("CT.1").refused).toMatchObject({ errno: "ETIMEDOUT", drops: 6, retransFail: 5 });
+    expect(lawOf("CT.2").refused).toEqual(lawOf("CT.1").refused);
   });
 
   it("gives each SYN after the first its point, and the points do not overlap below 19 s", () => {
@@ -64,5 +67,12 @@ describe("the cells of the conntrack table", () => {
     expect(lawOf("CT.4").pressure).toMatchObject({ lowest: conntrackFloor(1024, HZ), after: conntrackFloor(1024, HZ) + 1 });
     expect(lawOf("CT.5").pressure).toMatchObject({ lowest: conntrackFloor(1000, HZ), after: conntrackFloor(1000, HZ) + 1 });
     expect(lawOf("CT.5").pressure?.lowest).toBe(949);
+  });
+
+  it("gives the floor at the cap a band for the expired entries of other namespaces, and keeps the floor of 95 hundredths exact", () => {
+    // at HZ 1000 the band is 959 to 973: cells run 42397236518 read 964, 961, 963 and 962 at CT.4, and 949 in each run of CT.5
+    expect(lawOf("CT.4").pressure).toMatchObject({ lowest: conntrackFloor(1024, HZ), highest: conntrackFloor(1024, HZ, 14) });
+    expect(lawOf("CT.5").pressure).toMatchObject({ lowest: 949, highest: 949 });
+    expect([conntrackFloor(1024, 1000), conntrackFloor(1024, 1000, 14)]).toEqual([959, 973]);
   });
 });

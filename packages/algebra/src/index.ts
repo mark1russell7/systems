@@ -56,6 +56,7 @@ export {
   realizationOf,
   recovery,
   stackedDetection,
+  synGiveUpSends,
   timerBand,
   timerOf,
   timerUnder,

@@ -103,6 +103,15 @@ describe("the algebra's first closed forms", () => {
     expect(timerOf(tcp, "syn_giveup", given(HERE))).toEqual({
       duration: { value: 131, unit: "s" },
       lateness: { value: 5.056, unit: "s" },
+      early: { value: 0, unit: "s" },
+    });
+    // at 2 retries the time test ends it at the sixth firing, 7 s: five waits of 1 s at 64 jiffies and
+    // one of 2 s at 64, thus 0.384 s late at HZ 1000. No late firing before it reaches the budget
+    const two = { ...HERE, hz: { value: 1000, unit: "Hz" }, tcp_syn_retries: { value: 2, unit: "count" } };
+    expect(timerOf(tcp, "syn_giveup", given(two))).toEqual({
+      duration: { value: 7, unit: "s" },
+      lateness: { value: 0.384, unit: "s" },
+      early: { value: 0, unit: "s" },
     });
     // at HZ 1000 the wait of 64 s is at the level of 4096 jiffies: 6.08 s in all
     expect(timerOf(tcp, "syn_giveup", given({ ...HERE, hz: { value: 1000, unit: "Hz" } })).lateness).toEqual({ value: 6.08, unit: "s" });
