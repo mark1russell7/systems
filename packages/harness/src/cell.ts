@@ -1045,6 +1045,25 @@ export interface LoadPlan {
   readonly options: ScheduleOptions;
 }
 
+/**
+ * A load stream is one connection of the client `load`: its key, its schedule and its requests.
+ * Arrival i sends request i modulo the count of requests. Each stream has its own connection, thus
+ * a slow stream does not delay the arrivals of another stream.
+ */
+export interface LoadStream {
+  /** This text names the stream in each line of the client (`k`). Two streams of a cell do not have the same key. */
+  readonly key: string;
+  readonly plan: LoadPlan;
+  /** These texts are whole HTTP/1.1 requests, each with its head and its body. */
+  readonly requests: readonly string[];
+}
+
+/** A run stream is the schedule that one stream of the client `load` had in a run. */
+export interface RunStream {
+  readonly key: string;
+  readonly schedule: Schedule;
+}
+
 /** A load band is a limit on one quantile of the latency of an open-loop cell, over the arrivals of its counted runs. */
 export interface LoadBand {
   /** This number is the quantile, from 0 to 1. */
@@ -1195,7 +1214,7 @@ export interface Subject {
  * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, and HikariCP over pgjdbc is `hikari`.
  * The client of amqplib is `amqp`, and the client of grpc-js is `grpc`. The WebSocket client of `@procedures/client` is a program of its subject (`ClientImage`).
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc" | "load";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
@@ -1303,6 +1322,8 @@ export interface Cell {
     readonly mode: "idle" | "inflight" | "stream" | "gap" | "schedule";
     /** This plan is the schedule of the requests in the mode `schedule`. */
     readonly plan?: LoadPlan;
+    /** These streams are the plan of the client `load` in the mode `schedule`, in place of `plan`. */
+    readonly streams?: readonly LoadStream[];
     /** This count is the number of requests of a stream. */
     readonly count?: number;
     /** This time is the pause after each reply of a stream, before the next request. */
@@ -1608,6 +1629,8 @@ export interface Run {
   readonly fabric?: RunFabric;
   /** This schedule is the one that the client of an open-loop cell had: each planned time stays with its record. */
   readonly schedule?: Schedule;
+  /** These schedules are the ones that the streams of the client `load` had. */
+  readonly streams?: readonly RunStream[];
 }
 
 /** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */

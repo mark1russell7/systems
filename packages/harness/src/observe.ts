@@ -22,7 +22,7 @@ import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { ConntrackReading } from "./conntrack.ts";
 import { measureConntrack } from "./conntrack.ts";
-import { loadOf } from "./load.ts";
+import { loadOf, streamsLoadOf } from "./load.ts";
 import type { PauseReading } from "./pause.ts";
 import { measurePause } from "./pause.ts";
 import type { GroupMeasured } from "./timeline.ts";
@@ -749,7 +749,13 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // its reference to the end of the connection, or to the last data
   if (prediction.detects === null) {
     // an open-loop client names the arrival of each line, and each time counts from its planned time
-    const load = run.schedule === undefined ? undefined : loadOf(events, run.schedule);
+    // the client load has one schedule for each stream, and its measure is the pool of the streams
+    const load =
+      run.streams !== undefined
+        ? (streamsLoadOf(events, run.streams)?.pool ?? null)
+        : run.schedule === undefined
+          ? undefined
+          : loadOf(events, run.schedule);
     if (load === null) return { ...base, ...nothing, void: "the client never started its schedule" };
     const sends = load === undefined ? events.filter((event) => event.ev === "sent").slice(1) : [];
     // a reply ends at its last byte when the client says so (`replied`), and at its first data otherwise

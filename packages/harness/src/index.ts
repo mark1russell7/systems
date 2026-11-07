@@ -55,6 +55,7 @@ export type {
   HostSysctl,
   LoadBand,
   LoadPlan,
+  LoadStream,
   LoadPrediction,
   PortsPrediction,
   ProbeEvent,
@@ -81,6 +82,7 @@ export type {
   RunPart,
   RunFabric,
   RunRoute,
+  RunStream,
   RunTopology,
   SentinelEvent,
   SentinelStage,
@@ -112,7 +114,7 @@ export {
   reconnectOf,
 } from "./application.ts";
 export type { LoadJudgement, LoadSpread, LoadVerdict } from "./load.ts";
-export { SCHEDULE_PATH, loadOf, loadVerdict } from "./load.ts";
+export { LOAD_FORMAT, LOAD_PATH, SCHEDULE_PATH, loadOf, loadPlanOf, loadVerdict, streamsLoadOf } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { ConntrackReading, StallReading } from "./conntrack.ts";

@@ -114,6 +114,7 @@ export const SHIPPED_CLIENTS: Readonly<Record<Client, ClientImage>> = {
   },
   amqp: { image: shipped("amqp"), command: ["node", "/opt/harness/amqp/client-amqp.mjs"] },
   grpc: { image: shipped("grpc"), command: ["node", "/opt/harness/grpc/client-grpc.mjs"] },
+  load: { image: shipped("harness"), command: ["/opt/harness/load"] },
 };
 
 /** These are the names of the clients that the harness ships. */
