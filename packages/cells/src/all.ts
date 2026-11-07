@@ -17,6 +17,7 @@ import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
 import { COMMIT_CELLS } from "./pg/commit.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
+import { CONFIRM_CELLS } from "./rabbit/confirms.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { RESEND_CELLS } from "./resend.ts";
@@ -52,10 +53,11 @@ export interface Subjects {
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
- * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 come next,
- * then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30), of a pool
- * at its limit, of the accept queue and of the routed fabric come next. The retry count of T14
- * (O08) follows. The watch, lease and read cells of etcd follow. The recovery drills are last.
+ * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
+ * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
+ * (O29 and O30), of a pool at its limit, of the accept queue and of the routed fabric come next. The
+ * retry count of T14 (O08) follows. The watch, lease and read cells of etcd follow. The recovery
+ * drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -84,6 +86,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...COMMIT_CELLS,
     ...T01_AMQP,
     ...T11_RABBIT,
+    ...CONFIRM_CELLS,
     ...T01_GRPC,
     ...T03_GRPC,
     ...T02_GRPC,

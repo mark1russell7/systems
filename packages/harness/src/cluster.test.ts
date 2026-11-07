@@ -50,6 +50,7 @@ describe("a cluster of RabbitMQ as data", () => {
     expect(clusterCutOf(CLUSTER, MEMBERS, "10.0.0.9", "r2", "group")).toEqual({ peers: ["10.0.0.2", "10.0.0.4"] });
     expect(clusterCutOf(CLUSTER, MEMBERS, "10.0.0.9", "r2", "clients")).toEqual({ peers: ["10.0.0.9"] });
     expect(clusterCutOf(CLUSTER, MEMBERS, "10.0.0.9", "r2", "one-way")).toEqual({ peers: ["10.0.0.2"], direction: "out" });
+    expect(clusterCutOf(CLUSTER, MEMBERS, "10.0.0.9", "r2", "to-clients")).toEqual({ peers: ["10.0.0.9"], direction: "out" });
   });
 
   it("calls the queue healthy only with one leader and a follower on each other node, in one term at one commit index", () => {
