@@ -38,9 +38,10 @@ The owner (Mark) and one Claude session that the owner names are responsible for
 
 1. Choose the next version with the SemVer rules. A breaking change increases MAJOR, a new feature MINOR, and a fix PATCH.
 2. Before `1.0.0`, a breaking change increases MINOR. A feature or a fix increases PATCH. Do not go to `1.0.0` without the owner.
-3. For a prerelease, add a hyphen suffix, for example `1.2.0-rc.1`.
-4. Change `version` in the `package.json` of the package. In the pull request, give the SemVer reason.
-5. Merge the change to `main`.
+3. A new member of an exported union is a breaking change. A caller that switches on each member of the union does not compile with it. Thus before `1.0.0` it increases MINOR, as at kind 0.3.0 and kind 0.14.0.
+4. For a prerelease, add a hyphen suffix, for example `1.2.0-rc.1`.
+5. Change `version` in the `package.json` of the package. In the pull request, give the SemVer reason.
+6. Merge the change to `main`.
 
 A push to `main` that changes a `packages/*/package.json` starts `release.yml`. The workflow starts the CI gates, builds and packs each published package, and publishes each version that is not on npm. A version with a hyphen, for example `1.2.0-rc.1`, gets the dist-tag `next`. The other versions get `latest`.
 
