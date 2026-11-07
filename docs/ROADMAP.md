@@ -1563,7 +1563,7 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 
 **The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
 
-**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate.
+**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate. Under its new gate, that cell gives 4 more counted runs, with 4, 3, 4 and 4 false deaths of 5 pauses. These runs hold the law, and the table above stays as it is.
 
 | Setting | T0 | Median failure time | Zone-loss runs in the band | False deaths in each run | Median failed requests outside |
 | --- | --- | --- | --- | --- | --- |
@@ -1584,11 +1584,11 @@ The kind page of the site shows the value of each counted run. A test of the sit
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-57
 - **Started:** 2026-11-04
-- **Shipped:**
+- **Shipped:** 2026-11-07
 - **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
 
 The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
@@ -1616,6 +1616,24 @@ This item changes a gate, thus the strategist reviews the plan. The result of SY
 - A floor refuses a cell that a load holds from its start.
 - The records of SYS-57 give the margin and the floor.
 - A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
+
+**The result.** Cells run [42384148667](https://github.com/mark1russell7/systems/actions/runs/42384148667) dispatched the pauses of 500 ms × 2 with the load pair, under the new gate.
+
+| Cell | Counted | Void | Reading |
+| --- | --- | --- | --- |
+| no load | 4 | 0 | each run passes the gate |
+| 1 CPU of planned load | 0 | 4 | 30 % to 32 % idle, against 51 % to 53 % needed |
+| 0.5 CPU of planned load | 0 | 4 | 49 % to 53 % idle, against 58 % needed |
+
+Thus the gate lets the heavy cell run, and it still refuses a load of half a core.
+
+The 4 counted runs give 4, 3, 4 and 4 false deaths of 5 pauses. This holds the law of SYS-57:
+
+- The pause of 1.2 s lives in each run.
+- The pauses of 4 s, 6 s and 9 s die in each run.
+- The pause of 2.2 s is in the open band of the law. It dies in 3 runs of 4.
+
+Each death comes 1.57 s to 2.40 s after the stop. 9 of the 14 claims of the prediction hit, with a Brier score of 0.1589. The miss same-four put a fixed count on the pause in the open band. The next band of a count gives a range for that pause.
 
 ## The systems of S1
 

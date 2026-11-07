@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { QUIET_GATE, baselineOf, neededIdle } from "./quiet.ts";
+import { NOT_QUIET, QUIET_GATE, baselineOf, neededIdle, quietWhy } from "./quiet.ts";
 
 const GATE = { flat: 0.6, margin: 0.05, floor: 0.35, settle: 120_000, samples: 3 };
 const clean = (...idle: number[]) => idle.map((share) => ({ idle: share, foreign: [] }));
@@ -31,6 +31,18 @@ describe("neededIdle", () => {
 
   it("refuses a load of 1 core of 4 on a heavy cell", () => {
     expect(0.48 - 0.25).toBeLessThan(neededIdle(GATE, 0.48));
+  });
+});
+
+describe("quietWhy and NOT_QUIET", () => {
+  it("reads back the reason of the gate", () => {
+    const match = NOT_QUIET.exec(`the VM was not quiet in 300 s: ${quietWhy(0.314, 0.526, [])}`);
+    expect(match?.slice(1)).toEqual(["300", "31", "53", "none"]);
+  });
+
+  it("reads a void from before SYS-95, with no share of the gate", () => {
+    const match = NOT_QUIET.exec("the VM was not quiet in 300 s: 59% idle, other lab containers: a; b");
+    expect(match?.slice(1)).toEqual(["300", "59", undefined, "a; b"]);
   });
 });
 

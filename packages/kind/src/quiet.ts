@@ -41,6 +41,16 @@ export const QUIET_GATE: QuietGate = { flat: 0.6, margin: 0.05, floor: 0.43, set
 export const neededIdle = (gate: QuietGate, baseline: number | null): number =>
   baseline === null ? gate.floor : Math.min(gate.flat, Math.max(gate.floor, baseline - gate.margin));
 
+/** This function gives the reason of a sample that the gate refuses. The site reads it back with `NOT_QUIET`. */
+export const quietWhy = (idle: number, needed: number, foreign: readonly string[]): string =>
+  `${Math.round(idle * 100)}% idle, the gate needs ${Math.round(needed * 100)}%, other lab containers: ${foreign.join("; ") || "none"}`;
+
+/**
+ * This form reads the void of a run that the gate refuses. Its groups are the wait in seconds, the idle share, the share
+ * of the gate and the other lab containers. A record from before SYS-95 has no share of the gate.
+ */
+export const NOT_QUIET: RegExp = /^the VM was not quiet in (\d+) s: (\d+)% idle(?:, the gate needs (\d+)%)?, other lab containers: (.*)$/;
+
 /**
  * This function gives the next baseline of a cell from the samples of one environment. Samples with
  * a foreign container do not count. The highest median holds, because a foreign load only lowers

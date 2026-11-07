@@ -23,7 +23,7 @@ import { localPin, openKindLab } from "./lab.ts";
 import { OUTSIDE } from "./names.ts";
 import { PRODUCER, PULSAR_IMAGE, PULSAR_NAMESPACE, PULSAR_VERSION, holdPulsar, installPulsar, pulsarObjects, pulsarRecord } from "./pulsar.ts";
 import type { QuietGate } from "./quiet.ts";
-import { QUIET_GATE, baselineOf, neededIdle } from "./quiet.ts";
+import { QUIET_GATE, baselineOf, neededIdle, quietWhy } from "./quiet.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
 import { byClients, ztunnelReplaced } from "./observe.ts";
@@ -327,7 +327,7 @@ const quiet = async (ctx: Context, ours: ReadonlySet<string>, within = QUIET_WIT
     const load = await sample(ctx, oursAt(ctx, ours));
     ctx.loads.push({ ...load, needed });
     if (load.foreign.length === 0 && load.idle >= needed) return null;
-    const why = `${Math.round(load.idle * 100)}% idle, the gate needs ${Math.round(needed * 100)}%, other lab containers: ${load.foreign.join("; ") || "none"}`;
+    const why = quietWhy(load.idle, needed, load.foreign);
     if (Date.now() >= end) return `the VM was not quiet in ${within / 1000} s: ${why}`;
     ctx.log(`  waiting: ${why}`);
     await sleep(30_000);
