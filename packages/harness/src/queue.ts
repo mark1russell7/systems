@@ -43,19 +43,22 @@ export interface QueueReading {
   readonly connections: readonly QueueConnectionReading[];
 }
 
-const between = (from: number, to: number): Quantity => quantity(Math.round((to - from) / 1e3) / 1e6, "s");
+/** This function gives the time between two stamps of CLOCK_MONOTONIC. */
+export const between = (from: number, to: number): Quantity => quantity(Math.round((to - from) / 1e3) / 1e6, "s");
 
 const numberOf = (line: ProbeEvent, field: string): number => {
   const value = line[field];
   return typeof value === "number" ? value : 0;
 };
 
-const inside = (time: Quantity, band: QueueBand): boolean => {
+/** This function says if a time is inside a band. */
+export const inside = (time: Quantity, band: QueueBand): boolean => {
   const seconds = valueIn(time, "s");
   return seconds >= valueIn(band.low, "s") && seconds <= valueIn(band.high, "s");
 };
 
-const bandWords = (band: QueueBand): string => `[${valueIn(band.low, "s")}, ${valueIn(band.high, "s")}] s`;
+/** This function gives the words of a band. */
+export const bandWords = (band: QueueBand): string => `[${valueIn(band.low, "s")}, ${valueIn(band.high, "s")}] s`;
 
 const waitsOf = (from: number, stamps: readonly number[]): Quantity[] =>
   stamps.map((stamp, at) => between(at === 0 ? from : stamps[at - 1]!, stamp));

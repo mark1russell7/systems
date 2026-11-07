@@ -24,6 +24,7 @@ import { RESEND_CELLS } from "./resend.ts";
 import { RECOVERY_CELLS } from "./recovery.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
+import { PORT_RANGE_CELLS } from "./port-range.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { LEASE_CELLS } from "./etcd-lease.ts";
@@ -55,9 +56,9 @@ export interface Subjects {
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
- * (O29 and O30), of a pool at its limit, of the accept queue and of the routed fabric come next. The
- * retry count of T14 (O08) follows. The watch, lease and read cells of etcd follow. The recovery
- * drills are last.
+ * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
+ * range and of the routed fabric are after them. The retry count of T14 (O08) follows. The watch,
+ * lease and read cells of etcd follow. The recovery drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -93,6 +94,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...LIMITER_CELLS,
     ...POOL_CELLS,
     ...ACCEPT_QUEUE_CELLS,
+    ...PORT_RANGE_CELLS,
     ...FABRIC_CELLS,
     ...COUNT_CELLS,
     ...WATCH_CELLS,
