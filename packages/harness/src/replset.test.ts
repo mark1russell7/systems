@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Cell, ReplicaSet, Run } from "./cell.ts";
 import { measure } from "./observe.ts";
 import {
+  afterLiftOf,
   clockOffsetOf,
   cutOf,
   initiateScript,
@@ -44,6 +45,7 @@ describe("a replica set as data", () => {
     expect(cutOf(SET, MEMBERS, CLIENT, "m2", "clients")).toEqual({ peers: [CLIENT] });
     expect(cutOf(SET, MEMBERS, CLIENT, "m2", "one")).toEqual({ peers: ["10.0.0.2"] });
     expect(cutOf(SET, MEMBERS, CLIENT, "m1", "one-way")).toEqual({ peers: ["10.0.0.3"], direction: "out" });
+    expect(cutOf(SET, MEMBERS, CLIENT, "m1", "to-clients")).toEqual({ peers: [CLIENT], direction: "out" });
   });
 
   it("calls the set healthy only when the member that answers is the one primary, accepts writes, and each secondary is at its optime", () => {
@@ -233,5 +235,10 @@ describe("a run of a replica set cell, measured", () => {
     expect(args).toContain("--w");
     expect(args[args.indexOf("--w") + 1]).toBe("1");
     expect(args.at(-1)).toBe('{"heartbeatFrequencyMS":2000}');
+  });
+
+  it("continues a run for its tail after the lift, and for the watch of the cell", () => {
+    expect(afterLiftOf(CELL)).toBe(2000);
+    expect(afterLiftOf({ ...CELL, watch: s(10) })).toBe(12000);
   });
 });

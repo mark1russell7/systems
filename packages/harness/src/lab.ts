@@ -25,7 +25,7 @@ import type {
 } from "./cell.ts";
 import type { FabricLab } from "./fabric.ts";
 import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
-import { SHIPPED_CLIENTS, harnessImage, imageOf, routerImage, targetImageOf } from "./image.ts";
+import { SHIPPED_CLIENTS, buildRecordOf, harnessImage, harnessVersion, imageOf, routerImage, shippedSource, targetImageOf, targetSourceOf, type BuildRecord } from "./image.ts";
 import type { Substrate } from "./substrate.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -78,6 +78,8 @@ export interface FaultOptions {
   readonly code?: "host" | "net" | "port" | "admin";
   /** This length is the longest segment in bytes that an MTU drop lets through. */
   readonly above?: number;
+  /** These are the addresses that the rule faces, in place of the peer of its place. */
+  readonly peers?: readonly string[];
 }
 
 /** This function gives the arguments of the injector for the options of a fault. */
@@ -157,13 +159,20 @@ export interface Manifest {
     readonly files?: Readonly<Record<string, string>>;
     /** This line is the first line of a target that writes them: a server that tells its settings as it reads them. */
     readonly first?: ProbeEvent;
+    /** This record tells what the image of a target holds when the harness builds it: the image of a subject (`buildRecordOf`). */
+    readonly build?: BuildRecord;
   };
-  readonly harness: { readonly image: string; readonly id: string; readonly packages: string[] };
+  /**
+   * This record is the harness: its image, the id of that image and its Alpine packages. It also
+   * has the version of the package of the harness, and the build of its image. The record of a
+   * cell gives the commit of the code that operated.
+   */
+  readonly harness: { readonly image: string; readonly id: string; readonly packages: string[]; readonly version?: string; readonly build?: BuildRecord };
   /**
    * This record is the client of each run: the TCP client of the harness, a driver, or an image that
    * the cell gives. `source` is the source of its image, when it is not a stock image by its name.
    */
-  readonly client: { readonly kind: Client | "image"; readonly image: string; readonly source?: ImageSource };
+  readonly client: { readonly kind: Client | "image"; readonly image: string; readonly source?: ImageSource; readonly build?: BuildRecord };
   /** These are the namespaces that the prober watched, by inode. */
   readonly netns: {
     readonly client: number;
@@ -277,8 +286,18 @@ export interface Agent {
   stop(): Promise<void>;
 }
 
+/** A sibling is a server that a lab starts on the network of the target, for example a standby. */
+export interface Sibling {
+  readonly ip: string;
+  readonly netns: number;
+  /** This method starts a command in the sibling, and gives its standard output. */
+  exec(argv: readonly string[]): Promise<string>;
+}
+
 /** A lab is one environment: the target, the client, the hops of a topology, the injectors and the prober. */
 export interface Lab {
+  /** This address is the address of the target on its own network. */
+  readonly serverIp: string;
   /** This address is the address that the client connects to: the target, or the first proxy of a topology. */
   readonly targetIp: string;
   /** This port is the port that the client connects to. */
@@ -304,6 +323,10 @@ export interface Lab {
    * namespace with `pid`. Its command keeps it up, for example `sleep infinity`.
    */
   agent(image: string, command: readonly string[], options?: { readonly pid?: boolean }): Promise<Agent>;
+  /** This method starts a sibling, and waits for a line of its log. */
+  sibling(image: string, command: readonly string[], ready: string): Promise<Sibling>;
+  /** This method starts a command in the target, and gives its standard output. */
+  exec(argv: readonly string[]): Promise<string>;
   /** These are all the records that the prober wrote, in sequence. */
   readonly kernel: readonly KernelRecord[];
   /** This method sets the sysctls of the client namespace through its privileged sidecar, and reads them back. */
@@ -507,6 +530,24 @@ export const netnsOf = async (container: StartedTestContainer): Promise<number> 
   if (inode === undefined) throw new Error(`not a network namespace: ${link}`);
   return Number(inode);
 };
+
+/** This function gives the build record of a source as a part of a manifest: `{ build }`, or nothing for an image that the harness pulls. */
+export const buildOf = (source: Parameters<typeof buildRecordOf>[0]): { readonly build?: BuildRecord } => {
+  const build = buildRecordOf(source);
+  return build === undefined ? {} : { build };
+};
+
+/** This function gives the version of the harness and the build of its image, as a part of the harness record of a manifest. */
+export const harnessRecord = (): { readonly version: string; readonly build?: BuildRecord } => ({
+  version: harnessVersion(),
+  ...buildOf(shippedSource("harness")),
+});
+
+/**
+ * This function gives the record of the client of a run that the harness ships, for a manifest:
+ * its kind, its image, and its build.
+ */
+export const shippedClientRecord = (kind: Client, image: string): Manifest["client"] => ({ kind, image, ...buildOf(SHIPPED_CLIENTS[kind].image) });
 
 /**
  * This function gives the image and the command of the client of each run, its kind for the
@@ -907,6 +948,7 @@ export const openLab = async (
     };
 
     return {
+      serverIp,
       targetIp,
       targetPort,
       clientIp,
@@ -979,11 +1021,11 @@ export const openLab = async (
       },
       async fault(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        return stamped(where, ["/opt/harness/inject", kind, peer, ...optionArgs(options), ...via]);
+        return stamped(where, ["/opt/harness/inject", kind, options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
       },
       async lift(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        await output(where, ["/opt/harness/inject", LIFT[kind], peer, ...optionArgs(options), ...via]);
+        await output(where, ["/opt/harness/inject", LIFT[kind], options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
       },
       async netem(spec, at = "target") {
         const [where, device] = deviceAt(at);
@@ -1014,6 +1056,22 @@ export const openLab = async (
       async serverClose() {
         if (target.close === undefined) throw new Error(`${target.image} names no way to close its clients`);
         await output(server, [...target.close]);
+      },
+      async exec(argv) {
+        return output(server, [...argv]);
+      },
+      async sibling(siblingImage, argv, ready) {
+        const started = await new GenericContainer(siblingImage)
+          .withNetwork(last)
+          .withWaitStrategy(Wait.forLogMessage(ready))
+          .withCommand([...argv])
+          .start();
+        opened.push(started);
+        return {
+          ip: await ipOn(started, last),
+          netns: await netnsOf(started),
+          exec: (command) => output(started, [...command]),
+        };
       },
       async agent(agentImage, argv, options = {}) {
         const Shared = shared(GenericContainer);
@@ -1227,13 +1285,15 @@ export const openLab = async (
                   ),
                 }),
             ...(serverLines.seen[0] === undefined ? {} : { first: serverLines.seen[0] }),
+            ...buildOf(targetSourceOf(target)),
           },
           harness: {
             image,
             id: (await inspect(client)).Image,
             packages: (await output(client, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: clientKind, image: clientImage, ...(source === undefined ? {} : { source }) },
+          client: { kind: clientKind, image: clientImage, ...(source === undefined ? {} : { source, ...buildOf(source) }) },
           netns,
           sysctls,
           ...(inChain.length === 0 ? {} : { hops: await hopsOf() }),
