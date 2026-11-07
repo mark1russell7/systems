@@ -1,6 +1,7 @@
 import type { KernelRecord } from "@mark1russell7/prober";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import type { Profile, Schedule, ScheduleOptions } from "@mark1russell7/rigor-chaos";
 
 export type { KernelRecord };
 
@@ -897,6 +898,8 @@ export type Prediction =
       readonly ports?: PortsPrediction;
       /** This record is the law of a paused consumer (`Kafka.pause`). A run outside it is a finding of its run. */
       readonly pause?: PausePrediction;
+      /** These are the limits of an open-loop cell (`Cell.probe.plan`). Without them, its load is a measurement. */
+      readonly load?: LoadPrediction;
     };
 
 /** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
@@ -987,6 +990,27 @@ export interface PortsPrediction {
   readonly freed?: QueueBand;
   /** This count is the segments that the sockets of the client send again. */
   readonly retransmissions?: number;
+}
+
+/** A load plan is the schedule of an open-loop client as data: the rate over time, and how the arrivals fall. */
+export interface LoadPlan {
+  readonly profile: Profile;
+  readonly options: ScheduleOptions;
+}
+
+/** A load band is a limit on one quantile of the latency of an open-loop cell, over the arrivals of its counted runs. */
+export interface LoadBand {
+  /** This number is the quantile, from 0 to 1. */
+  readonly quantile: number;
+  readonly low?: Quantity;
+  readonly high: Quantity;
+}
+
+/** A load prediction tells how close to its schedule a client stays, and where the latency lands. */
+export interface LoadPrediction {
+  /** This time is the largest lag of a send behind its planned time. A later send is a finding of its run. */
+  readonly lag: Quantity;
+  readonly bands: readonly LoadBand[];
 }
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -1218,8 +1242,11 @@ export interface Cell {
      * This mode tells if the client is idle after its first reply, or sends a request into the
      * fault. In a stream, it sends `count` requests into it, each `interval` after the reply before.
      * An HTTP client in a `gap` sends its second request a gap after its first reply, by itself.
+     * On a `schedule`, it sends each request at its time in `plan`, and a send does not wait for a reply.
      */
-    readonly mode: "idle" | "inflight" | "stream" | "gap";
+    readonly mode: "idle" | "inflight" | "stream" | "gap" | "schedule";
+    /** This plan is the schedule of the requests in the mode `schedule`. */
+    readonly plan?: LoadPlan;
     /** This count is the number of requests of a stream. */
     readonly count?: number;
     /** This time is the pause after each reply of a stream, before the next request. */
@@ -1513,6 +1540,8 @@ export interface Run {
   readonly pause?: RunPause;
   /** This record is the fabric of a cell with `Topology.fabric`. */
   readonly fabric?: RunFabric;
+  /** This schedule is the one that the client of an open-loop cell had: each planned time stays with its record. */
+  readonly schedule?: Schedule;
 }
 
 /** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */
