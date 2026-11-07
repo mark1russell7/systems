@@ -1,0 +1,3042 @@
+# The public API of @mark1russell7/harness
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): names
+
+AWS_FROM: build/index.d.ts#AWS_FROM
+type Agent: build/index.d.ts#Agent
+type BuildImage: build/cell.chunk.d.ts#BuildImage
+type BuildRecord: build/index.d.ts#BuildRecord
+CLIENT_CAPABILITIES: build/cell.chunk.d.ts#CLIENT_CAPABILITIES
+CLIENT_NAMES: build/index.d.ts#CLIENT_NAMES
+CLUSTER_STAGES: build/index.d.ts#CLUSTER_STAGES
+CONVERGE_MS: build/index.d.ts#CONVERGE_MS
+type CallReading: build/index.d.ts#CallReading
+type Cell: build/cell.chunk.d.ts#Cell
+type CellResult: build/index.d.ts#CellResult
+type Client: build/cell.chunk.d.ts#Client
+type ClientCapability: build/cell.chunk.d.ts#ClientCapability
+type ClientImage: build/cell.chunk.d.ts#ClientImage
+type ClockPair: build/index.d.ts#ClockPair
+type Cloud: build/index.d.ts#Cloud
+type Cluster: build/cell.chunk.d.ts#Cluster
+type ClusterClientAt: build/cell.chunk.d.ts#ClusterClientAt
+type ClusterLab: build/index.d.ts#ClusterLab
+type ClusterStage: build/cell.chunk.d.ts#ClusterStage
+type ConntrackPrediction: build/cell.chunk.d.ts#ConntrackPrediction
+type ConntrackReading: build/index.d.ts#ConntrackReading
+type ContextFile: build/index.d.ts#ContextFile
+type CountBand: build/cell.chunk.d.ts#CountBand
+type Crossings: build/index.d.ts#Crossings
+type Cut: build/index.d.ts#Cut
+DAEMONS: build/index.d.ts#DAEMONS
+DEBUG: build/index.d.ts#DEBUG
+DIRTY: build/index.d.ts#DIRTY
+DROP_HANDLING: build/index.d.ts#DROP_HANDLING
+type Decision: build/index.d.ts#Decision
+type Drill: build/cell.chunk.d.ts#Drill
+type DriverBand: build/cell.chunk.d.ts#DriverBand
+type DriverSocket: build/index.d.ts#DriverSocket
+type DriverStep: build/cell.chunk.d.ts#DriverStep
+type DriverStepTime: build/index.d.ts#DriverStepTime
+type ErrorOnTheWay: build/index.d.ts#ErrorOnTheWay
+FABRIC_CLIENT: build/index.d.ts#FABRIC_CLIENT
+FABRIC_DEVICE: build/index.d.ts#FABRIC_DEVICE
+FABRIC_TARGET: build/index.d.ts#FABRIC_TARGET
+FRR_IMAGE: build/index.d.ts#FRR_IMAGE
+type Fabric: build/cell.chunk.d.ts#Fabric
+type FabricLab: build/index.d.ts#FabricLab
+type FabricManifest: build/cell.chunk.d.ts#FabricManifest
+type FabricParts: build/index.d.ts#FabricParts
+type Fault: build/cell.chunk.d.ts#Fault
+type FaultPlace: build/cell.chunk.d.ts#FaultPlace
+type FaultSide: build/index.d.ts#FaultSide
+GIVES_AWAY: build/index.d.ts#GIVES_AWAY
+type Group: build/cell.chunk.d.ts#Group
+type GroupClient: build/index.d.ts#GroupClient
+type GroupLab: build/index.d.ts#GroupLab
+type GroupMeasured: build/index.d.ts#GroupMeasured
+type GroupNetworkFault: build/index.d.ts#GroupNetworkFault
+type GroupPlace: build/cell.chunk.d.ts#GroupPlace
+type GroupPrediction: build/cell.chunk.d.ts#GroupPrediction
+type GroupReading: build/index.d.ts#GroupReading
+type GroupRole: build/cell.chunk.d.ts#GroupRole
+type GroupVerdict: build/index.d.ts#GroupVerdict
+type GroupView: build/index.d.ts#GroupView
+HASH_SCRIPT: build/index.d.ts#HASH_SCRIPT
+type Hop: build/cell.chunk.d.ts#Hop
+type HopEvent: build/cell.chunk.d.ts#HopEvent
+type HopPlace: build/cell.chunk.d.ts#HopPlace
+type HopSignal: build/cell.chunk.d.ts#HopSignal
+type HopWrite: build/cell.chunk.d.ts#HopWrite
+type Host: build/index.d.ts#Host
+type HostSetting: build/index.d.ts#HostSetting
+type HostSysctl: build/cell.chunk.d.ts#HostSysctl
+type HttpProbe: build/cell.chunk.d.ts#HttpProbe
+INJECT: build/index.d.ts#INJECT
+INSERT: build/index.d.ts#INSERT
+type ImagePlan: build/index.d.ts#ImagePlan
+type ImageSource: build/cell.chunk.d.ts#ImageSource
+type Interval: build/index.d.ts#Interval
+type Jitter: build/cell.chunk.d.ts#Jitter
+KAFKA_TAIL_MS: build/index.d.ts#KAFKA_TAIL_MS
+KEPT: build/index.d.ts#KEPT
+type Kafka: build/cell.chunk.d.ts#Kafka
+type KafkaLab: build/index.d.ts#KafkaLab
+type KafkaMember: build/index.d.ts#KafkaMember
+type KafkaPause: build/cell.chunk.d.ts#KafkaPause
+type KernelRecord: @mark1russell7/prober#KernelRecord (external)
+LINGER_MS: build/index.d.ts#LINGER_MS
+LISTING: build/index.d.ts#LISTING
+LOAD_FORMAT: build/index.d.ts#LOAD_FORMAT
+LOAD_PATH: build/index.d.ts#LOAD_PATH
+LOCK_NAMES: build/index.d.ts#LOCK_NAMES
+LOSS_MARGIN: build/index.d.ts#LOSS_MARGIN
+type Lab: build/index.d.ts#Lab
+type Layer: build/index.d.ts#Layer
+type LeafViews: build/index.d.ts#LeafViews
+type LineCount: build/cell.chunk.d.ts#LineCount
+type LineMatch: build/cell.chunk.d.ts#LineMatch
+type LoadBand: build/cell.chunk.d.ts#LoadBand
+type LoadJudgement: build/index.d.ts#LoadJudgement
+type LoadPlan: build/cell.chunk.d.ts#LoadPlan
+type LoadPrediction: build/cell.chunk.d.ts#LoadPrediction
+type LoadSpread: build/index.d.ts#LoadSpread
+type LoadStream: build/cell.chunk.d.ts#LoadStream
+type LoadVerdict: build/index.d.ts#LoadVerdict
+MEMBER_MARKS: build/index.d.ts#MEMBER_MARKS
+MONITOR_DOWN: build/index.d.ts#MONITOR_DOWN
+type Manifest: build/index.d.ts#Manifest
+type ManifestHop: build/index.d.ts#ManifestHop
+type Measured: build/index.d.ts#Measured
+type MemberLine: build/index.d.ts#MemberLine
+type MiddleboxEvent: build/cell.chunk.d.ts#MiddleboxEvent
+type MiddleboxExpectation: build/cell.chunk.d.ts#MiddleboxExpectation
+type MiddleboxForm: build/cell.chunk.d.ts#MiddleboxForm
+NODE_MARKS: build/index.d.ts#NODE_MARKS
+NOISE: build/index.d.ts#NOISE
+type NetworkFault: build/index.d.ts#NetworkFault
+type NodeLine: build/index.d.ts#NodeLine
+type Observer: build/cell.chunk.d.ts#Observer
+type OplogRead: build/index.d.ts#OplogRead
+type OplogTime: build/index.d.ts#OplogTime
+type Outcome: build/index.d.ts#Outcome
+type Outcomes: build/cell.chunk.d.ts#Outcomes
+PINNED: build/index.d.ts#PINNED
+PUMP: build/index.d.ts#PUMP
+PUMP_SLACK: build/index.d.ts#PUMP_SLACK
+type Pair: build/cell.chunk.d.ts#Pair
+type PairSets: build/index.d.ts#PairSets
+type Pairing: build/index.d.ts#Pairing
+type PartitionView: build/index.d.ts#PartitionView
+type PauseBand: build/cell.chunk.d.ts#PauseBand
+type PauseCommit: build/index.d.ts#PauseCommit
+type PausePrediction: build/cell.chunk.d.ts#PausePrediction
+type PauseReading: build/index.d.ts#PauseReading
+type Pinnable: build/index.d.ts#Pinnable
+type PinnedImage: build/cell.chunk.d.ts#PinnedImage
+type PortsPrediction: build/cell.chunk.d.ts#PortsPrediction
+type PortsReading: build/index.d.ts#PortsReading
+type Prediction: build/cell.chunk.d.ts#Prediction
+type Probe: build/index.d.ts#Probe
+type ProbeEvent: build/cell.chunk.d.ts#ProbeEvent
+type ProgramEvent: build/index.d.ts#ProgramEvent
+type ProxyHop: build/cell.chunk.d.ts#ProxyHop
+type ProxyTime: build/cell.chunk.d.ts#ProxyTime
+QUIET_MS: build/index.d.ts#QUIET_MS
+type QueueBand: build/cell.chunk.d.ts#QueueBand
+type QueueConnection: build/cell.chunk.d.ts#QueueConnection
+type QueueConnectionReading: build/index.d.ts#QueueConnectionReading
+type QueueEnd: build/cell.chunk.d.ts#QueueEnd
+type QueuePrediction: build/cell.chunk.d.ts#QueuePrediction
+type QueueReading: build/index.d.ts#QueueReading
+RELATIVE: build/index.d.ts#RELATIVE
+REPLICA_SET_STAGES: build/index.d.ts#REPLICA_SET_STAGES
+REPOSITORY: build/index.d.ts#REPOSITORY
+RESTART: build/index.d.ts#RESTART
+ROUTERS: build/index.d.ts#ROUTERS
+type ReconnectReading: build/index.d.ts#ReconnectReading
+type ReconnectVerdict: build/index.d.ts#ReconnectVerdict
+type Reconnects: build/cell.chunk.d.ts#Reconnects
+type RecordCode: build/index.d.ts#RecordCode
+type Recovers: build/cell.chunk.d.ts#Recovers
+type RecoveryMeasured: build/index.d.ts#RecoveryMeasured
+type Reference: build/cell.chunk.d.ts#Reference
+type Reordering: build/index.d.ts#Reordering
+type ReplicaSet: build/cell.chunk.d.ts#ReplicaSet
+type ReplicaSetLab: build/index.d.ts#ReplicaSetLab
+type ReplicaSetStage: build/cell.chunk.d.ts#ReplicaSetStage
+type Replies: build/cell.chunk.d.ts#Replies
+type RequestPrediction: build/cell.chunk.d.ts#RequestPrediction
+type RequestReading: build/index.d.ts#RequestReading
+type RouteLine: build/index.d.ts#RouteLine
+type RouterHop: build/cell.chunk.d.ts#RouterHop
+type RttRange: build/cell.chunk.d.ts#RttRange
+type Run: build/cell.chunk.d.ts#Run
+type RunBackup: build/cell.chunk.d.ts#RunBackup
+type RunDrill: build/cell.chunk.d.ts#RunDrill
+type RunFabric: build/cell.chunk.d.ts#RunFabric
+type RunGroup: build/cell.chunk.d.ts#RunGroup
+type RunLoad: build/index.d.ts#RunLoad
+type RunPart: build/cell.chunk.d.ts#RunPart
+type RunPause: build/cell.chunk.d.ts#RunPause
+type RunRoute: build/cell.chunk.d.ts#RunRoute
+type RunStream: build/cell.chunk.d.ts#RunStream
+type RunTopology: build/cell.chunk.d.ts#RunTopology
+SCHEDULE_PATH: build/index.d.ts#SCHEDULE_PATH
+SEED_DOCUMENT: build/index.d.ts#SEED_DOCUMENT
+SHIPPED_CLIENTS: build/index.d.ts#SHIPPED_CLIENTS
+SHIPPED_NAMES: build/index.d.ts#SHIPPED_NAMES
+STAGES: build/index.d.ts#STAGES
+STANDBY_READY: build/index.d.ts#STANDBY_READY
+STATUS_SCRIPT: build/index.d.ts#STATUS_SCRIPT
+STEPS: build/index.d.ts#STEPS
+STEP_DOWN: build/index.d.ts#STEP_DOWN
+type SentinelEvent: build/cell.chunk.d.ts#SentinelEvent
+type SentinelStage: build/cell.chunk.d.ts#SentinelStage
+type Shipped: build/cell.chunk.d.ts#Shipped
+type ShippedImage: build/cell.chunk.d.ts#ShippedImage
+type Sibling: build/index.d.ts#Sibling
+type SocketPlace: build/index.d.ts#SocketPlace
+type Spread: build/index.d.ts#Spread
+type Stage: build/cell.chunk.d.ts#Stage
+type StageBand: build/cell.chunk.d.ts#StageBand
+type StageVerdict: build/index.d.ts#StageVerdict
+type StallReading: build/index.d.ts#StallReading
+type Stamp: build/index.d.ts#Stamp
+type Status: build/index.d.ts#Status
+type StatusRow: build/index.d.ts#StatusRow
+type Subject: build/cell.chunk.d.ts#Subject
+type Substrate: build/index.d.ts#Substrate
+type SubstrateSource: build/index.d.ts#SubstrateSource
+type Target: build/cell.chunk.d.ts#Target
+type Topology: build/cell.chunk.d.ts#Topology
+type Toxic: build/cell.chunk.d.ts#Toxic
+type Verdict: build/index.d.ts#Verdict
+type WallStamp: build/index.d.ts#WallStamp
+type Writes: build/index.d.ts#Writes
+type WsProbe: build/cell.chunk.d.ts#WsProbe
+amqpClientImage: build/index.d.ts#amqpClientImage
+basesOf: build/index.d.ts#basesOf
+bootstrapOf: build/index.d.ts#bootstrapOf
+brokerEnv: build/index.d.ts#brokerEnv
+buildOf: build/index.d.ts#buildOf
+buildRecordOf: build/index.d.ts#buildRecordOf
+callOf: build/index.d.ts#callOf
+cancelsOf: build/index.d.ts#cancelsOf
+cargoVersions: build/index.d.ts#cargoVersions
+clockOffsetOf: build/index.d.ts#clockOffsetOf
+closeOrExit: build/index.d.ts#closeOrExit
+cloudOf: build/index.d.ts#cloudOf
+clusterArgs: build/index.d.ts#clusterArgs
+clusterConf: build/index.d.ts#clusterConf
+clusterCutOf: build/index.d.ts#clusterCutOf
+clusterHostsOf: build/index.d.ts#clusterHostsOf
+clusterOnce: build/index.d.ts#clusterOnce
+clusterStagesOf: build/index.d.ts#clusterStagesOf
+clusterViewOf: build/index.d.ts#clusterViewOf
+commitProblems: build/index.d.ts#commitProblems
+comparable: build/index.d.ts#comparable
+controllerEnv: build/index.d.ts#controllerEnv
+crossingsOf: build/index.d.ts#crossingsOf
+cutOf: build/index.d.ts#cutOf
+deadlineOf: build/index.d.ts#deadlineOf
+delayVoids: build/index.d.ts#delayVoids
+deviceOf: build/index.d.ts#deviceOf
+drillOnce: build/index.d.ts#drillOnce
+drillSpan: build/index.d.ts#drillSpan
+dropFinding: build/index.d.ts#dropFinding
+dropOf: build/index.d.ts#dropOf
+endpointAfter: build/index.d.ts#endpointAfter
+envOf: build/index.d.ts#envOf
+errorsOf: build/index.d.ts#errorsOf
+exitOf: build/index.d.ts#exitOf
+fieldOf: build/index.d.ts#fieldOf
+fieldsOf: build/index.d.ts#fieldsOf
+firstUnanswered: build/index.d.ts#firstUnanswered
+frrConf: build/index.d.ts#frrConf
+goHttpImage: build/index.d.ts#goHttpImage
+goVersions: build/index.d.ts#goVersions
+groupOnce: build/index.d.ts#groupOnce
+groupVerdictOf: build/index.d.ts#groupVerdictOf
+grpcClientImage: build/index.d.ts#grpcClientImage
+harnessImage: build/index.d.ts#harnessImage
+harnessRecord: build/index.d.ts#harnessRecord
+harnessVersion: build/index.d.ts#harnessVersion
+hashOf: build/index.d.ts#hashOf
+highestHeld: build/index.d.ts#highestHeld
+hikariClientImage: build/index.d.ts#hikariClientImage
+hzOf: build/index.d.ts#hzOf
+imageOf: build/index.d.ts#imageOf
+imageProblems: build/index.d.ts#imageProblems
+inContext: build/index.d.ts#inContext
+infoOf: build/index.d.ts#infoOf
+initiateScript: build/index.d.ts#initiateScript
+isFenceLine: build/index.d.ts#isFenceLine
+isHopPlace: build/cell.chunk.d.ts#isHopPlace
+jarVersions: build/index.d.ts#jarVersions
+jitterOf: build/index.d.ts#jitterOf
+jitterOfLines: build/index.d.ts#jitterOfLines
+judge: build/index.d.ts#judge
+kafkaArgs: build/index.d.ts#kafkaArgs
+kafkaClientImage: build/index.d.ts#kafkaClientImage
+kafkaCutOf: build/index.d.ts#kafkaCutOf
+kafkaOnce: build/index.d.ts#kafkaOnce
+kafkaPauseOnce: build/index.d.ts#kafkaPauseOnce
+kafkaViewOf: build/index.d.ts#kafkaViewOf
+lagsOf: build/index.d.ts#lagsOf
+laterMove: build/index.d.ts#laterMove
+latestEndOf: build/cell.chunk.d.ts#latestEndOf
+leafLacks: build/index.d.ts#leafLacks
+leftAfter: build/index.d.ts#leftAfter
+loadOf: build/index.d.ts#loadOf
+loadPlanOf: build/index.d.ts#loadPlanOf
+loadVerdict: build/index.d.ts#loadVerdict
+locksOf: build/index.d.ts#locksOf
+logNameOf: build/index.d.ts#logNameOf
+logTimeOf: build/index.d.ts#logTimeOf
+manifestProblems: build/index.d.ts#manifestProblems
+matches: build/index.d.ts#matches
+measure: build/index.d.ts#measure
+measureConntrack: build/index.d.ts#measureConntrack
+measureDriver: build/index.d.ts#measureDriver
+measureGroup: build/index.d.ts#measureGroup
+measurePause: build/index.d.ts#measurePause
+measurePorts: build/index.d.ts#measurePorts
+measureQueue: build/index.d.ts#measureQueue
+medianInterval: build/index.d.ts#medianInterval
+memberCommand: build/index.d.ts#memberCommand
+memberConfig: build/index.d.ts#memberConfig
+memberLineOf: build/index.d.ts#memberLineOf
+mongoClientImage: build/index.d.ts#mongoClientImage
+monotonicAt: build/index.d.ts#monotonicAt
+monotonicOf: build/index.d.ts#monotonicOf
+namesGroup: build/index.d.ts#namesGroup
+nodeClientImage: build/index.d.ts#nodeClientImage
+nodeCommand: build/index.d.ts#nodeCommand
+nodeHttpImage: build/index.d.ts#nodeHttpImage
+nodeIdOf: build/index.d.ts#nodeIdOf
+nodeLineOf: build/index.d.ts#nodeLineOf
+nodeNameOf: build/index.d.ts#nodeNameOf
+nodesOnMonotonic: build/index.d.ts#nodesOnMonotonic
+noiseOf: build/index.d.ts#noiseOf
+npmVersions: build/index.d.ts#npmVersions
+numbersOf: build/index.d.ts#numbersOf
+onMonotonic: build/index.d.ts#onMonotonic
+openClusterLab: build/index.d.ts#openClusterLab
+openFabric: build/index.d.ts#openFabric
+openGroupLab: build/index.d.ts#openGroupLab
+openKafkaLab: build/index.d.ts#openKafkaLab
+openLab: build/index.d.ts#openLab
+openReplicaSetLab: build/index.d.ts#openReplicaSetLab
+openStandby: build/index.d.ts#openStandby
+pairArgs: build/index.d.ts#pairArgs
+pairOnce: build/index.d.ts#pairOnce
+pairingOf: build/index.d.ts#pairingOf
+pairingsOf: build/index.d.ts#pairingsOf
+pauseReady: build/index.d.ts#pauseReady
+peersOf: build/index.d.ts#peersOf
+pgClientImage: build/index.d.ts#pgClientImage
+pingsOf: build/index.d.ts#pingsOf
+plainOf: build/index.d.ts#plainOf
+planOf: build/index.d.ts#planOf
+programLines: build/index.d.ts#programLines
+programOf: build/index.d.ts#programOf
+quantileOf: build/index.d.ts#quantileOf
+readCpu: build/index.d.ts#readCpu
+readHost: build/index.d.ts#readHost
+readOplog: build/index.d.ts#readOplog
+reconnectFinding: build/index.d.ts#reconnectFinding
+reconnectOf: build/index.d.ts#reconnectOf
+recordProblems: build/index.d.ts#recordProblems
+recoveryFindings: build/index.d.ts#recoveryFindings
+recoveryOf: build/index.d.ts#recoveryOf
+referenceOf: build/index.d.ts#referenceOf
+reorderingOf: build/index.d.ts#reorderingOf
+replicaSetArgs: build/index.d.ts#replicaSetArgs
+replicaSetOnce: build/index.d.ts#replicaSetOnce
+replicaSetStagesOf: build/index.d.ts#replicaSetStagesOf
+requestOf: build/index.d.ts#requestOf
+requestWords: build/index.d.ts#requestWords
+restamped: build/index.d.ts#restamped
+routeLine: build/index.d.ts#routeLine
+routerImage: build/index.d.ts#routerImage
+routesOf: build/index.d.ts#routesOf
+runCell: build/index.d.ts#runCell
+seedScript: build/index.d.ts#seedScript
+sentinelConfig: build/index.d.ts#sentinelConfig
+sessionsOf: build/index.d.ts#sessionsOf
+shippedClientRecord: build/index.d.ts#shippedClientRecord
+shippedSource: build/index.d.ts#shippedSource
+sliceQuery: build/index.d.ts#sliceQuery
+socketAt: build/index.d.ts#socketAt
+socketOf: build/index.d.ts#socketOf
+socketsOf: build/index.d.ts#socketsOf
+spread: build/index.d.ts#spread
+spreadOf: build/index.d.ts#spreadOf
+stagesOf: build/index.d.ts#stagesOf
+standaloneCommand: build/index.d.ts#standaloneCommand
+standbyCommand: build/index.d.ts#standbyCommand
+statusViewOf: build/index.d.ts#statusViewOf
+stealShare: build/index.d.ts#stealShare
+stopScript: build/index.d.ts#stopScript
+streamsLoadOf: build/index.d.ts#streamsLoadOf
+subjectClient: build/index.d.ts#subjectClient
+subjectProblems: build/index.d.ts#subjectProblems
+subscriptionsOf: build/index.d.ts#subscriptionsOf
+substrateHere: build/index.d.ts#substrateHere
+substrateKey: build/index.d.ts#substrateKey
+substrateOf: build/index.d.ts#substrateOf
+substrateOn: build/index.d.ts#substrateOn
+targetImageOf: build/index.d.ts#targetImageOf
+targetSourceOf: build/index.d.ts#targetSourceOf
+templated: build/index.d.ts#templated
+toolJsonOf: build/index.d.ts#toolJsonOf
+topicOf: build/index.d.ts#topicOf
+topologyOf: build/index.d.ts#topologyOf
+toxicBody: build/index.d.ts#toxicBody
+unlockedManifests: build/index.d.ts#unlockedManifests
+unpinnedBases: build/index.d.ts#unpinnedBases
+unpoolable: build/index.d.ts#unpoolable
+verdictOf: build/index.d.ts#verdictOf
+versionsOf: build/index.d.ts#versionsOf
+viewOf: build/index.d.ts#viewOf
+writesOf: build/index.d.ts#writesOf
+
+## ./schema (build/schema.d.ts): names
+
+clientImageSchema: build/schema.d.ts#clientImageSchema
+clientSchema: build/schema.d.ts#clientSchema
+imageSourceSchema: build/schema.d.ts#imageSourceSchema
+subjectSchema: build/schema.d.ts#subjectSchema
+
+## Declarations
+
+### build/cell.chunk.d.ts#BuildImage
+interface BuildImage {
+  readonly kind: "build";
+  readonly name: string;
+  readonly context: string;
+  readonly dockerfile?: string | undefined;
+  readonly files?: readonly string[] | undefined;
+}
+
+### build/cell.chunk.d.ts#CLIENT_CAPABILITIES
+declare const CLIENT_CAPABILITIES: readonly ["NET_ADMIN"];
+
+### build/cell.chunk.d.ts#Cell
+interface Cell {
+  readonly name: string;
+  readonly target: Target;
+  readonly sysctls: Readonly<Record<string, string>>;
+  readonly probe: {
+    readonly mode: "idle" | "inflight" | "stream" | "gap" | "schedule";
+    readonly plan?: LoadPlan;
+    readonly streams?: readonly LoadStream[];
+    readonly count?: number;
+    readonly interval?: Quantity;
+    readonly keepalive: boolean;
+    readonly userTimeout?: Quantity;
+    readonly request?: string;
+    readonly driver?: {
+      readonly name: "ioredis";
+      readonly keepAlive: Quantity;
+      readonly op?: "set" | "rpush";
+      readonly window?: number;
+    } | {
+      readonly name: "mongodb";
+      readonly set: string;
+      readonly op?: "write" | "read-long";
+    } | {
+      readonly name: "pg";
+      readonly query?: string;
+      readonly inflight?: string;
+    } | {
+      readonly name: "hikari";
+      readonly query?: string;
+      readonly inflight?: string;
+      readonly burst?: {
+        readonly count: number;
+        readonly gap: Quantity;
+      };
+    } | {
+      readonly name: "amqp";
+    } | {
+      readonly name: "grpc";
+      readonly hold?: Quantity;
+      readonly op?: "check" | "watch";
+    };
+    readonly http?: HttpProbe;
+    readonly ws?: WsProbe;
+  };
+  readonly fault: Fault;
+  readonly stall?: Quantity;
+  readonly icmp?: "host" | "net" | "port" | "admin";
+  readonly drops?: "to-server" | "to-client";
+  readonly mtu?: number;
+  readonly netem?: string;
+  readonly latency?: Quantity;
+  readonly targetSetup?: readonly (readonly string[])[];
+  readonly namespaceSetup?: readonly (readonly string[])[];
+  readonly hostSysctls?: readonly HostSysctl[];
+  readonly prediction: Prediction;
+  readonly observer?: Observer;
+  readonly targetSettings?: Readonly<Record<string, string>>;
+  readonly targetSysctls?: Readonly<Record<string, string>>;
+  readonly topology?: Topology;
+  readonly faultAt?: FaultPlace;
+  readonly idleBefore?: Quantity;
+  readonly toxic?: Toxic;
+  readonly event?: HopEvent;
+  readonly client?: ClientImage | Client;
+  readonly calibrates?: string;
+  readonly group?: Group;
+  readonly replicaSet?: ReplicaSet;
+  readonly cluster?: Cluster;
+  readonly kafka?: Kafka;
+  readonly pair?: Pair;
+  readonly clientAt?: ClusterClientAt;
+  readonly hold?: Quantity;
+  readonly watch?: Quantity;
+  readonly coordinated?: boolean;
+  readonly driverOptions?: Readonly<Record<string, unknown>>;
+  readonly writeConcern?: "majority" | 1;
+  readonly before?: boolean;
+  readonly drill?: Drill;
+  readonly runs: number;
+  readonly environments: number;
+  readonly fresh?: true;
+  readonly concurrency?: number;
+  readonly noise?: Quantity;
+}
+
+### build/cell.chunk.d.ts#Client
+type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc" | "load";
+
+### build/cell.chunk.d.ts#ClientCapability
+type ClientCapability = (typeof CLIENT_CAPABILITIES)[number];
+
+### build/cell.chunk.d.ts#ClientImage
+interface ClientImage {
+  readonly image: string | ImageSource;
+  readonly command: readonly string[];
+  readonly capabilities?: readonly ClientCapability[] | undefined;
+}
+
+### build/cell.chunk.d.ts#Cluster
+interface Cluster {
+  readonly image: string;
+  readonly members: readonly string[];
+  readonly port: number;
+  readonly cookie: string;
+  readonly conf: readonly string[];
+  readonly queue: string;
+  readonly ready: string;
+  readonly programs: {
+    readonly server: string;
+    readonly start: string;
+  };
+}
+
+### build/cell.chunk.d.ts#ClusterClientAt
+type ClusterClientAt = "leader" | "follower";
+
+### build/cell.chunk.d.ts#ClusterStage
+type ClusterStage = "monitor-down" | "elected" | "followed" | "old-leader-steps-down" | "first-write";
+
+### build/cell.chunk.d.ts#ConntrackPrediction
+interface ConntrackPrediction {
+  readonly max: number;
+  readonly neighbor?: number;
+  readonly refused?: {
+    readonly within: QueueBand;
+    readonly errno: string;
+    readonly drops: number;
+    readonly retransFail: number;
+  };
+  readonly drained?: QueueBand;
+  readonly pressure?: {
+    readonly lowest: number;
+    readonly highest?: number;
+    readonly after: number;
+    readonly points: readonly QueueBand[];
+  };
+}
+
+### build/cell.chunk.d.ts#CountBand
+interface CountBand {
+  readonly low: number;
+  readonly high: number;
+}
+
+### build/cell.chunk.d.ts#Drill
+interface Drill {
+  readonly tenants: number;
+  readonly perTenant: Quantity;
+  readonly slices: number;
+  readonly sliceEvery: Quantity;
+  readonly age: Quantity;
+  readonly recovery: "election" | "restore";
+  readonly quiet?: true;
+}
+
+### build/cell.chunk.d.ts#DriverBand
+interface DriverBand {
+  readonly socket: string;
+  readonly ends?: LineMatch;
+  readonly reply?: {
+    readonly from: Reference;
+    readonly ends: LineMatch;
+  };
+  readonly quiet?: readonly LineMatch[];
+  readonly then?: readonly DriverStep[];
+}
+
+### build/cell.chunk.d.ts#DriverStep
+interface DriverStep {
+  readonly what: string;
+  readonly name: string;
+  readonly socket?: string;
+  readonly from: Reference;
+  readonly ends: LineMatch;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#Fabric
+interface Fabric {
+  readonly keepalive: Quantity;
+  readonly hold: Quantity;
+  readonly bfd: {
+    readonly interval: Quantity;
+    readonly multiplier: number;
+  } | null;
+}
+
+### build/cell.chunk.d.ts#FabricManifest
+interface FabricManifest extends Fabric {
+  readonly image: string;
+  readonly containerlab: string;
+}
+
+### build/cell.chunk.d.ts#Fault
+type Fault = "blackhole" | "freeze-process" | "rst" | "stall" | "fin" | "unreachable" | "simplex" | "mtu-blackhole" | "netem" | "middlebox-forget" | "proxy-idle" | "toxic" | "server-close" | "partition" | "planned-failover" | "app-stall" | "step-down" | "drain" | "hop-event" | "silence" | "none";
+
+### build/cell.chunk.d.ts#FaultPlace
+type FaultPlace = "target" | "client" | HopPlace | GroupPlace;
+
+### build/cell.chunk.d.ts#Group
+interface Group {
+  readonly name: string;
+  readonly image: string;
+  readonly programs: {
+    readonly server: string;
+    readonly sentinel: string;
+    readonly cli: string;
+  };
+  readonly port: number;
+  readonly sentinelPort: number;
+  readonly members: readonly string[];
+  readonly sentinels: readonly string[];
+  readonly quorum: number;
+  readonly memberSettings: Readonly<Record<string, string>>;
+  readonly sentinelSettings: Readonly<Record<string, string>>;
+  readonly ready: {
+    readonly member: string;
+    readonly sentinel: string;
+  };
+}
+
+### build/cell.chunk.d.ts#GroupPlace
+interface GroupPlace {
+  readonly role: GroupRole;
+  readonly cuts?: "all" | "group" | "clients" | "one" | "one-way" | "to-clients";
+}
+
+### build/cell.chunk.d.ts#GroupPrediction
+interface GroupPrediction {
+  readonly lands: "new" | "same";
+  readonly failover: boolean;
+  readonly stages: readonly StageBand[];
+  readonly stamps?: Quantity;
+  readonly errors?: ReadonlyArray<{
+    readonly name: string;
+    readonly low: Quantity;
+    readonly high: Quantity;
+  }>;
+  readonly quiet?: readonly Stage[];
+  readonly lost?: {
+    readonly low: number;
+    readonly high: number;
+  };
+  readonly duplicates?: {
+    readonly low: number;
+    readonly high: number;
+  };
+  readonly outcomes?: Outcomes;
+}
+
+### build/cell.chunk.d.ts#GroupRole
+type GroupRole = "primary" | "replica" | "sentinel";
+
+### build/cell.chunk.d.ts#Hop
+type Hop = RouterHop | ProxyHop;
+
+### build/cell.chunk.d.ts#HopEvent
+type HopEvent = {
+  readonly hop: string;
+  readonly signal: HopSignal;
+  readonly inFlight?: true;
+} | {
+  readonly hop: string;
+  readonly console: {
+    readonly port: number;
+    readonly user: string;
+    readonly database: string;
+    readonly query: string;
+    readonly undo?: string;
+  };
+  readonly inFlight?: true;
+} | {
+  readonly hop: string;
+  readonly write: HopWrite;
+  readonly inFlight?: true;
+};
+
+### build/cell.chunk.d.ts#HopPlace
+interface HopPlace {
+  readonly hop: string;
+  readonly toward: "client" | "target";
+}
+
+### build/cell.chunk.d.ts#HopSignal
+type HopSignal = "HUP" | "TERM" | "INT" | "STOP" | "CONT";
+
+### build/cell.chunk.d.ts#HopWrite
+interface HopWrite {
+  readonly path: string;
+  readonly content: string;
+  readonly undo?: string;
+  readonly confirm?: string;
+}
+
+### build/cell.chunk.d.ts#HostSysctl
+interface HostSysctl {
+  readonly name: string;
+  readonly value: string;
+  readonly guard?: {
+    readonly name: string;
+    readonly atMost: number;
+  };
+}
+
+### build/cell.chunk.d.ts#HttpProbe
+interface HttpProbe {
+  readonly method: "GET" | "POST";
+  readonly gap?: Quantity;
+  readonly hold?: Quantity;
+  readonly bytes?: number;
+  readonly options?: Readonly<Record<string, number>>;
+}
+
+### build/cell.chunk.d.ts#ImageSource
+type ImageSource = PinnedImage | BuildImage | ShippedImage;
+
+### build/cell.chunk.d.ts#Jitter
+interface Jitter {
+  readonly acts: number;
+  readonly bound: Quantity | null;
+}
+
+### build/cell.chunk.d.ts#Kafka
+interface Kafka {
+  readonly image: string;
+  readonly brokers: readonly string[];
+  readonly controller: string;
+  readonly port: number;
+  readonly controllerPort: number;
+  readonly clusterId: string;
+  readonly heap: string;
+  readonly settings: Readonly<Record<string, string>>;
+  readonly ready: string;
+  readonly minInsync: number;
+  readonly writers: number;
+  readonly pause?: KafkaPause;
+}
+
+### build/cell.chunk.d.ts#KafkaPause
+interface KafkaPause {
+  readonly protocol: "consumer" | "classic";
+  readonly process: Quantity;
+  readonly afterPause: "commit" | "rejoin";
+  readonly fill: number;
+  readonly stopAfter: Quantity;
+}
+
+### build/cell.chunk.d.ts#LineCount
+interface LineCount {
+  readonly what: string;
+  readonly match: LineMatch;
+  readonly count: number;
+}
+
+### build/cell.chunk.d.ts#LineMatch
+interface LineMatch {
+  readonly ev: string;
+  readonly where?: Readonly<Record<string, string | number | boolean>>;
+  readonly name?: string;
+}
+
+### build/cell.chunk.d.ts#LoadBand
+interface LoadBand {
+  readonly quantile: number;
+  readonly low?: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#LoadPlan
+interface LoadPlan {
+  readonly profile: Profile;
+  readonly options: ScheduleOptions;
+}
+
+### build/cell.chunk.d.ts#LoadPrediction
+interface LoadPrediction {
+  readonly lag: Quantity;
+  readonly bands: readonly LoadBand[];
+  readonly failures?: number;
+}
+
+### build/cell.chunk.d.ts#LoadStream
+interface LoadStream {
+  readonly key: string;
+  readonly plan: LoadPlan;
+  readonly requests: readonly string[];
+}
+
+### build/cell.chunk.d.ts#MiddleboxEvent
+interface MiddleboxEvent {
+  readonly ev: string;
+  readonly t: number;
+  readonly [field: string]: unknown;
+}
+
+### build/cell.chunk.d.ts#MiddleboxExpectation
+interface MiddleboxExpectation {
+  readonly forgets: {
+    readonly low: Quantity;
+    readonly high: Quantity;
+  };
+}
+
+### build/cell.chunk.d.ts#MiddleboxForm
+type MiddleboxForm = "reset-both" | "reset-next" | "silent-drop" | "recreate" | "none";
+
+### build/cell.chunk.d.ts#Observer
+type Observer = "client" | "server" | {
+  readonly hop: string;
+  readonly toward: "client" | "target";
+};
+
+### build/cell.chunk.d.ts#Outcomes
+interface Outcomes {
+  readonly unknown?: CountBand;
+  readonly kept?: CountBand;
+  readonly stranded?: CountBand;
+  readonly absent?: CountBand;
+  readonly missing?: CountBand;
+  readonly warnings?: CountBand;
+}
+
+### build/cell.chunk.d.ts#Pair
+interface Pair {
+  readonly synchronous: boolean;
+  readonly writers: number;
+  readonly interval: Quantity;
+  readonly cuts: "standby" | "all";
+  readonly cancels?: number;
+}
+
+### build/cell.chunk.d.ts#PauseBand
+interface PauseBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#PausePrediction
+interface PausePrediction {
+  readonly fence: PauseBand | null;
+  readonly takeover: PauseBand | null;
+  readonly thaw: "fails" | "acknowledged" | "rejoin";
+  readonly rejoinWithin?: Quantity;
+}
+
+### build/cell.chunk.d.ts#PinnedImage
+interface PinnedImage {
+  readonly kind: "pinned";
+  readonly image: string;
+}
+
+### build/cell.chunk.d.ts#PortsPrediction
+interface PortsPrediction {
+  readonly low: number;
+  readonly size: number;
+  readonly rounds: number;
+  readonly destinations: number;
+  readonly counts: readonly number[];
+  readonly seen: readonly number[];
+  readonly refusedWithin: Quantity;
+  readonly share?: {
+    readonly count: number;
+    readonly low: number;
+    readonly high: number;
+  };
+  readonly lowFirst?: boolean;
+  readonly freed?: QueueBand;
+  readonly retransmissions?: number;
+}
+
+### build/cell.chunk.d.ts#Prediction
+type Prediction = {
+  readonly detects: true;
+  readonly timer: string;
+  readonly errno: string;
+  readonly from: Reference;
+  readonly low: Quantity;
+  readonly high: Quantity;
+  readonly startsBy?: Quantity;
+  readonly rtt?: RttRange;
+  readonly through?: readonly ProxyTime[];
+  readonly group?: GroupPrediction;
+  readonly request?: RequestPrediction;
+  readonly driver?: DriverBand;
+  readonly reconnects?: Reconnects;
+  readonly drop?: "frame" | "close";
+  readonly exits?: true;
+} | {
+  readonly detects: false;
+  readonly window: Quantity;
+  readonly recovers?: Recovers;
+  readonly replies?: Replies;
+  readonly middlebox?: MiddleboxExpectation;
+  readonly rtt?: RttRange;
+  readonly through?: readonly ProxyTime[];
+  readonly group?: GroupPrediction;
+  readonly request?: RequestPrediction;
+  readonly driver?: DriverBand;
+} | {
+  readonly detects: null;
+  readonly window: Quantity;
+  readonly why: string;
+  readonly from?: Reference;
+  readonly ends?: "own-close";
+  readonly group?: GroupPrediction;
+  readonly request?: RequestPrediction;
+  readonly reconnects?: Reconnects;
+  readonly counts?: readonly LineCount[];
+  readonly queue?: QueuePrediction;
+  readonly ports?: PortsPrediction;
+  readonly conntrack?: ConntrackPrediction;
+  readonly pause?: PausePrediction;
+  readonly load?: LoadPrediction;
+};
+
+### build/cell.chunk.d.ts#ProbeEvent
+interface ProbeEvent {
+  readonly ev: string;
+  readonly t: number;
+  readonly [field: string]: unknown;
+}
+
+### build/cell.chunk.d.ts#ProxyHop
+interface ProxyHop {
+  readonly name: string;
+  readonly kind: "proxy";
+  readonly image: string | ImageSource;
+  readonly port: number;
+  readonly command?: readonly string[];
+  readonly environment?: Readonly<Record<string, string>>;
+  readonly files?: Readonly<Record<string, string>>;
+  readonly ready?: string;
+  readonly api?: {
+    readonly port: number;
+    readonly proxy: string;
+  };
+  readonly sysctls?: Readonly<Record<string, string>>;
+  readonly settings?: Readonly<Record<string, string>>;
+  readonly program?: string;
+}
+
+### build/cell.chunk.d.ts#ProxyTime
+interface ProxyTime {
+  readonly hop: string;
+  readonly direction: "up" | "down";
+  readonly quantile: number;
+  readonly time: Quantity;
+}
+
+### build/cell.chunk.d.ts#QueueBand
+interface QueueBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#QueueConnection
+interface QueueConnection {
+  readonly name: string;
+  readonly connects: boolean;
+  readonly syns?: readonly QueueBand[];
+  readonly synAcks?: readonly QueueBand[];
+  readonly ends: QueueEnd | null;
+  readonly unacked?: number;
+}
+
+### build/cell.chunk.d.ts#QueueEnd
+interface QueueEnd {
+  readonly errno: string;
+  readonly from: "dial" | "connected" | "sent";
+  readonly within: QueueBand;
+  readonly retransmitted?: QueueBand;
+}
+
+### build/cell.chunk.d.ts#QueuePrediction
+interface QueuePrediction {
+  readonly max: number;
+  readonly held: number;
+  readonly connected: number;
+  readonly overflows: {
+    readonly low: number;
+    readonly high: number;
+  };
+  readonly resets: number;
+  readonly connections: readonly QueueConnection[];
+  readonly admitted?: string;
+  readonly expiry?: {
+    readonly timeouts: number;
+    readonly within: QueueBand;
+  };
+  readonly rise?: {
+    readonly count: number;
+    readonly within: QueueBand;
+  };
+  readonly drained?: number;
+}
+
+### build/cell.chunk.d.ts#Reconnects
+interface Reconnects {
+  readonly waits: ReadonlyArray<{
+    readonly low: Quantity;
+    readonly high: Quantity;
+  }>;
+}
+
+### build/cell.chunk.d.ts#Recovers
+interface Recovers {
+  readonly firing: number;
+  readonly low: Quantity;
+  readonly high: Quantity;
+  readonly heal: {
+    readonly low: Quantity;
+    readonly high: Quantity;
+  };
+}
+
+### build/cell.chunk.d.ts#Reference
+type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "first-sent" | "syn-sent";
+
+### build/cell.chunk.d.ts#ReplicaSet
+interface ReplicaSet {
+  readonly name: string;
+  readonly image: string;
+  readonly programs: {
+    readonly server: string;
+    readonly shell: string;
+  };
+  readonly args?: readonly string[];
+  readonly port: number;
+  readonly members: readonly string[];
+  readonly settings: Readonly<Record<string, number>>;
+  readonly ready: string;
+}
+
+### build/cell.chunk.d.ts#ReplicaSetStage
+type ReplicaSetStage = "member-down" | "election-start" | "elected" | "caught-up" | "writable" | "old-primary-steps-down" | "discovered" | "written-off" | "first-write";
+
+### build/cell.chunk.d.ts#Replies
+interface Replies {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#RequestPrediction
+interface RequestPrediction {
+  readonly connection: "reused" | "new";
+  readonly retried: boolean;
+  readonly error: string | null;
+  readonly pending?: true;
+}
+
+### build/cell.chunk.d.ts#RouterHop
+interface RouterHop {
+  readonly name: string;
+  readonly kind: "router";
+  readonly form: MiddleboxForm;
+  readonly idle: Quantity;
+  readonly pump?: Quantity;
+  readonly sysctls?: Readonly<Record<string, string>>;
+}
+
+### build/cell.chunk.d.ts#RttRange
+interface RttRange {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#Run
+interface Run {
+  readonly environment: number;
+  readonly index: number;
+  readonly warmup?: true;
+  readonly events: readonly ProbeEvent[];
+  readonly fault: {
+    readonly t0: number;
+    readonly t1: number;
+  } | null;
+  readonly heal?: {
+    readonly t0: number;
+    readonly t1: number;
+  } | null;
+  readonly kernel: readonly KernelRecord[];
+  readonly netns: number;
+  readonly targetNetns: number;
+  readonly lost: number | null;
+  readonly hz?: number;
+  readonly jitter?: Jitter;
+  readonly steal?: number;
+  readonly topology?: RunTopology;
+  readonly middlebox?: readonly MiddleboxEvent[];
+  readonly group?: RunGroup;
+  readonly server?: readonly ProbeEvent[];
+  readonly missing?: string;
+  readonly pause?: RunPause;
+  readonly fabric?: RunFabric;
+  readonly schedule?: Schedule;
+  readonly streams?: readonly RunStream[];
+}
+
+### build/cell.chunk.d.ts#RunBackup
+interface RunBackup {
+  readonly kind: "dump" | "slice";
+  readonly started: number;
+  readonly ended: number;
+  readonly last: {
+    readonly n: number;
+    readonly t: number;
+  } | null;
+  readonly size: Quantity;
+}
+
+### build/cell.chunk.d.ts#RunDrill
+interface RunDrill {
+  readonly tool: string;
+  readonly seed: "generated";
+  readonly backups: readonly RunBackup[];
+  readonly before: string;
+  readonly after: string | null;
+  readonly restored: {
+    readonly started: number;
+    readonly ended: number;
+  } | null;
+  readonly second: number | null;
+}
+
+### build/cell.chunk.d.ts#RunFabric
+interface RunFabric {
+  readonly routes: readonly RunRoute[];
+  readonly established: {
+    readonly before: Readonly<Record<string, number>>;
+    readonly after: Readonly<Record<string, number>>;
+  };
+}
+
+### build/cell.chunk.d.ts#RunGroup
+interface RunGroup {
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly sentinels: Readonly<Record<string, RunPart>>;
+  readonly primary: string;
+  readonly at: string | null;
+  readonly timeline: readonly SentinelEvent[];
+  readonly after: string | null;
+  readonly holds: readonly number[] | null;
+  readonly oldHolds?: readonly number[];
+  readonly drill?: RunDrill;
+}
+
+### build/cell.chunk.d.ts#RunPart
+interface RunPart {
+  readonly ip: string;
+  readonly netns: number;
+}
+
+### build/cell.chunk.d.ts#RunPause
+interface RunPause {
+  readonly other: readonly ProbeEvent[];
+  readonly fences: readonly string[];
+  readonly group: string;
+}
+
+### build/cell.chunk.d.ts#RunRoute
+interface RunRoute {
+  readonly leaf: string;
+  readonly t: number;
+  readonly deleted: boolean;
+  readonly prefix: string;
+  readonly via: string | null;
+  readonly dev: string | null;
+}
+
+### build/cell.chunk.d.ts#RunStream
+interface RunStream {
+  readonly key: string;
+  readonly schedule: Schedule;
+}
+
+### build/cell.chunk.d.ts#RunTopology
+interface RunTopology {
+  readonly targetPeer: string;
+  readonly hops: Readonly<Record<string, {
+    readonly netns: number;
+    readonly client: string;
+    readonly target: string;
+  }>>;
+}
+
+### build/cell.chunk.d.ts#SentinelEvent
+interface SentinelEvent {
+  readonly ev: string;
+  readonly t: number;
+  readonly sentinel?: string;
+  readonly event?: string;
+  readonly detail?: string;
+  readonly [field: string]: unknown;
+}
+
+### build/cell.chunk.d.ts#SentinelStage
+type SentinelStage = "+sdown" | "+odown" | "+try-failover" | "+elected-leader" | "+selected-slave" | "+promoted-slave" | "+switch-master" | "+convert-to-slave";
+
+### build/cell.chunk.d.ts#Shipped
+type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "kafka" | "grpc" | "grpc-go" | "etcd" | "router" | "pgbouncer" | "pgpool" | "docker-proxy";
+
+### build/cell.chunk.d.ts#ShippedImage
+interface ShippedImage {
+  readonly kind: "shipped";
+  readonly name: Shipped;
+}
+
+### build/cell.chunk.d.ts#Stage
+type Stage = SentinelStage | ReplicaSetStage | ClusterStage;
+
+### build/cell.chunk.d.ts#StageBand
+interface StageBand {
+  readonly stage: Stage;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#Subject
+interface Subject {
+  readonly name: string;
+  readonly image: ImageSource;
+  readonly base: string;
+  readonly programs: Readonly<Record<string, readonly string[]>>;
+}
+
+### build/cell.chunk.d.ts#Target
+interface Target {
+  readonly image: string;
+  readonly port: number;
+  readonly ready: string;
+  readonly settings?: {
+    readonly set: readonly string[];
+    readonly get: readonly string[];
+  };
+  readonly command?: readonly string[];
+  readonly kill?: readonly string[];
+  readonly close?: readonly string[];
+  readonly files?: Readonly<Record<string, string>>;
+  readonly lines?: true;
+  readonly program?: string;
+  readonly subject?: ImageSource;
+}
+
+### build/cell.chunk.d.ts#Topology
+interface Topology {
+  readonly name: string;
+  readonly hops: readonly Hop[];
+  readonly fabric?: Fabric;
+}
+
+### build/cell.chunk.d.ts#Toxic
+interface Toxic {
+  readonly type: "latency" | "timeout" | "reset_peer" | "slow_close" | "bandwidth" | "limit_data" | "slicer";
+  readonly stream: "downstream" | "upstream";
+  readonly attributes: Readonly<Record<string, number>>;
+}
+
+### build/cell.chunk.d.ts#WsProbe
+interface WsProbe {
+  readonly socket: "global" | "ws";
+  readonly heartbeat: {
+    readonly interval: Quantity;
+    readonly timeout: Quantity;
+    readonly misses: number;
+  } | null;
+  readonly reconnect: {
+    readonly initialDelay: Quantity;
+    readonly multiplier: number;
+    readonly maxDelay: Quantity;
+    readonly attempts: number;
+    readonly jitter: number;
+  } | null;
+  readonly requestTimeout: Quantity;
+  readonly connectionTimeout: Quantity;
+  readonly hold?: Quantity;
+}
+
+### build/cell.chunk.d.ts#isHopPlace
+declare const isHopPlace: (place: FaultPlace | undefined) => place is HopPlace;
+
+### build/cell.chunk.d.ts#latestEndOf
+declare const latestEndOf: (prediction: Extract<Prediction, {
+  readonly detects: true;
+}>) => number;
+
+### build/index.d.ts#AWS_FROM
+export declare const AWS_FROM = "2026-10-28";
+
+### build/index.d.ts#Agent
+interface Agent {
+  readonly lines: Lines<{
+    readonly ev: string;
+  }>;
+  exec(argv: readonly string[]): Promise<string>;
+  stop(): Promise<void>;
+}
+
+### build/index.d.ts#BuildRecord
+interface BuildRecord {
+  readonly tag: string;
+  readonly bases: readonly string[];
+  readonly locks: Readonly<Record<string, string>>;
+  readonly versions: Readonly<Record<string, string>>;
+}
+
+### build/index.d.ts#CLIENT_NAMES
+export declare const CLIENT_NAMES: readonly [Client, ...Client[]];
+
+### build/index.d.ts#CLUSTER_STAGES
+export declare const CLUSTER_STAGES: readonly ClusterStage[];
+
+### build/index.d.ts#CONVERGE_MS
+export declare const CONVERGE_MS = 24e4;
+
+### build/index.d.ts#CallReading
+interface CallReading {
+  readonly outcome: string;
+  readonly after: Quantity | null;
+}
+
+### build/index.d.ts#CellResult
+interface CellResult {
+  readonly cell: Cell;
+  readonly manifests: readonly Manifest[];
+  readonly runs: readonly Run[];
+  readonly warmups: readonly Run[];
+  readonly measured: readonly Measured[];
+  readonly verdict: Verdict;
+  readonly at: {
+    readonly started: string;
+    readonly ended: string;
+  };
+}
+
+### build/index.d.ts#ClockPair
+interface ClockPair {
+  readonly mono: number;
+  readonly wall: number;
+}
+
+### build/index.d.ts#Cloud
+type Cloud = "azure" | "aws" | "unknown";
+
+### build/index.d.ts#ClusterLab
+interface ClusterLab {
+  readonly cluster: Cluster;
+  readonly clientIp: string;
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly netns: {
+    readonly client: number;
+  };
+  readonly kernel: readonly KernelRecord[];
+  readonly log: readonly NodeLine[];
+  readonly raw: Readonly<Record<string, readonly string[]>>;
+  sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  converge(within?: number): Promise<string>;
+  flush(leader: string): Promise<void>;
+  holds(leader: string): Promise<number[]>;
+  partOf(role: GroupRole, leader: string): string;
+  client(args: readonly string[]): Promise<GroupClient>;
+  fault(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  lift(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  signal(part: string, signal: "KILL" | "STOP" | "CONT", at?: number): Promise<Stamp>;
+  restart(member: string): Promise<void>;
+  stepDown(leader: string, to: string): Promise<WallStamp>;
+  drain(member: string): Promise<WallStamp>;
+  revive(member: string): Promise<void>;
+  forget(): Promise<void>;
+  settle(): Promise<number | null>;
+  manifest(sysctls: Readonly<Record<string, string>>): Promise<Manifest>;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#ConntrackReading
+interface ConntrackReading {
+  readonly flows: number;
+  readonly count: number;
+  readonly neighbor: number | null;
+  readonly stall: StallReading | null;
+  readonly firstFall: Quantity | null;
+  readonly zero: Quantity | null;
+  readonly closed: number | null;
+  readonly lowest: number | null;
+  readonly after: number | null;
+}
+
+### build/index.d.ts#ContextFile
+interface ContextFile {
+  readonly at: string;
+  readonly content: Buffer | string;
+}
+
+### build/index.d.ts#Crossings
+interface Crossings {
+  readonly hop: string;
+  readonly up: readonly Quantity[];
+  readonly down: readonly Quantity[];
+}
+
+### build/index.d.ts#Cut
+interface Cut {
+  readonly peers: readonly string[];
+  readonly direction?: "out";
+}
+
+### build/index.d.ts#DAEMONS
+export declare const DAEMONS: string;
+
+### build/index.d.ts#DEBUG
+export declare const DEBUG = "the record is of a local debug run, and no page reads it";
+
+### build/index.d.ts#DIRTY
+export declare const DIRTY = "the checkout has changes to tracked files that no commit holds";
+
+### build/index.d.ts#DROP_HANDLING
+export declare const DROP_HANDLING: Quantity;
+
+### build/index.d.ts#Decision
+type Decision = "holds" | "fails" | "extend" | "inconclusive" | "measured";
+
+### build/index.d.ts#DriverSocket
+interface DriverSocket {
+  readonly role: string;
+  readonly local: string;
+  readonly server: string;
+  readonly opened: number;
+  readonly ended: number | null;
+}
+
+### build/index.d.ts#DriverStepTime
+interface DriverStepTime {
+  readonly what: string;
+  readonly name: string | null;
+  readonly elapsed: Quantity | null;
+}
+
+### build/index.d.ts#ErrorOnTheWay
+interface ErrorOnTheWay {
+  readonly name: string;
+  readonly first: Quantity;
+  readonly count: number;
+}
+
+### build/index.d.ts#FABRIC_CLIENT
+export declare const FABRIC_CLIENT = "10.1.0.2";
+
+### build/index.d.ts#FABRIC_DEVICE
+export declare const FABRIC_DEVICE = "eth1";
+
+### build/index.d.ts#FABRIC_TARGET
+export declare const FABRIC_TARGET = "10.2.0.2";
+
+### build/index.d.ts#FRR_IMAGE
+export declare const FRR_IMAGE = "quay.io/frrouting/frr:10.7.1@sha256:e995beaa50fdc9edb35eadcfefa29b7f062cc06f2b812613789b68fa541554d2";
+
+### build/index.d.ts#FabricLab
+interface FabricLab {
+  readonly routes: readonly RunRoute[];
+  silence(): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  clear(): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  ready(): Promise<void>;
+  sessions(): Promise<Readonly<Record<string, number>>>;
+  manifest(): FabricManifest;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#FabricParts
+interface FabricParts {
+  readonly fabric: Fabric;
+  readonly image: string;
+  readonly client: StartedTestContainer;
+  readonly server: StartedTestContainer;
+  readonly admin: StartedTestContainer;
+  readonly injector: StartedTestContainer;
+  readonly opened: StartedTestContainer[];
+  readonly output: (container: StartedTestContainer, argv: string[]) => Promise<string>;
+}
+
+### build/index.d.ts#FaultSide
+type FaultSide = "target" | "client";
+
+### build/index.d.ts#GIVES_AWAY
+export declare const GIVES_AWAY: RegExp;
+
+### build/index.d.ts#GroupClient
+interface GroupClient {
+  readonly events: readonly ProbeEvent[];
+  until(kinds: readonly string[], within: number): Promise<ProbeEvent>;
+  stop(): Promise<void>;
+}
+
+### build/index.d.ts#GroupLab
+interface GroupLab {
+  readonly group: Group;
+  readonly clientIp: string;
+  readonly observerIp: string;
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly sentinels: Readonly<Record<string, RunPart>>;
+  readonly netns: {
+    readonly client: number;
+    readonly watched: readonly number[];
+  };
+  readonly kernel: readonly KernelRecord[];
+  readonly timeline: readonly SentinelEvent[];
+  sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  converge(within?: number): Promise<string>;
+  flush(primary: string): Promise<void>;
+  reset(): Promise<void>;
+  holds(primary: string): Promise<number[]>;
+  partOf(role: GroupRole, primary: string): string;
+  client(args: readonly string[]): Promise<GroupClient>;
+  fault(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  lift(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  signal(part: string, signal: "KILL" | "STOP" | "CONT", at?: number): Promise<Stamp>;
+  restart(member: string): Promise<void>;
+  failover(coordinated: boolean): Promise<Stamp>;
+  forget(): Promise<void>;
+  settle(): Promise<number | null>;
+  manifest(sysctls: Readonly<Record<string, string>>): Promise<Manifest>;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#GroupMeasured
+interface GroupMeasured {
+  readonly from: string;
+  readonly to: string | null;
+  readonly stages: Partial<Record<Stage, Quantity>>;
+  readonly writes: Writes;
+  readonly errors: readonly ErrorOnTheWay[];
+  readonly lags?: readonly Quantity[];
+  readonly recovery?: RecoveryMeasured;
+}
+
+### build/index.d.ts#GroupNetworkFault
+type GroupNetworkFault = "blackhole" | "rst";
+
+### build/index.d.ts#GroupReading
+interface GroupReading {
+  readonly outcome: {
+    readonly kind: "answered";
+  } | {
+    readonly kind: "silent";
+  };
+  readonly elapsed: Quantity | null;
+  readonly socket: Quantity | null;
+  readonly noticed: Quantity | null;
+  readonly void: string | null;
+  readonly finding: string | null;
+  readonly group: GroupMeasured;
+}
+
+### build/index.d.ts#GroupVerdict
+interface GroupVerdict {
+  readonly stages: readonly StageVerdict[];
+  readonly medians: Partial<Record<Stage, Quantity>>;
+  readonly lost: {
+    readonly runs: number;
+    readonly total: number;
+    readonly median: number | null;
+    readonly max: number | null;
+  };
+  readonly old: {
+    readonly median: number | null;
+    readonly max: number | null;
+  };
+  readonly unknown: {
+    readonly total: number;
+    readonly held: number;
+  };
+  readonly errors: ReadonlyArray<{
+    readonly name: string;
+    readonly runs: number;
+    readonly first: Quantity;
+  }>;
+  readonly lags?: Spread | null;
+  readonly duplicates?: {
+    readonly runs: number;
+    readonly total: number;
+    readonly median: number | null;
+    readonly max: number | null;
+  };
+}
+
+### build/index.d.ts#GroupView
+interface GroupView {
+  readonly primary: string | null;
+  readonly healthy: boolean;
+  readonly why: string;
+}
+
+### build/index.d.ts#HASH_SCRIPT
+export declare const HASH_SCRIPT: string;
+
+### build/index.d.ts#Host
+interface Host {
+  readonly kernel: string | null;
+  readonly hz: number | null;
+  readonly vendor: string | null;
+  readonly kvm: boolean;
+  readonly image: string | null;
+}
+
+### build/index.d.ts#HostSetting
+interface HostSetting {
+  readonly name: string;
+  readonly before: string;
+  readonly set: string;
+  readonly restored: string | null;
+}
+
+### build/index.d.ts#INJECT
+export declare const INJECT: Quantity;
+
+### build/index.d.ts#INSERT
+export declare const INSERT: string;
+
+### build/index.d.ts#ImagePlan
+type ImagePlan = {
+  readonly kind: "pull";
+  readonly image: string;
+} | {
+  readonly kind: "build";
+  readonly tag: string;
+  readonly dockerfile: string;
+  readonly files: ReadonlyArray<{
+    readonly file: string;
+    readonly at: string;
+  }>;
+  readonly record: BuildRecord;
+};
+
+### build/index.d.ts#Interval
+interface Interval {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/index.d.ts#KAFKA_TAIL_MS
+export declare const KAFKA_TAIL_MS = 1e4;
+
+### build/index.d.ts#KEPT
+export declare const KEPT: ReadonlySet<string>;
+
+### build/index.d.ts#KafkaLab
+interface KafkaLab {
+  readonly kafka: Kafka;
+  readonly clientIp: string;
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly controller: RunPart;
+  readonly netns: {
+    readonly client: number;
+  };
+  readonly kernel: readonly KernelRecord[];
+  readonly raw: Readonly<Record<string, readonly string[]>>;
+  sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  brokersUp(within?: number): Promise<void>;
+  readonly fences: readonly string[];
+  create(topic: string, partitions?: number): Promise<void>;
+  fill(topic: string, partitions: number, count: number): Promise<void>;
+  consumer(args: readonly string[]): Promise<KafkaMember>;
+  converge(topic: string, within?: number): Promise<string>;
+  holds(topic: string): Promise<number[]>;
+  client(args: readonly string[]): Promise<GroupClient>;
+  fault(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  lift(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  forget(): Promise<void>;
+  settle(): Promise<number | null>;
+  manifest(sysctls: Readonly<Record<string, string>>): Promise<Manifest>;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#KafkaMember
+interface KafkaMember extends GroupClient {
+  signal(signal: "STOP" | "CONT", at?: number): Promise<Stamp>;
+}
+
+### build/index.d.ts#LINGER_MS
+export declare const LINGER_MS = 1e3;
+
+### build/index.d.ts#LISTING
+export declare const LISTING: Quantity;
+
+### build/index.d.ts#LOAD_FORMAT
+export declare const LOAD_FORMAT = "systems-load/1";
+
+### build/index.d.ts#LOAD_PATH
+export declare const LOAD_PATH = "/tmp/load.json";
+
+### build/index.d.ts#LOCK_NAMES
+export declare const LOCK_NAMES: ReadonlySet<string>;
+
+### build/index.d.ts#LOSS_MARGIN
+export declare const LOSS_MARGIN = 2;
+
+### build/index.d.ts#Lab
+interface Lab {
+  readonly serverIp: string;
+  readonly targetIp: string;
+  readonly targetPort: number;
+  readonly clientIp: string;
+  readonly netns: {
+    readonly client: number;
+    readonly target: number;
+    readonly hops?: Readonly<Record<string, number>>;
+  };
+  readonly topology: RunTopology | null;
+  readonly middlebox: readonly MiddleboxEvent[];
+  readonly server: readonly ProbeEvent[];
+  toxic(toxic: Toxic | null): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  serverClose(): Promise<void>;
+  agent(image: string, command: readonly string[], options?: {
+    readonly pid?: boolean;
+  }): Promise<Agent>;
+  sibling(image: string, command: readonly string[], ready: string): Promise<Sibling>;
+  exec(argv: readonly string[]): Promise<string>;
+  readonly kernel: readonly KernelRecord[];
+  sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  configure(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  targetSysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  namespaceSetup(commands: readonly (readonly string[])[]): Promise<void>;
+  hostSysctl(settings: readonly HostSysctl[]): Promise<void>;
+  restoreHost(): Promise<readonly HostSetting[]>;
+  fault(kind: NetworkFault, at?: FaultPlace, options?: FaultOptions): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  lift(kind: NetworkFault, at?: FaultPlace, options?: FaultOptions): Promise<void>;
+  netem(spec: string | null, at?: FaultPlace): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  offload(on: boolean, at?: FaultPlace): Promise<void>;
+  kill(): Promise<void>;
+  warm(): Promise<void>;
+  setup(commands: ReadonlyArray<readonly string[]>): Promise<void>;
+  heal(at: FaultPlace, when: number): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  forget(): Promise<void>;
+  readonly fabric?: FabricLab;
+  freeze(): Promise<void>;
+  thaw(): Promise<void>;
+  signal(signal: "STOP" | "CONT" | "KILL", at?: number): Promise<{
+    t0: number;
+    t1: number;
+  }>;
+  event(event: HopEvent, undo?: boolean, at?: number): Promise<{
+    t0: number;
+    t1: number;
+  } | null>;
+  probe(args: readonly string[], files?: ReadonlyArray<{
+    readonly content: string;
+    readonly target: string;
+  }>): Promise<Probe>;
+  settle(): Promise<number | null>;
+  manifest(sysctls: Readonly<Record<string, string>>, settings?: Readonly<Record<string, string>>, targetSysctls?: Readonly<Record<string, string>>): Promise<Manifest>;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#Layer
+type Layer = "E0" | "E1" | "E2" | "E3" | "E4" | "E5" | "E6";
+
+### build/index.d.ts#LeafViews
+interface LeafViews {
+  readonly neighbors: string;
+  readonly route: string;
+  readonly paths: string;
+  readonly bfd: string | null;
+}
+
+### build/index.d.ts#LoadJudgement
+interface LoadJudgement {
+  readonly holds: boolean;
+  readonly outside: ReadonlyArray<{
+    readonly run: string;
+    readonly why: string;
+  }>;
+  readonly load: LoadVerdict;
+}
+
+### build/index.d.ts#LoadSpread
+interface LoadSpread {
+  readonly p50: Quantity;
+  readonly p99: Quantity;
+  readonly max: Quantity;
+}
+
+### build/index.d.ts#LoadVerdict
+interface LoadVerdict {
+  readonly planned: number;
+  readonly unsent: number;
+  readonly unfinished: number;
+  readonly failed: number;
+  readonly latency: LoadSpread | null;
+  readonly service: LoadSpread | null;
+  readonly lag: LoadSpread | null;
+  readonly bands: readonly string[];
+  readonly failures?: string;
+}
+
+### build/index.d.ts#MEMBER_MARKS
+export declare const MEMBER_MARKS: Readonly<Record<Exclude<ReplicaSetStage, "discovered" | "written-off" | "first-write">, MemberMark>>;
+
+### build/index.d.ts#MONITOR_DOWN
+export declare const MONITOR_DOWN: RegExp;
+
+### build/index.d.ts#Manifest
+interface Manifest {
+  readonly kernel: string;
+  readonly architecture: string;
+  readonly hz: string | null;
+  readonly hzFrom?: "config" | "measured";
+  readonly boot_id: string;
+  readonly docker: string;
+  readonly substrate?: Substrate;
+  readonly fabric?: FabricManifest;
+  readonly target: {
+    readonly image: string;
+    readonly subject?: ImageSource;
+    readonly base?: string;
+    readonly id: string;
+    readonly settings: Readonly<Record<string, string>>;
+    readonly sysctls: Readonly<Record<string, string>>;
+    readonly files?: Readonly<Record<string, string>>;
+    readonly first?: ProbeEvent;
+    readonly build?: BuildRecord;
+  };
+  readonly harness: {
+    readonly image: string;
+    readonly id: string;
+    readonly packages: string[];
+    readonly version?: string;
+    readonly build?: BuildRecord;
+  };
+  readonly client: {
+    readonly kind: Client | "image";
+    readonly image: string;
+    readonly capabilities?: readonly ClientCapability[];
+    readonly source?: ImageSource;
+    readonly build?: BuildRecord;
+  };
+  readonly netns: {
+    readonly client: number;
+    readonly target: number;
+    readonly hops?: Readonly<Record<string, number>>;
+  };
+  readonly sysctls: Readonly<Record<string, string>>;
+  readonly host?: readonly HostSetting[];
+  readonly hops?: readonly ManifestHop[];
+  readonly group?: {
+    readonly members: ReadonlyArray<{
+      readonly name: string;
+      readonly ip: string;
+      readonly id: string;
+      readonly settings: Readonly<Record<string, string>>;
+    }>;
+    readonly sentinels: ReadonlyArray<{
+      readonly name: string;
+      readonly ip: string;
+      readonly id: string;
+      readonly settings: Readonly<Record<string, string>>;
+    }>;
+    readonly observer: {
+      readonly image: string;
+    };
+  };
+}
+
+### build/index.d.ts#ManifestHop
+interface ManifestHop {
+  readonly name: string;
+  readonly kind: "router" | "proxy";
+  readonly image: string;
+  readonly id: string;
+  readonly settings: Readonly<Record<string, string>>;
+  readonly sysctls: Readonly<Record<string, string>>;
+}
+
+### build/index.d.ts#Measured
+interface Measured {
+  readonly environment: number;
+  readonly index: number;
+  readonly outcome: Outcome;
+  readonly elapsed: Quantity | null;
+  readonly socket: Quantity | null;
+  readonly noticed: Quantity | null;
+  readonly steps: readonly Quantity[];
+  readonly samples?: readonly Quantity[];
+  readonly load?: RunLoad;
+  readonly probes: number;
+  readonly retransmissions: number;
+  readonly acks: number;
+  readonly bytes?: number;
+  readonly forgot?: Quantity | null;
+  readonly rtt?: Quantity | null;
+  readonly reordering?: Reordering;
+  readonly crossings?: Crossings;
+  readonly group?: GroupMeasured;
+  readonly queue?: QueueReading;
+  readonly ports?: PortsReading;
+  readonly conntrack?: ConntrackReading;
+  readonly request?: RequestReading | null;
+  readonly driver?: {
+    readonly steps: readonly DriverStepTime[];
+  };
+  readonly reconnect?: ReconnectReading;
+  readonly call?: CallReading;
+  readonly left?: Quantity | null;
+  readonly exited?: Quantity;
+  readonly pairing?: Pairing;
+  readonly pause?: PauseReading;
+  readonly void: string | null;
+  readonly finding: string | null;
+}
+
+### build/index.d.ts#MemberLine
+interface MemberLine extends SentinelEvent {
+  readonly ev: "mongod";
+  readonly member: string;
+  readonly real: number;
+  readonly id: number;
+  readonly c: string;
+  readonly msg: string;
+  readonly attr: Readonly<Record<string, unknown>>;
+}
+
+### build/index.d.ts#NODE_MARKS
+export declare const NODE_MARKS: Readonly<Record<Exclude<ClusterStage, "first-write">, {
+  readonly message: RegExp;
+  readonly at: "old" | "other";
+}>>;
+
+### build/index.d.ts#NOISE
+export declare const NOISE: Quantity;
+
+### build/index.d.ts#NetworkFault
+type NetworkFault = "blackhole" | "rst" | "reject" | "mtu";
+
+### build/index.d.ts#NodeLine
+interface NodeLine extends SentinelEvent {
+  readonly ev: "rabbit";
+  readonly member: string;
+  readonly real: number;
+  readonly level: string;
+  readonly msg: string;
+}
+
+### build/index.d.ts#OplogRead
+interface OplogRead {
+  readonly last: OplogTime | null;
+  readonly highest: number | null;
+}
+
+### build/index.d.ts#OplogTime
+interface OplogTime {
+  readonly t: number;
+  readonly i: number;
+}
+
+### build/index.d.ts#Outcome
+type Outcome = {
+  readonly kind: "error";
+  readonly errno: string;
+} | {
+  readonly kind: "eof";
+} | {
+  readonly kind: "silent";
+} | {
+  readonly kind: "answered";
+} | {
+  readonly kind: "closed";
+} | {
+  readonly kind: "dropped";
+};
+
+### build/index.d.ts#PINNED
+export declare const PINNED: RegExp;
+
+### build/index.d.ts#PUMP
+export declare const PUMP: Quantity;
+
+### build/index.d.ts#PUMP_SLACK
+export declare const PUMP_SLACK: Quantity;
+
+### build/index.d.ts#PairSets
+interface PairSets {
+  readonly unknown: number;
+  readonly kept: number;
+  readonly stranded: number;
+  readonly absent: number;
+  readonly missing: number;
+  readonly warnings: number;
+}
+
+### build/index.d.ts#Pairing
+interface Pairing {
+  readonly bound: Quantity | null;
+  readonly delta: Quantity;
+}
+
+### build/index.d.ts#PartitionView
+interface PartitionView {
+  readonly brokers: readonly number[];
+  readonly leader?: number | null;
+  readonly isr?: readonly number[];
+  readonly replicas?: readonly number[];
+}
+
+### build/index.d.ts#PauseCommit
+interface PauseCommit {
+  readonly acked: boolean;
+  readonly name: string | null;
+  readonly message: string | null;
+  readonly epoch: number | null;
+}
+
+### build/index.d.ts#PauseReading
+interface PauseReading {
+  readonly partition: number;
+  readonly fence: Quantity | null;
+  readonly takeover: Quantity | null;
+  readonly commit: PauseCommit | null;
+  readonly epochBefore: number | null;
+  readonly lastAck: number;
+  readonly otherFirst: number | null;
+  readonly otherLast: number | null;
+  readonly rejoin: Quantity | null;
+  readonly reassigned: boolean;
+  readonly committed: number | null;
+  readonly stale: number | null;
+}
+
+### build/index.d.ts#Pinnable
+interface Pinnable {
+  readonly code?: RecordCode | undefined;
+  readonly manifests: readonly Manifest[];
+  readonly debug?: boolean | undefined;
+}
+
+### build/index.d.ts#PortsReading
+interface PortsReading {
+  readonly rounds: number;
+  readonly counts: Readonly<Record<string, number>>;
+  readonly seen: readonly number[];
+  readonly errnos: readonly string[];
+  readonly refusal: Quantity;
+  readonly firstFreed: Quantity | null;
+  readonly lastFreed: Quantity | null;
+  readonly freed: number;
+  readonly tries: number;
+}
+
+### build/index.d.ts#Probe
+interface Probe {
+  until(kinds: readonly string[], within: number): Promise<ProbeEvent>;
+  go(): Promise<void>;
+  freeze(): Promise<void>;
+  thaw(): Promise<void>;
+  kill(): Promise<void>;
+  readonly events: readonly ProbeEvent[];
+  stop(): Promise<void>;
+}
+
+### build/index.d.ts#ProgramEvent
+interface ProgramEvent {
+  readonly line: ProbeEvent;
+  readonly at: number;
+  readonly kernel: boolean;
+  readonly record: "write" | "state" | null;
+}
+
+### build/index.d.ts#QUIET_MS
+export declare const QUIET_MS = 250;
+
+### build/index.d.ts#QueueConnectionReading
+interface QueueConnectionReading {
+  readonly name: string;
+  readonly connected: boolean;
+  readonly syns: readonly Quantity[];
+  readonly synAcks: readonly Quantity[];
+  readonly retransmissions: number;
+  readonly errno: string | null;
+  readonly ended: Quantity | null;
+  readonly afterLast: Quantity | null;
+  readonly unacked: number | null;
+}
+
+### build/index.d.ts#QueueReading
+interface QueueReading {
+  readonly max: number;
+  readonly held: number;
+  readonly connected: number;
+  readonly overflows: number;
+  readonly drops: number;
+  readonly cookies: number;
+  readonly timeouts: number;
+  readonly resets: number;
+  readonly drained: number;
+  readonly expiry: Quantity | null;
+  readonly rise: Quantity | null;
+  readonly connections: readonly QueueConnectionReading[];
+}
+
+### build/index.d.ts#RELATIVE
+export declare const RELATIVE = .05;
+
+### build/index.d.ts#REPLICA_SET_STAGES
+export declare const REPLICA_SET_STAGES: readonly ReplicaSetStage[];
+
+### build/index.d.ts#REPOSITORY
+export declare const REPOSITORY: RegExp;
+
+### build/index.d.ts#RESTART
+export declare const RESTART: readonly string[];
+
+### build/index.d.ts#ROUTERS
+export declare const ROUTERS: readonly Router[];
+
+### build/index.d.ts#ReconnectReading
+interface ReconnectReading {
+  readonly waits: readonly Quantity[];
+  readonly syn: Quantity | null;
+  readonly established: Quantity | null;
+  readonly connects: readonly Quantity[];
+}
+
+### build/index.d.ts#ReconnectVerdict
+interface ReconnectVerdict {
+  readonly waits: ReadonlyArray<Spread | null>;
+  readonly syn: Spread | null;
+  readonly established: Spread | null;
+  readonly connect: Spread | null;
+}
+
+### build/index.d.ts#RecordCode
+interface RecordCode {
+  readonly commit: string;
+  readonly dirty: boolean;
+}
+
+### build/index.d.ts#RecoveryMeasured
+interface RecoveryMeasured {
+  readonly rpo: Quantity | null;
+  readonly excess: Quantity | null;
+  readonly holes: readonly number[];
+  readonly afterBackup: number | null;
+  readonly sameData: boolean | null;
+}
+
+### build/index.d.ts#Reordering
+interface Reordering {
+  readonly outOfOrder: number;
+  readonly duplicates: number;
+  readonly ooo: number | null;
+  readonly sacked: number | null;
+  readonly lost: number | null;
+  readonly dsacks: number | null;
+  readonly fast: number;
+  readonly degree: number | null;
+  readonly seen: number | null;
+}
+
+### build/index.d.ts#ReplicaSetLab
+interface ReplicaSetLab {
+  readonly set: ReplicaSet;
+  readonly clientIp: string;
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly netns: {
+    readonly client: number;
+  };
+  readonly kernel: readonly KernelRecord[];
+  readonly log: readonly MemberLine[];
+  sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  converge(within?: number): Promise<string>;
+  flush(primary: string): Promise<void>;
+  unfreeze(primary: string): Promise<void>;
+  holds(primary: string): Promise<number[]>;
+  partOf(role: GroupRole, primary: string): string;
+  client(args: readonly string[]): Promise<GroupClient>;
+  fault(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  lift(kind: GroupNetworkFault, part: string, cuts: NonNullable<GroupPlace["cuts"]>, at?: number): Promise<Stamp>;
+  signal(part: string, signal: "KILL" | "STOP" | "CONT", at?: number): Promise<Stamp>;
+  restart(member: string): Promise<void>;
+  exec(member: string, argv: string[]): Promise<string>;
+  script(member: string, script: string, port?: number): Promise<string>;
+  vault(argv: string[]): Promise<string>;
+  stepDown(primary: string): Promise<Stamp>;
+  forget(): Promise<void>;
+  settle(): Promise<number | null>;
+  manifest(sysctls: Readonly<Record<string, string>>): Promise<Manifest>;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#RequestReading
+interface RequestReading {
+  readonly connection: "reused" | "new";
+  readonly retried: boolean;
+  readonly error: string | null;
+  readonly pending: boolean;
+  readonly gap: Quantity | null;
+}
+
+### build/index.d.ts#RouteLine
+interface RouteLine {
+  readonly wall: number;
+  readonly deleted: boolean;
+  readonly prefix: string;
+  readonly via: string | null;
+  readonly dev: string | null;
+}
+
+### build/index.d.ts#RunLoad
+type RunLoad = LoadMeasure & {
+  readonly failed?: number;
+};
+
+### build/index.d.ts#SCHEDULE_PATH
+export declare const SCHEDULE_PATH = "/tmp/schedule.json";
+
+### build/index.d.ts#SEED_DOCUMENT
+export declare const SEED_DOCUMENT = 65536;
+
+### build/index.d.ts#SHIPPED_CLIENTS
+export declare const SHIPPED_CLIENTS: Readonly<Record<Client, ClientImage>>;
+
+### build/index.d.ts#SHIPPED_NAMES
+export declare const SHIPPED_NAMES: readonly [Shipped, ...Shipped[]];
+
+### build/index.d.ts#STAGES
+export declare const STAGES: readonly SentinelStage[];
+
+### build/index.d.ts#STANDBY_READY
+export declare const STANDBY_READY: string;
+
+### build/index.d.ts#STATUS_SCRIPT
+export declare const STATUS_SCRIPT: string;
+
+### build/index.d.ts#STEPS
+export declare const STEPS: readonly [11, 22, 44];
+
+### build/index.d.ts#STEP_DOWN
+export declare const STEP_DOWN: {
+  readonly seconds: 60;
+  readonly catchUp: 10;
+};
+
+### build/index.d.ts#Sibling
+interface Sibling {
+  readonly ip: string;
+  readonly netns: number;
+  exec(argv: readonly string[]): Promise<string>;
+}
+
+### build/index.d.ts#SocketPlace
+interface SocketPlace {
+  readonly netns: number;
+  readonly cookie: number;
+}
+
+### build/index.d.ts#Spread
+interface Spread {
+  readonly count: number;
+  readonly median: Quantity;
+  readonly p99: Quantity;
+  readonly p999: Quantity;
+  readonly max: Quantity;
+}
+
+### build/index.d.ts#StageVerdict
+interface StageVerdict {
+  readonly stage: Stage;
+  readonly band: Interval;
+  readonly median: Quantity | null;
+  readonly outside: ReadonlyArray<{
+    readonly run: string;
+    readonly why: string;
+  }>;
+  readonly decision: "holds" | "fails";
+}
+
+### build/index.d.ts#StallReading
+interface StallReading {
+  readonly errno: string;
+  readonly time: Quantity;
+  readonly drops: number;
+  readonly retransFail: number;
+}
+
+### build/index.d.ts#Stamp
+interface Stamp {
+  readonly t0: number;
+  readonly t1: number;
+}
+
+### build/index.d.ts#Status
+interface Status {
+  readonly me: string;
+  readonly writable: boolean;
+  readonly members: ReadonlyArray<{
+    readonly name: string;
+    readonly state: string;
+    readonly health: number;
+    readonly optime: number | null;
+  }>;
+}
+
+### build/index.d.ts#StatusRow
+interface StatusRow {
+  readonly "Node Name": string;
+  readonly "Raft State": string;
+  readonly Term: number | string;
+  readonly "Commit Index": number | string;
+}
+
+### build/index.d.ts#Substrate
+interface Substrate {
+  readonly layer: Layer;
+  readonly cloud: Cloud;
+  readonly vendor: string | null;
+  readonly kernel: string | null;
+  readonly hz: number | null;
+  readonly kvm: boolean | null;
+  readonly image: string | null;
+}
+
+### build/index.d.ts#SubstrateSource
+interface SubstrateSource {
+  readonly substrate?: Substrate;
+  readonly kernel?: string;
+  readonly hz?: string | null;
+}
+
+### build/index.d.ts#Verdict
+interface Verdict {
+  readonly decision: Decision;
+  readonly counted: number;
+  readonly voided: number;
+  readonly band: Interval | null;
+  readonly outside: ReadonlyArray<{
+    readonly run: string;
+    readonly why: string;
+  }>;
+  readonly median: Quantity | null;
+  readonly medianInterval: Interval | null;
+  readonly slowest?: Quantity;
+  readonly reordering?: Reordering;
+  readonly load?: LoadVerdict;
+  readonly proxy?: {
+    readonly hop: string;
+    readonly up: Spread | null;
+    readonly down: Spread | null;
+  };
+  readonly group?: GroupVerdict;
+  readonly requests?: Readonly<Record<string, number>>;
+  readonly reconnect?: ReconnectVerdict;
+  readonly calls?: Readonly<Record<string, number>>;
+  readonly left?: {
+    readonly spread: Spread | null;
+    readonly stayed: number;
+    readonly exited?: Spread | null;
+  };
+  readonly why: string;
+}
+
+### build/index.d.ts#WallStamp
+interface WallStamp {
+  readonly wall0: number;
+  readonly wall1: number;
+}
+
+### build/index.d.ts#Writes
+interface Writes {
+  readonly sent: number;
+  readonly acked: number;
+  readonly old: number;
+  readonly lost: readonly number[] | null;
+  readonly unknown: ReadonlyArray<{
+    readonly n: number;
+    readonly held: boolean | null;
+  }>;
+  readonly duplicates?: readonly number[] | null;
+  readonly sets?: PairSets;
+}
+
+### build/index.d.ts#amqpClientImage
+export declare const amqpClientImage: () => Promise<string>;
+
+### build/index.d.ts#basesOf
+export declare const basesOf: (dockerfile: string) => string[];
+
+### build/index.d.ts#bootstrapOf
+export declare const bootstrapOf: (kafka: Kafka) => string;
+
+### build/index.d.ts#brokerEnv
+export declare const brokerEnv: (kafka: Kafka, name: string) => Record<string, string>;
+
+### build/index.d.ts#buildOf
+export declare const buildOf: (source: Parameters<typeof buildRecordOf>[0]) => {
+  readonly build?: BuildRecord;
+};
+
+### build/index.d.ts#buildRecordOf
+export declare const buildRecordOf: (source: string | ImageSource) => BuildRecord | undefined;
+
+### build/index.d.ts#callOf
+export declare const callOf: (events: readonly ProbeEvent[], request: ProbeEvent, detected: number | undefined) => CallReading;
+
+### build/index.d.ts#cancelsOf
+export declare const cancelsOf: (pair: Pair, holdNs: number) => number[];
+
+### build/index.d.ts#cargoVersions
+export declare const cargoVersions: (lock: string, manifest: string) => Record<string, string>;
+
+### build/index.d.ts#clockOffsetOf
+export declare const clockOffsetOf: (events: readonly ProbeEvent[]) => number | null;
+
+### build/index.d.ts#closeOrExit
+export declare const closeOrExit: (line: ProbeEvent, left: Quantity | null, exit: number | undefined, delta?: Quantity) => {
+  readonly left: Quantity | null;
+  readonly exited?: Quantity;
+};
+
+### build/index.d.ts#cloudOf
+export declare const cloudOf: (vendor: string | null) => Cloud;
+
+### build/index.d.ts#clusterArgs
+export declare const clusterArgs: (cell: Cell, members: Readonly<Record<string, RunPart>>, leader: string) => string[];
+
+### build/index.d.ts#clusterConf
+export declare const clusterConf: (cluster: Cluster) => string;
+
+### build/index.d.ts#clusterCutOf
+export declare const clusterCutOf: (cluster: Cluster, members: Readonly<Record<string, RunPart>>, client: string, part: string, cuts: NonNullable<GroupPlace["cuts"]>) => Cut;
+
+### build/index.d.ts#clusterHostsOf
+export declare const clusterHostsOf: (cell: Cell, members: Readonly<Record<string, RunPart>>, leader: string) => string[];
+
+### build/index.d.ts#clusterOnce
+export declare const clusterOnce: (lab: ClusterLab, cell: Cell, environment: number, index: number) => Promise<Run>;
+
+### build/index.d.ts#clusterStagesOf
+export declare const clusterStagesOf: (run: Run, from: number, sentAfter: number) => Partial<Record<Stage, Quantity>>;
+
+### build/index.d.ts#clusterViewOf
+export declare const clusterViewOf: (cluster: Cluster, rows: readonly StatusRow[]) => GroupView;
+
+### build/index.d.ts#commitProblems
+export declare const commitProblems: (commit: string | undefined) => string[];
+
+### build/index.d.ts#comparable
+export declare const comparable: (a: Substrate, b: Substrate) => boolean;
+
+### build/index.d.ts#controllerEnv
+export declare const controllerEnv: (kafka: Kafka) => Record<string, string>;
+
+### build/index.d.ts#crossingsOf
+export declare const crossingsOf: (run: Run, hop: string, toClient: SocketPlace | undefined, toTarget: SocketPlace | undefined) => Crossings;
+
+### build/index.d.ts#cutOf
+export declare const cutOf: (set: ReplicaSet, members: Readonly<Record<string, RunPart>>, client: string, part: string, cuts: NonNullable<GroupPlace["cuts"]>) => Cut;
+
+### build/index.d.ts#deadlineOf
+export declare const deadlineOf: (cell: Cell) => number;
+
+### build/index.d.ts#delayVoids
+export declare const delayVoids: (behind: number, hz: number | undefined, noise: Quantity) => boolean;
+
+### build/index.d.ts#deviceOf
+export declare const deviceOf: (route: string) => string;
+
+### build/index.d.ts#drillOnce
+export declare const drillOnce: (lab: ReplicaSetLab, cell: Cell, environment: number, index: number) => Promise<Run>;
+
+### build/index.d.ts#drillSpan
+export declare const drillSpan: (drill: Drill) => number;
+
+### build/index.d.ts#dropFinding
+export declare const dropFinding: (expected: "frame" | "close", drop: ProgramEvent, left: Quantity | null, delta?: Quantity, exited?: Quantity) => string | null;
+
+### build/index.d.ts#dropOf
+export declare const dropOf: (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown, delta?: Quantity) => ProgramEvent | undefined;
+
+### build/index.d.ts#endpointAfter
+export declare const endpointAfter: (hops: readonly Pick<Hop, "kind">[], element: number) => number;
+
+### build/index.d.ts#envOf
+export declare const envOf: (property: string) => string;
+
+### build/index.d.ts#errorsOf
+export declare const errorsOf: (events: readonly ProbeEvent[], after: number) => ErrorOnTheWay[];
+
+### build/index.d.ts#exitOf
+export declare const exitOf: (run: Run, cookie: number | undefined) => number | undefined;
+
+### build/index.d.ts#fieldOf
+export declare const fieldOf: (line: unknown, path: string) => unknown;
+
+### build/index.d.ts#fieldsOf
+export declare const fieldsOf: (text: string) => Array<Record<string, string>>;
+
+### build/index.d.ts#firstUnanswered
+export declare const firstUnanswered: (pings: readonly ProgramEvent[], socket: readonly KernelRecord[], until?: number) => ProgramEvent | undefined;
+
+### build/index.d.ts#frrConf
+export declare const frrConf: (router: Router, fabric: Fabric) => string;
+
+### build/index.d.ts#goHttpImage
+export declare const goHttpImage: () => Promise<string>;
+
+### build/index.d.ts#goVersions
+export declare const goVersions: (mod: string) => Record<string, string>;
+
+### build/index.d.ts#groupOnce
+export declare const groupOnce: (lab: GroupLab, cell: Cell, environment: number, index: number) => Promise<Run>;
+
+### build/index.d.ts#groupVerdictOf
+export declare const groupVerdictOf: (prediction: Prediction, counted: readonly Measured[], delta?: Quantity) => GroupVerdict;
+
+### build/index.d.ts#grpcClientImage
+export declare const grpcClientImage: () => Promise<string>;
+
+### build/index.d.ts#harnessImage
+export declare const harnessImage: () => Promise<string>;
+
+### build/index.d.ts#harnessRecord
+export declare const harnessRecord: () => {
+  readonly version: string;
+  readonly build?: BuildRecord;
+};
+
+### build/index.d.ts#harnessVersion
+export declare const harnessVersion: () => string;
+
+### build/index.d.ts#hashOf
+export declare const hashOf: (text: string) => string;
+
+### build/index.d.ts#highestHeld
+export declare const highestHeld: (text: string) => number | null;
+
+### build/index.d.ts#hikariClientImage
+export declare const hikariClientImage: () => Promise<string>;
+
+### build/index.d.ts#hzOf
+export declare const hzOf: (first: {
+  now: number;
+  jiffies: number;
+}, second: {
+  now: number;
+  jiffies: number;
+}) => string | null;
+
+### build/index.d.ts#imageOf
+export declare const imageOf: (source: string | ImageSource) => Promise<string>;
+
+### build/index.d.ts#imageProblems
+export declare const imageProblems: (source: ImageSource) => string[];
+
+### build/index.d.ts#inContext
+export declare const inContext: (path: string) => boolean;
+
+### build/index.d.ts#infoOf
+export declare const infoOf: (text: string) => Record<string, string>;
+
+### build/index.d.ts#initiateScript
+export declare const initiateScript: (set: ReplicaSet, ips: Readonly<Record<string, string>>) => string;
+
+### build/index.d.ts#isFenceLine
+export declare const isFenceLine: (line: string) => boolean;
+
+### build/index.d.ts#jarVersions
+export declare const jarVersions: (list: string) => Record<string, string>;
+
+### build/index.d.ts#jitterOf
+export declare const jitterOf: (cell: Cell, run: Run) => Jitter;
+
+### build/index.d.ts#jitterOfLines
+export declare const jitterOfLines: (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown, until: number) => Jitter;
+
+### build/index.d.ts#judge
+export declare const judge: (cell: Cell, runs: readonly Run[]) => {
+  measured: Measured[];
+  verdict: Verdict;
+};
+
+### build/index.d.ts#kafkaArgs
+export declare const kafkaArgs: (cell: Cell, topic: string) => string[];
+
+### build/index.d.ts#kafkaClientImage
+export declare const kafkaClientImage: () => Promise<string>;
+
+### build/index.d.ts#kafkaCutOf
+export declare const kafkaCutOf: (kafka: Kafka, members: Readonly<Record<string, RunPart>>, controller: RunPart, part: string, cuts: NonNullable<GroupPlace["cuts"]>) => Cut;
+
+### build/index.d.ts#kafkaOnce
+export declare const kafkaOnce: (lab: KafkaLab, cell: Cell, environment: number, index: number) => Promise<Run>;
+
+### build/index.d.ts#kafkaPauseOnce
+export declare const kafkaPauseOnce: (lab: KafkaLab, cell: Cell, environment: number, index: number) => Promise<Run>;
+
+### build/index.d.ts#kafkaViewOf
+export declare const kafkaViewOf: (kafka: Kafka, view: PartitionView) => GroupView;
+
+### build/index.d.ts#lagsOf
+export declare const lagsOf: (run: Run, kernel: readonly KernelRecord[]) => Quantity[];
+
+### build/index.d.ts#laterMove
+export declare const laterMove: (routes: readonly RunRoute[], after: number) => number | null;
+
+### build/index.d.ts#leafLacks
+export declare const leafLacks: (views: LeafViews) => string | null;
+
+### build/index.d.ts#leftAfter
+export declare const leftAfter: (socket: readonly KernelRecord[], line: ProbeEvent) => Quantity | null;
+
+### build/index.d.ts#loadOf
+export declare const loadOf: (events: readonly ProbeEvent[], plan: Schedule) => RunLoad | null;
+
+### build/index.d.ts#loadPlanOf
+export declare const loadPlanOf: (streams: readonly LoadStream[]) => {
+  readonly streams: readonly RunStream[];
+  readonly content: string;
+};
+
+### build/index.d.ts#loadVerdict
+export declare const loadVerdict: (prediction: LoadPrediction, runs: ReadonlyArray<{
+  readonly name: string;
+  readonly load: RunLoad | undefined;
+}>) => LoadJudgement;
+
+### build/index.d.ts#locksOf
+export declare const locksOf: (files: readonly ContextFile[]) => Record<string, string>;
+
+### build/index.d.ts#logNameOf
+export declare const logNameOf: (queue: string) => string;
+
+### build/index.d.ts#logTimeOf
+export declare const logTimeOf: (line: string, start: ProbeEvent) => number | null;
+
+### build/index.d.ts#manifestProblems
+export declare const manifestProblems: (manifest: Manifest) => string[];
+
+### build/index.d.ts#matches
+export declare const matches: (line: ProbeEvent, match: LineMatch) => boolean;
+
+### build/index.d.ts#measure
+export declare const measure: (cell: Cell, run: Run) => Measured;
+
+### build/index.d.ts#measureConntrack
+export declare const measureConntrack: (run: Run, expected: ConntrackPrediction) => Measured;
+
+### build/index.d.ts#measureDriver
+export declare const measureDriver: (cell: Cell, run: Run) => Measured;
+
+### build/index.d.ts#measureGroup
+export declare const measureGroup: (cell: Cell, run: Run) => GroupReading;
+
+### build/index.d.ts#measurePause
+export declare const measurePause: (run: Run, prediction: PausePrediction) => Measured;
+
+### build/index.d.ts#measurePorts
+export declare const measurePorts: (run: Run, expected: PortsPrediction) => Measured;
+
+### build/index.d.ts#measureQueue
+export declare const measureQueue: (run: Run, expected: QueuePrediction) => Measured;
+
+### build/index.d.ts#medianInterval
+export declare const medianInterval: (sorted: readonly number[]) => [number, number];
+
+### build/index.d.ts#memberCommand
+export declare const memberCommand: (set: ReplicaSet) => string;
+
+### build/index.d.ts#memberConfig
+export declare const memberConfig: (group: Group, primary: string | null) => string;
+
+### build/index.d.ts#memberLineOf
+export declare const memberLineOf: (member: string, text: string) => MemberLine | null;
+
+### build/index.d.ts#mongoClientImage
+export declare const mongoClientImage: () => Promise<string>;
+
+### build/index.d.ts#monotonicAt
+export declare const monotonicAt: (wall: number, pair: ClockPair) => number;
+
+### build/index.d.ts#monotonicOf
+export declare const monotonicOf: (stamp: WallStamp, events: readonly ProbeEvent[]) => Stamp | null;
+
+### build/index.d.ts#namesGroup
+export declare const namesGroup: (line: string, group: string) => boolean;
+
+### build/index.d.ts#nodeClientImage
+export declare const nodeClientImage: () => Promise<string>;
+
+### build/index.d.ts#nodeCommand
+export declare const nodeCommand: (cluster: Cluster) => string;
+
+### build/index.d.ts#nodeHttpImage
+export declare const nodeHttpImage: () => Promise<string>;
+
+### build/index.d.ts#nodeIdOf
+export declare const nodeIdOf: (kafka: Kafka, name: string) => number;
+
+### build/index.d.ts#nodeLineOf
+export declare const nodeLineOf: (member: string, text: string, queue: string) => NodeLine | null;
+
+### build/index.d.ts#nodeNameOf
+export declare const nodeNameOf: (member: string) => string;
+
+### build/index.d.ts#nodesOnMonotonic
+export declare const nodesOnMonotonic: (log: readonly NodeLine[], offset: number | null) => NodeLine[];
+
+### build/index.d.ts#noiseOf
+export declare const noiseOf: (cell: {
+  readonly noise?: Quantity | undefined;
+}) => Quantity;
+
+### build/index.d.ts#npmVersions
+export declare const npmVersions: (lock: string) => Record<string, string>;
+
+### build/index.d.ts#numbersOf
+export declare const numbersOf: (text: string) => number[];
+
+### build/index.d.ts#onMonotonic
+export declare const onMonotonic: (log: readonly MemberLine[], offset: number | null) => MemberLine[];
+
+### build/index.d.ts#openClusterLab
+export declare const openClusterLab: (cluster: Cluster) => Promise<ClusterLab>;
+
+### build/index.d.ts#openFabric
+export declare const openFabric: (parts: FabricParts) => Promise<FabricLab>;
+
+### build/index.d.ts#openGroupLab
+export declare const openGroupLab: (group: Group, options?: {
+  readonly watchSentinels?: boolean;
+}) => Promise<GroupLab>;
+
+### build/index.d.ts#openKafkaLab
+export declare const openKafkaLab: (kafka: Kafka) => Promise<KafkaLab>;
+
+### build/index.d.ts#openLab
+export declare const openLab: (target: Target, kind?: Client | ClientImage, topology?: Topology) => Promise<Lab>;
+
+### build/index.d.ts#openReplicaSetLab
+export declare const openReplicaSetLab: (set: ReplicaSet, backups?: boolean) => Promise<ReplicaSetLab>;
+
+### build/index.d.ts#openStandby
+export declare const openStandby: (lab: Lab, cell: Cell) => Promise<Sibling>;
+
+### build/index.d.ts#pairArgs
+export declare const pairArgs: (cell: Cell, lab: Pick<Lab, "targetIp" | "targetPort">) => string[];
+
+### build/index.d.ts#pairOnce
+export declare const pairOnce: (lab: Lab, standby: Sibling, cell: Cell, environment: number, index: number, dry?: boolean) => Promise<Run>;
+
+### build/index.d.ts#pairingOf
+export declare const pairingOf: (cell: {
+  readonly noise?: Quantity | undefined;
+}, run: Pick<Run, "jitter">) => Pairing;
+
+### build/index.d.ts#pairingsOf
+export declare const pairingsOf: (runs: readonly Measured[], noise?: Quantity) => {
+  readonly bound: Quantity | null;
+  readonly delta: Quantity;
+  readonly widened: number;
+} | null;
+
+### build/index.d.ts#pauseReady
+export declare const pauseReady: (first: readonly ProbeEvent[], other: readonly ProbeEvent[]) => boolean;
+
+### build/index.d.ts#peersOf
+export declare const peersOf: (parts: {
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly sentinels: Readonly<Record<string, RunPart>>;
+}, client: string, part: string, cuts: NonNullable<GroupPlace["cuts"]>) => string[];
+
+### build/index.d.ts#pgClientImage
+export declare const pgClientImage: () => Promise<string>;
+
+### build/index.d.ts#pingsOf
+export declare const pingsOf: (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown, delta?: Quantity) => ProgramEvent[];
+
+### build/index.d.ts#plainOf
+export declare const plainOf: (text: string) => string;
+
+### build/index.d.ts#planOf
+export declare const planOf: (source: string | ImageSource) => ImagePlan;
+
+### build/index.d.ts#programLines
+export declare const programLines: (cell: Cell, run: Run) => readonly ProbeEvent[];
+
+### build/index.d.ts#programOf
+export declare const programOf: (subject: Subject, role: string) => readonly string[];
+
+### build/index.d.ts#quantileOf
+export declare const quantileOf: (sorted: readonly number[], p: number) => number;
+
+### build/index.d.ts#readCpu
+export declare const readCpu: (root?: string) => CpuTime | null;
+
+### build/index.d.ts#readHost
+export declare const readHost: (root?: string, env?: Readonly<Record<string, string | undefined>>, kernel?: string) => Host;
+
+### build/index.d.ts#readOplog
+export declare const readOplog: (text: string) => OplogRead;
+
+### build/index.d.ts#reconnectFinding
+export declare const reconnectFinding: (expected: Reconnects, read: ReconnectReading, delta?: Quantity) => string | null;
+
+### build/index.d.ts#reconnectOf
+export declare const reconnectOf: (run: Run, detected: number, cookie: number | undefined, from?: number) => ReconnectReading;
+
+### build/index.d.ts#recordProblems
+export declare const recordProblems: (record: Pinnable) => string[];
+
+### build/index.d.ts#recoveryFindings
+export declare const recoveryFindings: (measured: RecoveryMeasured, writes: Writes) => string[];
+
+### build/index.d.ts#recoveryOf
+export declare const recoveryOf: (drill: Drill, run: Run, t0: number) => RecoveryMeasured;
+
+### build/index.d.ts#referenceOf
+export declare const referenceOf: (run: Run, from: Reference, role: string, data: boolean, end?: number) => number | undefined;
+
+### build/index.d.ts#reorderingOf
+export declare const reorderingOf: (receiver: readonly KernelRecord[], sender: readonly KernelRecord[]) => Reordering;
+
+### build/index.d.ts#replicaSetArgs
+export declare const replicaSetArgs: (cell: Cell, members: Readonly<Record<string, RunPart>>) => string[];
+
+### build/index.d.ts#replicaSetOnce
+export declare const replicaSetOnce: (lab: ReplicaSetLab, cell: Cell, environment: number, index: number) => Promise<Run>;
+
+### build/index.d.ts#replicaSetStagesOf
+export declare const replicaSetStagesOf: (run: Run, from: number, sentAfter: number, lands: "new" | "same") => Partial<Record<Stage, Quantity>>;
+
+### build/index.d.ts#requestOf
+export declare const requestOf: (events: readonly ProbeEvent[]) => RequestReading | null;
+
+### build/index.d.ts#requestWords
+export declare const requestWords: (outcome: {
+  readonly connection: "reused" | "new";
+  readonly retried: boolean;
+  readonly error: string | null;
+  readonly pending?: boolean | undefined;
+}) => string;
+
+### build/index.d.ts#restamped
+export declare const restamped: (line: NodeLine, events: readonly ProbeEvent[]) => Stamp | null;
+
+### build/index.d.ts#routeLine
+export declare const routeLine: (text: string) => RouteLine | null;
+
+### build/index.d.ts#routerImage
+export declare const routerImage: () => Promise<string>;
+
+### build/index.d.ts#routesOf
+export declare const routesOf: (hops: readonly Pick<Hop, "kind">[]) => Array<{
+  readonly from: number;
+  readonly via: number;
+  readonly networks: readonly number[];
+}>;
+
+### build/index.d.ts#runCell
+export declare const runCell: (cell: Cell, say?: (line: string) => void) => Promise<CellResult>;
+
+### build/index.d.ts#seedScript
+export declare const seedScript: (drill: Drill, copies: number) => string;
+
+### build/index.d.ts#sentinelConfig
+export declare const sentinelConfig: (group: Group, primary: string) => string;
+
+### build/index.d.ts#sessionsOf
+export declare const sessionsOf: (json: string) => {
+  readonly up: number;
+  readonly established: number;
+};
+
+### build/index.d.ts#shippedClientRecord
+export declare const shippedClientRecord: (kind: Client, image: string) => Manifest["client"];
+
+### build/index.d.ts#shippedSource
+export declare const shippedSource: (name: Shipped) => ImageSource;
+
+### build/index.d.ts#sliceQuery
+export declare const sliceQuery: (after: OplogTime) => string;
+
+### build/index.d.ts#socketAt
+export declare const socketAt: (events: readonly ProbeEvent[], role: string, at: number) => DriverSocket | undefined;
+
+### build/index.d.ts#socketOf
+export declare const socketOf: (cell: Cell, run: Run) => SocketPlace | undefined;
+
+### build/index.d.ts#socketsOf
+export declare const socketsOf: (events: readonly ProbeEvent[]) => DriverSocket[];
+
+### build/index.d.ts#spread
+export declare const spread: (runs: number, environments: number) => number[];
+
+### build/index.d.ts#spreadOf
+export declare const spreadOf: (times: readonly Quantity[]) => Spread | null;
+
+### build/index.d.ts#stagesOf
+export declare const stagesOf: (timeline: readonly SentinelEvent[], from: number) => Partial<Record<Stage, Quantity>>;
+
+### build/index.d.ts#standaloneCommand
+export declare const standaloneCommand: (set: ReplicaSet, port: number) => string;
+
+### build/index.d.ts#standbyCommand
+export declare const standbyCommand: (primary: string) => string[];
+
+### build/index.d.ts#statusViewOf
+export declare const statusViewOf: (set: ReplicaSet, ips: Readonly<Record<string, string>>, status: Status) => GroupView;
+
+### build/index.d.ts#stealShare
+export declare const stealShare: (before: CpuTime, after: CpuTime) => number | null;
+
+### build/index.d.ts#stopScript
+export declare const stopScript: (terminate: boolean) => string;
+
+### build/index.d.ts#streamsLoadOf
+export declare const streamsLoadOf: (events: readonly ProbeEvent[], streams: readonly RunStream[]) => {
+  readonly pool: RunLoad;
+  readonly streams: Readonly<Record<string, RunLoad>>;
+} | null;
+
+### build/index.d.ts#subjectClient
+export declare const subjectClient: (subject: Subject, role?: string) => Client | ClientImage;
+
+### build/index.d.ts#subjectProblems
+export declare const subjectProblems: (subject: Subject) => string[];
+
+### build/index.d.ts#subscriptionsOf
+export declare const subscriptionsOf: (timeline: readonly SentinelEvent[]) => SentinelEvent[];
+
+### build/index.d.ts#substrateHere
+export declare const substrateHere: (layer: Layer, host?: Host, env?: Readonly<Record<string, string | undefined>>) => Substrate;
+
+### build/index.d.ts#substrateKey
+export declare const substrateKey: (substrate: Substrate) => string;
+
+### build/index.d.ts#substrateOf
+export declare const substrateOf: (source: SubstrateSource, at: string, layer?: Layer) => Substrate;
+
+### build/index.d.ts#substrateOn
+export declare const substrateOn: (layer: Layer, host?: Host) => Substrate;
+
+### build/index.d.ts#targetImageOf
+export declare const targetImageOf: (target: Target) => Promise<string>;
+
+### build/index.d.ts#targetSourceOf
+export declare const targetSourceOf: (target: Target) => string | ImageSource;
+
+### build/index.d.ts#templated
+export declare const templated: (content: string, next: string) => string;
+
+### build/index.d.ts#toolJsonOf
+export declare const toolJsonOf: (text: string) => unknown;
+
+### build/index.d.ts#topicOf
+export declare const topicOf: (environment: number, index: number) => string;
+
+### build/index.d.ts#topologyOf
+export declare const topologyOf: (lab: string, dir: string, client: string, target: string) => string;
+
+### build/index.d.ts#toxicBody
+export declare const toxicBody: (toxic: Toxic) => string;
+
+### build/index.d.ts#unlockedManifests
+export declare const unlockedManifests: (paths: readonly string[]) => string[];
+
+### build/index.d.ts#unpinnedBases
+export declare const unpinnedBases: (dockerfile: string) => string[];
+
+### build/index.d.ts#unpoolable
+export declare const unpoolable: (substrates: readonly Substrate[]) => readonly [Substrate, Substrate] | undefined;
+
+### build/index.d.ts#verdictOf
+export declare const verdictOf: (prediction: Prediction, runs: readonly Measured[], noise?: Quantity) => Verdict;
+
+### build/index.d.ts#versionsOf
+export declare const versionsOf: (files: readonly ContextFile[]) => Record<string, string>;
+
+### build/index.d.ts#viewOf
+export declare const viewOf: (group: Group, ips: Readonly<Record<string, string>>, sentinels: ReadonlyArray<{
+  readonly master: Record<string, string>;
+  readonly replicas: ReadonlyArray<Record<string, string>>;
+}>, members: Readonly<Record<string, Record<string, string>>>) => GroupView;
+
+### build/index.d.ts#writesOf
+export declare const writesOf: (run: Run, after: number, primary: string) => Writes;
+
+### build/schema.d.ts#clientImageSchema
+export declare const clientImageSchema: z.ZodType<ClientImage>;
+
+### build/schema.d.ts#clientSchema
+export declare const clientSchema: z.ZodType<Client | ClientImage>;
+
+### build/schema.d.ts#imageSourceSchema
+export declare const imageSourceSchema: z.ZodType<ImageSource>;
+
+### build/schema.d.ts#subjectSchema
+export declare const subjectSchema: z.ZodType<Subject>;

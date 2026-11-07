@@ -14,15 +14,22 @@
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
     "lint:ste": "ste-lint",
-    "check:conventions": "conventions check"
+    "check:conventions": "conventions check",
+    "check:api": "api-report check"
   },
   "devDependencies": {
+    "@mark1russell7/api-report": "^0.4.1",
     "@mark1russell7/conventions": "^0.26.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10",
     "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint#f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7",
     "@mark1russell7/template-cli": "^0.1.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "apiReport": {
+    "packages": [
+      "packages/harness"
+    ]
   },
   "conventions": {
     "rules": {
