@@ -3499,6 +3499,14 @@ The order of the work:
 
 The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
 
+**The first stamps of the limits.** `@mark1russell7/site-pages` 0.3.5 refuses a study with no `limit` and no `noLimit`. Thus the site gives each page its age from the table above:
+
+- 15 pages get a limit of 30 days from 2026-12-07, with the issue of the limit as its ruling.
+- `results/harness` and `results/cells` get `noLimit`, with its two statements.
+- Each limit names `cells.yml`, the scheduled workflow of the lab. The refresh jobs of step 1 go into its schedule. A study that moves to `kind.yml` changes its field `workflow` when `kind.yml` has a schedule.
+
+The gate of the Pages workflow passes these stamps today. Its failing cases show that each limited page fails after 2026-12-07 with no fresh run.
+
 A study needs records that pin their programs, because a refresh must operate the same programs. A record needs the commit of the harness, the digest of each image and the version of each client library. Without them, it is not a record. A commit with changes to tracked files is not a pin.
 
 - **Part 1 (#370, merged).** Each record has its commit, and each image of the harness has its build record. Each line of `summary.ndjson` gives the problems of its pins.

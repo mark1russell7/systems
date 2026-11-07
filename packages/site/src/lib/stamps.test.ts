@@ -64,18 +64,18 @@ describe("the stamps of the site", () => {
     const lab = readFileSync(fileURLToPath(new URL("../components/DetectionLab.tsx", import.meta.url)), "utf8");
     expect(lab).toContain(`"../data/${HOME_LAB_FILE}"`);
     expect(stamps.pages.map((page) => page.page)).toContain("index.html");
-    expect(renderDataStamp(homeStamp(DATA))).toContain("a fixed study");
+    expect(renderDataStamp(homeStamp(DATA))).toContain("The age limit of this data is 30 days, from 2026-12-07.");
     expect(homeStamp(DATA).runs.map((run) => run.id)).toEqual([HOME_LAB_FILE]);
   });
 
   it("names only the lab on the home page, which also shows other studies", () => {
-    expect(homeStampHtml(DATA)).toContain("The runs of this lab are a fixed study");
+    expect(homeStampHtml(DATA)).toContain("The runs of this lab are a study");
     expect(homeStampHtml(DATA)).not.toContain("this page");
   });
 
   it("names the study of a page in plain words", () => {
     const stamp = stampOfPage(DATA, "results/faults");
-    expect(stamp === undefined ? "" : renderDataStamp(stamp)).toContain("The measured numbers of this page are a fixed study of redis 7.4 and kernel 6.17.0.");
+    expect(stamp === undefined ? "" : renderDataStamp(stamp)).toContain("The measured numbers of this page are a study of redis 7.4 and kernel 6.17.0.");
     expect(stampOfPage(DATA, "thesis")).toBeUndefined();
   });
 
