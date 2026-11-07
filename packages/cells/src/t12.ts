@@ -101,7 +101,7 @@ export const ioredisValues = (rttMs: number): KnobValues => {
 };
 
 /** This function gives the span of one timer of a document in seconds: its duration less its early bound, to its duration plus its lateness. */
-const spanOf = (doc: Machine, timer: string, values: KnobValues, fired?: number): Span => {
+export const spanOf = (doc: Machine, timer: string, values: KnobValues, fired?: number): Span => {
   const bounds = timerOf(doc, timer, values, fired);
   const duration = seconds(bounds.duration, timer);
   return span(duration - seconds(bounds.early, `${timer}'s early bound`), duration + seconds(bounds.lateness, `${timer}'s lateness`));
@@ -291,7 +291,7 @@ export interface T12Spec {
 /** This time is the hold of a fault whose failover the group completes before the fault lifts. */
 export const HOLD = 40;
 /** This time is the window of a measurement-only cell: the move of a pinned client after its fault lifts. */
-const MEASURED_WINDOW = 120;
+export const MEASURED_WINDOW = 120;
 
 const PRIMARY: GroupPlace = { role: "primary" };
 /** This reason is why a client that stays on its old primary through the fault has no band. */

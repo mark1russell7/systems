@@ -5,7 +5,7 @@ import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.t
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import type { Manifest } from "./lab.ts";
 import { harnessImage, mongoClientImage } from "./image.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, containers, harnessRecord, lines, netnsOf, output, shippedClientRecord, withPid } from "./lab.ts";
 import { drillSpan } from "./recovery.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -90,6 +90,7 @@ export const cutOf = (
   if (cuts === "group") return { peers: others };
   if (cuts === "one") return { peers: others.slice(0, 1) };
   if (cuts === "one-way") return { peers: others.slice(0, 1), direction: "out" };
+  if (cuts === "to-clients") return { peers: [client], direction: "out" };
   return { peers: [...others, client] };
 };
 
@@ -490,8 +491,9 @@ export const openReplicaSetLab = async (set: ReplicaSet, backups = false): Promi
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "mongodb", image: mongo },
+          client: shippedClientRecord("mongodb", mongo),
           netns: { client: clientNetns, target: members[set.members[0]!]!.netns },
           sysctls,
           group: { members: list, sentinels: [], observer: { image: mongo } },
@@ -513,6 +515,9 @@ export const openReplicaSetLab = async (set: ReplicaSet, backups = false): Promi
 export const STEADY = 20;
 /** This time is how long a run continues after its outcome, so that the record shows what came next. */
 export const TAIL_MS = 2_000;
+
+/** This function gives how long a run of a cell continues after its lift, in ms: the tail, and the watch of the cell. */
+export const afterLiftOf = (cell: Cell): number => TAIL_MS + (cell.watch === undefined ? 0 : valueIn(cell.watch, "s") * 1000);
 
 /** This function gives the arguments of the client of a replica set cell: each member, and the stream of writes. */
 export const replicaSetArgs = (cell: Cell, members: Readonly<Record<string, RunPart>>): string[] => {
@@ -658,7 +663,7 @@ export const replicaSetOnce = async (lab: ReplicaSetLab, cell: Cell, environment
     // the whole hold: a prediction that no failover occurs reads the set in each moment of it
     if (healing !== null) {
       await healed.catch(() => undefined);
-      await sleep(TAIL_MS);
+      await sleep(afterLiftOf(cell));
     }
   } finally {
     // each fault that is still on goes, and a killed server starts again

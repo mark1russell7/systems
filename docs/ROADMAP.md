@@ -1563,7 +1563,7 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 
 **The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
 
-**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate.
+**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate. Under its new gate, that cell gives 4 more counted runs, with 4, 3, 4 and 4 false deaths of 5 pauses. These runs hold the law, and the table above stays as it is.
 
 | Setting | T0 | Median failure time | Zone-loss runs in the band | False deaths in each run | Median failed requests outside |
 | --- | --- | --- | --- | --- | --- |
@@ -1584,11 +1584,11 @@ The kind page of the site shows the value of each counted run. A test of the sit
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-57
 - **Started:** 2026-11-04
-- **Shipped:**
+- **Shipped:** 2026-11-07
 - **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
 
 The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
@@ -1616,6 +1616,24 @@ This item changes a gate, thus the strategist reviews the plan. The result of SY
 - A floor refuses a cell that a load holds from its start.
 - The records of SYS-57 give the margin and the floor.
 - A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
+
+**The result.** Cells run [42384148667](https://github.com/mark1russell7/systems/actions/runs/42384148667) dispatched the pauses of 500 ms × 2 with the load pair, under the new gate.
+
+| Cell | Counted | Void | Reading |
+| --- | --- | --- | --- |
+| no load | 4 | 0 | each run passes the gate |
+| 1 CPU of planned load | 0 | 4 | 30 % to 32 % idle, against 51 % to 53 % needed |
+| 0.5 CPU of planned load | 0 | 4 | 49 % to 53 % idle, against 58 % needed |
+
+Thus the gate lets the heavy cell run, and it still refuses a load of half a core.
+
+The 4 counted runs give 4, 3, 4 and 4 false deaths of 5 pauses. This holds the law of SYS-57:
+
+- The pause of 1.2 s lives in each run.
+- The pauses of 4 s, 6 s and 9 s die in each run.
+- The pause of 2.2 s is in the open band of the law. It dies in 3 runs of 4.
+
+Each death comes 1.57 s to 2.40 s after the stop. 9 of the 14 claims of the prediction hit, with a Brier score of 0.1589. The miss same-four put a fixed count on the pause in the open band. The next band of a count gives a range for that pause.
 
 ## The systems of S1
 
@@ -1678,6 +1696,9 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - In CI, a close frame came up to 1.017 ms after its `drop` line. Two such drops failed their cells, with their times in the band. These are the runs 39390222333 and 39903020657 of the client repository.
 - The high bound of each drop by a heartbeat in WS and WST adds the same 1.5 ms. The other bands do not change.
 - The CI run 40123441278 holds 27 cells of WS and WST and measures 6. Its largest gap from a `drop` line to its act was 0.726 ms.
+- Correction, 2026-11-05 (SYS-99): green scheduled nights of this repository held three failing cells of this kind, and the check could not see them. The run 39094984746 held one, and the run 39897216424 held two.
+- Two of these three read 1.005364 s and 1.004087 s, outside the band of that day, [0.997, 1.004] s. They hold only through the wider high bound, [0.997, 1.0055] s. These nights came before the wider bound, so they do not test it. The third has its times in the band, and the pairing window alone fixes it.
+- The run 39903020657 of the client repository reads again with its times in the band of its day, and the head reads `holds`. The first try of the run 39390222333 failed and has no records left, so that half of the line above cannot be read again.
 
 ### WS-070 · The WebSocket cells on @procedures/client 0.7.0
 
@@ -1689,6 +1710,8 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/mark1russell7/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
+
+Correction, 2026-11-05 (SYS-99): this sentence is true of the run 39073727730. The next scheduled night, 39094984746, held one failing cell, and its check could not see that cell. Refer to the correction in the section WS.
 
 ### TOX · The toxics of Toxiproxy
 
@@ -2386,80 +2409,315 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42139463631), [#331](https://github.com/mark1russell7/systems/pull/331)
 
-`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the election.
+`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the step-down. [S3](S3.md#the-second-cell-sys-59) has each term, with its file and line in MongoDB r9.0.4.
+
+The law: the old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after the cut. Each write takes 50 ms to 72 ms. A cut of 3 s ends before each timer, so nothing diverges.
+
+| Cell | Concern | Hold | Lost writes | Failover | Recorded control |
+| --- | --- | --- | --- | --- | --- |
+| `T11.writes.1` | `w: 1` | 40 s | 135 to 202 | Yes | `T11.border-off.66`: median 195, max 196, 11 runs |
+| `T11.writes.2` | `w: "majority"` | 40 s | 0 | Yes | `T11.defaults.10`: 0, 11 runs |
+| `T11.writes.3` | `w: 1` | 3 s | 0 | No | None |
+
+The decision rule:
+
+- Each cell has 4 counted runs. A cell holds if each counted run is inside its band and has no finding.
+- A dispatch can repeat one time, for void runs or infrastructure runs only.
+- A code bug on the first run is a miss of the build.
+- The thresholds do not change after a result is read.
+
+The result (run 42139463631, 2026-11-06): each of the three cells holds. Each cell has 4 counted runs and no void run.
+
+- `T11.writes.1` lost 195, 195, 194 and 196 writes, median 195. Each lost set is one run of sequence numbers. The rollback log of the old primary counts the same writes.
+- `T11.writes.2` and `T11.writes.3` lost 0 writes. In `T11.writes.3`, the last ack comes 15 s after the cut, with no election.
+- The naive claim was false, as predicted: the cut of 3 s lost 0 writes, not 30 or more.
+
+A finding that is not a claim: at `w: "majority"`, the old primary rolls back 1 write in each run. It did not acknowledge that write, thus no acknowledged write is lost.
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42147415024](https://github.com/mark1russell7/systems/actions/runs/42147415024), [#336](https://github.com/mark1russell7/systems/pull/336)
 
-A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The T11 cells get a final read of the queue.
+A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The source of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 keeps those sentences and gives a tighter law:
+
+- A confirm comes after a commit on a majority, and each new leader holds each commit. Thus the lost messages are 0.
+- At a leader change, `rabbit_fifo_client` sends each pending command again with its number, and `rabbit_fifo` drops a repeat. Thus a leader change adds no copy while the channel lives.
+- A republish after a close goes on a new channel, thus through a new enqueuer. Each first copy that was applied gives one copy: W copies at one close.
+- A freeze of the node of the client leaves a race at the thaw, thus its band is [0, W].
+
+[S3.md](S3.md#the-law-of-sys-60-the-confirms) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Fault | Client | Lost | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- | --- |
+| `T11.confirms.1` | A transfer of the leader | On a follower, W 4 | 0 | 0, first confirm up to 0.196 s | None |
+| `T11.confirms.2` | A freeze of the node of the leader, 20 s | On a follower, W 4 | 0 | 0, first confirm 5.051 s to 12.003 s | None |
+| `T11.confirms.3` | The cut `to-clients`, 10 s | On the leader, heartbeat 2 s, W 1 | 0 | 1 | 3.89 s to 6.03 s |
+| `T11.confirms.4` | The cut `to-clients`, 10 s | On the leader, heartbeat 2 s, W 4 | 0 | 4 | 3.89 s to 6.03 s |
+| `T11.confirms.5` | The cut `to-clients`, 10 s | On the leader, default heartbeat, W 4 | 0 | 0 | None |
+| `T11.confirms.6` | A freeze of the node of the leader, 20 s | On the leader, heartbeat 2 s, W 4 | 0 | 0 to 4, election 5.051 s to 11.843 s | 3.89 s to 6.03 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The bands of lost messages and extra copies judge each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: a heartbeat of 2 s, a cut of 10 s and 4 writers.
+
+**The result.** In run 42147415024, each of the 6 cells holds with 4 counted runs and 0 void. No run loses a confirmed message.
+
+| Cell | Extra copies in each run | First `Error` from the fault |
+| --- | --- | --- |
+| `T11.confirms.1` | 0, 0, 0, 0 | None |
+| `T11.confirms.2` | 0, 0, 0, 0 | None |
+| `T11.confirms.3` | 1, 1, 1, 1 | 4.967 s to 4.980 s |
+| `T11.confirms.4` | 4, 4, 4, 4 | 5.752 s to 5.757 s |
+| `T11.confirms.5` | 0, 0, 0, 0 | None |
+| `T11.confirms.6` | 0, 0, 4, 0 | 5.753 s to 5.757 s |
+
+- The copies of `T11.confirms.3` and `.4` are exactly the publishes that the close failed.
+- One run of `T11.confirms.6` holds all 4 copies. Thus the band [0, W] is necessary.
+- The prediction: 12 of 15 claims hit, Brier 0.0927. [S3.md](S3.md#the-result-of-sys-60) has the details.
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61), [the run](https://github.com/mark1russell7/systems/actions/runs/42139841145), [#337](https://github.com/mark1russell7/systems/pull/337)
 
-The client cannot know the outcome of a COMMIT with no reply (DV-38). A final read splits those commits into two sets. A synchronous standby bounds the lost set.
+The client cannot know the outcome of a COMMIT with no reply (DV-38). The source of PostgreSQL 17.11 changes the plan in two ways. Two final reads split those commits into three sets: kept, stranded and absent. A synchronous standby bounds the lost set until a cancel: the cancel gives a WARNING, and then a reply with success (`src/backend/replication/syncrep.c:317`).
+
+The prediction came before the first dispatch. K is 4 writers. Each hold is 10 s.
+
+| Cell | The cut | Synchronous standby | Lost writes | No reply | Other bands |
+| --- | --- | --- | --- | --- | --- |
+| `T10.commit.1` | Each peer | No | 0 to 4 | 4 | 0 warnings |
+| `T10.commit.2` | Each peer | Yes | 0 | 4 | 0 warnings |
+| `T10.commit.3` | The standby | No | 567 to 804 | 4 | 0 kept, 0 warnings |
+| `T10.commit.4` | The standby | Yes | 0 | 4 | 0 absent, 0 warnings |
+| `T10.commit.5` | The standby, two cancels | Yes | 4 to 8 | 4 | 0 absent, 8 warnings |
+
+In each cell, the old primary holds each ack.
+
+**The decision rule.** A run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run or an infrastructure failure gets one more dispatch, alone. A code bug on the first run is a build miss. The thresholds do not change after any result is read.
+
+The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cell has 4 counted runs and no void run. Each run has 4 commits with no reply and 0 missing writes.
+
+- `T10.commit.1` lost 0, 0, 1 and 0 writes. `T10.commit.2` lost 0.
+- `T10.commit.3` lost 790, 790, 786 and 785 writes, median 788, with 0 kept.
+- `T10.commit.4` lost 0 writes, and each commit with no reply is stranded: 4 stranded, 0 absent.
+- `T10.commit.5` lost 8 writes in each run, the top of its band, with 8 warnings and 0 absent.
+- The two naive claims were false, as predicted: two cancels lose acks, and the stranded set is not empty.
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332), [the real-fault test, #376](https://github.com/mark1russell7/systems/pull/376)
 
-A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at most the commands in flight at each close, from the source of ioredis 6.0.0.
+A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
+
+- A resend adds a copy only if the first copy was applied and it survives. Thus the extra copies are W × c, with W commands in flight at each of c closes from `ready`, if the first copies survive.
+- No fault of T12 gives a copy at the defaults. The close must come from a timer of the client, while the server holds the first copy unread.
+- `socketTimeout` is that timer. Its doc comment says that the client rejects the running commands, and the close path keeps them for the resend.
+
+[S3.md](S3.md#the-law-of-sys-62-the-resend) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Hold | Client | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- |
+| `T12.resend.1` | 29 s | `socketTimeout` 1 s, W 1 | 1 | 0.938 s to 1.072 s |
+| `T12.resend.2` | 29 s | `socketTimeout` 1 s, W 4 | 4 | 0.938 s to 1.072 s |
+| `T12.resend.3` | 40 s, a failover | `socketTimeout` 1 s, W 4 | 0 | 0.938 s to 1.072 s |
+| `T12.resend.4` | 29 s | No timer, W 4 | 0, first write 29 s to 29.012 s | None |
+| `T12.resend.5` | 29 s | `socketTimeout` 1 s, resend off, `commandTimeout` 40 s, W 4 | 0 | 0.938 s to 1.072 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The band of extra copies judges each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s.
+
+**The result.** [Run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `T12.resend.1` makes 1 extra copy and `T12.resend.2` makes 4, the writes in flight at the close. The other three cells make 0. `socketTimeout` rejects no running command. With the resend off, 4 writes time out that the server kept. The prediction hit 12 of 14 claims, Brier 0.0983. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-62) has each run.
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue), [run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), [#326](https://github.com/mark1russell7/systems/pull/326)
 
 The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
 
+**The design.** Seven harness cells (`AQ.1` to `AQ.7`) use one listener that does not accept and one client of many connections. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient and a kind lab adds nothing. A new native program, `queue`, is the two ends. Its target reads the count of the queue from `TCP_INFO` each 5 ms, and the counters from `/proc/net/netstat`. The prober gives each SYN, each SYN-ACK and each retransmission.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners.
+
+- **The count.** [`sk_acceptq_is_full`](https://github.com/torvalds/linux/blob/v7.0/include/net/sock.h#L1097-L1100) compares with `>`, thus the queue holds the limit plus one. [`listen(2)`](https://github.com/torvalds/linux/blob/v7.0/net/socket.c#L1922-L1924) clamps the backlog to `somaxconn`.
+- **A SYN at a full queue.** The kernel [drops it](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L7679-L7682) with no answer. The client retransmits at 1, 2, 3, 4, 5, 7, 11, 19, 35 and 67 s, and it [gets ETIMEDOUT at 131 s](https://github.com/torvalds/linux/blob/v7.0/Documentation/networking/ip-sysctl.rst#L1061-L1067).
+- **A final ACK at a full queue.** With `tcp_abort_on_overflow` 0, the target [keeps the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L947-L955) and drops the ACK. The client is `ESTABLISHED` and the target has no connection. With 1, the target sends a reset.
+- **The SYN-ACK ladder.** The target [sends the SYN-ACK again](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1099-L1107) at 1, 3, 7, 15 and 31 s. It [forgets the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1139-L1141) at 63 s.
+- **The answer of the client.** A SYN-ACK at an `ESTABLISHED` socket gets a [challenge ACK](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L6472-L6476). That ACK is a new final ACK, thus a place in the queue recovers the connection.
+- **After the expiry.** A segment of the client [meets the listener](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L1907-L1915) and gets a reset.
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `AQ.1` to `AQ.3` is exact. The timer bands use the document of Linux TCP and the timer wheel at the HZ of the runner.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
+
+**The result.** [Run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), the first dispatch, holds all 7 cells with 4 counted runs each and 0 void. The kernel is 7.0 at HZ 1000.
+
+| Cell | What each run measured |
+| --- | --- |
+| `AQ.1` | The queue holds 5 at a backlog of 4, with 2 overflows. |
+| `AQ.2` | `somaxconn` 8 clamps a backlog of 511, and the queue holds 9. |
+| `AQ.3` | A backlog of 0 holds 1. |
+| `AQ.4` | 10 SYN retransmissions, each wait inside its band, then `ETIMEDOUT` at 134.430 s to 134.716 s, with 11 overflows. |
+| `AQ.5` | The client connects, and it gets 5 SYN-ACKs. The target forgets the request at 63.802 s to 64.017 s. A send at 70 s meets a reset 20 ms later. |
+| `AQ.6` | With `tcp_abort_on_overflow` 1, a reset comes 20 ms after the connect. 2 resets, 3 overflows. |
+| `AQ.7` | A drain at 2.5 s recovers each connection, and the count gets back to 4 at 3.077 s to 3.099 s. 12 overflows. |
+
+- A client with data in flight learns at its first retransmission after the expiry, 114.208 s to 117.684 s after its dial.
+- No cell sends a SYN cookie.
+- The prediction hit 11 of its 12 claims, with a Brier score of 0.0869. The miss is the build claim: a fix from the checks of the PR came before the dispatch. It removed a parameter that the queue measure did not read.
+
+### SYS-103 · A declared listen backlog
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** SYS-63
+- **Started:**
+- **Shipped:**
+- **Links:** [the result of SYS-63](#sys-63--the-accept-queue-its-count-and-what-a-client-sees), [the cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
+
+The HTTP transport of the service calls `server.listen` with the options of the caller, and it sets no backlog. The host of procedures gives only a port and a host. Thus each server gets the default of Node, 511, and `somaxconn` clamps it.
+
+SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, or it gets a reset with `tcp_abort_on_overflow` 1. This item adds a declared backlog to the listener of the service. Its default keeps the old behavior. The cells `AQ.1` to `AQ.7` are its test: a server of the service with a declared backlog gives the count of the law.
+
 ### SYS-64 · The port range: its count and its error
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-07
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/mark1russell7/systems/pull/339), [main CI 42381495516](https://github.com/mark1russell7/systems/actions/runs/42381495516)
 
-`connect` fails with `EADDRNOTAVAIL` at the size of `ip_local_port_range`, for one destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+`connect` fails with `EADDRNOTAVAIL` when the range has no port for that destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+
+**The design.** Seven harness cells (`PR.1` to `PR.7`) use one client in a small range and one target that accepts each connection. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient. A new native program, `ports`, is the two ends. In each round the client connects until a connect fails, and it writes each port that it got.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners. The source changes the plan in two ways. The count is the size of the range only for an even size. TIME_WAIT holds a port only at one side.
+
+- **The search.** `__inet_hash_connect` [rounds the size down to an even number](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1066-L1072). It [starts from an even offset](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1076-L1090) and takes steps of 2. Then it [tries the other parity, and it gives `EADDRNOTAVAIL`](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1146-L1151).
+- **An even range.** The two passes reach each port. Thus one destination gets the size of the range.
+- **An odd range.** Each pass makes half of the rounded size of tries, over one port more on the first pass. Offset 0 does not reach the top port, and each other start does not reach the low port. A range of 3 gives 2. A range of 5 gives 4 or 5, and the [random step after each connect](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1175-L1176) sets the share: 45/256 of the rounds give 4.
+- **TIME_WAIT.** The port stays held at the side that closes first, for [60 s](https://github.com/torvalds/linux/blob/v7.0/include/net/tcp.h#L142) from [the FIN of the peer](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L175-L182), plus the timer wheel. With `tcp_tw_reuse` 1, a connect [takes the port after 1000 ms](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L168-L171). The default of 2 is [for loopback only](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L130-L154).
+- **The other ways to close.** A reset holds nothing. If the target closes first, the client holds no port, and a new SYN [passes the TIME_WAIT of the target](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L253-L262).
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `PR.1`, `PR.2` and `PR.4` is exact. The band of the share in `PR.3` is 5 standard deviations of 400 rounds. A seeded simulation of the search gave a spread of 0.0192 for that share, against 0.0190 for independent rounds.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
+
+**The result.** [Run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), the first dispatch, gives 6 of the 7 cells with 4 counted runs each and 0 void. The client of `PR.2` did not start: its control connection held one of the 2 ports. The fix closes that connection with a reset. [Run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142) gives `PR.2` alone. The kernel is 7.0 at HZ 1000.
+
+| Cell | Decision | What each run measured |
+| --- | --- | --- |
+| `PR.1` | holds | Each of the 50 searches gives 16 ports, then `EADDRNOTAVAIL` within 0.000063 s. The first 8 ports have the parity of the low port. |
+| `PR.2` | holds | Each search gives 2 ports, at offsets 0 and 1. The top port stays free. |
+| `PR.3` | holds | Searches give 4 or 5 ports, over each of the 5 offsets. The share of 5 is 0.8000 to 0.8300, against 0.8242 from the search. |
+| `PR.4` | holds | Each search gives 16 ports to each of the 2 destination ports. |
+| `PR.5` | holds | All 4 ports come back 60.292 s to 60.885 s after the closing line. 5965 to 6021 connects fail before. |
+| `PR.6` | holds | With `tcp_tw_reuse` 1, all 4 ports come back 1.0083 s to 1.0087 s after the closing line. |
+| `PR.7` | fails | 3 of 4 runs give 4 ports in each of the 10 searches, with 0 retransmissions. |
+
+- In one run of `PR.7`, searches 4 to 7 give 3 ports. Port 40003 was in `LAST_ACK`: the client closes second, and its FIN had no ACK. The port came back after one retransmission of that FIN. The record does not show why the ACK was absent.
+- Thus the side that closes second also holds its port, until the peer acknowledges its FIN. The law of `PR.7` lacks that term. [SYS-102](#sys-102--the-port-that-last_ack-holds) adds it with a new prediction.
+- The prediction hit 9 of its 13 claims, with a Brier score of 0.0923. Two misses are the naive claims, and each was false, as predicted. The other misses are the build claim and the claim of `PR.7`.
+
+### SYS-102 · The port that LAST_ACK holds
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-64
+- **Started:**
+- **Shipped:**
+- **Links:** [the result of SYS-64](#sys-64--the-port-range-its-count-and-its-error)
+
+The side that closes second holds its port in `LAST_ACK` until its FIN has an ACK. One run of `PR.7` showed this hold, and the law of `PR.7` has no term for it. This item writes that term into the law, with the bound of the retransmission timeout. A new cell then drops the ACK on purpose, thus each run shows the hold. A new prediction comes before its dispatch, and `PR.7` keeps its old record.
 
 ### SYS-65 · A pool at its limit
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [the PgBouncer run](https://github.com/mark1russell7/systems/actions/runs/42140605157), [#328](https://github.com/mark1russell7/systems/pull/328), [#330](https://github.com/mark1russell7/systems/pull/330)
 
-Above the size of the pool, the wait grows with the queue, and a client fails at `connectionTimeout`. HikariCP and PgBouncer are in the harness.
+Above the size of the pool, the wait grows with the queue. A client fails at `connectionTimeout` in HikariCP, or with FATAL 08P01 at `query_wait_timeout` in PgBouncer. HikariCP and PgBouncer are in the harness.
+
+The design: the client of HikariCP sends a burst, one query each 50 ms, each on its own thread. Each query is a band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+
+The prediction: five cells, `Q19.pool.1` to `Q19.pool.5`. In the table, a pool of `P` gets `M` queries of `H` seconds.
+
+| Cell | `P` | `M` | `H` | `connectionTimeout` | Replies | Failures |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Q19.pool.1` | 2 | 2 | 1 s | 30 s | 2, with no queue | 0 |
+| `Q19.pool.2` | 2 | 6 | 1 s | 30 s | 6, in 3 rounds | 0 |
+| `Q19.pool.3` | 3 | 7 | 1 s | 30 s | 7, in 3 rounds | 0 |
+| `Q19.pool.4` | 2 | 8 | 1 s | 2.25 s | 6 | 2, at the timeout |
+| `Q19.pool.5` | 2 | 8 | 12 s | 30 s | 6 | 2, at the timeout |
+
+The rule: each cell has 11 runs, and each query has its own band. A query in a band of another round fails the law, not the noise. The bands do not change after a result.
+
+The result of HikariCP (run 42140281705, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each query acks in its own band, and the rounds come in their order in each run. With holds of 1 s, each ack is 1.5 ms to 7.4 ms after the time of the law. With holds of 12 s, it is 2.9 ms to 39.5 ms after it.
+- `Q19.pool.4` fails queries 8 and 9 at 2.553 s and 2.600 s, and `Q19.pool.5` fails them at 30.303 s and 30.350 s. Query 7 still gets its reply after them.
+- The queue reaches `M - P` with each connection in use, and the pool does not grow.
+
+The PgBouncer half: five cells, `Q19.pool.6` to `Q19.pool.10`. HikariCP has one connection for each query, thus PgBouncer 1.26.1 has the queue. In the table, `P` is `default_pool_size`. The column `Check` tells if a borrow has the check of HikariCP. An option of the lab sets the window of that check to one hour, so that the first cells measure the queue alone.
+
+| Cell | `P` | `M` | `H` | `query_wait_timeout` | Check | Replies | Failures |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Q19.pool.6` | 2 | 2 | 1 s | 120 s | no | 2, with no queue | 0 |
+| `Q19.pool.7` | 2 | 6 | 1 s | 120 s | no | 6, in 3 rounds | 0 |
+| `Q19.pool.8` | 3 | 7 | 1 s | 120 s | no | 7, in 3 rounds | 0 |
+| `Q19.pool.9` | 2 | 6 | 1.5 s | 2 s | no | 4 | 2, FATAL 08P01 |
+| `Q19.pool.10` | 2 | 6 | 1.5 s | 2 s | yes | 6, in 3 rounds | 0 |
+
+The law has one term for each check. In `Q19.pool.10` a queued query waits in its check, and then in its query. `query_wait_timeout` counts each wait from zero, thus the failures of `Q19.pool.9` do not occur. The queries come back from their checks approximately one round trip apart, thus their order is not a prediction. Each of them has the band of the whole set, and the end of the burst has the sharp band.
+
+A failure after a check has no cell. A failed check is hidden from the client: the borrow closes the connection and tries the next one. The law has no band for it, thus `turnsOf` refuses such a spec.
+
+An assumption with no source: the first use of a server adds up to 30 ms (`SERVER_LOGIN_MS`). The other assumptions are the ones of the documents.
+
+The rule of the PgBouncer half: the prediction `sys-65-bouncer` came before any run, and its thresholds do not change. The first 4 counted runs of each cell decide. A void run or an infrastructure failure gets one more dispatch. A code bug on the first run is a build miss.
+
+The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells holds. Each cell has 11 counted runs and no void run.
+
+- Each ack of `Q19.pool.7` and `Q19.pool.8` is inside its band, 143 of 143. The rounds come in their order in each run.
+- The queue is in PgBouncer, not in HikariCP: each pool line has each connection in use and no wait.
+- `Q19.pool.9` fails queries 6 and 7 with FATAL 08P01 at 2.351 s to 2.419 s, in one pass of the janitor. Queries 4 and 5 get their replies after them.
+- `Q19.pool.10` has no failure in 11 of 11 runs. Its queued queries come back in 2 rounds, and the burst ends at 4.559 s.
+- The prediction hit 12 of its 13 claims, with a Brier score of 0.1397. The miss is the naive claim, false as predicted.
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
@@ -2474,14 +2732,24 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-05
+- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/mark1russell7/systems/actions/runs/42101390324), [#325](https://github.com/mark1russell7/systems/pull/325)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
+
+The design: one target process holds a chain of listeners on loopback, each with a real retry client. Each listener writes a line for each arrival, with the trail of the tries above it. Thus each term is visible, and a loaded runner cannot move a count.
+
+The law: the target sees the product of the tries of each caller. A `RetryAgent` of undici 8.12.2 gives 6 tries (`lib/handler/retry-handler.js:125-133`, `:348`, `:380`). A method or a status out of its lists gives 1 (`:332`, `:338`). The `Transport` of Go 1.27.2 gives 1 for a status, and 2 for a GET that meets a close on a reused connection (`src/net/http/transport.go:727-737`, `:858`, `:877-881`). `retry` of service 0.6.5 gives its `tries` (`packages/service/src/retrier.ts:121-125`).
+
+The prediction: nine cells, `T14.count.1` to `T14.count.9`, with 6, 36, 36, 108, 6, 1, 6, 36 and 2 arrivals at the target. Each listener has its own exact count.
+
+The rule: each cell has 4 counted runs. A void or infrastructure run gets one more dispatch, and the first counted runs count. A count that differs in a counted run fails its cell. The counts do not change after a result.
+
+The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cell has 4 counted runs and no void run. Each run gave the exact count at each listener, thus the law holds at each hop.
 
 ### SYS-68 · An open-loop load schedule
 
@@ -2520,66 +2788,120 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-71 · Kafka: the writes at each `acks`
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), [#338](https://github.com/mark1russell7/systems/pull/338)
 
-`acks=1` loses the writes that no follower has. `acks=all` with `min.insync.replicas` 2 and idempotence loses none and duplicates none. This item adds Kafka to the set, with a new group of three brokers.
+This item adds Kafka to the set, with a new group of three brokers and one controller. The plan said that `acks=1` loses the writes after the high watermark, and that `min.insync.replicas` 2 makes `acks=all` safe. The source of Apache Kafka 4.3.2 gives a different law:
+
+- `acks=1` loses each write after the end of the new leader's log at its election. The old leader has no timer that stops it, thus the count reads the hold.
+- `acks=all` loses none and duplicates none. A cut leader cannot shrink its in-sync replicas, thus `min.insync.replicas` is not the reason.
+
+[S3.md](S3.md#the-law-of-sys-71-the-writes-at-each-acks) has each term with its file and line.
+
+| Cell | `acks` | Minimum | Writers | Hold | Failover | Lost writes | Copies |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `K1.acks.1` | 1 | 2 | 1 | 20 s | Yes | 321 to 440 | Not read |
+| `K1.acks.2` | 1 | 2 | 1 | 40 s | Yes | 644 to 840 | Not read |
+| `K1.acks.3` | 1 | 2 | 1 | 3 s | No | 0 | Not read |
+| `K1.acks.4` | all | 2 | 4 | 20 s | Yes | 0 | 0 |
+| `K1.acks.5` | all | 1 | 4 | 20 s | Yes | 0 | 0 |
+
+The decision rule: a run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run, or a run that fails for an infrastructure reason, is dispatched again once, alone. A code bug on the first run is a build miss. The band of each cell judges it, and no threshold changes after a result is read.
+
+Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a cell with that band cannot fail.
+
+**The result.** [Run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `K1.acks.1` loses 392 to 404 writes, and `K1.acks.2` loses 783 to 795. `K1.acks.3` to `K1.acks.5` lose 0, and `acks=all` makes 0 copies. The last lost write is acked 0.47 s to 1.18 s after the lift. The prediction hit 11 of 13 claims, Brier 0.1463. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-71) has each run.
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-71
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-07
+- **Links:** [#360](https://github.com/mark1russell7/systems/pull/360)
 
-The group rebalances at `session.timeout.ms`, and a stale commit fails with a fenced error (T13).
+The source at the tag 4.3.2 changes the first sentence of this item. In the consumer protocol the session is a setting of the broker, `group.consumer.session.timeout.ms`, not of the client. A commit after the fence gets UNKNOWN_MEMBER_ID, not a fenced error, and the client throws `CommitFailedException`.
+
+The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation.
+
+**The result.** The law holds. [Cells run 42384698068](https://github.com/mark1russell7/systems/actions/runs/42384698068) gave 4 counted runs for each of the 5 cells, with 0 void. Each cell holds.
+
+| Cell | Fence | Takeover | Commit at the thaw |
+| --- | --- | --- | --- |
+| `K2.pause.long` | 43.980 s to 43.991 s | 44.023 s to 49.064 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.setting` | 13.968 s to 13.983 s | 18.915 s to 19.031 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.classic` | 13.997 s to 13.998 s | 16.901 s to 16.919 s | `CommitFailedException`, the group rebalanced |
+| `K2.pause.short` | none | none | acknowledged, the epoch stays the same |
+| `K2.pause.rejoin` | 43.986 s to 43.993 s | 44.023 s to 44.281 s | acknowledged at a new epoch |
+
+In each run of `K2.pause.rejoin`, the new epoch comes 0.027 s to 0.030 s after the thaw. The stale commit of offset 60 is acknowledged. The committed offset moves back to 60, below 1000, the progress of the other member.
+
+Two readings go into the next band:
+
+- Each fence comes approximately 1 s before the stop plus the session. The session starts at the last heartbeat before the stop.
+- The other member reports the partition at the fence, or one heartbeat later.
+
+The prediction gives 14 of 14 law claims and 0 of 4 naive claims, with a Brier score of 0.0722.
 
 ### SYS-73 · etcd: a lock holder past its lease
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
-- **Depends on:** SYS-58
+- **Depends on:** SYS-74
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42103497696), [#329](https://github.com/mark1russell7/systems/pull/329)
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
 
+The cells `EL.1` to `EL.11` test the band of the end, the floor of the TTL, a promotion and the live control. They also test the stale write, the fence and a waiter that lost its lease. The target has its own etcd, thus this item does not need the Valkey work of SYS-58. It needs only the order after SYS-74, because it copies the frame of that target.
+
+The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each cell has 4 counted runs and no void run, and each run gave the exact counts of its law. The item merged after SYS-74 (#329, 9dd214e), because its branch was on the branch of SYS-74.
+
 ### SYS-74 · etcd: a watcher after a compaction
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
-- **Depends on:** SYS-73
+- **Depends on:** SYS-67
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/mark1russell7/systems/pull/327)
 
-A resume from a compacted revision fails with a compaction error (DV-44).
+A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
+
+The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error. The item merged as #327 (dad2547).
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
-- **Started:**
+- **Started:** 2026-11-06
 - **Shipped:**
 - **Links:**
 
-A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
+A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. SYS-73 and D-CHECKER are done, thus nothing blocks this item.
+
+The work has three steps, each in its own PR:
+
+1. The checker: a program in Go over Porcupine v1.3.1, with a register for each key. It reads a history of JSON lines and prints one verdict line. CI runs its format check, its vet and its tests. It imports nothing from this repository, thus it can move whole to `mark1russell7/rigor`.
+2. A cluster of etcd in the harness: three members, each in its own network namespace, as the replica set of MongoDB. Thus the partition faults of a group act on one member, and its clients stay connected to it.
+3. The cells: clients write and read through each member, with linearizable reads and with serializable reads, before, during and after the partition of one member. The target gives its history to the checker, and the prediction comes before the first dispatch.
+
+The cluster is a group of the harness and not three members in one container. In one namespace the members share the loopback device, thus a cut of one member needs a rule for each process. The groups of the harness already have the faults, and each part has its own namespace.
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-05
-- **Shipped:**
+- **Shipped:** 2026-11-07
 - **Links:** [SYS-76](#sys-76--the-environment-of-a-record)
 
 The 12 open cell branches come from before SYS-76. A run from such a branch gives a record with no environment, and rule 1 of `docs/S7.md` asks each record to name its environment. Thus each branch takes main before its dispatch.
@@ -2604,6 +2926,8 @@ The work:
 - SYS-66 follows SYS-63, and SYS-72 follows SYS-71. Each needs a dispatch of its own.
 
 This item is done when each of the 7 dispatches gives a record that names its environment.
+
+The 7 dispatches ran, and each of their 11 items shipped from its records by 2026-11-07. SYS-66 and SYS-72 took main on 2026-11-07, and each started its own dispatch.
 
 ## The items of S7
 
@@ -2795,12 +3119,14 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
-| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
-| Closed loop, reply times | 13 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
-| Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+| One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 | Open loop | 4 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
+
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
 
 The closed-loop families:
 
@@ -2811,6 +3137,12 @@ The closed-loop families:
 | E3.F1 | 1 | Reply times |
 | OL.aa | 1 | Reply times |
 | OL.freeze | 1 | Reply times |
+| T10.commit | 5 | First write |
+| T11.writes | 3 | First write |
+| T12.resend | 5 | First write |
+| T11.confirms | 6 | First write |
+| K1.acks | 5 | First write |
+| K2.pause | 5 | Reply times |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |
@@ -2995,7 +3327,133 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 - **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
 - **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
 
+### SYS-99 · The scheduled cells can fail on a failing cell
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** WS, SYS-94
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+
+The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
+
+- **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
+- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
+- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+- **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
+- **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
+
+This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
+
+- Seven of these nights came before the wider bound of the section WS, thus they do not test it. Two failing cells of these nights hold only through that bound.
+- The 12 nights after the run 40123441278 have no failing cell as written. Zero of 12 bound the rate of false blocks only near 22 percent, at 95 percent confidence.
+- A slowdown of 1.5 x from the slowest run turns 22 of the 27 timed cells red. The 5 other cells read 0.04 ms to 0.12 ms against a band top near 5 ms. Their slack is approximately 5 ms, thus they hide no large slowdown.
+
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
+
+### SYS-100 · A flip test for each gate check of a measure
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:**
+- **Started:** 2026-11-05
+- **Shipped:** 2026-11-05
+- **Links:** [the run of the 22 flips](https://github.com/mark1russell7/systems/actions/runs/41990179106), [pull request](https://github.com/mark1russell7/systems/pull/365)
+
+A gate check of a measure can pass for a reason that is not the measure. A flip test shows that the check can fail. In one job, the test passes on the copy with no fault. Then one source fault of a stated size turns the same test red on its named assertion. A crash does not count as a red.
+
+The workflow `flip.yml` holds these faults. It starts at a change to a fault site or to a test of a bound, and at a weekly run.
+
+| Check | Bound | Fault | Result of the fault | Bound of the test |
+| --- | --- | --- | --- | --- |
+| Redis OK | request timeout, high | 2 x the timeout | 4 s | 3.5 s |
+| Redis OK | request timeout, low | half the timeout | 1 s | 1.9 s |
+| Redis OK | close at the shutdown | 3 x the bound of the QUIT | approximately 800 ms | 350 ms |
+| Redis OK | trip of readiness, late, 5 rows | 2 polls late | 4.2 s or more | 4.05 s |
+| Redis OK | trip of liveness, late, 5 rows | 2 s late | 5.8 s or more | 4.65 s |
+| Redis OK | trip of readiness, early | at the first failure | 1.2 s at the most | 1.55 s |
+| Redis OK | trip of liveness, early | 2 s early | 2.2 s at the most | 2.95 s |
+| Redis OK | release of readiness | 6 polls late | 4.8 s or more | 4 s |
+| Redis OK | release of liveness | 5 s late | 5 s or more | 4 s |
+| Redis OK | first failure of a check that only reports | 2 s late | 2 s or more | 1.65 s |
+| HTTP OK | idle close, high | 2 s late | 4 s | 2.3 s |
+| HTTP OK | idle close, low | 1 s early | 1 s | 1.85 s |
+| HTTP OK | close of an idle connection at the stop | at the first sweep | 200 ms | 150 ms |
+| HTTP OK | sweep | 3 x its interval | 600 ms | 350 ms |
+| HTTP OK | hold of a phase | half its cap | 150 ms | 295 ms |
+| HTTP OK | cut at the deadline of the drain | 2 x the cap of a phase | 3 s | 1.65 s |
+| HTTP OK | drain of a worker, late | 1 s past the deadline | deadline + 1 s | deadline + 100 ms |
+| HTTP OK | drain of a worker, early | 500 ms before the deadline | deadline - 500 ms | deadline - 100 ms |
+| HTTP OK | cooperative abort of a worker | the signal does not arrive | no abort | 100 ms |
+| HTTP OK | close of a worker | 2 s late | 2 s | 1 s |
+| Process OK | timeout of a command | 40 x the timeout | 40 s | 30 s |
+| Process OK | timeout of a status read | 20 x the timeout | 20 s | 15 s |
+
+The first flip found a defect of the test. The shutdown of the F6 matrix had a bound of 2,050 ms, and the caps of the phases hold a slow close to 2 s. A close of 3 x its bound stayed green at 806 ms. Six green runs read 306 ms to 312 ms, thus the bound is the bound of the close and the noise of the test: 350 ms.
+
+In [run 41990179106](https://github.com/mark1russell7/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
+
+The method of the bound of 350 ms: the design gives it (a close of 300 ms and a noise of 50 ms), and the runs check it. The worst of the seven runs plus their spread is 312 ms + 6 ms = 318 ms, thus the margin is 32 ms. The run numbers stand next to the bound in `f6-redis.test.ts`.
+
+A scheduled Flip run that fails stops each claim on these bounds until its owner reads that run.
+
+This item does not cover the checks of the scheduled cells. SYS-99 holds these.
+
+The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
+
+These assertions have no flip:
+
+- The `steady` assertion of a check that only reports. It is not a time bound.
+- The other cases of the conformance kit on the real clock. They read counts and order, and the mutants of `conformance.test.ts` hold the kit on the fake clock.
+- The bounds of the HTTP test that are not time bounds, for example status codes and headers.
+
+### SYS-101 · A 30-day limit for the studies of the site that depend on current code
+
+- **Status:** in progress
+- **Area:** site
+- **Depends on:** SYS-99
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368), [the pins of a record (#370)](https://github.com/mark1russell7/systems/pull/370)
+
+A page with a fixed study has no age limit today. Thus a page can show old numbers about code that changed. This item gives each study an age limit of 30 days and a scheduled refresh inside that limit. The study can drop the limit only if its numbers do not depend on current code. The stamp and the text of the page then say this.
+
+The word "current" needs a test, because each dated study can say that its numbers came from older code. A study does not depend on current code only if both of these are true:
+
+- No run of current code can reproduce its numbers.
+- The page makes no claim about the current code.
+
+This is the first read of the 17 pages, from their text, their data files and their imports. No cell operated for this read.
+
+| Pages | Why | Limit |
+| --- | --- | --- |
+| `results/kind`, `results/faults`, `results/topologies`, `results/r3` | The subject is code of this repository: the service, or the TCP client of the harness. The page `results/r3` is read only from its first rows. | 30 days |
+| `results/sentinel`, `results/http`, `results/mongodb`, `results/pg`, `results/rabbitmq`, `results/grpc`, `results/mesh` | The subject has a pinned version, but the driver, the prober and the bands of the catalog are code of this repository. | 30 days |
+| `results/calibration` | Its text says that stage 0 occurs again after each change. | 30 days |
+| `results/timers` | The rule for a void run is in the current harness. | 30 days |
+| The home page, `lab/detection` | The band comes from the current algebra at each build, beside the runs of 2026-10-08. | 30 days |
+| `results/harness`, `results/cells` | These are records of one lab machine, on kernel 6.6 at HZ 250. Their Q cells are not in the catalog, thus no run can reproduce them. The text says that they are history and links to `results/faults`. | none |
+
+These commits came after 2026-10-17: 55 in the machines, 33 in the image of the harness and 9 in the algebra. The verdict has 5 and the prober has 4. The kernel of the runner also changed from 6.17 to 7.0. Thus the first refresh can fail some cells. Each failure is a finding, and no band gets wider to hide it. A prediction comes before the first dispatch.
+
+The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2. Four weekly rounds at 3 jobs take approximately 12 hours each.
+
+The order of the work:
+
+1. By 2026-11-14: the schedule, the commits in the stamps, and the public text of the limit.
+2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
+3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
+
+The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
+
+A study needs records that pin their programs, because a refresh must operate the same programs. A record needs the commit of the harness, the digest of each image and the version of each client library. Without them, it is not a record. A commit with changes to tracked files is not a pin.
+
+- **Part 1 (#370, merged).** Each record has its commit, and each image of the harness has its build record. Each line of `summary.ndjson` gives the problems of its pins.
+- **Part 2.** The writer of the cells fails a record with a problem, and the run exits with 1. The read of a schedule refuses it too. Its flip has two more copies: a target by the tag `redis:7.4` with no digest, and a checkout with changes. Each exits with 1. A local debug run (`CELLS_DEBUG=1`) marks its records, and no page reads them. Part 2 merges after one night gives an empty list of problems for each record.
+- The old records that have only a tag stay. A read gives them the form "old form, no pin".
+- The records of `kind.yml` have their own writer. They get the same refusal with the check of SYS-99 in that workflow.
 
 ## Decisions for Mark
 

@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Cell, DriverBand, KernelRecord, LineMatch, ProbeEvent, Reference, Run } from "./cell.ts";
+import type { Cell, DriverBand, KernelRecord, LineCount, LineMatch, ProbeEvent, Reference, Run } from "./cell.ts";
 import { requestFirst } from "./cell.ts";
 import type { Measured, Outcome } from "./observe.ts";
 import { INJECT, delayVoids, noiseOf } from "./verdict.ts";
@@ -50,6 +50,18 @@ export const fieldOf = (line: unknown, path: string): unknown =>
 /** This function tells if a line of the client matches a line match: its `ev`, and each field that the match names. */
 export const matches = (line: ProbeEvent, match: LineMatch): boolean =>
   line.ev === match.ev && Object.entries(match.where ?? {}).every(([path, value]) => fieldOf(line, path) === value);
+
+/** This function gives the count of the lines that match. */
+export const countOf = (lines: readonly ProbeEvent[], match: LineMatch): number => lines.filter((line) => matches(line, match)).length;
+
+/** This function gives the finding of the line counts of a run, or null when each count is the exact one. */
+export const countFinding = (counts: readonly LineCount[], lines: readonly ProbeEvent[]): string | null => {
+  const off = counts.flatMap((each) => {
+    const seen = countOf(lines, each.match);
+    return seen === each.count ? [] : [`${each.what}: ${seen} lines, and the law gives ${each.count}`];
+  });
+  return off.length === 0 ? null : off.join("; ");
+};
 
 /** This function says a line match in words, for a finding. */
 export const wordsOf = (match: LineMatch): string => {

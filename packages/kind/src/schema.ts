@@ -142,7 +142,7 @@ const manifest = z.object({
   }),
   images: z.record(z.string(), z.string()),
 });
-const load = z.object({ t: z.number(), idle: z.number(), top: z.array(z.string()), foreign: z.array(z.string()) });
+const load = z.object({ t: z.number(), idle: z.number(), top: z.array(z.string()), foreign: z.array(z.string()), needed: z.number().optional() });
 
 /**
  * This function gives the schema of a record whose amounts have one form. The schema `a` is for a
@@ -234,6 +234,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       })
       .optional(),
     pulsar: z.object({ clients: count, probe: time }).optional(),
+    plannedLoad: z.number().optional(),
   });
   const facts = z.object({
     failures: count,

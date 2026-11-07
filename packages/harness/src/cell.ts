@@ -342,6 +342,92 @@ export interface Cluster {
 }
 
 /**
+ * A Kafka group is a group of brokers of Apache Kafka in KRaft mode with one controller, as data.
+ * Each node is a container from the same stock image, pinned by digest, in its own network namespace.
+ * Each run makes one new topic with one partition, with a replica on each broker. The client is the
+ * producer of kafka-clients, and it writes a stream of sequence numbers to that partition.
+ * The one controller keeps a Raft election out of each run. A fault on a broker cuts it from the
+ * controller too, and no fault acts on the controller.
+ */
+export interface Kafka {
+  /** This image is the stock image of each node, pinned by digest. */
+  readonly image: string;
+  /** These are the names of the brokers. A broker's node id is its place in this list, from 1. The first broker is the first leader. */
+  readonly brokers: readonly string[];
+  /** This name is the name of the controller. Its node id comes after the ids of the brokers. */
+  readonly controller: string;
+  readonly port: number;
+  readonly controllerPort: number;
+  /** This text is the id of the cluster: 16 bytes in base64url without padding. */
+  readonly clusterId: string;
+  /** This text is the value of KAFKA_HEAP_OPTS of each node. */
+  readonly heap: string;
+  /** These are server properties of each node, by their names in Kafka: for example `broker.session.timeout.ms`. */
+  readonly settings: Readonly<Record<string, string>>;
+  /** This line tells that a node serves. */
+  readonly ready: string;
+  /** This count is the setting `min.insync.replicas` of the topic of each run. */
+  readonly minInsync: number;
+  /** This count is the number of writers of the client, each with one write at a time. */
+  readonly writers: number;
+  /** This record makes each run a run of two members of a consumer group, with one member stopped. Without it, the client is a producer. */
+  readonly pause?: KafkaPause;
+}
+
+/**
+ * A Kafka pause is one run of two members of a consumer group, on a topic with two partitions. The
+ * fault stops the process of the first member while it holds a batch, and the hold of the cell ends
+ * that stop. Each setting of a member comes from `Cell.driverOptions`.
+ */
+export interface KafkaPause {
+  /** This name is the protocol of the group: the broker keeps the session under `consumer`, and the client sets it under `classic`. */
+  readonly protocol: "consumer" | "classic";
+  /** This time is how long the first member holds each batch before it commits. */
+  readonly process: Quantity;
+  /** This choice is what the first member does after the stop. It commits at once, or it polls until it has a new epoch and then commits. */
+  readonly afterPause: "commit" | "rejoin";
+  /** This count is the number of records in each partition before the members start. */
+  readonly fill: number;
+  /** This time is from the start of the processing of a batch to the stop. */
+  readonly stopAfter: Quantity;
+}
+
+/** A pause band is the band of one time of a paused consumer, from the stop. */
+export interface PauseBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * A pause prediction is the law of a paused consumer. A null fence tells that the stop is too short.
+ * The group then does not fence the member, and the other member does not get its partition.
+ */
+export interface PausePrediction {
+  readonly fence: PauseBand | null;
+  /** This band is the first report of the partition by the other member. Null tells that this cell has no band for it. */
+  readonly takeover: PauseBand | null;
+  /**
+   * This choice is the result of the commit after the stop:
+   * - `fails`: a commit before any poll fails with `CommitFailedException`.
+   * - `acknowledged`: the commit succeeds, and the epoch of the member does not change.
+   * - `rejoin`: the member gets a new epoch, the same commit succeeds, and the committed offset moves back.
+   */
+  readonly thaw: "fails" | "acknowledged" | "rejoin";
+  /** This time bounds the new epoch of `rejoin`, from the end of the stop. */
+  readonly rejoinWithin?: Quantity;
+}
+
+/** A run pause is what a run of a paused consumer records beyond the lines of the stopped member. */
+export interface RunPause {
+  /** These are the lines of the other member. */
+  readonly other: readonly ProbeEvent[];
+  /** These are the log lines of the brokers that tell that a member left this group. */
+  readonly fences: readonly string[];
+  /** This name is the group of the run. */
+  readonly group: string;
+}
+
+/**
  * A cluster stage is one step of the timeline of a cluster after a fault. A line of the log of a
  * node marks it, or a line of the client. These are the stages:
  * - `monitor-down`: a follower sees the process of its leader go down.
@@ -365,10 +451,12 @@ export type GroupRole = "primary" | "replica" | "sentinel";
  * - `clients`: the clients, but not the group.
  * - `one`: one other member, in both directions.
  * - `one-way`: one other member, for the segments from the part only.
+ * - `to-clients`: the clients, for the segments from the part only. Each write of a client reaches
+ *   the part, and no reply reaches the client.
  */
 export interface GroupPlace {
   readonly role: GroupRole;
-  readonly cuts?: "all" | "group" | "clients" | "one" | "one-way";
+  readonly cuts?: "all" | "group" | "clients" | "one" | "one-way" | "to-clients";
 }
 
 /** A toxic is one toxic of Toxiproxy, as its API takes it. Its toxicity is 1. */
@@ -535,6 +623,9 @@ export interface StageBand {
  * - `lost` is the band of the count of accepted writes that the group did not keep, in each run. A
  *   count outside it is a finding. A measurement-only cell with this band gets its decision from
  *   the findings of its runs, thus the law of the count judges the cell.
+ * - `duplicates` is the band of the count of extra copies that the group holds, in each run. It
+ *   judges a cell as `lost` does. Only a list or a log can show a copy, thus a Redis cell needs
+ *   `op: "rpush"`.
  */
 export interface GroupPrediction {
   readonly lands: "new" | "same";
@@ -544,6 +635,51 @@ export interface GroupPrediction {
   readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
   readonly quiet?: readonly Stage[];
   readonly lost?: { readonly low: number; readonly high: number };
+  readonly duplicates?: { readonly low: number; readonly high: number };
+  /** These are the bands of the commits of a pair (`Cell.pair`), each by its set. A set with no band is a measurement. */
+  readonly outcomes?: Outcomes;
+}
+
+/** A count band is the least and the most of a count, both included. */
+export interface CountBand {
+  readonly low: number;
+  readonly high: number;
+}
+
+/**
+ * These are the bands of the sets of a pair. A commit with no reply is in one set, by the two final reads:
+ * - `kept`: the new primary holds it.
+ * - `stranded`: only the old primary holds it, after its crash recovery.
+ * - `absent`: no server holds it.
+ */
+export interface Outcomes {
+  /** This band is the count of the writes with no reply, of each set. */
+  readonly unknown?: CountBand;
+  readonly kept?: CountBand;
+  readonly stranded?: CountBand;
+  readonly absent?: CountBand;
+  /** This band is the count of the acknowledged writes that the old primary does not hold after its crash recovery. */
+  readonly missing?: CountBand;
+  /** This band is the count of the WARNING notices that the client reads. */
+  readonly warnings?: CountBand;
+}
+
+/**
+ * A pair is a PostgreSQL primary, the target of a cell, and one standby on its network. The topology
+ * of the cell stays in front of the primary. Nothing in the pair fails over by itself: the harness
+ * does each step, in the order of `pairOnce`.
+ */
+export interface Pair {
+  /** This flag names the standby in `synchronous_standby_names`. Without it, the standby is asynchronous. */
+  readonly synchronous: boolean;
+  /** This count is the writers of the client, each with its own connection of the pool. */
+  readonly writers: number;
+  /** This time is the pause of a writer after each reply. */
+  readonly interval: Quantity;
+  /** This place is what the black hole cuts the primary from: the standby, or each peer. */
+  readonly cuts: "standby" | "all";
+  /** This count is the cancels of the waits of the primary, spread across the hold. */
+  readonly cancels?: number;
 }
 
 /**
@@ -581,6 +717,17 @@ export interface LineMatch {
   readonly ev: string;
   readonly where?: Readonly<Record<string, string | number | boolean>>;
   readonly name?: string;
+}
+
+/**
+ * A line count is an exact count of the lines of the target in one run, for a cell whose law gives a
+ * count (SYS-67). A count reads no timer, thus it has no band and no noise. The judge compares it with
+ * `count`, and `what` names it in the finding.
+ */
+export interface LineCount {
+  readonly what: string;
+  readonly match: LineMatch;
+  readonly count: number;
 }
 
 /**
@@ -734,9 +881,116 @@ export type Prediction =
        * the client. The end has no band, but each wait has one. A wait outside its band is a finding of its run.
        */
       readonly reconnects?: Reconnects;
+      /**
+       * These are the exact counts of the lines of the target in each run. A count that differs is a
+       * finding of its run. A measurement-only cell with a reference and counts gets a decision from them.
+       */
+      readonly counts?: readonly LineCount[];
+      /**
+       * This record is the law of an accept queue: its limit, its count, its counters, and what each
+       * connection sees. A value outside it is a finding of its run.
+       */
+      readonly queue?: QueuePrediction;
+      /**
+       * This record is the law of a port range: the count of connects, the ports that they use, and
+       * when a held port comes back. A value outside it is a finding of its run.
+       */
+      readonly ports?: PortsPrediction;
+      /** This record is the law of a paused consumer (`Kafka.pause`). A run outside it is a finding of its run. */
+      readonly pause?: PausePrediction;
       /** These are the limits of an open-loop cell (`Cell.probe.plan`). Without them, its load is a measurement. */
       readonly load?: LoadPrediction;
     };
+
+/** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
+export interface QueueBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/** This prediction tells how one connection of a queue cell ends. */
+export interface QueueEnd {
+  readonly errno: string;
+  /** This name is the line of the connection that the time of the end counts from. */
+  readonly from: "dial" | "connected" | "sent";
+  readonly within: QueueBand;
+  /**
+   * This band is the time from the last retransmission of the connection to its end. With an
+   * `expiry`, the retransmission before the last comes before the expiry, and the last comes after it.
+   */
+  readonly retransmitted?: QueueBand;
+}
+
+/** This prediction tells what one connection of a queue cell sees, by its name in the client. */
+export interface QueueConnection {
+  readonly name: string;
+  /** This choice says if the connect of the connection succeeds. */
+  readonly connects: boolean;
+  /** These bands are the waits of the SYN: the first from the dial, each next one from the SYN before it. */
+  readonly syns?: readonly QueueBand[];
+  /** These bands are the waits of each SYN-ACK sent again: the first from the dial, each next one from the SYN-ACK before it. */
+  readonly synAcks?: readonly QueueBand[];
+  /** This prediction tells how the connection ends. It is null for a connection that lives to the end of the run. */
+  readonly ends: QueueEnd | null;
+  /** This count is the segments that the peer has not acknowledged at the end of the run. */
+  readonly unacked?: number;
+}
+
+/**
+ * This prediction is the law of an accept queue. It reads the lines of the queue client and of the
+ * queue target. The counters count from the `opened` line of the run.
+ */
+export interface QueuePrediction {
+  /** This count is the limit of the queue: `sk_max_ack_backlog`, as TCP_INFO of the listener gives it. */
+  readonly max: number;
+  /** This count is the most connections that the queue holds at one time. */
+  readonly held: number;
+  /** This count is the connections that connect, and the kernel of the client tells this. */
+  readonly connected: number;
+  /** These counts are the bounds of `ListenOverflows`. */
+  readonly overflows: { readonly low: number; readonly high: number };
+  /** This count is `EmbryonicRsts`: the handshakes that the target reset. */
+  readonly resets: number;
+  /** These predictions are the connections with a law of their own. */
+  readonly connections: readonly QueueConnection[];
+  /** A run where this connection did not take the last place in the queue is void: its burst did not land in its sequence. */
+  readonly admitted?: string;
+  /** This record tells when the kernel of the target forgets the handshakes: the `TCPTimeouts` of their last firings, from the first dial of the burst. */
+  readonly expiry?: { readonly timeouts: number; readonly within: QueueBand };
+  /** This record tells when the count of the queue gets back to `count`, from the first dial of the burst, after an accept. */
+  readonly rise?: { readonly count: number; readonly within: QueueBand };
+  /** This count is the connections that the target accepted in the run. */
+  readonly drained?: number;
+}
+
+/**
+ * This prediction is the law of a port range. It reads the lines of the ports client. In each round
+ * the client connects to each destination until a connect fails with EADDRNOTAVAIL.
+ */
+export interface PortsPrediction {
+  /** This port is the low end of the range. */
+  readonly low: number;
+  /** This count is the ports of the range. */
+  readonly size: number;
+  /** This count is the rounds of each run. */
+  readonly rounds: number;
+  /** This count is the destinations of each round. */
+  readonly destinations: number;
+  /** These counts are the only connects that one destination can get in one round. */
+  readonly counts: readonly number[];
+  /** These offsets from the low port are the only ports that the run uses. It uses each of them. */
+  readonly seen: readonly number[];
+  /** This time is the longest connect that fails. */
+  readonly refusedWithin: Quantity;
+  /** This record is the band of the share of the rounds that get `count` connects. */
+  readonly share?: { readonly count: number; readonly low: number; readonly high: number };
+  /** This choice says that the ports of the parity of the low port come first in each round. */
+  readonly lowFirst?: boolean;
+  /** This band is the time from the `closing` line to each `freed` line: when each held port comes back. */
+  readonly freed?: QueueBand;
+  /** This count is the segments that the sockets of the client send again. */
+  readonly retransmissions?: number;
+}
 
 /** A load plan is the schedule of an open-loop client as data: the rate over time, and how the arrivals fall. */
 export interface LoadPlan {
@@ -821,6 +1075,7 @@ export type Shipped =
   | "pg"
   | "hikari"
   | "amqp"
+  | "kafka"
   | "grpc"
   | "grpc-go"
   | "etcd"
@@ -1009,18 +1264,25 @@ export interface Cell {
     /**
      * This driver replaces the TCP client of the harness, with its own options. The driver then
      * ignores `keepalive` and `userTimeout`:
-     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket.
+     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket. In a group cell,
+     *   its write is `SET w:<n> <n>`, or `RPUSH w <n>` with `op: "rpush"`, thus a list keeps each
+     *   copy. `window` is the count of writers, each with one write in flight: 1 at the default.
      * - the MongoDB driver on Node, against the replica set `set`. Its operation is a write, or
      *   the read of a long document (`read-long`). `Cell.driverOptions` are its options.
      * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
      *   `SELECT 1`. `Cell.driverOptions` are the options of its pool.
      * - HikariCP over pgjdbc on Java, as a `HikariDataSource` against one server. Its operation is
-     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig, and a name
-     *   with the prefix `dataSource.` is a property of pgjdbc.
+     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig. A name
+     *   with the prefix `dataSource.` is a property of pgjdbc, and a name with the prefix `system.`
+     *   is a system property of the JVM.
      *
      * A pg or hikari driver can send a different text in flight (`inflight`): the second query of
      * an in-flight run. The first query then makes the pool ready at once, and only the query in
      * flight is slow, for example `SELECT pg_sleep(20)`.
+     *
+     * A hikari driver can send a burst in place of one query in flight. A burst is `count` queries,
+     * query 2 and the next ones. Each one has its own thread, and it starts `gap` after the one before
+     * it. The client writes a `burst` line at the end of the last one, with its counts.
      *
      * A grpc driver is grpc-js on Node, with one channel. Its operation is a unary call of
      * grpc.health.v1.Health/Check. `Cell.driverOptions` are its channel options (`grpc.*`) and
@@ -1028,10 +1290,10 @@ export interface Cell {
      * that long. With `op: "watch"`, the operation in flight is a stream of Health/Watch, which stays open.
      */
     readonly driver?:
-      | { readonly name: "ioredis"; readonly keepAlive: Quantity }
+      | { readonly name: "ioredis"; readonly keepAlive: Quantity; readonly op?: "set" | "rpush"; readonly window?: number }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
-      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string }
+      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string; readonly burst?: { readonly count: number; readonly gap: Quantity } }
       | { readonly name: "amqp" }
       | { readonly name: "grpc"; readonly hold?: Quantity; readonly op?: "check" | "watch" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
@@ -1106,6 +1368,14 @@ export interface Cell {
    * record, and the cluster does not read it.
    */
   readonly cluster?: Cluster;
+  /**
+   * This Kafka group replaces the target: brokers of Apache Kafka with one controller. The client is
+   * then the producer of kafka-clients, with the settings of `driverOptions`. `target` stays for the
+   * record, and the group does not read it.
+   */
+  readonly kafka?: Kafka;
+  /** This pair adds a standby to the target (`Pair`). The client is then node-postgres, in a stream of K writers. */
+  readonly pair?: Pair;
   /** This place is the node of the client in a cluster: the node of the leader, or of a follower. Without it, the node of a follower. */
   readonly clientAt?: ClusterClientAt;
   /**
@@ -1113,6 +1383,11 @@ export interface Cell {
    * that instant, on the clock of the VM. On a direct pair, a frozen target thaws after it.
    */
   readonly hold?: Quantity;
+  /**
+   * This time is how much longer a run of a replica set continues after the lift. A prediction of
+   * no failover after a short hold needs it: the run must outlast the timers of an election.
+   */
+  readonly watch?: Quantity;
   /** This flag makes a planned failover coordinated: `SENTINEL FAILOVER <group> COORDINATED`. */
   readonly coordinated?: boolean;
   /**
@@ -1261,6 +1536,8 @@ export interface Run {
   readonly group?: RunGroup;
   /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
   readonly server?: readonly ProbeEvent[];
+  /** This record is the other member and the broker logs of a run of a paused consumer. */
+  readonly pause?: RunPause;
   /** This record is the fabric of a cell with `Topology.fabric`. */
   readonly fabric?: RunFabric;
   /** This schedule is the one that the client of an open-loop cell had: each planned time stays with its record. */
@@ -1325,8 +1602,10 @@ export interface RunGroup {
   readonly timeline: readonly SentinelEvent[];
   /** This name is the member that was the primary when the group converged after the run, or null when it did not converge. */
   readonly after: string | null;
-  /** These are the sequence numbers that the group holds after the run, when it converged, or null. */
+  /** These are the sequence numbers that the group holds after the run, one entry for each copy, when it converged, or null. */
   readonly holds: readonly number[] | null;
+  /** These are the sequence numbers that the old primary of a pair holds after its crash recovery. */
+  readonly oldHolds?: readonly number[];
   /** This record tells what a recovery drill did. */
   readonly drill?: RunDrill;
 }

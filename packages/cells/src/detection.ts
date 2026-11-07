@@ -134,3 +134,22 @@ const pausesCellOf = (settings: MemberlistSettings): KindCell => {
 
 /** These are the cells of the sweep: for each setting, the zone loss of the announcer, then the pauses of the speaker of the owner. */
 export const DETECTION_CELLS: readonly KindCell[] = DETECTION_SETTINGS.flatMap((settings) => [metallbCellOf(settings), pausesCellOf(settings)]);
+
+/** This setting is the one that the quiet gate voided (SYS-95). */
+const GATE_SETTINGS: MemberlistSettings = DETECTION_SETTINGS.at(-1)!;
+
+/**
+ * These are the planned loads of the test of the quiet gate. The cell of `DETECTION_CELLS` with the
+ * same setting is the cell with no load: it is the A side of the pair. With 1 CPU of 4 busy, the gate
+ * refuses the run. With half of 1 CPU, the fall is near the margin, thus the cell tests the margin.
+ */
+const PLANNED_LOADS = [1, 0.5] as const;
+
+/** This function gives the cell of the pauses with a planned load. The gate voids its runs when the gate holds. */
+const loadCellOf = (cores: number): KindCell => {
+  const cell = pausesCellOf(GATE_SETTINGS);
+  return { ...cell, id: `${cell.id}.load-${cores * 100}`, name: `${cell.name}, a planned load of ${cores} CPU`, plannedLoad: cores };
+};
+
+/** These are the cells that test the quiet gate with a planned load (SYS-95). */
+export const QUIET_LOAD_CELLS: readonly KindCell[] = PLANNED_LOADS.map(loadCellOf);

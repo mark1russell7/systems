@@ -440,12 +440,22 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const hikariNameOf = (spec: HikariSpec): string => `${spec.plan} hikaricp-pgjdbc to postgresql, ${spec.name}`;
 
+/** This text starts the key of a knob of the document that is a system property of the JVM. */
+const SYSTEM_PROPERTY = "the system property ";
+
 /**
  * This function gives the options of the client of a cell. A knob of pgjdbc goes to its data
- * source (`dataSource.`). A knob of HikariCP goes to HikariConfig.
+ * source (`dataSource.`). A knob that is a system property goes to the JVM (`system.`). A knob of
+ * HikariCP goes to HikariConfig.
  */
 const driverOptionsOf = (options: Readonly<Record<string, number>>): Record<string, number> =>
-  Object.fromEntries(Object.entries(options).map(([name, value]) => [HIKARICP_PGJDBC.knobs[name]!.key.startsWith("pgjdbc ") ? `dataSource.${name}` : name, value]));
+  Object.fromEntries(
+    Object.entries(options).map(([name, value]) => {
+      const { key } = HIKARICP_PGJDBC.knobs[name]!;
+      if (key.startsWith(SYSTEM_PROPERTY)) return [`system.${key.slice(SYSTEM_PROPERTY.length)}`, value];
+      return [key.startsWith("pgjdbc ") ? `dataSource.${name}` : name, value];
+    }),
+  );
 
 /**
  * This function gives the topology of a cell with a pooler or a router, named for the tier of the

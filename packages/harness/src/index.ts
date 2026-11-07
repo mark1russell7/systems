@@ -13,6 +13,11 @@ export type {
   Client,
   ClientImage,
   Cluster,
+  Kafka,
+  KafkaPause,
+  PauseBand,
+  PausePrediction,
+  RunPause,
   ClusterClientAt,
   ClusterStage,
   DriverBand,
@@ -32,11 +37,15 @@ export type {
   HttpProbe,
   Jitter,
   ImageSource,
+  LineCount,
   LineMatch,
   MiddleboxEvent,
   MiddleboxExpectation,
   MiddleboxForm,
   Observer,
+  Outcomes,
+  Pair,
+  CountBand,
   Fault,
   PinnedImage,
   KernelRecord,
@@ -44,9 +53,14 @@ export type {
   LoadBand,
   LoadPlan,
   LoadPrediction,
+  PortsPrediction,
   ProbeEvent,
   ProxyHop,
   ProxyTime,
+  QueueBand,
+  QueueConnection,
+  QueueEnd,
+  QueuePrediction,
   Reconnects,
   Recovers,
   Reference,
@@ -98,9 +112,13 @@ export type { LoadJudgement, LoadSpread, LoadVerdict } from "./load.ts";
 export { SCHEDULE_PATH, loadOf, loadVerdict } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { PortsReading } from "./ports.ts";
+export { measurePorts } from "./ports.ts";
+export type { QueueConnectionReading, QueueReading } from "./queue.ts";
+export { measureQueue } from "./queue.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
 export { fieldOf, matches, measureDriver, referenceOf, socketAt, socketsOf } from "./driver.ts";
-export type { ErrorOnTheWay, GroupMeasured, GroupReading, Writes } from "./timeline.ts";
+export type { ErrorOnTheWay, GroupMeasured, GroupReading, PairSets, Writes } from "./timeline.ts";
 export {
   CLUSTER_STAGES,
   MEMBER_MARKS,
@@ -132,8 +150,9 @@ export {
   spreadOf,
   verdictOf,
 } from "./verdict.ts";
-export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
-export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
+export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
+export { INSERT, RESTART, STANDBY_READY, cancelsOf, numbersOf, openStandby, pairArgs, pairOnce, standbyCommand } from "./standby.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
 export {
   DAEMONS,
@@ -153,7 +172,11 @@ export {
 } from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
 export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
-export type { ImagePlan } from "./image.ts";
+export type { BuildRecord, ImagePlan } from "./image.ts";
+export type { ContextFile } from "./locks.ts";
+export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
+export type { Pinnable, RecordCode } from "./pins.ts";
+export { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
 export {
   CLIENT_NAMES,
   PINNED,
@@ -161,9 +184,12 @@ export {
   SHIPPED_CLIENTS,
   SHIPPED_NAMES,
   amqpClientImage,
+  basesOf,
+  buildRecordOf,
   goHttpImage,
   grpcClientImage,
   harnessImage,
+  harnessVersion,
   imageOf,
   imageProblems,
   inContext,
@@ -172,9 +198,11 @@ export {
   nodeHttpImage,
   pgClientImage,
   hikariClientImage,
+  kafkaClientImage,
   planOf,
   programOf,
   routerImage,
+  shippedSource,
   subjectClient,
   subjectProblems,
   targetImageOf,
@@ -250,5 +278,23 @@ export {
   restamped,
   toolJsonOf,
 } from "./cluster.ts";
+export type { KafkaLab, KafkaMember, PartitionView } from "./kafka.ts";
+export {
+  KAFKA_TAIL_MS,
+  bootstrapOf,
+  brokerEnv,
+  controllerEnv,
+  envOf,
+  kafkaArgs,
+  kafkaCutOf,
+  kafkaOnce,
+  kafkaPauseOnce,
+  kafkaViewOf,
+  nodeIdOf,
+  openKafkaLab,
+  topicOf,
+} from "./kafka.ts";
+export type { PauseCommit, PauseReading } from "./pause.ts";
+export { isFenceLine, logTimeOf, measurePause, namesGroup, pauseReady } from "./pause.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";

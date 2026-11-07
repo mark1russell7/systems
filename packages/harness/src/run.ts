@@ -1,9 +1,9 @@
 import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
-import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
+import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { drillOnce } from "./drill.ts";
-import { longestOf, settled as driverSettled } from "./driver.ts";
+import { countOf, longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
@@ -13,6 +13,8 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
+import { kafkaOnce, kafkaPauseOnce, openKafkaLab } from "./kafka.ts";
+import { openStandby, pairOnce } from "./standby.ts";
 import { readCpu, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
@@ -128,6 +130,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     // node-postgres or HikariCP: its query, and the options of its pool. amqplib: the options of its connection
     if (probe.driver.name !== "amqp" && probe.driver.query !== undefined) args.push("--query", probe.driver.query);
     if (probe.driver.name !== "amqp" && probe.driver.inflight !== undefined) args.push("--inflight-query", probe.driver.inflight);
+    if (probe.driver.name === "hikari" && probe.driver.burst !== undefined)
+      args.push("--burst", String(probe.driver.burst.count), "--burst-gap-ms", String(Math.round(valueIn(probe.driver.burst.gap, "ms"))));
     if (cell.before === true) args.push("--before");
     if (cell.driverOptions !== undefined) args.push("--options", JSON.stringify(cell.driverOptions));
     args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
@@ -318,6 +322,21 @@ const dials = (probe: Probe, count: number, within: number): Promise<void> =>
     };
     look();
   });
+
+/** This time is the most that a run waits for the lines of the target after the end of its client. */
+const LINES_MS = 5_000;
+
+/**
+ * This function waits for the lines of a run's counts. The lines of the target come on their own
+ * stream, thus they can come after the last line of the client. A line above a count comes in the
+ * pause after the wait, thus it is in the run that wrote it.
+ */
+const linesCounted = async (lab: Lab, from: number, counts: readonly LineCount[]): Promise<void> => {
+  const started = Date.now();
+  const short = () => counts.some((each) => countOf(lab.server.slice(from), each.match) < each.count);
+  while (short() && Date.now() - started < LINES_MS) await sleep(20);
+  await sleep(QUIET_MS);
+};
 
 /** This function gives the netem specification of a cell: its latency, then the netem of its fault when it has one. */
 const netemSpec = (cell: Cell, fault: string | undefined): string | null => {
@@ -579,6 +598,7 @@ const once = async (
           const gap = cell.probe.http?.gap === undefined ? 0 : valueIn(cell.probe.http.gap, "s");
           const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
           await probe.until(HTTP_DONE, (gap + window) * 2_000 + 10_000).catch(() => undefined);
+          if (prediction.detects === null && prediction.counts !== undefined) await linesCounted(lab, serverFrom, prediction.counts);
         } else if (cell.fault === "stall") {
           if (cell.stall === undefined) throw new Error(`${cell.name} says no stall's length`);
           // the injector holds the end in the VM until the length of the stall after the send. An idle
@@ -705,6 +725,8 @@ const inEnvironment = async (
   if (cell.group !== undefined) return inGroupEnvironment(cell, environment, count, say);
   if (cell.replicaSet !== undefined) return inReplicaSetEnvironment(cell, environment, count, say);
   if (cell.cluster !== undefined) return inClusterEnvironment(cell, environment, count, say);
+  if (cell.kafka !== undefined) return inKafkaEnvironment(cell, environment, count, say);
+  if (cell.pair !== undefined) return inPairEnvironment(cell, environment, count, say);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
@@ -800,6 +822,36 @@ const inReplicaSetEnvironment = async (
 };
 
 /**
+ * This function does the part of the runs of a pair cell in one environment. The warm-up is a dry
+ * run. The run promotes the standby, thus a pair cell has an environment for each run.
+ */
+const inPairEnvironment = async (
+  cell: Cell,
+  environment: number,
+  count: number,
+  say: (line: string) => void,
+): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
+  try {
+    await lab.warm();
+    const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
+    const standby = await openStandby(lab, cell);
+    const warmed = await pairOnce(lab, standby, cell, environment, -1, true);
+    const warmup: Run = { ...warmed, warmup: true };
+    say(line(cell, warmup, measure(cell, warmup)));
+    const runs: Run[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const run = await pairOnce(lab, standby, cell, environment, index);
+      runs.push(run);
+      say(line(cell, run, measure(cell, run)));
+    }
+    return { manifest, runs, warmup };
+  } finally {
+    await lab.close();
+  }
+};
+
+/**
  * This function does the part of the runs of a cluster cell in one environment. The warm-up is a
  * whole run with its fault, as for a replica set. The queue converges before each run.
  */
@@ -818,6 +870,35 @@ const inClusterEnvironment = async (
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
       const run = await clusterOnce(lab, cell, environment, index);
+      runs.push(run);
+      say(line(cell, run, measure(cell, run)));
+    }
+    return { manifest, runs, warmup };
+  } finally {
+    await lab.close();
+  }
+};
+
+/**
+ * This function does the part of the runs of a Kafka cell in one environment. The warm-up is a whole
+ * run with its fault, as for a cluster. Each run makes its own topic.
+ */
+const inKafkaEnvironment = async (
+  cell: Cell,
+  environment: number,
+  count: number,
+  say: (line: string) => void,
+): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  const lab = await openKafkaLab(cell.kafka!);
+  const once = cell.kafka!.pause === undefined ? kafkaOnce : kafkaPauseOnce;
+  try {
+    const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
+    const warmed = await once(lab, cell, environment, -1);
+    const warmup: Run = { ...warmed, warmup: true };
+    say(line(cell, warmup, measure(cell, warmup)));
+    const runs: Run[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const run = await once(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }
