@@ -1176,7 +1176,16 @@ export interface ClientImage {
   /** This image is a stock image by its name, pinned by digest, or the source of the image of a subject. */
   readonly image: string | ImageSource;
   readonly command: readonly string[];
+  /**
+   * These capabilities are added to the default set of the container of the client. A read of the
+   * statistics of conntrack over netlink needs NET_ADMIN in the namespace of the client.
+   */
+  readonly capabilities?: readonly ClientCapability[];
 }
+
+/** These are the capabilities that a client image can get. */
+export const CLIENT_CAPABILITIES = ["NET_ADMIN"] as const;
+export type ClientCapability = (typeof CLIENT_CAPABILITIES)[number];
 
 /**
  * An observer is the side whose detection a cell measures. The client is one observer. The

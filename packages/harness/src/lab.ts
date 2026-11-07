@@ -6,6 +6,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { isHopPlace } from "./cell.ts";
 import type {
   Client,
+  ClientCapability,
   ClientImage,
   FabricManifest,
   FaultPlace,
@@ -172,7 +173,13 @@ export interface Manifest {
    * This record is the client of each run: the TCP client of the harness, a driver, or an image that
    * the cell gives. `source` is the source of its image, when it is not a stock image by its name.
    */
-  readonly client: { readonly kind: Client | "image"; readonly image: string; readonly source?: ImageSource; readonly build?: BuildRecord };
+  readonly client: {
+    readonly kind: Client | "image";
+    readonly image: string;
+    readonly capabilities?: readonly ClientCapability[];
+    readonly source?: ImageSource;
+    readonly build?: BuildRecord;
+  };
   /** These are the namespaces that the prober watched, by inode. */
   readonly netns: {
     readonly client: number;
@@ -556,13 +563,20 @@ export const shippedClientRecord = (kind: Client, image: string): Manifest["clie
  */
 export const clientOf = async (
   kind: Client | ClientImage,
-): Promise<{ clientImage: string; command: readonly string[]; clientKind: Client | "image"; source?: ImageSource }> => {
+): Promise<{
+  clientImage: string;
+  command: readonly string[];
+  clientKind: Client | "image";
+  capabilities?: readonly ClientCapability[];
+  source?: ImageSource;
+}> => {
   const client = typeof kind === "string" ? (Object.hasOwn(SHIPPED_CLIENTS, kind) ? SHIPPED_CLIENTS[kind] : undefined) : kind;
   if (client === undefined) throw new Error(`the harness ships no client ${String(kind)}`);
   return {
     clientImage: await imageOf(client.image),
     command: client.command,
     clientKind: typeof kind === "string" ? kind : "image",
+    ...(client.capabilities === undefined || client.capabilities.length === 0 ? {} : { capabilities: client.capabilities }),
     ...(typeof client.image === "string" ? {} : { source: client.image }),
   };
 };
@@ -617,7 +631,7 @@ export const openLab = async (
   topology?: Topology,
 ): Promise<Lab> => {
   const image = await harnessImage();
-  const { clientImage, command, clientKind, source } = await clientOf(kind);
+  const { clientImage, command, clientKind, capabilities, source } = await clientOf(kind);
   const hops = topology?.hops ?? [];
   const { GenericContainer, Network, Wait, getContainerRuntimeClient } = await containers();
   const runtime = await getContainerRuntimeClient();
@@ -1183,11 +1197,11 @@ export const openLab = async (
       },
       async probe(args) {
         const events = lines<ProbeEvent>();
-        const container = await new GenericContainer(clientImage)
+        const prober = new GenericContainer(clientImage)
           .withNetworkMode(`container:${client.getId()}`)
           .withCommand([...command, ...args])
-          .withLogConsumer(events.consume)
-          .start();
+          .withLogConsumer(events.consume);
+        const container = await (capabilities === undefined ? prober : prober.withAddedCapabilities(...capabilities)).start();
         return {
           events: events.seen,
           until: (kinds, within) => events.until(kinds, within, "client"),
@@ -1293,7 +1307,12 @@ export const openLab = async (
             packages: (await output(client, ["apk", "info", "-v"])).split("\n").sort(),
             ...harnessRecord(),
           },
-          client: { kind: clientKind, image: clientImage, ...(source === undefined ? {} : { source, ...buildOf(source) }) },
+          client: {
+            kind: clientKind,
+            image: clientImage,
+            ...(capabilities === undefined ? {} : { capabilities }),
+            ...(source === undefined ? {} : { source, ...buildOf(source) }),
+          },
           netns,
           sysctls,
           ...(inChain.length === 0 ? {} : { hops: await hopsOf() }),

@@ -65,7 +65,11 @@ describe("the reading of a conntrack cell", () => {
 
   it("voids a run with no end, a dropped record, no fill, a table that did not empty, or an environment that cannot do the cell", () => {
     const run = runOf([FULL, STALL]);
-    expect(measure(cellOf(REFUSED), { ...run, events: [FULL] }).void).toMatch(/end/);
+    expect(measure(cellOf(REFUSED), { ...run, events: [FULL] }).void).toBe("the client did not reach its end");
+    // a program that stops with an error names it, thus the void names its cause
+    const what = "no conntrack statistics over netlink: Operation not permitted (os error 1)";
+    const stopped = [FULL, line("error", 2 * NS, { what })];
+    expect(measure(cellOf(REFUSED), { ...run, events: stopped }).void).toBe(`the client did not reach its end: ${what}`);
     expect(measure(cellOf(REFUSED), { ...run, lost: 2 }).void).toMatch(/dropped 2/);
     expect(measure(cellOf(REFUSED), { ...run, lost: null }).void).toMatch(/clock line/);
     expect(measure(cellOf(REFUSED), runOf([STALL])).void).toMatch(/fill/);

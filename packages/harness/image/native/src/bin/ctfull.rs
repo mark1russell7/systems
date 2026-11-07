@@ -28,15 +28,26 @@ use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
-use std::os::fd::AsRawFd;
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 const COUNT: &str = "/proc/sys/net/netfilter/nf_conntrack_count";
-const STATS: &str = "/proc/net/stat/nf_conntrack";
 const NETSTAT: &str = "/proc/net/netstat";
+/// the subsystem of ctnetlink in nfnetlink (`NFNL_SUBSYS_CTNETLINK`)
+const CTNETLINK: u16 = 1;
+/// the message of ctnetlink that dumps the statistics of each CPU (`IPCTNL_MSG_CT_GET_STATS_CPU`)
+const GET_STATS_CPU: u16 = 4;
+/// the attribute of the field drop in each message of that dump (`CTA_STATS_DROP`), a big-endian u32
+const STATS_DROP: u16 = 10;
+/// the length of the header of a netlink message, and of the header of nfnetlink after it
+const NLMSG_HEADER: usize = 16;
+const NFGENMSG: usize = 4;
+/// the type bits of an attribute, without the flags of nesting and byte order
+const ATTRIBUTE_TYPE: u16 = 0x3fff;
 /// the wait after the last flow of a fill and after each side closes, in milliseconds
 const SETTLE_MS: u64 = 50;
 /// the time between two reads of the count while a step waits for it, in milliseconds
@@ -81,15 +92,137 @@ fn count() -> Result<u64, Box<dyn Error>> {
     Ok(std::fs::read_to_string(COUNT)?.trim().parse()?)
 }
 
-/// Gives the sum of one field of the conntrack statistics: a header line, then one hexadecimal line for each CPU.
-fn stat_field(text: &str, field: &str) -> Option<u64> {
-    let mut lines = text.lines();
-    let at = lines.next()?.split_whitespace().position(|name| name == field)?;
-    let mut total = 0;
-    for line in lines {
-        total += u64::from_str_radix(line.split_whitespace().nth(at)?, 16).ok()?;
+/// Gives the request of the dump of the conntrack statistics of each CPU: a netlink header, then a nfnetlink header.
+fn stats_request(seq: u32) -> Vec<u8> {
+    let length = (NLMSG_HEADER + NFGENMSG) as u32;
+    let mut message = Vec::with_capacity(NLMSG_HEADER + NFGENMSG);
+    message.extend_from_slice(&length.to_ne_bytes());
+    message.extend_from_slice(&((CTNETLINK << 8) | GET_STATS_CPU).to_ne_bytes());
+    message.extend_from_slice(&((libc::NLM_F_REQUEST | libc::NLM_F_DUMP) as u16).to_ne_bytes());
+    message.extend_from_slice(&seq.to_ne_bytes());
+    message.extend_from_slice(&0u32.to_ne_bytes());
+    // the family AF_UNSPEC, the version NFNETLINK_V0, and the resource 0
+    message.extend_from_slice(&[0, 0, 0, 0]);
+    message
+}
+
+fn u16_at(bytes: &[u8], at: usize) -> Option<u16> {
+    Some(u16::from_ne_bytes(bytes.get(at..at + 2)?.try_into().ok()?))
+}
+
+fn u32_at(bytes: &[u8], at: usize) -> Option<u32> {
+    Some(u32::from_ne_bytes(bytes.get(at..at + 4)?.try_into().ok()?))
+}
+
+/// Netlink pads each message and each attribute to four bytes.
+fn aligned(length: usize) -> usize {
+    (length + 3) & !3
+}
+
+/// Gives the field drop of the attributes of one message of the dump.
+fn drop_of(attributes: &[u8]) -> Result<u64, String> {
+    let mut at = 0;
+    while at + 4 <= attributes.len() {
+        let length = usize::from(u16_at(attributes, at).ok_or("a short attribute")?);
+        let kind = u16_at(attributes, at + 2).ok_or("a short attribute")? & ATTRIBUTE_TYPE;
+        if length < 4 || at + length > attributes.len() {
+            return Err(format!("an attribute of {length} bytes at byte {at} of {}", attributes.len()));
+        }
+        if kind == STATS_DROP {
+            let value = attributes.get(at + 4..at + 8).ok_or("a short field drop")?;
+            return Ok(u64::from(u32::from_be_bytes(value.try_into().map_err(|_| "a short field drop")?)));
+        }
+        at += aligned(length);
     }
-    Some(total)
+    Err("a message of the statistics with no field drop".into())
+}
+
+/// What one datagram of the dump gave: the sum of the field drop of its messages, and whether the dump ended.
+#[derive(Debug, PartialEq)]
+struct Part {
+    drops: u64,
+    done: bool,
+}
+
+/// Reads one datagram of the dump: messages of the statistics of a CPU, an error, or the end of the dump.
+fn stats_part(datagram: &[u8]) -> Result<Part, String> {
+    let mut drops = 0;
+    let mut at = 0;
+    while at + NLMSG_HEADER <= datagram.len() {
+        let length = u32_at(datagram, at).ok_or("a short header")? as usize;
+        let kind = u16_at(datagram, at + 4).ok_or("a short header")?;
+        if length < NLMSG_HEADER || at + length > datagram.len() {
+            return Err(format!("a message of {length} bytes at byte {at} of {}", datagram.len()));
+        }
+        let message = &datagram[at..at + length];
+        if i32::from(kind) == libc::NLMSG_DONE {
+            return Ok(Part { drops, done: true });
+        }
+        if i32::from(kind) == libc::NLMSG_ERROR {
+            let code = i32::from_ne_bytes(message.get(NLMSG_HEADER..NLMSG_HEADER + 4).ok_or("a short error")?.try_into().map_err(|_| "a short error")?);
+            if code != 0 {
+                return Err(std::io::Error::from_raw_os_error(-code).to_string());
+            }
+        } else if kind == (CTNETLINK << 8) | GET_STATS_CPU {
+            drops += drop_of(message.get(NLMSG_HEADER + NFGENMSG..).ok_or("a message with no nfnetlink header")?)?;
+        }
+        at += aligned(length);
+    }
+    Ok(Part { drops, done: false })
+}
+
+fn os_error(what: &str) -> String {
+    format!("{what}: {}", std::io::Error::last_os_error())
+}
+
+/// Reads the sum of the field drop of the conntrack statistics of this namespace over ctnetlink. A kernel
+/// without CONFIG_NF_CONNTRACK_PROCFS has no /proc/net/stat/nf_conntrack, and the kernel of the runners is
+/// such a kernel. Each message of nfnetlink needs NET_ADMIN in the namespace.
+fn stat_drops() -> Result<u64, String> {
+    // SAFETY: the call takes no pointer
+    let fd = unsafe { libc::socket(libc::AF_NETLINK, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::NETLINK_NETFILTER) };
+    if fd < 0 {
+        return Err(os_error("no netlink socket"));
+    }
+    // SAFETY: the descriptor is new, and only this owner closes it
+    let socket = unsafe { OwnedFd::from_raw_fd(fd) };
+    // the kernel answers each request, and this limit stops a wait that does not end
+    let limit = libc::timeval { tv_sec: 5, tv_usec: 0 };
+    // SAFETY: the option value is on this stack, passed with its exact size
+    let status = unsafe {
+        libc::setsockopt(
+            socket.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_RCVTIMEO,
+            (&limit as *const libc::timeval).cast(),
+            std::mem::size_of::<libc::timeval>() as libc::socklen_t,
+        )
+    };
+    if status != 0 {
+        return Err(os_error("no limit on the netlink socket"));
+    }
+    let request = stats_request(1);
+    // SAFETY: the buffer is the request, passed with its exact size. An unconnected netlink socket sends to the kernel
+    if unsafe { libc::send(socket.as_raw_fd(), request.as_ptr().cast(), request.len(), 0) } < 0 {
+        return Err(os_error("the request did not go"));
+    }
+    let mut buffer = vec![0u8; 65_536];
+    let mut total = 0;
+    loop {
+        // SAFETY: the call writes at most the length of the buffer into it
+        let got = unsafe { libc::recv(socket.as_raw_fd(), buffer.as_mut_ptr().cast(), buffer.len(), 0) };
+        if got < 0 {
+            return Err(os_error("no answer to the request"));
+        }
+        if got == 0 {
+            return Err("the dump ended with no NLMSG_DONE".into());
+        }
+        let part = stats_part(&buffer[..got as usize])?;
+        total += part.drops;
+        if part.done {
+            return Ok(total);
+        }
+    }
 }
 
 /// Gives one counter of the TcpExt lines of /proc/net/netstat: a line of names, then a line of values.
@@ -101,7 +234,7 @@ fn tcp_ext(text: &str, field: &str) -> Option<u64> {
 
 /// Reads the two counters of a stalled connect: the entries that the table refused, and the sends that failed.
 fn counters() -> Result<(u64, u64), Box<dyn Error>> {
-    let drops = stat_field(&std::fs::read_to_string(STATS)?, "drop").ok_or("no field drop in the conntrack statistics")?;
+    let drops = stat_drops().map_err(|error| format!("no conntrack statistics over netlink: {error}"))?;
     let failed = tcp_ext(&std::fs::read_to_string(NETSTAT)?, "TCPRetransFail").ok_or("no TCPRetransFail in netstat")?;
     Ok((drops, failed))
 }
@@ -392,12 +525,21 @@ fn client(args: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
+    let result = match args.first().map(String::as_str) {
         Some("target") => target(&args[1..]),
         Some("client") => client(&args[1..]),
         _ => Err("ctfull target PORT [--fill M] | ctfull client [flags] HOST PORT".into()),
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            // the harness reads the lines of this program, thus a run with no end names its cause
+            emit("error", json!({ "what": error.to_string() }));
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
     }
 }
 
@@ -421,12 +563,55 @@ mod tests {
         assert!(plan_of(&strings(&["--max", "4", "--plan", "soon", "h", "1"])).is_err());
     }
 
+    fn message(kind: u16, payload: &[u8]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&((NLMSG_HEADER + payload.len()) as u32).to_ne_bytes());
+        bytes.extend_from_slice(&kind.to_ne_bytes());
+        bytes.extend_from_slice(&0u16.to_ne_bytes());
+        bytes.extend_from_slice(&1u32.to_ne_bytes());
+        bytes.extend_from_slice(&0u32.to_ne_bytes());
+        bytes.extend_from_slice(payload);
+        while bytes.len() % 4 != 0 {
+            bytes.push(0);
+        }
+        bytes
+    }
+
+    fn attribute(kind: u16, value: u32) -> Vec<u8> {
+        [8u16.to_ne_bytes().as_slice(), &kind.to_ne_bytes(), &value.to_be_bytes()].concat()
+    }
+
+    /// One message of the dump: the nfnetlink header with the CPU, then the fields found, drop and early_drop.
+    fn stats(cpu: u16, drop: u32) -> Vec<u8> {
+        let payload = [vec![0, 0], cpu.to_be_bytes().to_vec(), attribute(2, 99), attribute(STATS_DROP, drop), attribute(11, 5)].concat();
+        message((CTNETLINK << 8) | GET_STATS_CPU, &payload)
+    }
+
     #[test]
-    fn the_statistics_sum_one_field_of_each_cpu_in_hexadecimal() {
-        let text = "entries clashres found drop\n00000400 00000000 00000001 0000000a\n00000400 00000000 00000002 00000006\n";
-        assert_eq!(stat_field(text, "drop"), Some(16));
-        assert_eq!(stat_field(text, "found"), Some(3));
-        assert_eq!(stat_field(text, "absent"), None);
+    fn the_request_dumps_the_statistics_of_each_cpu() {
+        let request = stats_request(7);
+        assert_eq!(request.len(), 20);
+        assert_eq!(u32_at(&request, 0), Some(20));
+        assert_eq!(u16_at(&request, 4), Some(0x0104));
+        assert_eq!(u16_at(&request, 6), Some(0x0301));
+        assert_eq!(u32_at(&request, 8), Some(7));
+        assert_eq!(&request[16..], &[0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn the_dump_sums_the_field_drop_of_each_cpu_until_its_end() {
+        let done = message(libc::NLMSG_DONE as u16, &0i32.to_ne_bytes());
+        assert_eq!(stats_part(&[stats(0, 10), stats(1, 6), done].concat()), Ok(Part { drops: 16, done: true }));
+        assert_eq!(stats_part(&stats(3, 4)), Ok(Part { drops: 4, done: false }));
+        let refused = message(libc::NLMSG_ERROR as u16, &[(-libc::EPERM).to_ne_bytes().as_slice(), &stats_request(1)[..16]].concat());
+        assert_eq!(stats_part(&refused), Err(std::io::Error::from_raw_os_error(libc::EPERM).to_string()));
+        let acked = message(libc::NLMSG_ERROR as u16, &[0i32.to_ne_bytes().as_slice(), &stats_request(1)[..16]].concat());
+        assert_eq!(stats_part(&acked), Ok(Part { drops: 0, done: false }));
+        let mut short = stats(0, 10);
+        short.truncate(30);
+        assert!(stats_part(&short).is_err());
+        let no_drop = message((CTNETLINK << 8) | GET_STATS_CPU, &[vec![0, 0, 0, 0], attribute(2, 99)].concat());
+        assert_eq!(stats_part(&no_drop), Err("a message of the statistics with no field drop".to_string()));
     }
 
     #[test]

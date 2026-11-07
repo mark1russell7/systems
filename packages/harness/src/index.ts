@@ -11,6 +11,7 @@ export type {
   BuildImage,
   Cell,
   Client,
+  ClientCapability,
   ClientImage,
   Cluster,
   Kafka,
@@ -86,7 +87,7 @@ export type {
   Toxic,
   WsProbe,
 } from "./cell.ts";
-export { isHopPlace, latestEndOf } from "./cell.ts";
+export { CLIENT_CAPABILITIES, isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
   DROP_HANDLING,

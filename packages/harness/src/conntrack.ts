@@ -123,7 +123,11 @@ export const measureConntrack = (run: Run, expected: ConntrackPrediction): Measu
   const voided = (why: string): Measured => ({ ...base, void: why, finding: null });
   const unsettled = events.find((event) => event.ev === "unsettled");
   if (unsettled !== undefined) return voided(`the table held ${String(unsettled["count"])} entries at the end of the wait before the run`);
-  if (events.find((event) => event.ev === "done") === undefined) return voided("the client did not reach its end");
+  if (events.find((event) => event.ev === "done") === undefined) {
+    // the program writes the error that stopped it as its last line
+    const error = events.find((event) => event.ev === "error");
+    return voided(error === undefined ? "the client did not reach its end" : `the client did not reach its end: ${String(error["what"])}`);
+  }
   if (run.lost === null) return voided("the prober wrote no clock line after the run, so nothing says what it dropped");
   if (run.lost > 0) return voided(`the prober dropped ${run.lost} records`);
 

@@ -127,6 +127,8 @@ const conntrackCell = (spec: ConntrackSpec): Cell => ({
   client: {
     image: { kind: "shipped", name: "harness" },
     command: ["/opt/harness/ctfull", "client", "--max", String(spec.max), "--plan", spec.way, "--settle-s", String(spec.settle)],
+    // the client reads the field drop over ctnetlink, and each message of nfnetlink needs NET_ADMIN
+    capabilities: ["NET_ADMIN"],
   },
   probe: { mode: "idle", keepalive: false },
   fault: "none",
