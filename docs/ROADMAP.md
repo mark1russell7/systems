@@ -3313,7 +3313,11 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 
 - **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
 - **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
-- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94. The second PR adds two steps to the Sunday job:
+  - **The flip of the lock.** For each rung and each of its 6 budgets, one measure goes past its limit. It goes to 1.5 x the limit, or to 1 for a limit of 0. Each of the 18 faults must turn its rung to `beyond`. The check must also fail with each budget past its limit. It must also fail with the record of one drill gone.
+  - **The drills of the Sunday hold.** The band of a restore is a tenth of its budget. Thus the cell fault of 1.5 x the top of a band is 0.15 x the RTO. Thus a drill can leave its band while its rung holds. This step gives the drills the read and the flip of the night, with the pins of SYS-101.
+  - **A red read names its cause.** A crash also exits with 1. Thus each red read of a flip must name each rung, the lost record or the refused pin, or the flip fails. The night gets the same rule.
+  - **A local read.** On the records of run 41896338150, the flip of the lock exits with 0, with 18 of 18 faults red. Those records come before the pins, thus the read of the drills is red there, and it decides nothing.
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.

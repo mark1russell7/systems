@@ -25,7 +25,8 @@
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
 # Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
-# The step of the locked rungs fails that run when a rung is not within its budgets.
+# The step of the locked rungs fails that run when a rung is not within its budgets. Its flip test
+# turns each rung red with each budget past its limit. A drill that does not hold fails the run too.
 name: Cells
 
 on:
@@ -326,6 +327,16 @@ jobs:
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+      # The flip test of the lock: each budget of each rung, alone past its limit, turns that rung red. The
+      # check also fails with each budget past its limit and with the record of one drill gone.
+      - name: The flip test of the locked rungs
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+      # The Sunday claims that its drills hold, as the night claims for its cells. This step judges each
+      # record again, with the same flip test, and it fails on a record that does not pin its programs.
+      - name: The drills of the Sunday hold
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells drills --shard 0/1 "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()
