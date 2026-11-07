@@ -43,13 +43,13 @@ describe("the rungs of the ladder", () => {
   it("gives one stream for each active tenant, each with its own seed, at 10 requests each second", () => {
     const streams = ladderStreams(RUNGS[2]!);
     expect(streams.map((stream) => stream.key)).toEqual(Array.from({ length: 10 }, (_, index) => tenantName(index)));
-    expect(new Set(streams.map((stream) => stream.plan.options.seed)).size).toBe(10);
+    expect(new Set(streams.map((stream) => JSON.stringify(stream.plan.options))).size).toBe(10);
     expect(streams[0]!.plan).toMatchObject({ profile: [{ ms: 5_000, from: 10, to: 10 }], options: { arrivals: "poisson" } });
   });
 
   it("has a cell for each rung, with the limit of its availability on the failed arrivals", () => {
     expect(LADDER_CELLS.map((cell) => cell.name.split(",")[0])).toEqual(["LADDER.1", "LADDER.10", "LADDER.100", "LADDER.1000"]);
-    expect(LADDER_CELLS.map((cell) => cell.prediction.load?.failures)).toEqual([0.01, 0.005, 0.001, 0.001]);
+    expect(LADDER_CELLS.map((cell) => (cell.prediction.detects === null ? cell.prediction.load?.failures : undefined))).toEqual([0.01, 0.005, 0.001, 0.001]);
     for (const cell of LADDER_CELLS) expect(cell).toMatchObject({ client: "load", probe: { mode: "schedule" }, fault: "none", targetSetup: [expect.any(Array)] });
   });
 });
