@@ -490,6 +490,19 @@ const keepZone = async () => {
   return { t0, t1: now() };
 };
 
+/**
+ * This function is a planned load: it keeps `cores` of one CPU busy for `ms`, in slices of 100 ms
+ * (SYS-95). It runs in the loader of the lab, out of the cluster.
+ */
+const burn = async ({ cores, ms }) => {
+  const end = now() + ms;
+  while (now() < end) {
+    const start = now();
+    while (now() - start < 100 * cores);
+    if (cores < 1) await sleep(100 * (1 - cores));
+  }
+};
+
 const [mode, arg] = process.argv.slice(2);
 if (mode === "serve") {
   say({ ev: "agent", what: "start", t: now() });
@@ -500,6 +513,8 @@ if (mode === "serve") {
   await eds(JSON.parse(arg));
 } else if (mode === "lds") {
   await lds(JSON.parse(arg));
+} else if (mode === "burn") {
+  await burn(JSON.parse(arg));
 } else if (mode === "act") {
   const spec = JSON.parse(arg);
   try {

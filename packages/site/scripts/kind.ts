@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, Prediction, Reference, TimeSpread } from "../../kind/src/index.ts";
-import { FORMAT, FORMAT_V1, KIND_NOISE, calibrationOf, cyclesOf, judgeKind, judgeReconnects, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
+import { FORMAT, FORMAT_V1, KIND_NOISE, NOT_QUIET, calibrationOf, cyclesOf, judgeKind, judgeReconnects, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
@@ -897,8 +897,9 @@ interface Dispatch {
  */
 const VOIDS: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
   [
-    /^the VM was not quiet in (\d+) s: (\d+)% idle, other lab containers: (.*)$/,
-    (match) => `the VM was not quiet in ${match[1]} s: ${match[2]}% idle, other lab containers: ${match[3] === "none" ? "none" : match[3]!.split("; ").length}`,
+    NOT_QUIET,
+    (match) =>
+      `the VM was not quiet in ${match[1]} s: ${match[2]}% idle${match[3] === undefined ? "" : `, the gate needs ${match[3]}%`}, other lab containers: ${match[4] === "none" ? "none" : match[4]!.split("; ").length}`,
   ],
   [/^the cell was not at rest: /, () => "the cell was not at rest"],
 ];
