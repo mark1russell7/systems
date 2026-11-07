@@ -101,12 +101,12 @@
     }
   },
   "devDependencies": {
-    "@grpc/grpc-js": "1.14.6",
+    "@grpc/grpc-js": "1.14.7",
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@mark1russell7/harness": "workspace:^",
     "@types/node": "^26.6.4",
     "ioredis": "6.0.0",
-    "testcontainers": "12.2.0",
+    "testcontainers": "12.2.1",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3",
