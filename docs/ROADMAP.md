@@ -2703,12 +2703,12 @@ The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells ho
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-63
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#381](https://github.com/mark1russell7/systems/pull/381), [the cells](../packages/cells/src/conntrack.ts)
 
 New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
 
