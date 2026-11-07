@@ -2798,16 +2798,35 @@ Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-71
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-07
+- **Links:** [#360](https://github.com/mark1russell7/systems/pull/360)
 
 The source at the tag 4.3.2 changes the first sentence of this item. In the consumer protocol the session is a setting of the broker, `group.consumer.session.timeout.ms`, not of the client. A commit after the fence gets UNKNOWN_MEMBER_ID, not a fenced error, and the client throws `CommitFailedException`.
 
-The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation. The cells have not run.
+The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation.
+
+**The result.** The law holds. [Cells run 42384698068](https://github.com/mark1russell7/systems/actions/runs/42384698068) gave 4 counted runs for each of the 5 cells, with 0 void. Each cell holds.
+
+| Cell | Fence | Takeover | Commit at the thaw |
+| --- | --- | --- | --- |
+| `K2.pause.long` | 43.980 s to 43.991 s | 44.023 s to 49.064 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.setting` | 13.968 s to 13.983 s | 18.915 s to 19.031 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.classic` | 13.997 s to 13.998 s | 16.901 s to 16.919 s | `CommitFailedException`, the group rebalanced |
+| `K2.pause.short` | none | none | acknowledged, the epoch stays the same |
+| `K2.pause.rejoin` | 43.986 s to 43.993 s | 44.023 s to 44.281 s | acknowledged at a new epoch |
+
+In each run of `K2.pause.rejoin`, the new epoch comes 0.027 s to 0.030 s after the thaw. The stale commit of offset 60 is acknowledged. The committed offset moves back to 60, below 1000, the progress of the other member.
+
+Two readings go into the next band:
+
+- Each fence comes approximately 1 s before the stop plus the session. The session starts at the last heartbeat before the stop.
+- The other member reports the partition at the fence, or one heartbeat later.
+
+The prediction gives 14 of 14 law claims and 0 of 4 naive claims, with a Brier score of 0.0722.
 
 ### SYS-73 · etcd: a lock holder past its lease
 
