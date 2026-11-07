@@ -507,6 +507,23 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
+      // the checker of linearizability judges the cell: each run gives one verdict for its history
+      const { history } = prediction;
+      if (history !== undefined) {
+        const results = new Map<string, number>();
+        for (const run of counted) {
+          const result = run.history?.verdict?.result ?? "none";
+          results.set(result, (results.get(result) ?? 0) + 1);
+        }
+        const tally = [...results].map(([result, n]) => `${n} ${result}`).join(", ");
+        return {
+          ...empty,
+          decision: outside.length === 0 ? "holds" : "fails",
+          band: null,
+          outside,
+          why: `${counted.length - outside.length} of ${counted.length} runs gave the history verdict ${history} (${tally}). ${prediction.why}`,
+        };
+      }
       // exact counts judge the cell: the times have no band
       const { counts } = prediction;
       if (counts !== undefined) {

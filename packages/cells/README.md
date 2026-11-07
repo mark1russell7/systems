@@ -303,6 +303,17 @@ The cells `EL.1` to `EL.11` (SYS-73) ask when a lock holder loses its etcd lease
 - **The verdict.** The store has no other writer, thus each cell counts exact revisions from the head at its start. A time is a boolean field of its line, and the raw times stay in the line.
 - **The runs.** The target stays up between the runs of an environment. Each scenario stops its clients and revokes each lease before its last line.
 
+## The read cells of etcd
+
+The cells `LR.1` to `LR.4` (SYS-75) ask if a read through a member cut from the other members gives a stale value. A checker of linearizability judges the history of each run.
+
+- **The cluster.** Three members of etcd v3.6.15 at its defaults, each the etcd image of the harness in its own network namespace (`Cell.etcd`).
+- **The client.** `clients/etcd-kv` is a program in Go on clientv3. Six workers talk to the three members, two to each one. Each worker puts a unique value or gets one of eight keys, each 20 ms. Each operation has a deadline of 1 s.
+- **The checker.** `checkers/linearizability` is a program in Go over Porcupine v1.3.1, with a register for each key. It reads the history as JSON lines and prints one verdict line. A failed operation has no effect, and an unknown put can take effect at each time after its call.
+- **The cut.** A partition cuts one member from the other members for 10 s, and its clients stay connected to it. `LR.1` and `LR.3` cut a follower, and `LR.2` and `LR.4` cut the leader.
+- **The law.** A linearizable get needs a quorum of heartbeat acks, thus each get through the cut member fails (`LR.1`, `LR.2`: `Ok`). A serializable get reads the local store of the member, and the other members accept puts. Thus a get after a put reads the old value (`LR.3`, `LR.4`: `Illegal`). Each term cites etcd v3.6.15 or Raft v3.6.0 by file and line, in the comment of `src/etcd-reads.ts`.
+- **The verdict.** Each run gives one verdict. A run with no operation of the cut member in the cut is void, and so is a run whose check reaches its timeout.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.

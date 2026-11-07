@@ -19,6 +19,8 @@ import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./c
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
+import type { HistoryMeasured } from "./history.ts";
+import { measureEtcd } from "./history.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import type { PortsReading } from "./ports.ts";
 import { measurePorts } from "./ports.ts";
@@ -102,6 +104,8 @@ export interface Measured {
   readonly crossings?: Crossings;
   /** This record is what a run of a group cell measured: the stages of its timeline, and what became of each write. */
   readonly group?: GroupMeasured;
+  /** This record is what a run of an etcd cluster measured: the verdict of the checker on its history, and the counts of its operations. */
+  readonly history?: HistoryMeasured;
   /** This record is what a run of a queue cell measured: the count of the queue, its counters, and each connection. */
   readonly queue?: QueueReading;
   /** This record is what a run of a port cell measured: the count of each search, and when each port came back. */
@@ -472,6 +476,8 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
+  // a cluster of etcd: the checker judges the history, and no socket
+  if (cell.etcd !== undefined) return measureEtcd(cell, run);
   if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined || cell.kafka !== undefined) {
     const read = measureGroup(cell, run);
     return {
