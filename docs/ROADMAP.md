@@ -2856,11 +2856,11 @@ The cluster is a group of the harness and not three members in one container. In
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-05
-- **Shipped:**
+- **Shipped:** 2026-11-07
 - **Links:** [SYS-76](#sys-76--the-environment-of-a-record)
 
 The 12 open cell branches come from before SYS-76. A run from such a branch gives a record with no environment, and rule 1 of `docs/S7.md` asks each record to name its environment. Thus each branch takes main before its dispatch.
@@ -2885,6 +2885,8 @@ The work:
 - SYS-66 follows SYS-63, and SYS-72 follows SYS-71. Each needs a dispatch of its own.
 
 This item is done when each of the 7 dispatches gives a record that names its environment.
+
+The 7 dispatches ran, and each of their 11 items shipped from its records by 2026-11-07. SYS-66 and SYS-72 took main on 2026-11-07, and each started its own dispatch.
 
 ## The items of S7
 
