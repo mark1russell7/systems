@@ -2,7 +2,8 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { StartedTestContainer } from "testcontainers";
-import { imageOf, substrateKey, substrateOf, substrateOn } from "@mark1russell7/harness";
+import type { RecordCode } from "@mark1russell7/harness";
+import { buildRecordOf, imageOf, substrateKey, substrateOf, substrateOn } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cycle, KindCell, KindRun, Replica } from "./cell.ts";
@@ -12,7 +13,7 @@ import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
 import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, dnsCommands, faultSpan, middleboxCommands, placementOf, planOf, sysctlCommand } from "./faults.ts";
-import { labImage } from "./image.ts";
+import { labBuildRecord, labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
 import { KUBE_VIP_ANNOUNCER, METALLB_ANNOUNCER, announcerOf, macsAt } from "./announcer.ts";
@@ -49,6 +50,11 @@ export interface RunOptions {
    * kubectl. It is not the output, because a kubeconfig holds credentials.
    */
   readonly work?: string;
+  /**
+   * This code is the commit of the checkout that operates the cells, and if its tracked files had
+   * changes. Each raw record holds it. A record without it does not pin its code (SYS-101).
+   */
+  readonly code?: RecordCode | undefined;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -968,9 +974,9 @@ const rebalance = async (ctx: Context): Promise<void> => {
 };
 
 /** This function writes the result of a cell: its raw record, and one line of its verdict in `summary.ndjson`. */
-export const writeResult = (out: string, result: KindCellResult): void => {
+export const writeResult = (out: string, result: KindCellResult, code?: RecordCode): void => {
   mkdirSync(out, { recursive: true });
-  const record: KindCellRecord = { format: FORMAT, ...result };
+  const record: KindCellRecord = { format: FORMAT, ...result, ...(code === undefined ? {} : { code }) };
   writeFileSync(join(out, `${slug(result.cell.name)}.json`), JSON.stringify(record));
   const { verdict, cell } = result;
   writeFileSync(
@@ -1002,9 +1008,12 @@ export const writeResult = (out: string, result: KindCellResult): void => {
 export const runKindCells = async (cells: readonly KindCell[], options: RunOptions): Promise<KindCellResult[]> => {
   const environments = options.environments ?? 2;
   const image = await labImage();
+  const labBuild = await labBuildRecord();
   const redisImage = await localPin(REDIS_IMAGE);
   // the server of the stack grpc: the image of grpc-go of the harness, built from its tag
   const grpcImage = cells.some((cell) => stackOf(cell) === "grpc") ? await imageOf({ kind: "shipped", name: "grpc-go" }) : undefined;
+  const grpcBuild = grpcImage === undefined ? undefined : buildRecordOf({ kind: "shipped", name: "grpc-go" });
+
   // Istio: each image of each flavor of the cells pulled once by its digest, and tagged with it, for `kind load`
   const flavors = new Set(cells.flatMap((cell) => (cell.mesh === undefined ? [] : [cell.mesh.flavor])));
   const pinned = new Map<keyof typeof ISTIO_IMAGES, string>();
@@ -1120,12 +1129,18 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
               substrate: substrateOn("E2"),
               images: {
                 lab: image,
-                redis: redisImage,
+                // the cluster runs the local tag of this reference, by the same digest
+                redis: REDIS_IMAGE,
                 ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}),
                 ...(cell.mesh === undefined ? {} : Object.fromEntries(MESH_IMAGES[cell.mesh.flavor].map((name) => [`istio-${name}`, ISTIO_IMAGES[name]]))),
                 ...(s.cni === "cilium" ? Object.fromEntries(Object.entries(CILIUM_IMAGES).map(([name, ref]) => [`cilium-${name}`, ref])) : {}),
                 ...(cell.vip === undefined ? {} : announcerOf(cell).images),
                 ...(cell.pulsar === undefined ? {} : { pulsar: PULSAR_IMAGE }),
+              },
+              // each image that a build makes has its build record, by the name of the image
+              builds: {
+                ...(labBuild === undefined ? {} : { lab: labBuild }),
+                ...(stackOf(cell) === "grpc" && grpcBuild !== undefined ? { grpc: grpcBuild } : {}),
               },
             });
             entry.loads.push(...loads);
@@ -1154,7 +1169,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
       const entry = partial.get(cell.name);
       if (entry === undefined) continue;
       const result: KindCellResult = { cell, ...entry, verdict: judgeKind(cell, entry.runs), at: new Date().toISOString() };
-      writeResult(options.out, result);
+      writeResult(options.out, result, options.code);
       rmSync(join(options.out, "partial", `${slug(cell.name)}.env0.json`), { force: true });
       for (let env = 1; env < environments; env += 1) rmSync(join(options.out, "partial", `${slug(cell.name)}.env${env}.json`), { force: true });
       options.log(`${cell.name}: ${result.verdict.decision}, ${result.verdict.why}`);

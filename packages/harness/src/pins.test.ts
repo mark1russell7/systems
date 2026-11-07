@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BuildRecord } from "./image.ts";
 import type { Manifest } from "./lab.ts";
-import { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
+import { commitProblems, DEBUG, DIRTY, imagePinProblems, manifestProblems, recordProblems } from "./pins.ts";
 
 const DIGEST = `sha256:${"a".repeat(64)}`;
 const ID = `sha256:${"b".repeat(64)}`;
@@ -67,6 +67,29 @@ describe("the pins of a manifest", () => {
     const hop = { name: "r1", kind: "router" as const, image: "loom-harness-router:0123456789ab", id: ID, settings: {}, sysctls: {} };
     expect(manifestProblems({ ...pinned, hops: [hop] })).toEqual([]);
     expect(manifestProblems({ ...pinned, hops: [{ ...hop, image: "toxiproxy:2.12.0" }] })).toEqual(["the hop r1: the image toxiproxy:2.12.0 has no digest"]);
+  });
+});
+
+describe("the pins of one image outside a manifest", () => {
+  it("takes an image by its digest, or a build with its build record", () => {
+    expect(imagePinProblems("the image redis", REDIS, undefined)).toEqual([]);
+    expect(imagePinProblems("the image lab", "systems-kind-lab:0123456789ab", buildOf("systems-kind-lab:0123456789ab"))).toEqual([]);
+  });
+
+  it("refuses a tag with no digest, a build with no build record, and the build record of another tag", () => {
+    expect(imagePinProblems("the image redis", "redis:7.4", undefined)).toEqual(["the image redis: the image redis:7.4 has no digest"]);
+    expect(imagePinProblems("the image lab", "systems-kind-lab:0123456789ab", undefined)).toEqual([
+      "the image lab: the image systems-kind-lab:0123456789ab is a build with no build record",
+    ]);
+    expect(imagePinProblems("the image lab", "systems-kind-lab:0123456789ab", buildOf("systems-kind-lab:ba9876543210"))).toEqual([
+      "the image lab: the build record has the tag systems-kind-lab:ba9876543210, not the tag of the image systems-kind-lab:0123456789ab",
+    ]);
+  });
+
+  it("refuses a build with a base that no digest pins", () => {
+    expect(imagePinProblems("the image lab", "systems-kind-lab:0123456789ab", buildOf("systems-kind-lab:0123456789ab", ["node:24-alpine"]))).toEqual([
+      "the image lab: the base node:24-alpine is not pinned by digest",
+    ]);
   });
 });
 

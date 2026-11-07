@@ -117,6 +117,15 @@ const run: z.ZodType<KindRun> = z.object({
   dropped: z.record(z.string(), count),
   notes: z.array(z.string()).optional(),
 });
+/** This schema is the build record of an image that a build makes (`BuildRecord` of the harness). */
+const buildRecord = z.object({
+  tag: z.string(),
+  bases: z.array(z.string()),
+  locks: z.record(z.string(), z.string()),
+  versions: z.record(z.string(), z.string()),
+});
+/** This schema is the code of a record: the commit of the checkout, and if its tracked files had changes. */
+const code = z.object({ commit: z.string(), dirty: z.boolean() });
 const manifest = z.object({
   env: count,
   // A record from before the dataplane `cilium` has no `dataplane`: its dataplane is the mode of its kube-proxy.
@@ -141,6 +150,7 @@ const manifest = z.object({
     nodes: z.array(z.object({ name: z.string(), kubelet: z.string(), kernel: z.string(), runtime: z.string(), os: z.string() })),
   }),
   images: z.record(z.string(), z.string()),
+  builds: z.record(z.string(), buildRecord).optional(),
 });
 const load = z.object({ t: z.number(), idle: z.number(), top: z.array(z.string()), foreign: z.array(z.string()), needed: z.number().optional() });
 
@@ -287,7 +297,7 @@ const v1 = recordOf<number>(z.number(), z.number());
  * have the unit of the prediction of the cell (`unitOf`).
  */
 export const kindCellRecordSchema: z.ZodType<KindCellRecord> = z
-  .object({ format: z.literal(FORMAT), ...v2 })
+  .object({ format: z.literal(FORMAT), ...v2, code: code.optional() })
   .superRefine((record, ctx) => {
     const unit = unitOf(record.cell.prediction);
     const values = [record.verdict.median, ...record.verdict.checks.map((check) => check.value)];

@@ -4,7 +4,7 @@ import type { Band, KindCell, KindRun, Prediction, Trigger, WindowPrediction } f
 import type { KindScenario } from "./scenario.ts";
 import type { KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
 import { judgeKind, unitOf } from "./verdict.ts";
-import type { Substrate } from "@mark1russell7/harness";
+import type { BuildRecord, RecordCode, Substrate } from "@mark1russell7/harness";
 
 /**
  * This module is the raw record of a kind cell: its formats, and the upgrade from the format `/1`
@@ -52,6 +52,12 @@ export interface EnvironmentManifest {
   readonly scenario: KindScenario;
   readonly cluster: ClusterManifest;
   readonly images: Readonly<Record<string, string>>;
+  /**
+   * These are the build records of the images of `images` that a build makes, by the same name: the
+   * lab and grpc-go. An image with no build record is a pull by its digest. A record from before
+   * SYS-99 has none, thus it does not pin its builds.
+   */
+  readonly builds?: Readonly<Record<string, BuildRecord>> | undefined;
   /** This block tells the layer, the cloud and the kernel of the record. A record from before it reads through `substrateOf`. */
   readonly substrate?: Substrate;
 }
@@ -73,6 +79,8 @@ export interface KindCellResult<A = Quantity> {
 /** A kind cell record is the raw record of a cell in the format `/2`: a result with its format. */
 export interface KindCellRecord extends KindCellResult {
   readonly format: typeof FORMAT;
+  /** This code is the commit of the checkout that operated, and if its tracked files had changes. A record from before SYS-99 has none. */
+  readonly code?: RecordCode | undefined;
 }
 
 /** A kind cell record of the format `/1` gives each band, median, main value and time of a fact as a number. */
