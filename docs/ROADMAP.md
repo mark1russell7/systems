@@ -2753,16 +2753,30 @@ The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cel
 
 ### SYS-68 · An open-loop load schedule
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-05
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-07
+- **Links:** [#362](https://github.com/mark1russell7/systems/pull/362), [the A/A run](https://github.com/mark1russell7/systems/actions/runs/42395390993), [the freeze run](https://github.com/mark1russell7/systems/actions/runs/42402610483)
 
 Each arrival keeps its scheduled time, with no coordinated omission. A/A cells with no fault check that. The schedule and its measure come from `@mark1russell7/rigor-chaos`, and the verdict of a quantile comes from `@mark1russell7/rigor-bench`. The drivers stay in the images of the harness.
 
 The native client has the mode `schedule`. A send does not wait for a reply, and each latency counts from the planned time. Cells `OL.` have three A/A cells and a closed-loop twin. The freeze of 1 s on both clients is the positive control of the A/A gate. It also shows the omission: the same stall moves the p99 of the open loop, and only one reply of the closed loop. The HTTP driver of the reference service comes with SYS-93.
+
+The result (runs 42395390993 and 42402610483, 2026-11-07): each cell has 11 counted runs and no void run. Each arrival of a schedule has its send and its reply.
+
+| Cell | Decision | p99 | Slowest |
+| --- | --- | --- | --- |
+| `OL.aa.uniform.100` | holds | 0.406 ms | 3.034 ms |
+| `OL.aa.poisson.100` | holds | 0.338 ms | 3.728 ms |
+| `OL.aa.uniform.1000` | holds | 0.905 ms | 3.466 ms |
+| `OL.freeze.open` | holds | 761.507 ms | 961.598 ms |
+| `OL.freeze.closed` | measured | 0.432 ms | 966.616 ms |
+
+The same stall of 1 s gives a p99 of 761.507 ms on the schedule and 0.432 ms on the closed loop. That ratio of 1763 is the coordinated omission of this fault. The latest send of the frozen schedule is 4.183 ms late, thus the freeze does not hold back the client.
+
+The first freeze did not stop the server. The stock Redis image starts the server as the first process of its PID namespace, and the kernel drops a STOP to that process. The freeze cells use `REDIS_HELD`, and `inject` refuses `SIGSTOP` and `SIGKILL` to pid 1.
 
 ### SYS-69 · The border of a stable system
 
@@ -3203,14 +3217,14 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** blocked
+- **Status:** later
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:**
 - **Shipped:**
 - **Links:**
 
-This item waits for SYS-68. The HTTP driver on a schedule is part of this item.
+SYS-68 and SYS-94 are done, thus this item can start. The HTTP driver on a schedule is part of this item.
 
 A public multi-tenant service runs on the stack of this repository: `@mark1russell7/service`, `@procedures/peer` and a MongoDB replica set. It holds documents for each tenant and it sends each change over a socket. It has no product code. A gap in the stack goes to its home, and the service keeps no local copy.
 
