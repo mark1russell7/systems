@@ -2721,14 +2721,18 @@ The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells ho
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-63
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#381](https://github.com/mark1russell7/systems/pull/381), [the cells](../packages/cells/src/conntrack.ts)
 
-New flows drop at `nf_conntrack_max`. The table is global, not for each network namespace. Thus the cell sets the value on its own runner, and it restores the value.
+New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
+
+The first run (42385278058, 2026-11-07): CT.3 holds with 4 counted runs. CT.1, CT.2, CT.4 and CT.5 have only void runs. The kernel of the runners has no `CONFIG_NF_CONNTRACK_PROCFS`, thus it has no `/proc/net/stat/nf_conntrack`. The client read the field `drop` there before connect M + 1. The read failed, and the client stopped before its end. CT.3 does not read the counters.
+
+The fix: the client reads the field `drop` over ctnetlink, with a dump of the statistics of each CPU. That message needs NET_ADMIN, thus a client image can add that capability. A client that stops writes its error, and the void names it. The four void cells get one more dispatch, alone, by the rule of the prediction.
 
 ### SYS-67 · Retry amplification: an exact count
 
@@ -3117,7 +3121,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 344 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 16 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |

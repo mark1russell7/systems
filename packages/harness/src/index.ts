@@ -11,6 +11,7 @@ export type {
   BuildImage,
   Cell,
   Client,
+  ClientCapability,
   ClientImage,
   Cluster,
   Kafka,
@@ -50,6 +51,8 @@ export type {
   PinnedImage,
   KernelRecord,
   Prediction,
+  ConntrackPrediction,
+  HostSysctl,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -88,7 +91,7 @@ export type {
   Toxic,
   WsProbe,
 } from "./cell.ts";
-export { isHopPlace, latestEndOf } from "./cell.ts";
+export { CLIENT_CAPABILITIES, isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
   DROP_HANDLING,
@@ -107,6 +110,8 @@ export {
 } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { ConntrackReading, StallReading } from "./conntrack.ts";
+export { measureConntrack } from "./conntrack.ts";
 export type { PortsReading } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
@@ -145,7 +150,7 @@ export {
   spreadOf,
   verdictOf,
 } from "./verdict.ts";
-export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
+export type { Agent, FaultSide, HostSetting, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
 export { INSERT, RESTART, STANDBY_READY, cancelsOf, numbersOf, openStandby, pairArgs, pairOnce, standbyCommand } from "./standby.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";

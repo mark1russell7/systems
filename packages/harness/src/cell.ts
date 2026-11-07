@@ -895,6 +895,11 @@ export type Prediction =
        * when a held port comes back. A value outside it is a finding of its run.
        */
       readonly ports?: PortsPrediction;
+      /**
+       * This record is the law of a conntrack table: its flows, a connect that finds no entry, and the
+       * return of a slot. A value outside it is a finding of its run.
+       */
+      readonly conntrack?: ConntrackPrediction;
       /** This record is the law of a paused consumer (`Kafka.pause`). A run outside it is a finding of its run. */
       readonly pause?: PausePrediction;
     };
@@ -987,6 +992,48 @@ export interface PortsPrediction {
   readonly freed?: QueueBand;
   /** This count is the segments that the sockets of the client send again. */
   readonly retransmissions?: number;
+}
+
+/**
+ * This prediction is the law of a conntrack table. It reads the lines of the ctfull client. The client
+ * holds flows on its loopback until the count of its namespace reads the limit, then it does its plan.
+ */
+export interface ConntrackPrediction {
+  /** This count is the limit of the table: the flows that the client holds, and the count that it reads then. */
+  readonly max: number;
+  /** This count is what the namespace of the target reads while the client holds its flows. */
+  readonly neighbor?: number;
+  /** This record is the law of a connect that finds no entry: its end, and the rise of the two counters of the kernel. */
+  readonly refused?: {
+    readonly within: QueueBand;
+    readonly errno: string;
+    readonly drops: number;
+    readonly retransFail: number;
+  };
+  /** This band is the time from the `closing` line to the first fall of the count, and to its zero. */
+  readonly drained?: QueueBand;
+  /**
+   * This record is the law of a scan under pressure. It has the lowest count, the count after the
+   * connect, and the times of that connect. With `highest`, the lowest count is a band from `lowest` to
+   * `highest`. Then the count after the connect is one more than the lowest count of the run.
+   */
+  readonly pressure?: {
+    readonly lowest: number;
+    readonly highest?: number;
+    readonly after: number;
+    readonly points: readonly QueueBand[];
+  };
+}
+
+/**
+ * This setting is one sysctl of the namespace of the host, for the time of an environment. The harness
+ * reads the value before it, reads the value that it set, and restores the first value at the end.
+ */
+export interface HostSysctl {
+  readonly name: string;
+  readonly value: string;
+  /** The harness does not set the value when this sysctl of the host reads above `atMost`. The cell is then void. */
+  readonly guard?: { readonly name: string; readonly atMost: number };
 }
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -1191,7 +1238,16 @@ export interface ClientImage {
   /** This image is a stock image by its name, pinned by digest, or the source of the image of a subject. */
   readonly image: string | ImageSource;
   readonly command: readonly string[];
+  /**
+   * These capabilities are added to the default set of the container of the client. A read of the
+   * statistics of conntrack over netlink needs NET_ADMIN in the namespace of the client.
+   */
+  readonly capabilities?: readonly ClientCapability[] | undefined;
 }
+
+/** These are the capabilities that a client image can get. */
+export const CLIENT_CAPABILITIES = ["NET_ADMIN"] as const;
+export type ClientCapability = (typeof CLIENT_CAPABILITIES)[number];
 
 /**
  * An observer is the side whose detection a cell measures. The client is one observer. The
@@ -1295,6 +1351,14 @@ export interface Cell {
   readonly latency?: Quantity;
   /** These commands run in the target before a client connects, each as argv: for example, a large value to read. */
   readonly targetSetup?: readonly (readonly string[])[];
+  /** These commands run in the namespaces of the client and the target, each as argv, after the first connection of the environment. */
+  readonly namespaceSetup?: readonly (readonly string[])[];
+  /**
+   * These are sysctls of the host, which a cell needs because only the host can write them. The value
+   * applies to each container of the host, thus a shard runs them on its own runner. A host that does
+   * not have one makes the cell void (rule 8 of the environments).
+   */
+  readonly hostSysctls?: readonly HostSysctl[];
   readonly prediction: Prediction;
   /** This side is the side whose detection the cell measures. Without it, the side is the client. */
   readonly observer?: Observer;
@@ -1509,6 +1573,8 @@ export interface Run {
   readonly group?: RunGroup;
   /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
   readonly server?: readonly ProbeEvent[];
+  /** This text tells what the environment of the run could not do for its cell. The run is void. */
+  readonly missing?: string;
   /** This record is the other member and the broker logs of a run of a paused consumer. */
   readonly pause?: RunPause;
   /** This record is the fabric of a cell with `Topology.fabric`. */
