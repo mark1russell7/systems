@@ -17,7 +17,7 @@ describe("the pacing of each cell", () => {
     expect(pacingCounts(ALL, KIND_CATALOG), TABLE).toEqual({
       "one request": 339,
       "one gap": 64,
-      "closed loop, reply times": 11,
+      "closed loop, reply times": 16,
       "closed loop, first write": 72,
       timer: 224,
     });
@@ -38,6 +38,7 @@ describe("the pacing of each cell", () => {
       "T12.resend: closed loop, first write": 5,
       "T11.confirms: closed loop, first write": 6,
       "K1.acks: closed loop, first write": 5,
+      "K2.pause: closed loop, reply times": 5,
       "T11.border-off: closed loop, first write": 10,
       "T11.defaults: closed loop, first write": 16,
       "T12.border-off: closed loop, first write": 4,

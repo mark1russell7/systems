@@ -19,6 +19,8 @@ import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./c
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
+import type { PauseReading } from "./pause.ts";
+import { measurePause } from "./pause.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import type { PortsReading } from "./ports.ts";
 import { measurePorts } from "./ports.ts";
@@ -132,6 +134,8 @@ export interface Measured {
    * reader can check each pairing of the run again.
    */
   readonly pairing?: Pairing;
+  /** This record is what a run of a paused consumer measured. */
+  readonly pause?: PauseReading;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -472,6 +476,7 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
+  if (cell.prediction.detects === null && cell.prediction.pause !== undefined) return measurePause(run, cell.prediction.pause);
   if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined || cell.kafka !== undefined) {
     const read = measureGroup(cell, run);
     return {

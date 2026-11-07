@@ -16,6 +16,7 @@ import { UNDICI_RETRY } from "./http/undici-retry.ts";
 import { IOREDIS_SENTINEL } from "./ioredis-sentinel.ts";
 import { IOREDIS_STATUS, LINUX_TCP, NF_CONNTRACK_TCP, REDIS_CLIENT } from "./json.ts";
 import { KUBELET_READINESS } from "./k8s/kubelet-readiness.ts";
+import { KAFKA_CONSUMER_GROUP } from "./kafka/group.ts";
 import { KAFKA_PARTITION } from "./kafka/partition.ts";
 import { MONGOD_REPL } from "./mongo/mongod-replication.ts";
 import { MONGOD_SESSION } from "./mongo/mongod-session.ts";
@@ -60,6 +61,7 @@ export {
   IOREDIS_STATUS,
   ISTIO_SIDECAR_INBOUND,
   ISTIO_SIDECAR_OUTBOUND,
+  KAFKA_CONSUMER_GROUP,
   KAFKA_PARTITION,
   KUBELET_READINESS,
   LINUX_TCP,
@@ -148,6 +150,7 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   RABBITMQ_CONNECTION,
   ATEN_DETECTOR,
   RA_MEMBER,
+  KAFKA_CONSUMER_GROUP,
   KAFKA_PARTITION,
   GRPC_JS,
   GRPC_GO_SERVER,

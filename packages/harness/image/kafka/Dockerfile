@@ -14,8 +14,8 @@ RUN wget -q https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/4.3.2/
  && wget -q https://repo1.maven.org/maven2/at/yawk/lz4/lz4-java/1.11.4/lz4-java-1.11.4.jar \
  && wget -q https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.10.11/snappy-java-1.1.10.11.jar \
  && sha256sum -c jars.sha256
-COPY harness/image/kafka/ClientKafka.java harness/image/kafka/AdminKafka.java ./
-RUN javac --release 21 -cp "kafka-clients-4.3.2.jar:slf4j-api-1.7.36.jar" -d classes ClientKafka.java AdminKafka.java
+COPY harness/image/kafka/ClientKafka.java harness/image/kafka/AdminKafka.java harness/image/kafka/ConsumerKafka.java ./
+RUN javac --release 21 -cp "kafka-clients-4.3.2.jar:slf4j-api-1.7.36.jar" -d classes ClientKafka.java AdminKafka.java ConsumerKafka.java
 
 FROM eclipse-temurin:21.0.12.1_1-jre-alpine@sha256:51ab5e3302e7141ce665ca3ea85e8b5cd648eafbc3c0c90dd79d6537684e4555
 WORKDIR /opt/harness/kafka

@@ -2816,14 +2816,35 @@ Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-71
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-07
+- **Links:** [#360](https://github.com/mark1russell7/systems/pull/360)
 
-The group rebalances at `session.timeout.ms`, and a stale commit fails with a fenced error (T13).
+The source at the tag 4.3.2 changes the first sentence of this item. In the consumer protocol the session is a setting of the broker, `group.consumer.session.timeout.ms`, not of the client. A commit after the fence gets UNKNOWN_MEMBER_ID, not a fenced error, and the client throws `CommitFailedException`.
+
+The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation.
+
+**The result.** The law holds. [Cells run 42384698068](https://github.com/mark1russell7/systems/actions/runs/42384698068) gave 4 counted runs for each of the 5 cells, with 0 void. Each cell holds.
+
+| Cell | Fence | Takeover | Commit at the thaw |
+| --- | --- | --- | --- |
+| `K2.pause.long` | 43.980 s to 43.991 s | 44.023 s to 49.064 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.setting` | 13.968 s to 13.983 s | 18.915 s to 19.031 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.classic` | 13.997 s to 13.998 s | 16.901 s to 16.919 s | `CommitFailedException`, the group rebalanced |
+| `K2.pause.short` | none | none | acknowledged, the epoch stays the same |
+| `K2.pause.rejoin` | 43.986 s to 43.993 s | 44.023 s to 44.281 s | acknowledged at a new epoch |
+
+In each run of `K2.pause.rejoin`, the new epoch comes 0.027 s to 0.030 s after the thaw. The stale commit of offset 60 is acknowledged. The committed offset moves back to 60, below 1000, the progress of the other member.
+
+Two readings go into the next band:
+
+- Each fence comes approximately 1 s before the stop plus the session. The session starts at the last heartbeat before the stop.
+- The other member reports the partition at the fence, or one heartbeat later.
+
+The prediction gives 14 of 14 law claims and 0 of 4 naive claims, with a Brier score of 0.0722.
 
 ### SYS-73 · etcd: a lock holder past its lease
 
@@ -3098,7 +3119,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | --- | --- | --- | --- |
 | One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
-| Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, reply times | 16 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
@@ -3116,6 +3137,7 @@ The closed-loop families:
 | T12.resend | 5 | First write |
 | T11.confirms | 6 | First write |
 | K1.acks | 5 | First write |
+| K2.pause | 5 | Reply times |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |

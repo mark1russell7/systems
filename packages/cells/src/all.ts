@@ -7,6 +7,7 @@ import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { ACKS_CELLS } from "./kafka/acks.ts";
+import { PAUSE_CELLS } from "./kafka/pause.ts";
 import { FABRIC_CELLS } from "./fabric.ts";
 import { LIMITER_CELLS } from "./limiter.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
@@ -72,6 +73,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...WRITES_CELLS,
     ...RESEND_CELLS,
     ...ACKS_CELLS,
+    ...PAUSE_CELLS,
     ...HTTP_HARNESS_CELLS,
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),

@@ -69,6 +69,7 @@
     "image/kafka/Dockerfile",
     "image/kafka/ClientKafka.java",
     "image/kafka/AdminKafka.java",
+    "image/kafka/ConsumerKafka.java",
     "image/kafka/jars.sha256",
     "image/amqp/Dockerfile",
     "image/amqp/client-amqp.mjs",
