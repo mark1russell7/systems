@@ -3,7 +3,7 @@ import { constant, measureLoad, schedule } from "@mark1russell7/rigor-chaos";
 import type { Completion, LoadMeasure, Schedule } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
 import type { LoadPrediction, ProbeEvent } from "./cell.ts";
-import { loadOf, loadVerdict } from "./load.ts";
+import { LOAD_FORMAT, loadOf, loadPlanOf, loadVerdict, streamsLoadOf } from "./load.ts";
 
 /** This schedule is 100 arrivals each second for 5 s: 500 arrivals, 10 ms apart. */
 const PLAN: Schedule = schedule(constant(100, 5_000), { arrivals: "uniform" });
@@ -60,6 +60,71 @@ describe("the measure of a schedule", () => {
     expect(load?.latency[0]).toBeCloseTo(995);
     expect(load?.latency[50]).toBeCloseTo(495);
     expect(load?.latency[200]).toBeCloseTo(1);
+  });
+});
+
+describe("the plan of the client load", () => {
+  const plan = { profile: constant(100, 5_000), options: { arrivals: "uniform" as const } };
+  const request = "GET /doc HTTP/1.1\r\nHost: reference\r\n\r\n";
+
+  it("writes the schedule and the requests of each stream in the format of the driver", () => {
+    const { streams, content } = loadPlanOf([
+      { key: "a", plan, requests: [request] },
+      { key: "b", plan, requests: [request, request] },
+    ]);
+    const written = JSON.parse(content) as { format: string; streams: Array<{ key: string; schedule: Schedule; requests: string[] }> };
+    expect(written.format).toBe(LOAD_FORMAT);
+    expect(written.streams.map((stream) => [stream.key, stream.requests.length])).toEqual([
+      ["a", 1],
+      ["b", 2],
+    ]);
+    expect(written.streams[0]?.requests[0]).toBe(request);
+    // the run keeps the same schedule that the driver read, thus each latency counts from its own planned time
+    expect(streams.map((stream) => stream.key)).toEqual(["a", "b"]);
+    expect(written.streams[0]?.schedule).toEqual(streams[0]?.schedule);
+    expect(streams[0]?.schedule).toEqual(PLAN);
+  });
+
+  it("throws for no stream, for two streams with one key and for a stream with no request", () => {
+    expect(() => loadPlanOf([])).toThrow(RangeError);
+    expect(() => loadPlanOf([{ key: "a", plan, requests: [request] }, { key: "a", plan, requests: [request] }])).toThrow(/two streams have the key a/);
+    expect(() => loadPlanOf([{ key: "a", plan, requests: [] }])).toThrow(/the stream a has no request/);
+  });
+});
+
+describe("the measure of the streams of the client load", () => {
+  const streams = [
+    { key: "a", schedule: PLAN },
+    { key: "b", schedule: PLAN },
+  ];
+  const first = PLAN.times[0]!;
+
+  it("gives each stream the lines with its key, and the pool of the streams", () => {
+    // both streams count their arrivals from 0, thus the key alone tells the two first arrivals apart
+    const read = streamsLoadOf(
+      [
+        line("connected", -10, { k: "a", local: "10.0.0.2:40000" }),
+        line("connected", -9, { k: "b", local: "10.0.0.2:40002" }),
+        line("ready", -8, { streams: 2 }),
+        line("scheduled", 0, { streams: 2, arrivals: 1_000 }),
+        line("sent", first, { k: "a", i: 0 }),
+        line("sent", first, { k: "b", i: 0 }),
+        line("replied", first + 2, { k: "a", i: 0, status: 200 }),
+        line("replied", first + 7, { k: "b", i: 0, status: 200 }),
+        line("sent", first + 10, { k: "b", i: 1 }),
+        line("deadline", 100),
+      ],
+      streams,
+    );
+    expect(read?.streams["a"]).toMatchObject({ planned: 500, unsent: 499, unfinished: 0, latency: [2] });
+    expect(read?.streams["b"]).toMatchObject({ planned: 500, unsent: 498, unfinished: 1, latency: [7] });
+    expect(read?.pool).toMatchObject({ planned: 1_000, unsent: 997, unfinished: 1, latency: [2, 7], service: [2, 7] });
+    expect(read?.pool.censored).toEqual([...read!.streams["a"]!.censored, ...read!.streams["b"]!.censored]);
+    expect(read?.pool.lag).toEqual([0, 0, 0]);
+  });
+
+  it("is null when the client never started its schedule", () => {
+    expect(streamsLoadOf([line("ready", -8), line("error", 1, { k: "a", errno: "ECONNRESET" })], streams)).toBeNull();
   });
 });
 

@@ -8,7 +8,7 @@ import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
-import { SCHEDULE_PATH } from "./load.ts";
+import { LOAD_PATH, SCHEDULE_PATH, loadPlanOf } from "./load.ts";
 import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
@@ -156,6 +156,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
   if (probe.userTimeout !== undefined)
     args.push("--user-timeout-ms", String(valueIn(probe.userTimeout, "ms")));
   if (probe.plan !== undefined) args.push("--schedule", SCHEDULE_PATH);
+  if (probe.streams !== undefined) args.push("--plan", LOAD_PATH);
   args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
   return args;
 };
@@ -379,10 +380,13 @@ const once = async (
   const serverFrom = lab.server.length;
   const lostBefore = droppedSoFar(lab.kernel);
   const plan = cell.probe.plan === undefined ? undefined : schedule(cell.probe.plan.profile, cell.probe.plan.options);
-  const probe = await lab.probe(
-    probeArgs(cell, lab),
-    plan === undefined ? undefined : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }],
-  );
+  // the client load reads one plan with the schedule and the requests of each of its streams
+  const load = cell.probe.streams === undefined ? undefined : loadPlanOf(cell.probe.streams);
+  const files = [
+    ...(plan === undefined ? [] : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }]),
+    ...(load === undefined ? [] : [{ content: load.content, target: LOAD_PATH }]),
+  ];
+  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files);
   const server = cell.observer === "server";
   const peer = server
     ? { freeze: () => probe.freeze(), thaw: () => probe.thaw() }
@@ -393,7 +397,11 @@ const once = async (
       const last = probe.events.slice(-3).map((event) => JSON.stringify(event));
       throw new Error(`${(error as Error).message}; the client's last lines: ${last.join(" ")}`);
     });
-  const placed = { ...(lab.topology === null ? {} : { topology: lab.topology }), ...(plan === undefined ? {} : { schedule: plan }) };
+  const placed = {
+    ...(lab.topology === null ? {} : { topology: lab.topology }),
+    ...(plan === undefined ? {} : { schedule: plan }),
+    ...(load === undefined ? {} : { streams: load.streams }),
+  };
   const fabricOf = () => {
     if (lab.fabric === undefined) throw new Error(`${cell.name} silences a router of a lab with no fabric`);
     return lab.fabric;

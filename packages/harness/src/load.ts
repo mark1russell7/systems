@@ -3,9 +3,9 @@ import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Rung, RungRecord } from "@mark1russell7/rigor-bench";
 import { rungVerdict } from "@mark1russell7/rigor-bench";
 import type { Completion, LoadMeasure, Schedule } from "@mark1russell7/rigor-chaos";
-import { measureLoad, scheduleHeld } from "@mark1russell7/rigor-chaos";
+import { measureLoad, schedule, scheduleHeld } from "@mark1russell7/rigor-chaos";
 import { quantile } from "@mark1russell7/rigor-statistics";
-import type { LoadPrediction, ProbeEvent } from "./cell.ts";
+import type { LoadPrediction, LoadStream, ProbeEvent, RunStream } from "./cell.ts";
 
 /**
  * The measure and the verdict of an open-loop cell (SYS-68). A client on a schedule sends each
@@ -28,17 +28,77 @@ const fromStart = (start: number, t: number): number => (t - start) / 1e6;
 export const loadOf = (events: readonly ProbeEvent[], plan: Schedule): LoadMeasure | null => {
   const start = events.find((event) => event.ev === "scheduled")?.t;
   if (start === undefined) return null;
+  return measureOf(events, start, plan, undefined);
+};
+
+/** This function gives the measure of the arrivals of one stream: the lines with the key `key`, or each line for no key. */
+const measureOf = (events: readonly ProbeEvent[], start: number, plan: Schedule, key: string | undefined): LoadMeasure => {
   const sent = new Map<number, number>();
   const done = new Map<number, number>();
   for (const event of events) {
     const index = event["i"];
-    if (typeof index !== "number") continue;
+    if (typeof index !== "number" || (key !== undefined && event["k"] !== key)) continue;
     if (event.ev === "sent") sent.set(index, fromStart(start, event.t));
     if (event.ev === "replied") done.set(index, fromStart(start, event.t));
   }
   const completions: Completion[] = [...sent].map(([index, at]) => ({ index, sent: at, done: done.get(index) ?? null }));
   const end = events.reduce((latest, event) => Math.max(latest, fromStart(start, event.t)), 0);
   return measureLoad(plan, completions, end);
+};
+
+/** This path is where the client `load` finds its plan. */
+export const LOAD_PATH = "/tmp/load.json";
+
+/** This text is the format of the plan of the client `load`. */
+export const LOAD_FORMAT = "systems-load/1";
+
+/**
+ * This function gives the schedule of each stream of a cell, and the text of the plan of the client
+ * `load`. It throws for no stream, for two streams with one key and for a stream with no request.
+ */
+export const loadPlanOf = (streams: readonly LoadStream[]): { readonly streams: readonly RunStream[]; readonly content: string } => {
+  if (streams.length === 0) throw new RangeError("a plan of the client load has no stream");
+  const keys = new Set<string>();
+  for (const stream of streams) {
+    if (keys.has(stream.key)) throw new RangeError(`two streams have the key ${stream.key}`);
+    if (stream.requests.length === 0) throw new RangeError(`the stream ${stream.key} has no request`);
+    keys.add(stream.key);
+  }
+  const scheduled = streams.map((stream) => ({ key: stream.key, schedule: schedule(stream.plan.profile, stream.plan.options), requests: stream.requests }));
+  return {
+    streams: scheduled.map(({ key, schedule: each }) => ({ key, schedule: each })),
+    content: JSON.stringify({ format: LOAD_FORMAT, streams: scheduled }),
+  };
+};
+
+/**
+ * This function gives the measure of each stream of a run of the client `load`, and their pool. Each
+ * stream counts its arrivals from 0, thus the lines of a stream are the lines with its key. The pool
+ * sums the counts and joins the times, in the order of the streams. It gives null when the client did
+ * not start its schedule.
+ */
+export const streamsLoadOf = (
+  events: readonly ProbeEvent[],
+  streams: readonly RunStream[],
+): { readonly pool: LoadMeasure; readonly streams: Readonly<Record<string, LoadMeasure>> } | null => {
+  const start = events.find((event) => event.ev === "scheduled")?.t;
+  if (start === undefined) return null;
+  const each = streams.map((stream) => [stream.key, measureOf(events, start, stream.schedule, stream.key)] as const);
+  const measures = each.map(([, measure]) => measure);
+  const sum = (count: (measure: LoadMeasure) => number) => measures.reduce((total, measure) => total + count(measure), 0);
+  const join = (times: (measure: LoadMeasure) => readonly number[]) => measures.flatMap(times);
+  return {
+    pool: {
+      planned: sum((measure) => measure.planned),
+      unsent: sum((measure) => measure.unsent),
+      unfinished: sum((measure) => measure.unfinished),
+      latency: join((measure) => measure.latency),
+      service: join((measure) => measure.service),
+      lag: join((measure) => measure.lag),
+      censored: join((measure) => measure.censored),
+    },
+    streams: Object.fromEntries(each),
+  };
 };
 
 /** A load spread is a part of the distribution of one measure of an open-loop cell, over its counted runs. */
