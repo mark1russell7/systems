@@ -126,6 +126,63 @@ describe("the measure of the streams of the client load", () => {
   it("is null when the client never started its schedule", () => {
     expect(streamsLoadOf([line("ready", -8), line("error", 1, { k: "a", errno: "ECONNRESET" })], streams)).toBeNull();
   });
+
+  it("counts each reply with the status of a failure, in its stream and in the pool", () => {
+    const read = streamsLoadOf(
+      [
+        line("scheduled", 0, { streams: 2, arrivals: 1_000 }),
+        line("sent", first, { k: "a", i: 0 }),
+        line("sent", first, { k: "b", i: 0 }),
+        line("sent", first + 10, { k: "b", i: 1 }),
+        line("replied", first + 2, { k: "a", i: 0, status: 200 }),
+        line("replied", first + 3, { k: "b", i: 0, status: 503 }),
+        line("replied", first + 12, { k: "b", i: 1, status: 401 }),
+      ],
+      streams,
+    );
+    expect(read?.streams["a"]?.failed).toBe(0);
+    // a reply with a failed status is a completion: its time stays in the latency
+    expect(read?.streams["b"]).toMatchObject({ failed: 2, unfinished: 0, latency: [3, 2] });
+    expect(read?.pool.failed).toBe(2);
+  });
+});
+
+describe("the limit on the failed arrivals", () => {
+  /** This prediction has no band and a limit of 1 % on the failed arrivals: 381 arrivals with no failure hold it. */
+  const ONE_PERCENT: LoadPrediction = { lag: quantity(50, "ms"), bands: [], failures: 0.01 };
+
+  it("holds 500 arrivals with no failure, and the words name the count and the limit", () => {
+    const judgement = loadVerdict(ONE_PERCENT, [{ name: "a", load: measured(() => 1) }]);
+    expect(judgement.holds).toBe(true);
+    expect(judgement.load.failed).toBe(0);
+    expect(judgement.load.failures).toContain("0 of 500 arrivals failed, wanted a share under 1 %: within.");
+  });
+
+  it("cannot decide on fewer arrivals than the Wilson count, and that is not a pass", () => {
+    const short = schedule(constant(100, 3_000), { arrivals: "uniform" });
+    const load = measureLoad(short, short.times.map((planned, index) => ({ index, sent: planned, done: planned + 1 })), 4_000);
+    const judgement = loadVerdict(ONE_PERCENT, [{ name: "a", load }]);
+    expect(judgement.holds).toBe(false);
+    expect(judgement.load.failures).toContain("0 of 300 arrivals failed");
+    expect(judgement.load.failures).not.toContain(": within.");
+  });
+
+  it("counts a failed status, an arrival with no reply and an arrival not sent as failures", () => {
+    // 5 replies with a failed status and 5 arrivals with no reply in 500: 2 %, over the limit
+    const load = { ...measured((index) => (index % 100 === 0 ? null : 1)), failed: 5 };
+    const judgement = loadVerdict(ONE_PERCENT, [{ name: "a", load }]);
+    expect(judgement.holds).toBe(false);
+    expect(judgement.load).toMatchObject({ failed: 5, unfinished: 5 });
+    expect(judgement.load.failures).toContain("10 of 500 arrivals failed");
+    expect(judgement.load.failures).toContain("beyond");
+  });
+
+  it("reads a record with no count of failed replies as 0, and gives no words with no limit", () => {
+    const judgement = loadVerdict({ lag: quantity(50, "ms"), bands: [] }, [{ name: "a", load: measured(() => 1) }]);
+    expect(judgement.holds).toBe(true);
+    expect(judgement.load.failed).toBe(0);
+    expect(judgement.load.failures).toBeUndefined();
+  });
 });
 
 describe("the verdict of a schedule", () => {

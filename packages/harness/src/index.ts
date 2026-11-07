@@ -113,7 +113,7 @@ export {
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
-export type { LoadJudgement, LoadSpread, LoadVerdict } from "./load.ts";
+export type { LoadJudgement, LoadSpread, LoadVerdict, RunLoad } from "./load.ts";
 export { LOAD_FORMAT, LOAD_PATH, SCHEDULE_PATH, loadOf, loadPlanOf, loadVerdict, streamsLoadOf } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";

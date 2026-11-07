@@ -1,0 +1,14 @@
+{
+  "name": "reference-image",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The packages of the image of the reference service, from npm, at the versions of the workspace. The workspace links the service of this repository, and the image takes its last release.",
+  "type": "module",
+  "dependencies": {
+    "@mark1russell7/service": "0.6.5",
+    "@procedures/client": "0.49.1",
+    "@procedures/peer": "0.49.1",
+    "mongodb": "7.7.0",
+    "zod": "4.6.7"
+  }
+}

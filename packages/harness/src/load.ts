@@ -25,25 +25,39 @@ const fromStart = (start: number, t: number): number => (t - start) / 1e6;
  * null when the client did not start the schedule. The first `sent` line of a client is its request
  * before `ready`, and it names no arrival. The end of the run is its last line.
  */
-export const loadOf = (events: readonly ProbeEvent[], plan: Schedule): LoadMeasure | null => {
+export const loadOf = (events: readonly ProbeEvent[], plan: Schedule): RunLoad | null => {
   const start = events.find((event) => event.ev === "scheduled")?.t;
   if (start === undefined) return null;
   return measureOf(events, start, plan, undefined);
 };
 
+/**
+ * A run load is the measure of one run of a schedule. `failed` counts the replies with a status
+ * outside 200 to 299. Such a reply is a completion, thus its time is in `latency`. The client
+ * `schedule` gives no status, and a record from before this field has none: both read as 0.
+ */
+export type RunLoad = LoadMeasure & { readonly failed?: number };
+
+/** This function tells if a status of a reply is a failure: a number outside 200 to 299. */
+const failedStatus = (status: unknown): boolean => typeof status === "number" && (status < 200 || status > 299);
+
 /** This function gives the measure of the arrivals of one stream: the lines with the key `key`, or each line for no key. */
-const measureOf = (events: readonly ProbeEvent[], start: number, plan: Schedule, key: string | undefined): LoadMeasure => {
+const measureOf = (events: readonly ProbeEvent[], start: number, plan: Schedule, key: string | undefined): RunLoad => {
   const sent = new Map<number, number>();
   const done = new Map<number, number>();
+  let failed = 0;
   for (const event of events) {
     const index = event["i"];
     if (typeof index !== "number" || (key !== undefined && event["k"] !== key)) continue;
     if (event.ev === "sent") sent.set(index, fromStart(start, event.t));
-    if (event.ev === "replied") done.set(index, fromStart(start, event.t));
+    if (event.ev === "replied") {
+      done.set(index, fromStart(start, event.t));
+      if (failedStatus(event["status"])) failed += 1;
+    }
   }
   const completions: Completion[] = [...sent].map(([index, at]) => ({ index, sent: at, done: done.get(index) ?? null }));
   const end = events.reduce((latest, event) => Math.max(latest, fromStart(start, event.t)), 0);
-  return measureLoad(plan, completions, end);
+  return { ...measureLoad(plan, completions, end), failed };
 };
 
 /** This path is where the client `load` finds its plan. */
@@ -80,18 +94,19 @@ export const loadPlanOf = (streams: readonly LoadStream[]): { readonly streams: 
 export const streamsLoadOf = (
   events: readonly ProbeEvent[],
   streams: readonly RunStream[],
-): { readonly pool: LoadMeasure; readonly streams: Readonly<Record<string, LoadMeasure>> } | null => {
+): { readonly pool: RunLoad; readonly streams: Readonly<Record<string, RunLoad>> } | null => {
   const start = events.find((event) => event.ev === "scheduled")?.t;
   if (start === undefined) return null;
   const each = streams.map((stream) => [stream.key, measureOf(events, start, stream.schedule, stream.key)] as const);
   const measures = each.map(([, measure]) => measure);
-  const sum = (count: (measure: LoadMeasure) => number) => measures.reduce((total, measure) => total + count(measure), 0);
-  const join = (times: (measure: LoadMeasure) => readonly number[]) => measures.flatMap(times);
+  const sum = (count: (measure: RunLoad) => number) => measures.reduce((total, measure) => total + count(measure), 0);
+  const join = (times: (measure: RunLoad) => readonly number[]) => measures.flatMap(times);
   return {
     pool: {
       planned: sum((measure) => measure.planned),
       unsent: sum((measure) => measure.unsent),
       unfinished: sum((measure) => measure.unfinished),
+      failed: sum((measure) => measure.failed ?? 0),
       latency: join((measure) => measure.latency),
       service: join((measure) => measure.service),
       lag: join((measure) => measure.lag),
@@ -117,11 +132,15 @@ export interface LoadVerdict {
   readonly planned: number;
   readonly unsent: number;
   readonly unfinished: number;
+  /** This count is the replies with a status of a failure, over the counted runs. */
+  readonly failed: number;
   readonly latency: LoadSpread | null;
   readonly service: LoadSpread | null;
   readonly lag: LoadSpread | null;
   /** This text is the verdict of each band, in the order of the prediction. */
   readonly bands: readonly string[];
+  /** This text is the verdict of the share of failed arrivals, when the prediction has a limit on it. */
+  readonly failures?: string;
 }
 
 /** This function gives the spread of a list of times in ms, or null for no time. */
@@ -176,6 +195,30 @@ const bandVerdict = (
   };
 };
 
+/**
+ * This function judges the share of failed arrivals over the counted runs against a limit. Each
+ * planned arrival is a trial. An arrival fails if the client did not send it. It also fails with no
+ * reply at the end of its run, or with the status of a failure. The rate budget of rigor-bench
+ * reads the upper end of the Wilson interval at 0.95. Thus 381 arrivals with no failure hold a limit
+ * of 1 %, and fewer arrivals cannot decide.
+ */
+const failuresVerdict = (limit: number, failures: number, trials: number): { readonly holds: boolean; readonly words: string } => {
+  const rung: Rung = { name: "failures", at: {}, budgets: [{ kind: "rate", measure: "failures", limit }], test: "the cell" };
+  const record: RungRecord = {
+    rung: "failures",
+    commit: "the cell",
+    at: NOW,
+    real: ["the counted runs"],
+    synthetic: [],
+    evidence: [{ kind: "rate", measure: "failures", failures, trials }],
+  };
+  const verdict = rungVerdict(rung, record, { now: NOW });
+  return {
+    holds: verdict.outcome === "within",
+    words: `${failures} of ${trials} arrivals failed, wanted a share under ${limit * 100} %: ${verdict.outcome}. ${verdict.reason}`,
+  };
+};
+
 /** This record is what the verdict of a cell takes from its load: the runs that broke the schedule, and the sum. */
 export interface LoadJudgement {
   readonly holds: boolean;
@@ -190,7 +233,7 @@ export interface LoadJudgement {
  */
 export const loadVerdict = (
   prediction: LoadPrediction,
-  runs: ReadonlyArray<{ readonly name: string; readonly load: LoadMeasure | undefined }>,
+  runs: ReadonlyArray<{ readonly name: string; readonly load: RunLoad | undefined }>,
 ): LoadJudgement => {
   const limit = valueIn(prediction.lag, "ms");
   const outside = runs.flatMap((run) => {
@@ -202,17 +245,25 @@ export const loadVerdict = (
   const latency = measures.flatMap((measure) => measure.latency);
   const censored = measures.flatMap((measure) => measure.censored);
   const bands = prediction.bands.map((band) => bandVerdict(band, latency, censored));
+  const total = (count: (measure: RunLoad) => number) => measures.reduce((sum, measure) => sum + count(measure), 0);
+  const planned = total((measure) => measure.planned);
+  const unsent = total((measure) => measure.unsent);
+  const unfinished = total((measure) => measure.unfinished);
+  const failed = total((measure) => measure.failed ?? 0);
+  const failures = prediction.failures === undefined ? undefined : failuresVerdict(prediction.failures, unsent + unfinished + failed, planned);
   return {
-    holds: runs.length > 0 && outside.length === 0 && bands.every((band) => band.holds),
+    holds: runs.length > 0 && outside.length === 0 && bands.every((band) => band.holds) && (failures?.holds ?? true),
     outside,
     load: {
-      planned: measures.reduce((sum, measure) => sum + measure.planned, 0),
-      unsent: measures.reduce((sum, measure) => sum + measure.unsent, 0),
-      unfinished: measures.reduce((sum, measure) => sum + measure.unfinished, 0),
+      planned,
+      unsent,
+      unfinished,
+      failed,
       latency: spreadOf([...latency, ...censored]),
       service: spreadOf(measures.flatMap((measure) => measure.service)),
       lag: spreadOf(measures.flatMap((measure) => measure.lag.map((lag) => Math.abs(lag)))),
       bands: bands.map((band) => band.words),
+      ...(failures === undefined ? {} : { failures: failures.words }),
     },
   };
 };

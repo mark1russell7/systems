@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { LoadMeasure } from "@mark1russell7/rigor-chaos";
 import type { CallReading, ReconnectReading } from "./application.ts";
+import type { RunLoad } from "./load.ts";
 import {
   callOf,
   closeOrExit,
@@ -84,8 +84,8 @@ export interface Measured {
    * sample is the time from its send to the first data after it.
    */
   readonly samples?: readonly Quantity[];
-  /** This measure is the run of an open-loop cell against its schedule (`Run.schedule`). Its times are in ms. */
-  readonly load?: LoadMeasure;
+  /** This measure is the run of an open-loop cell against its schedule (`Run.schedule`), with its failed replies. Its times are in ms. */
+  readonly load?: RunLoad;
   /** This count is the number of keepalive probes that the kernel sent. */
   readonly probes: number;
   /** This count is the number of segments that the kernel sent again. */
