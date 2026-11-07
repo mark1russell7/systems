@@ -2594,14 +2594,55 @@ SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, 
 
 ### SYS-64 · The port range: its count and its error
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/mark1russell7/systems/pull/339)
 
-`connect` fails with `EADDRNOTAVAIL` at the size of `ip_local_port_range`, for one destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+`connect` fails with `EADDRNOTAVAIL` when the range has no port for that destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+
+**The design.** Seven harness cells (`PR.1` to `PR.7`) use one client in a small range and one target that accepts each connection. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient. A new native program, `ports`, is the two ends. In each round the client connects until a connect fails, and it writes each port that it got.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners. The source changes the plan in two ways. The count is the size of the range only for an even size. TIME_WAIT holds a port only at one side.
+
+- **The search.** `__inet_hash_connect` [rounds the size down to an even number](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1066-L1072). It [starts from an even offset](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1076-L1090) and takes steps of 2. Then it [tries the other parity, and it gives `EADDRNOTAVAIL`](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1146-L1151).
+- **An even range.** The two passes reach each port. Thus one destination gets the size of the range.
+- **An odd range.** Each pass makes half of the rounded size of tries, over one port more on the first pass. Offset 0 does not reach the top port, and each other start does not reach the low port. A range of 3 gives 2. A range of 5 gives 4 or 5, and the [random step after each connect](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1175-L1176) sets the share: 45/256 of the rounds give 4.
+- **TIME_WAIT.** The port stays held at the side that closes first, for [60 s](https://github.com/torvalds/linux/blob/v7.0/include/net/tcp.h#L142) from [the FIN of the peer](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L175-L182), plus the timer wheel. With `tcp_tw_reuse` 1, a connect [takes the port after 1000 ms](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L168-L171). The default of 2 is [for loopback only](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L130-L154).
+- **The other ways to close.** A reset holds nothing. If the target closes first, the client holds no port, and a new SYN [passes the TIME_WAIT of the target](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L253-L262).
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `PR.1`, `PR.2` and `PR.4` is exact. The band of the share in `PR.3` is 5 standard deviations of 400 rounds. A seeded simulation of the search gave a spread of 0.0192 for that share, against 0.0190 for independent rounds.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
+
+**The result.** [Run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), the first dispatch, gives 6 of the 7 cells with 4 counted runs each and 0 void. The client of `PR.2` did not start: its control connection held one of the 2 ports. The fix closes that connection with a reset. [Run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142) gives `PR.2` alone. The kernel is 7.0 at HZ 1000.
+
+| Cell | Decision | What each run measured |
+| --- | --- | --- |
+| `PR.1` | holds | Each of the 50 searches gives 16 ports, then `EADDRNOTAVAIL` within 0.000063 s. The first 8 ports have the parity of the low port. |
+| `PR.2` | holds | Each search gives 2 ports, at offsets 0 and 1. The top port stays free. |
+| `PR.3` | holds | Searches give 4 or 5 ports, over each of the 5 offsets. The share of 5 is 0.8000 to 0.8300, against 0.8242 from the search. |
+| `PR.4` | holds | Each search gives 16 ports to each of the 2 destination ports. |
+| `PR.5` | holds | All 4 ports come back 60.292 s to 60.885 s after the closing line. 5965 to 6021 connects fail before. |
+| `PR.6` | holds | With `tcp_tw_reuse` 1, all 4 ports come back 1.0083 s to 1.0087 s after the closing line. |
+| `PR.7` | fails | 3 of 4 runs give 4 ports in each of the 10 searches, with 0 retransmissions. |
+
+- In one run of `PR.7`, searches 4 to 7 give 3 ports. Port 40003 was in `LAST_ACK`: the client closes second, and its FIN had no ACK. The port came back after one retransmission of that FIN. The record does not show why the ACK was absent.
+- Thus the side that closes second also holds its port, until the peer acknowledges its FIN. The law of `PR.7` lacks that term. [SYS-102](#sys-102--the-port-that-last_ack-holds) adds it with a new prediction.
+- The prediction hit 9 of its 13 claims, with a Brier score of 0.0923. Two misses are the naive claims, and each was false, as predicted. The other misses are the build claim and the claim of `PR.7`.
+
+### SYS-102 · The port that LAST_ACK holds
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-64
+- **Started:**
+- **Shipped:**
+- **Links:** [the result of SYS-64](#sys-64--the-port-range-its-count-and-its-error)
+
+The side that closes second holds its port in `LAST_ACK` until its FIN has an ACK. One run of `PR.7` showed this hold, and the law of `PR.7` has no term for it. This item writes that term into the law, with the bound of the retransmission timeout. A new cell then drops the ACK on purpose, thus each run shows the hold. A new prediction comes before its dispatch, and `PR.7` keeps its old record.
 
 ### SYS-65 · A pool at its limit
 
@@ -3035,7 +3076,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 332 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |

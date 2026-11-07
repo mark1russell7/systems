@@ -835,6 +835,11 @@ export type Prediction =
        * connection sees. A value outside it is a finding of its run.
        */
       readonly queue?: QueuePrediction;
+      /**
+       * This record is the law of a port range: the count of connects, the ports that they use, and
+       * when a held port comes back. A value outside it is a finding of its run.
+       */
+      readonly ports?: PortsPrediction;
     };
 
 /** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
@@ -896,6 +901,35 @@ export interface QueuePrediction {
   readonly rise?: { readonly count: number; readonly within: QueueBand };
   /** This count is the connections that the target accepted in the run. */
   readonly drained?: number;
+}
+
+/**
+ * This prediction is the law of a port range. It reads the lines of the ports client. In each round
+ * the client connects to each destination until a connect fails with EADDRNOTAVAIL.
+ */
+export interface PortsPrediction {
+  /** This port is the low end of the range. */
+  readonly low: number;
+  /** This count is the ports of the range. */
+  readonly size: number;
+  /** This count is the rounds of each run. */
+  readonly rounds: number;
+  /** This count is the destinations of each round. */
+  readonly destinations: number;
+  /** These counts are the only connects that one destination can get in one round. */
+  readonly counts: readonly number[];
+  /** These offsets from the low port are the only ports that the run uses. It uses each of them. */
+  readonly seen: readonly number[];
+  /** This time is the longest connect that fails. */
+  readonly refusedWithin: Quantity;
+  /** This record is the band of the share of the rounds that get `count` connects. */
+  readonly share?: { readonly count: number; readonly low: number; readonly high: number };
+  /** This choice says that the ports of the parity of the low port come first in each round. */
+  readonly lowFirst?: boolean;
+  /** This band is the time from the `closing` line to each `freed` line: when each held port comes back. */
+  readonly freed?: QueueBand;
+  /** This count is the segments that the sockets of the client send again. */
+  readonly retransmissions?: number;
 }
 
 /** A target is the server that a cell connects to: a stock image. */

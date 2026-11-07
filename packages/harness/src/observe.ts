@@ -20,6 +20,8 @@ import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
+import type { PortsReading } from "./ports.ts";
+import { measurePorts } from "./ports.ts";
 import type { QueueReading } from "./queue.ts";
 import { measureQueue } from "./queue.ts";
 import { measureGroup } from "./timeline.ts";
@@ -102,6 +104,8 @@ export interface Measured {
   readonly group?: GroupMeasured;
   /** This record is what a run of a queue cell measured: the count of the queue, its counters, and each connection. */
   readonly queue?: QueueReading;
+  /** This record is what a run of a port cell measured: the count of each search, and when each port came back. */
+  readonly ports?: PortsReading;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
   /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
@@ -488,6 +492,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   }
   if (cell.prediction.detects === null && cell.prediction.queue !== undefined)
     return measureQueue(run, cell.prediction.queue);
+  if (cell.prediction.detects === null && cell.prediction.ports !== undefined)
+    return measurePorts(run, cell.prediction.ports);
   // a driver with more than one socket: its bands name their socket and their line
   if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;

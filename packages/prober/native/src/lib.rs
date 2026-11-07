@@ -53,6 +53,7 @@ pub fn errno_name(code: i32) -> String {
         libc::ENETUNREACH => "ENETUNREACH".into(),
         libc::EPIPE => "EPIPE".into(),
         libc::ECONNABORTED => "ECONNABORTED".into(),
+        libc::EADDRNOTAVAIL => "EADDRNOTAVAIL".into(),
         other => format!("E{other}"),
     }
 }
