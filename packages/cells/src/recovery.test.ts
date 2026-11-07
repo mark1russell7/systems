@@ -116,9 +116,13 @@ describe("the ladder of recovery", () => {
   it("puts only one measure past its budget, at 1.5 x the limit, or 1 for a limit of 0", () => {
     const [record] = recordsOf();
     const rto = breached(record!, RTO).evidence;
-    expect(rto.find((each) => each.measure === RTO)?.values).toEqual([21_600, 21_600, 21_600, 21_600]);
+    const worstOf = (evidence: typeof rto, measure: string) => {
+      const found = evidence.find((each) => each.measure === measure);
+      return found?.kind === "worst" ? found.values : found;
+    };
+    expect(worstOf(rto, RTO)).toEqual([21_600, 21_600, 21_600, 21_600]);
     expect(rto.find((each) => each.measure === RPO)).toEqual(record!.evidence.find((each) => each.measure === RPO));
-    expect(breached(record!, HOLES).evidence.find((each) => each.measure === HOLES)?.values).toEqual([1, 1, 1, 1]);
+    expect(worstOf(breached(record!, HOLES).evidence, HOLES)).toEqual([1, 1, 1, 1]);
     expect(() => breached(record!, "no such measure")).toThrow(/no budget/);
   });
 
