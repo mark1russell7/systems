@@ -169,6 +169,9 @@ importers:
 
   .:
     devDependencies:
+      '@mark1russell7/api-report':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@mark1russell7/conventions':
         specifier: ^0.26.0
         version: 0.26.0
@@ -1177,6 +1180,11 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@mark1russell7/api-report@0.4.1':
+    resolution: {integrity: sha512-kx3vmIdzwGJf+aZ66qoYWm65IlrEzrbSXckAQed0I+fxs6+wFygVoum6ZVBeKdz05rHHLD9kiarwQQcI5LhsDQ==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@mark1russell7/coeval@0.22.0':
     resolution: {integrity: sha512-woojpBeRerVqxfFBx0yiR6ibSpm2f9mcfsUPDdvIyT9GKZ2uCtM0S/108Ur765C0rjNKxopwlSH4xXyhf906iA==}
@@ -4102,6 +4110,8 @@ snapshots:
       '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
+
+  '@mark1russell7/api-report@0.4.1': {}
 
   '@mark1russell7/coeval@0.22.0': {}
 
