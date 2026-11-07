@@ -67,6 +67,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   hikari: { name: "loom-harness-hikari", dockerfile: "harness/image/hikari/Dockerfile", from: ["harness/image/hikari"] },
   // the RabbitMQ client: amqplib 2.2.0 on Node 24.21.0
   amqp: { name: "loom-harness-amqp", dockerfile: "harness/image/amqp/Dockerfile", from: ["harness/image/amqp"] },
+  // the Kafka client: kafka-clients 4.3.2 on Temurin 21.0.12.1, with its admin: its jars by their SHA-256
+  kafka: { name: "loom-harness-kafka", dockerfile: "harness/image/kafka/Dockerfile", from: ["harness/image/kafka"] },
   // the gRPC client: grpc-js 1.14.6 on Node 24.21.0
   grpc: { name: "loom-harness-grpc", dockerfile: "harness/image/grpc/Dockerfile", from: ["harness/image/grpc"] },
   // the gRPC server: a server of grpc-go v1.84.0, built with Go 1.27.2, that can hold a reply
@@ -483,6 +485,8 @@ export const pgClientImage = (): Promise<string> => imageOf(shipped("pg"));
 export const hikariClientImage = (): Promise<string> => imageOf(shipped("hikari"));
 /** This function gives the image of the RabbitMQ client: amqplib, with the client and the admin of a cluster cell. */
 export const amqpClientImage = (): Promise<string> => imageOf(shipped("amqp"));
+/** This function gives the image of the Kafka client: kafka-clients on Java, with the client and the admin of a Kafka cell. */
+export const kafkaClientImage = (): Promise<string> => imageOf(shipped("kafka"));
 
 /** This function gives the image of the gRPC client of the harness: grpc-js 1.14.6 on Node 24.21.0, with its client. */
 export const grpcClientImage = (): Promise<string> => imageOf(shipped("grpc"));

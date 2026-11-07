@@ -40,6 +40,9 @@ export interface ErrorOnTheWay {
  *   of a split brain. It is null when the group did not converge after the run.
  * - `unknown` are the writes that the client sent and did not see accepted: an error, or no answer.
  *   `held` tells if the group kept each one, or null when it did not converge.
+ * - `duplicates` has one entry for each extra copy that the group holds: a write held three times
+ *   has two entries. It is null when the group did not converge. A key holds one copy by
+ *   construction, thus only a list can show a copy.
  */
 export interface Writes {
   readonly sent: number;
@@ -47,6 +50,19 @@ export interface Writes {
   readonly old: number;
   readonly lost: readonly number[] | null;
   readonly unknown: ReadonlyArray<{ readonly n: number; readonly held: boolean | null }>;
+  readonly duplicates?: readonly number[] | null;
+  /** These are the counts of a pair (`Cell.pair`), from its two final reads. */
+  readonly sets?: PairSets;
+}
+
+/** These are the counts that the bands of `Outcomes` judge: each one has the same name there. */
+export interface PairSets {
+  readonly unknown: number;
+  readonly kept: number;
+  readonly stranded: number;
+  readonly absent: number;
+  readonly missing: number;
+  readonly warnings: number;
 }
 
 /** A group measurement is what one run of a group cell measured, beside its time. */
@@ -241,7 +257,27 @@ export const writesOf = (run: Run, after: number, primary: string): Writes => {
       const n = Number(event["n"]);
       return { n, held: kept === null ? null : kept.has(n) };
     });
-  return { sent: sent.length, acked: acks.size, old, lost, unknown };
+  // each entry that repeats the one before it, in order, is one extra copy
+  const duplicates = holds === null ? null : [...holds].sort((a, b) => a - b).filter((n, at, all) => all[at - 1] === n);
+  const oldHolds = run.group?.oldHolds;
+  return { sent: sent.length, acked: acks.size, old, lost, unknown, duplicates, ...(oldHolds === undefined ? {} : { sets: setsOf(run, acks.keys(), unknown, new Set(oldHolds)) }) };
+};
+
+/**
+ * This function splits the writes of a pair by its two final reads. A write with no reply is `kept`
+ * on the new primary. It is `stranded` on the old primary alone, or `absent` from each server.
+ */
+const setsOf = (run: Run, acked: Iterable<number>, unknown: Writes["unknown"], old: ReadonlySet<number>): PairSets => {
+  const kept = unknown.filter((each) => each.held === true).length;
+  const stranded = unknown.filter((each) => each.held !== true && old.has(each.n)).length;
+  return {
+    unknown: unknown.length,
+    kept,
+    stranded,
+    absent: unknown.length - kept - stranded,
+    missing: [...acked].filter((n) => !old.has(n)).length,
+    warnings: run.events.filter((event) => event.ev === "notice" && event["severity"] === "WARNING").length,
+  };
 };
 
 /** This function gives the errors that the client met after an instant: each kind, its first time, and its count. */
@@ -342,9 +378,11 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   // a replica set and a cluster have no authority: their members and the client tell their stages. The
   // client of a cluster publishes through one node, and the leader of the queue can be on another one
   const cluster = cell.cluster !== undefined;
-  const replica = cell.replicaSet !== undefined || cluster;
+  // a Kafka group has no log lines in its record: the client and the whole partition tell its run
+  const kafka = cell.kafka !== undefined;
+  const replica = cell.replicaSet !== undefined || cluster || kafka;
   const stall = prediction.detects === false && prediction.recovers !== undefined;
-  const stages = cluster ? clusterStagesOf(run, t0, run.fault.t1) : replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
+  const stages = kafka ? {} : cluster ? clusterStagesOf(run, t0, run.fault.t1) : replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
   // the first write that a primary accepted after the fault: on a new primary, or on the same one
   // after the lift. In a replica set, it is the first write sent after the commit of the fault
   // that a primary accepts: a partial cut leaves the old primary its writes
@@ -386,7 +424,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     voided = "no Sentinel started a failover after +odown: each was in the hold-off of 2 × failover-timeout after an earlier attempt";
   // a hold lifts at its instant in the VM: a band assumes that instant, and a lift later than the
   // noise moved each stage after it
-  if (voided === null && cell.hold !== undefined && prediction.detects !== null) {
+  if (voided === null && cell.hold !== undefined && (prediction.detects !== null || kafka)) {
     if (heal === null) voided = "the fault never lifted";
     else {
       const late = (heal.t0 - t0) / 1e9 - valueIn(cell.hold, "s");
@@ -398,7 +436,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   // primary, or to the first node of a cluster
   const firstAddress = cluster
     ? String(events.find((event) => event.ev === "connected")?.["at"] ?? "")
-    : `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet)?.port}`;
+    : `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet ?? cell.kafka)?.port}`;
   const assumed = prediction.detects === null ? undefined : prediction.rtt;
   const first = kernel.find(
     (record) =>
@@ -437,11 +475,15 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   const switched = replica ? stages["elected"] : stages["+switch-master"];
   if (expected?.failover === false && switched !== undefined)
     findings.push(`the group failed over ${switched.value} s after the fault, where it should not`);
+  // a Kafka run has no line of an election: the leader after the run tells if the leader changed
+  const leaderAfter = run.group?.after ?? null;
+  if (kafka && expected !== undefined && leaderAfter !== null && expected.failover !== (leaderAfter !== primary))
+    findings.push(expected.failover ? `the leader stayed on ${primary}, where it should change` : `the leader moved to ${leaderAfter}, where it should stay on ${primary}`);
   for (const stage of expected?.quiet ?? []) {
     const at = stages[stage];
     if (at !== undefined) findings.push(`${stage} came ${at.value} s after the fault, where it should not`);
   }
-  if (accepted !== undefined && lands === "same" && !cluster && to !== primary)
+  if (accepted !== undefined && lands === "same" && !cluster && !kafka && to !== primary)
     findings.push(`the client wrote to ${to ?? String(accepted["at"])}, where it should stay on ${primary}`);
   for (const error of expected?.errors ?? []) {
     const met = group.errors.find((each) => each.name === error.name);
@@ -456,9 +498,23 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     if (lost === null) findings.push("the group did not converge, thus the count of its lost writes is not known");
     else if (lost.length < low || lost.length > high) findings.push(`the group lost ${lost.length} accepted writes, outside [${low}, ${high}]`);
   }
+  if (expected?.duplicates !== undefined) {
+    const { low, high } = expected.duplicates;
+    const copies = group.writes.duplicates ?? null;
+    if (copies === null) findings.push("the group did not converge, thus the count of its extra copies is not known");
+    // a read that found no write counts no copy: that zero says nothing
+    else if (run.group?.holds?.length === 0) findings.push("the group holds no write, thus the count of its extra copies says nothing");
+    else if (copies.length < low || copies.length > high) findings.push(`the group holds ${copies.length} extra copies, outside [${low}, ${high}]`);
+  }
+  const { sets } = group.writes;
+  for (const [name, band] of Object.entries(expected?.outcomes ?? {})) {
+    const count = sets?.[name as keyof PairSets];
+    if (count === undefined) findings.push(`the run has no count of ${name}`);
+    else if (count < band.low || count > band.high) findings.push(`the count of ${name} is ${count}, outside [${band.low}, ${band.high}]`);
+  }
   if (group.recovery !== undefined) findings.push(...recoveryFindings(group.recovery, group.writes));
   if (accepted === undefined) {
-    if (prediction.detects !== null)
+    if (prediction.detects !== null || kafka)
       findings.push(lands === "new" ? "the client never wrote to a new primary in the window" : "the client never wrote again in the window");
     return { ...silent, void: voided, finding: findings[0] ?? null, group };
   }

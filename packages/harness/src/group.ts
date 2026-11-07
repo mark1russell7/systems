@@ -105,8 +105,8 @@ export const sentinelConfig = (group: Group, primary: string): string =>
 
 /**
  * This function gives the peers that a fault on a part cuts it from, by their addresses. `all` is
- * each other part and the client, `group` is the other parts, and `clients` is the client. `one`
- * and `one-way` are the first other member. The observer is not a peer, thus the timeline of the
+ * each other part and the client, `group` is the other parts, and `clients` and `to-clients` are
+ * the client. `one` and `one-way` are the first other member. The observer is not a peer, thus the timeline of the
  * group stays whole.
  */
 export const peersOf = (
@@ -118,7 +118,7 @@ export const peersOf = (
   const others = [...Object.entries(parts.members), ...Object.entries(parts.sentinels)]
     .filter(([name]) => name !== part)
     .map(([, at]) => at.ip);
-  if (cuts === "clients") return [client];
+  if (cuts === "clients" || cuts === "to-clients") return [client];
   if (cuts === "group") return others;
   if (cuts === "one" || cuts === "one-way")
     return Object.entries(parts.members)
@@ -128,8 +128,8 @@ export const peersOf = (
   return [...others, client];
 };
 
-/** This function gives the direction of the rules of a cut: `one-way` drops only the segments from the part. */
-const directionOf = (cuts: NonNullable<GroupPlace["cuts"]>): string[] => (cuts === "one-way" ? ["--direction", "out"] : []);
+/** This function gives the direction of the rules of a cut: `one-way` and `to-clients` drop only the segments from the part. */
+const directionOf = (cuts: NonNullable<GroupPlace["cuts"]>): string[] => (cuts === "one-way" || cuts === "to-clients" ? ["--direction", "out"] : []);
 
 /** This function reads the flat reply of a command line client into its fields: name, value, name, value. */
 export const fieldsOf = (text: string): Array<Record<string, string>> => {
@@ -394,12 +394,7 @@ export const openGroupLab = async (group: Group, options: { readonly watchSentin
         for (const name of group.sentinels) await cli(name, ["SENTINEL", "RESET", group.name]);
       },
       async holds(primary) {
-        const keys = await cli(primary, ["--scan", "--pattern", "w:*"]);
-        return keys
-          .split("\n")
-          .map((key) => Number(key.trim().slice(2)))
-          .filter((n) => Number.isInteger(n) && n > 0)
-          .sort((a, b) => a - b);
+        return holdsOf(await cli(primary, ["--scan", "--pattern", "w:*"]), await cli(primary, ["LRANGE", "w", "0", "-1"]));
       },
       partOf: roles,
       async client(args) {
@@ -542,9 +537,20 @@ export const deadlineOf = (cell: Cell): number => {
   return seconds * 1_000 + 10_000;
 };
 
+/**
+ * This function gives the sequence numbers that a group holds, in order, from the output of its
+ * command line. They are the keys `w:<n>` of a stream of SET, and the entries of the list `w` of a
+ * stream of RPUSH. A list keeps each copy, thus a number can repeat.
+ */
+export const holdsOf = (keys: string, list: string): number[] =>
+  [...keys.split("\n").map((key) => Number(key.trim().slice(2))), ...list.split("\n").map((entry) => Number(entry.trim()))]
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+
 /** This function gives the arguments of the client of a group cell. */
 const clientArgs = (cell: Cell, lab: GroupLab): string[] => {
   const sentinels = cell.group!.sentinels.map((name) => `${lab.sentinels[name]!.ip}:${cell.group!.sentinelPort}`);
+  const driver = cell.probe.driver?.name === "ioredis" ? cell.probe.driver : undefined;
   return [
     "--sentinels",
     sentinels.join(","),
@@ -555,6 +561,8 @@ const clientArgs = (cell: Cell, lab: GroupLab): string[] => {
     "--max-s",
     String(Math.ceil(deadlineOf(cell) / 1_000 + 120)),
     ...(cell.driverOptions === undefined ? [] : ["--options", JSON.stringify(cell.driverOptions)]),
+    ...(driver?.op === undefined ? [] : ["--op", driver.op]),
+    ...(driver?.window === undefined ? [] : ["--window", String(driver.window)]),
   ];
 };
 
