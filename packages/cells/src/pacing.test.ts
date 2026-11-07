@@ -17,9 +17,10 @@ describe("the pacing of each cell", () => {
     expect(pacingCounts(ALL, KIND_CATALOG), TABLE).toEqual({
       "one request": 344,
       "one gap": 64,
-      "closed loop, reply times": 16,
+      "closed loop, reply times": 18,
       "closed loop, first write": 72,
       timer: 224,
+      "open loop": 4,
     });
   });
 
@@ -28,6 +29,8 @@ describe("the pacing of each cell", () => {
       "CAL: closed loop, first write": 1,
       "CAL: closed loop, reply times": 2,
       "E3.F1: closed loop, reply times": 1,
+      "OL.aa: closed loop, reply times": 1,
+      "OL.freeze: closed loop, reply times": 1,
       "RD.1: closed loop, first write": 1,
       "RD.100: closed loop, first write": 2,
       "RD.1000: closed loop, first write": 2,
@@ -52,5 +55,10 @@ describe("the pacing of each cell", () => {
     const [netem] = ALL.filter((cell) => cell.name.includes("client stream, netem"));
     expect(pacingOf(idle!)).toBe("one request");
     expect(pacingOf(netem!)).toBe("closed loop, reply times");
+  });
+
+  it("reads a client on a schedule as open loop, whatever its prediction", () => {
+    const open = ALL.filter((cell) => cell.name.startsWith("OL."));
+    expect(open.map(pacingOf)).toEqual(["open loop", "open loop", "open loop", "closed loop, reply times", "open loop", "closed loop, reply times"]);
   });
 });

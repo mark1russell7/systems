@@ -1,4 +1,5 @@
 import { valueIn } from "@mark1russell7/quantity";
+import { schedule } from "@mark1russell7/rigor-chaos";
 import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { drillOnce } from "./drill.ts";
@@ -7,6 +8,7 @@ import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
+import { SCHEDULE_PATH } from "./load.ts";
 import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
@@ -153,6 +155,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
   if (probe.keepalive) args.push("--keepalive");
   if (probe.userTimeout !== undefined)
     args.push("--user-timeout-ms", String(valueIn(probe.userTimeout, "ms")));
+  if (probe.plan !== undefined) args.push("--schedule", SCHEDULE_PATH);
   args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
   return args;
 };
@@ -375,7 +378,11 @@ const once = async (
   const middleboxFrom = lab.middlebox.length;
   const serverFrom = lab.server.length;
   const lostBefore = droppedSoFar(lab.kernel);
-  const probe = await lab.probe(probeArgs(cell, lab));
+  const plan = cell.probe.plan === undefined ? undefined : schedule(cell.probe.plan.profile, cell.probe.plan.options);
+  const probe = await lab.probe(
+    probeArgs(cell, lab),
+    plan === undefined ? undefined : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }],
+  );
   const server = cell.observer === "server";
   const peer = server
     ? { freeze: () => probe.freeze(), thaw: () => probe.thaw() }
@@ -386,7 +393,7 @@ const once = async (
       const last = probe.events.slice(-3).map((event) => JSON.stringify(event));
       throw new Error(`${(error as Error).message}; the client's last lines: ${last.join(" ")}`);
     });
-  const placed = lab.topology === null ? {} : { topology: lab.topology };
+  const placed = { ...(lab.topology === null ? {} : { topology: lab.topology }), ...(plan === undefined ? {} : { schedule: plan }) };
   const fabricOf = () => {
     if (lab.fabric === undefined) throw new Error(`${cell.name} silences a router of a lab with no fabric`);
     return lab.fabric;
@@ -575,7 +582,7 @@ const once = async (
         if (cell.idleBefore !== undefined && cell.probe.mode !== "idle")
           await sleep(valueIn(cell.idleBefore, "ms"));
         // a client in a gap sends its second request by itself, a gap after its first reply
-        if ((cell.probe.mode === "inflight" || cell.probe.mode === "stream") && !replyInFlight) await go();
+        if ((cell.probe.mode === "inflight" || cell.probe.mode === "stream" || cell.probe.mode === "schedule") && !replyInFlight) await go();
         const { prediction } = cell;
         const http = cell.probe.http !== undefined;
         if (prediction.detects !== null && prediction.driver !== undefined) {
@@ -639,7 +646,7 @@ const once = async (
       }
       // a thawed target answers the request that it held: the client sees the late reply. An idle
       // client sent no request
-      if (cell.fault === "freeze-process" && !server && cell.probe.mode !== "idle")
+      if (cell.fault === "freeze-process" && !server && cell.probe.mode !== "idle" && cell.probe.mode !== "schedule")
         await probe.until(["data"], 5_000).catch(() => undefined);
       // the client tries its new connections after the fault lifted: one `dial` line for each try.
       // A measurement-only cell can give the waits too: the end of its connection has no band

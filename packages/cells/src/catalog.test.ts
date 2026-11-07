@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ALL } from "./all.ts";
 import { CELLS, SPECS, predict } from "./catalog.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 
@@ -102,5 +103,15 @@ describe("the T01 catalog", () => {
     expect(server.sysctls).toEqual({ "net.ipv4.icmp_ratelimit": "0" });
     expect(server.targetSettings).toEqual({ "tcp-keepalive": "5", timeout: "0" });
     expect(cell("client idle, fin").environments).toBe(11);
+  });
+});
+
+describe("the signalled targets", () => {
+  it("run each signalled program under a parent: the kernel drops a STOP to the first process of a namespace", () => {
+    const signalled = ALL.filter(
+      (each) => each.fault === "freeze-process" && each.observer !== "server" && each.target.program !== undefined && each.kafka === undefined,
+    );
+    expect(signalled.some((each) => each.name.startsWith("OL.freeze"))).toBe(true);
+    for (const each of signalled) expect(each.target.command, each.name).toBeDefined();
   });
 });

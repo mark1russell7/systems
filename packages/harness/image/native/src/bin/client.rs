@@ -1,5 +1,5 @@
-//! client HOST PORT --mode idle|inflight|stream [--keepalive] [--user-timeout-ms N] [--go PATH]
-//!        [--request TEXT] [--count N] [--interval-ms N] [--sample-ms N] [--max-s N]
+//! client HOST PORT --mode idle|inflight|stream|schedule [--keepalive] [--user-timeout-ms N] [--go PATH]
+//!        [--request TEXT] [--count N] [--interval-ms N] [--schedule PATH] [--sample-ms N] [--max-s N]
 //!
 //! A cell's TCP client: one connection, every event a JSON line stamped on CLOCK_MONOTONIC. It
 //! sets no per-socket TCP timer unless the cell asks, so the namespace's sysctls are what gets
@@ -19,6 +19,11 @@
 //! whose outcome is one (loss, reordering). A reply is whole at its CRLF, or for a bulk string
 //! after its length: so `GET big` keeps a long reply's many segments in flight, and the replied
 //! line stamps its last byte. It ends with a done line.
+//! schedule: then wait for --go, and send the request at each time of the file --schedule, a file
+//! of the format rigor-schedule/1. A send does not wait for a reply, thus a stall hides no arrival
+//! (coordinated omission). The requests share the one connection, and the replies come in their
+//! order. The sent and replied lines name their arrival (i). It ends with a done line when each
+//! arrival has its reply. An error, an end or the deadline leaves the rest without a reply.
 
 use prober::{errno_name, monotonic_ns, quantity};
 use serde_json::{json, Value};
@@ -110,16 +115,141 @@ struct Reply {
 }
 
 impl Reply {
-    /// Takes the bytes of one read, and says whether the reply is whole.
-    fn take(&mut self, bytes: &[u8]) -> bool {
-        self.got += bytes.len();
-        if self.length.is_none() {
+    /// Takes the bytes of this reply from the start of `bytes`, and says how many it took. The rest
+    /// is the next reply of a pipeline.
+    fn consume(&mut self, bytes: &[u8]) -> usize {
+        let mut used = 0;
+        while self.length.is_none() && used < bytes.len() {
             // a bulk string's first line is its length: 64 bytes hold any
-            let room = 64usize.saturating_sub(self.head.len());
-            self.head.extend_from_slice(&bytes[..bytes.len().min(room)]);
+            if self.head.len() < 64 {
+                self.head.push(bytes[used]);
+            }
+            used += 1;
             self.length = reply_length(&self.head);
         }
+        self.got += used;
+        if let Some(length) = self.length {
+            let more = length.saturating_sub(self.got).min(bytes.len() - used);
+            self.got += more;
+            used += more;
+        }
+        used
+    }
+
+    fn whole(&self) -> bool {
         matches!(self.length, Some(length) if self.got >= length)
+    }
+
+    /// Takes the bytes of one read, and says whether the reply is whole.
+    fn take(&mut self, bytes: &[u8]) -> bool {
+        self.consume(bytes);
+        self.whole()
+    }
+}
+
+/// The arrivals of a file of the format rigor-schedule/1, each in ns from the start of the schedule.
+fn arrivals_of(text: &str) -> Result<Vec<u64>, Box<dyn Error>> {
+    let plan: Value = serde_json::from_str(text)?;
+    if plan["format"] != "rigor-schedule/1" {
+        return Err(format!("the schedule has the format {}, not rigor-schedule/1", plan["format"]).into());
+    }
+    let times = plan["times"].as_array().ok_or("the schedule has no list of times")?;
+    times
+        .iter()
+        .map(|time| time.as_f64().map(|ms| (ms * 1e6) as u64).ok_or_else(|| Box::<dyn Error>::from(format!("{time} is not a time"))))
+        .collect()
+}
+
+/// Waits up to `ns` for the socket, and says if it has something to read and if it takes a write.
+/// A wait in ms is too coarse for a schedule, thus this one is ppoll().
+fn wait_for(fd: i32, writing: bool, ns: u64) -> std::io::Result<(bool, bool)> {
+    let events = libc::POLLIN | libc::POLLRDHUP | if writing { libc::POLLOUT } else { 0 };
+    let mut wanted = libc::pollfd { fd, events, revents: 0 };
+    let time = libc::timespec { tv_sec: (ns / 1_000_000_000) as libc::time_t, tv_nsec: (ns % 1_000_000_000) as libc::c_long };
+    // SAFETY: one pollfd and one timespec on this stack, and no signal mask
+    match unsafe { libc::ppoll(&mut wanted, 1, &time, std::ptr::null()) } {
+        -1 if std::io::Error::last_os_error().kind() == ErrorKind::Interrupted => Ok((false, false)),
+        -1 => Err(std::io::Error::last_os_error()),
+        _ => Ok((wanted.revents & !libc::POLLOUT != 0, wanted.revents & libc::POLLOUT != 0)),
+    }
+}
+
+/// Sends each arrival of `plan` at its time after the file --go appears, whatever the replies do.
+/// The stamp of a send comes before the write that ends it. Thus a full socket shows as the lag of
+/// each arrival behind it.
+fn open_loop(stream: &mut TcpStream, plan: &[u64], args: &Args, deadline: u64) -> Result<(), Box<dyn Error>> {
+    let fd = stream.as_raw_fd();
+    let tick = args.sample.as_nanos() as u64;
+    while !Path::new(&args.go).exists() {
+        if monotonic_ns() > deadline {
+            emit("deadline", json!({}));
+            return Ok(());
+        }
+        std::thread::sleep(args.sample);
+    }
+    let start = monotonic_ns();
+    emit_at("scheduled", start, json!({ "arrivals": plan.len() }));
+    let mut buf = [0u8; 65536];
+    let (mut next, mut written, mut answered, mut blocked) = (0usize, 0usize, 0usize, false);
+    let mut reply = Reply::default();
+    loop {
+        while !blocked && next < plan.len() && monotonic_ns() >= start + plan[next] {
+            let t = monotonic_ns();
+            match stream.write(&args.request[written..]) {
+                Ok(n) => {
+                    written += n;
+                    if written == args.request.len() {
+                        emit_at("sent", t, json!({ "i": next }));
+                        next += 1;
+                        written = 0;
+                    }
+                }
+                Err(error) if error.kind() == ErrorKind::WouldBlock => blocked = true,
+                Err(error) if error.kind() == ErrorKind::Interrupted => {}
+                Err(error) => {
+                    emit("error", json!({ "errno": errno_name(error.raw_os_error().unwrap_or(0)) }));
+                    return Ok(());
+                }
+            }
+        }
+        if answered == plan.len() {
+            emit("done", json!({ "requests": next }));
+            return Ok(());
+        }
+        let now = monotonic_ns();
+        if now > deadline {
+            emit("deadline", json!({}));
+            return Ok(());
+        }
+        let due = plan.get(next).map_or(tick, |at| (start + at).saturating_sub(now));
+        let (can_read, can_write) = wait_for(fd, blocked, due.min(tick))?;
+        blocked = blocked && !can_write;
+        if !can_read {
+            continue;
+        }
+        match stream.read(&mut buf) {
+            Ok(0) => {
+                emit("eof", json!({}));
+                return Ok(());
+            }
+            Ok(n) => {
+                let t = monotonic_ns();
+                let mut at = 0;
+                while at < n {
+                    at += reply.consume(&buf[at..n]);
+                    if reply.whole() {
+                        emit_at("replied", t, json!({ "i": answered }));
+                        answered += 1;
+                        reply = Reply::default();
+                    }
+                }
+            }
+            Err(error) if error.kind() == ErrorKind::WouldBlock || error.kind() == ErrorKind::Interrupted => {}
+            Err(error) => {
+                emit("error", json!({ "errno": errno_name(error.raw_os_error().unwrap_or(0)) }));
+                return Ok(());
+            }
+        }
     }
 }
 
@@ -150,14 +280,19 @@ struct Args {
     max: Duration,
     /// the request sent at --go, with its line ending
     request: Vec<u8>,
+    /// in schedule mode, the file of the arrivals
+    schedule: Option<String>,
 }
 
 fn args() -> Result<Args, Box<dyn Error>> {
     let raw: Vec<String> = std::env::args().skip(1).collect();
     let value = |flag: &str| raw.iter().position(|arg| arg == flag).and_then(|at| raw.get(at + 1)).cloned();
-    let mode = value("--mode").ok_or("--mode idle|inflight|stream is required")?;
-    if mode != "idle" && mode != "inflight" && mode != "stream" {
-        return Err(format!("--mode is idle, inflight or stream, not {mode}").into());
+    let mode = value("--mode").ok_or("--mode idle|inflight|stream|schedule is required")?;
+    if !["idle", "inflight", "stream", "schedule"].contains(&mode.as_str()) {
+        return Err(format!("--mode is idle, inflight, stream or schedule, not {mode}").into());
+    }
+    if mode == "schedule" && value("--schedule").is_none() {
+        return Err("--mode schedule needs --schedule".into());
     }
     let count: u32 = value("--count").map(|v| v.parse()).transpose()?.unwrap_or(100);
     Ok(Args {
@@ -172,17 +307,20 @@ fn args() -> Result<Args, Box<dyn Error>> {
         sample: Duration::from_micros((value("--sample-ms").map(|v| v.parse::<f64>()).transpose()?.unwrap_or(2.0) * 1000.0) as u64),
         max: Duration::from_secs_f64(value("--max-s").map(|v| v.parse::<f64>()).transpose()?.unwrap_or(60.0)),
         request: value("--request").map_or_else(|| REQUEST.to_vec(), |r| format!("{r}\r\n").into_bytes()),
+        schedule: (mode == "schedule").then(|| value("--schedule")).flatten(),
     })
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args = args()?;
     let boot_id = std::fs::read_to_string("/proc/sys/kernel/random/boot_id")?.trim().to_string();
-    let mode = match (args.inflight, args.stream) {
-        (_, Some(_)) => "stream",
-        (true, None) => "inflight",
-        (false, None) => "idle",
+    let mode = match (args.inflight, args.stream, &args.schedule) {
+        (_, _, Some(_)) => "schedule",
+        (_, Some(_), None) => "stream",
+        (true, None, None) => "inflight",
+        (false, None, None) => "idle",
     };
+    let plan = args.schedule.as_ref().map(std::fs::read_to_string).transpose()?.map(|text| arrivals_of(&text)).transpose()?;
     emit("start", json!({ "boot_id": boot_id, "mode": mode }));
     let deadline = monotonic_ns() + args.max.as_nanos() as u64;
 
@@ -214,6 +352,9 @@ fn run() -> Result<(), Box<dyn Error>> {
     // read that waits takes the socket's lock each time it wakes. A keepalive timer that finds the
     // socket held puts itself off by HZ/20. Thus such a read moves the timer that the client measures
     stream.set_nonblocking(true)?;
+    if let Some(plan) = &plan {
+        return open_loop(&mut stream, plan, &args, deadline);
+    }
     let tick = args.sample.as_millis().clamp(1, i32::MAX as u128) as i32;
     let mut waiting = args.inflight;
     let mut seen: Option<[u32; 7]> = None;
@@ -318,5 +459,33 @@ mod tests {
         assert!(!reply.take(b"56789\r"));
         assert!(reply.take(b"\n"));
         assert_eq!(reply.got, 17);
+    }
+
+    #[test]
+    fn a_pipeline_of_replies_splits_at_each_end_in_reads_of_any_size() {
+        let bytes = b"+PONG\r\n$3\r\nabc\r\n+PONG\r\n";
+        for size in 1..bytes.len() {
+            let (mut reply, mut lengths) = (Reply::default(), Vec::new());
+            for read in bytes.chunks(size) {
+                let mut at = 0;
+                while at < read.len() {
+                    at += reply.consume(&read[at..]);
+                    if reply.whole() {
+                        lengths.push(reply.got);
+                        reply = Reply::default();
+                    }
+                }
+            }
+            assert_eq!(lengths, [7, 9, 7], "reads of {size}");
+        }
+    }
+
+    #[test]
+    fn a_schedule_gives_its_times_in_ns_and_refuses_another_format() {
+        let plan = r#"{"format":"rigor-schedule/1","times":[0.5,10,20.25]}"#;
+        assert_eq!(arrivals_of(plan).unwrap(), [500_000, 10_000_000, 20_250_000]);
+        assert!(arrivals_of(r#"{"format":"other","times":[]}"#).is_err());
+        assert!(arrivals_of(r#"{"format":"rigor-schedule/1"}"#).is_err());
+        assert!(arrivals_of(r#"{"format":"rigor-schedule/1","times":["a"]}"#).is_err());
     }
 }

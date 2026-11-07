@@ -53,6 +53,9 @@ export type {
   Prediction,
   ConntrackPrediction,
   HostSysctl,
+  LoadBand,
+  LoadPlan,
+  LoadPrediction,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -108,6 +111,8 @@ export {
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
+export type { LoadJudgement, LoadSpread, LoadVerdict } from "./load.ts";
+export { SCHEDULE_PATH, loadOf, loadVerdict } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { ConntrackReading, StallReading } from "./conntrack.ts";
