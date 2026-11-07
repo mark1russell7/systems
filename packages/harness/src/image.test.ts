@@ -290,5 +290,9 @@ describe("the schemas", () => {
     expect(clientSchema.parse(image)).toEqual(image);
     expect(clientSchema.safeParse("nope").success).toBe(false);
     expect(clientSchema.safeParse({ image: "x", command: [] }).success).toBe(false);
+    // a client image can add a capability that the harness knows, and no other
+    const admin = { ...image, capabilities: ["NET_ADMIN"] };
+    expect(clientSchema.parse(admin)).toEqual(admin);
+    expect(clientSchema.safeParse({ ...image, capabilities: ["SYS_ADMIN"] }).success).toBe(false);
   });
 });

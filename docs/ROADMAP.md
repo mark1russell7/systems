@@ -2721,14 +2721,31 @@ The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells ho
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-63
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-07
+- **Links:** [#381](https://github.com/mark1russell7/systems/pull/381), [the cells](../packages/cells/src/conntrack.ts), [the first run](https://github.com/mark1russell7/systems/actions/runs/42385278058), [the last run](https://github.com/mark1russell7/systems/actions/runs/42405337117)
 
-New flows drop at `nf_conntrack_max`. The table is global, not for each network namespace. Thus the cell sets the value on its own runner, and it restores the value.
+New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
+
+The first run (42385278058, 2026-11-07): CT.3 holds with 4 counted runs. CT.1, CT.2, CT.4 and CT.5 have only void runs. The kernel of the runners has no `CONFIG_NF_CONNTRACK_PROCFS`, thus it has no `/proc/net/stat/nf_conntrack`. The client read the field `drop` there before connect M + 1. The read failed, and the client stopped before its end. CT.3 does not read the counters.
+
+The fix: the client reads the field `drop` over ctnetlink, with a dump of the statistics of each CPU. That message needs NET_ADMIN, thus a client image can add that capability. A client that stops writes its error, and the void names it. The four void cells get one more dispatch, alone, by the rule of the prediction.
+
+The second run (42397236518) read the counters, and it showed two errors in the laws. First, the SYN gives up at the time test of `tcp_write_timeout`, after 2 retries, not at the count of retries. Second, the floor at a cap of M 1024 is a band. A scan also removes the expired entries of other namespaces, thus the count can stop above 959. Only 6 of the 19 claims of the first prediction are true, with a Brier score of 0.2820.
+
+The last run (42405337117, 2026-11-07, at 1256d6b): each of CT.1, CT.2, CT.4 and CT.5 holds with 4 counted runs and 0 void. With CT.3 of the first run, the 5 cells hold.
+
+- `CT.1` and `CT.2`: connect M + 1 ends with `ETIMEDOUT` after 7.147 s to 7.198 s. The field `drop` rises by 6, and `TCPRetransFail` rises by 5.
+- `CT.1`: the prober gives 5 retransmissions of the SYN that does not leave, at intervals of 1.024 s.
+- `CT.2`: a neighbor at M takes no slot of the client.
+- `CT.4`: the lowest count is 961 to 963, inside the band [959, 973]. The count after the connect is one more.
+- `CT.5`: the lowest count is 949 in each run, and 950 after the connect.
+- `CT.4` and `CT.5`: the stalled connect succeeds after 68.215 s to 68.278 s, on the tenth point of the SYN schedule.
+
+The second prediction hit 10 of its 10 claims, with a Brier score of 0.0515. The constant of 14 expired entries in the band has no source yet.
 
 ### SYS-67 · Retry amplification: an exact count
 
@@ -3133,7 +3150,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 344 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |

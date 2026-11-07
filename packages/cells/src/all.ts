@@ -2,6 +2,7 @@ import type { Cell, Subject } from "@mark1russell7/harness";
 import { ACCEPT_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
+import { CONNTRACK_CELLS } from "./conntrack.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
@@ -58,7 +59,7 @@ export interface Subjects {
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
- * range and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
+ * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
  * drills follow, and the open-loop cells are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
@@ -97,6 +98,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...POOL_CELLS,
     ...ACCEPT_QUEUE_CELLS,
     ...PORT_RANGE_CELLS,
+    ...CONNTRACK_CELLS,
     ...FABRIC_CELLS,
     ...COUNT_CELLS,
     ...WATCH_CELLS,

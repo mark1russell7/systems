@@ -214,6 +214,8 @@ jobs:
             echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
             if [ -e /dev/kvm ]; then echo "kvm: yes"; else echo "kvm: no"; fi
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
+            # without this option the kernel has no /proc/net/stat/nf_conntrack, and the conntrack cells read ctnetlink
+            echo "CONFIG_NF_CONNTRACK_PROCFS: $(grep -E 'CONFIG_NF_CONNTRACK_PROCFS[= ]' "/boot/config-$(uname -r)" || echo unknown)"
             echo "CLOCK_MONOTONIC_COARSE: $(python3 -c 'import time; print(time.clock_getres(6))') s"
             echo "cpus: $(nproc)"
             # the speed of the CPU moves the time of a program on its first reply (the HTTP calibration)
@@ -229,6 +231,8 @@ jobs:
         run: |
           sudo apt-get install -y -qq conntrack >/dev/null
           sudo modprobe nf_conntrack
+          # the client of the conntrack cells reads the field drop over ctnetlink
+          sudo modprobe nf_conntrack_netlink
           listing() {
             sudo unshare --net python3 -c 'import subprocess, time
           t = []

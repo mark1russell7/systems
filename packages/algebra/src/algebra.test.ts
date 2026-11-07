@@ -15,6 +15,7 @@ import {
   realizationOf,
   recovery,
   stackedDetection,
+  synGiveUpSends,
   timerBand,
   timerOf,
   timerUnder,
@@ -239,6 +240,17 @@ describe("the closed forms of the models", () => {
     // with linear timeouts off, the classic doubling from 1 s: 127 s
     const linear = given({ ...LINUX_66, tcp_syn_linear_timeouts: { value: 0, unit: "count" } });
     expect(timerOf(SOCKET, "syn_giveup", linear).duration).toEqual(s(127));
+    // at 2 retries the time test ends it first: the budget of tcp_model_timeout is (2^3 - 1) s, and
+    // the sixth firing comes at five 1 s waits and one of 2 s, 7 s. The count test gives 11 s
+    const two = (retries: number) => given({ ...LINUX_66, tcp_syn_retries: { value: retries, unit: "count" } });
+    expect(timerOf(SOCKET, "syn_giveup", two(2)).duration).toEqual(s(7));
+    expect(synGiveUpSends(2, 4)).toBe(6);
+    // at 1 retry the budget is 3 s, at the third firing
+    expect(timerOf(SOCKET, "syn_giveup", two(1)).duration).toEqual(s(3));
+    expect(synGiveUpSends(1, 4)).toBe(3);
+    // from 3 retries the two tests agree at 4 linear waits: 19, 35, 67 and 131 s
+    expect([3, 4, 5, 6].map((retries) => timerOf(SOCKET, "syn_giveup", two(retries)).duration)).toEqual([s(19), s(35), s(67), s(131)]);
+    expect(synGiveUpSends(6, 4)).toBe(11);
     // a constant and a knob, each in the unit of its expression
     expect(evaluate(SOCKET, { const: 60, unit: "s" }, given({}))).toEqual(s(60));
     expect(evaluate(SOCKET, { knob: "tcp_rto_max", unit: "ms" }, given(LINUX_66))).toEqual({ value: 120_000, unit: "ms" });
