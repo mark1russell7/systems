@@ -2,6 +2,7 @@
 // harness as JSON. These are the source of an image, a client and a subject. The root entry of
 // the package does not import zod.
 import { z } from "zod";
+import { CLIENT_CAPABILITIES } from "./cell.ts";
 import type { Client, ClientImage, ImageSource, Subject } from "./cell.ts";
 import { CLIENT_NAMES, SHIPPED_NAMES, imageProblems, subjectProblems } from "./image.ts";
 
@@ -34,10 +35,14 @@ const sourceShape = z.discriminatedUnion("kind", [
  */
 export const imageSourceSchema: z.ZodType<ImageSource> = sourceShape.superRefine(issues(imageProblems));
 
-/** This schema accepts a client image (`ClientImage`): a stock image by its name or the source of an image, and its command. */
+/**
+ * This schema accepts a client image (`ClientImage`): a stock image by its name or the source of an
+ * image, and its command. It also accepts the capabilities that its container adds.
+ */
 export const clientImageSchema: z.ZodType<ClientImage> = z.strictObject({
   image: z.union([z.string().min(1), imageSourceSchema]),
   command,
+  capabilities: z.array(z.enum(CLIENT_CAPABILITIES)).optional(),
 });
 
 /** This schema accepts the client of a cell (`Cell.client`): a client that the harness ships by its name, or a client image. */
