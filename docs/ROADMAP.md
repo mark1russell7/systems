@@ -2425,14 +2425,51 @@ A finding that is not a claim: at `w: "majority"`, the old primary rolls back 1 
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-06
+- **Links:** [run 42147415024](https://github.com/mark1russell7/systems/actions/runs/42147415024), [#336](https://github.com/mark1russell7/systems/pull/336)
 
-A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The T11 cells get a final read of the queue.
+A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The source of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 keeps those sentences and gives a tighter law:
+
+- A confirm comes after a commit on a majority, and each new leader holds each commit. Thus the lost messages are 0.
+- At a leader change, `rabbit_fifo_client` sends each pending command again with its number, and `rabbit_fifo` drops a repeat. Thus a leader change adds no copy while the channel lives.
+- A republish after a close goes on a new channel, thus through a new enqueuer. Each first copy that was applied gives one copy: W copies at one close.
+- A freeze of the node of the client leaves a race at the thaw, thus its band is [0, W].
+
+[S3.md](S3.md#the-law-of-sys-60-the-confirms) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Fault | Client | Lost | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- | --- |
+| `T11.confirms.1` | A transfer of the leader | On a follower, W 4 | 0 | 0, first confirm up to 0.196 s | None |
+| `T11.confirms.2` | A freeze of the node of the leader, 20 s | On a follower, W 4 | 0 | 0, first confirm 5.051 s to 12.003 s | None |
+| `T11.confirms.3` | The cut `to-clients`, 10 s | On the leader, heartbeat 2 s, W 1 | 0 | 1 | 3.89 s to 6.03 s |
+| `T11.confirms.4` | The cut `to-clients`, 10 s | On the leader, heartbeat 2 s, W 4 | 0 | 4 | 3.89 s to 6.03 s |
+| `T11.confirms.5` | The cut `to-clients`, 10 s | On the leader, default heartbeat, W 4 | 0 | 0 | None |
+| `T11.confirms.6` | A freeze of the node of the leader, 20 s | On the leader, heartbeat 2 s, W 4 | 0 | 0 to 4, election 5.051 s to 11.843 s | 3.89 s to 6.03 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The bands of lost messages and extra copies judge each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: a heartbeat of 2 s, a cut of 10 s and 4 writers.
+
+**The result.** In run 42147415024, each of the 6 cells holds with 4 counted runs and 0 void. No run loses a confirmed message.
+
+| Cell | Extra copies in each run | First `Error` from the fault |
+| --- | --- | --- |
+| `T11.confirms.1` | 0, 0, 0, 0 | None |
+| `T11.confirms.2` | 0, 0, 0, 0 | None |
+| `T11.confirms.3` | 1, 1, 1, 1 | 4.967 s to 4.980 s |
+| `T11.confirms.4` | 4, 4, 4, 4 | 5.752 s to 5.757 s |
+| `T11.confirms.5` | 0, 0, 0, 0 | None |
+| `T11.confirms.6` | 0, 0, 4, 0 | 5.753 s to 5.757 s |
+
+- The copies of `T11.confirms.3` and `.4` are exactly the publishes that the close failed.
+- One run of `T11.confirms.6` holds all 4 copies. Thus the band [0, W] is necessary.
+- The prediction: 12 of 15 claims hit, Brier 0.0927. [S3.md](S3.md#the-result-of-sys-60) has the details.
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
@@ -2474,7 +2511,7 @@ The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cel
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332)
+- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/mark1russell7/systems/pull/332), [the real-fault test, #376](https://github.com/mark1russell7/systems/pull/376)
 
 A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
 
@@ -2541,6 +2578,19 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 - A client with data in flight learns at its first retransmission after the expiry, 114.208 s to 117.684 s after its dial.
 - No cell sends a SYN cookie.
 - The prediction hit 11 of its 12 claims, with a Brier score of 0.0869. The miss is the build claim: a fix from the checks of the PR came before the dispatch. It removed a parameter that the queue measure did not read.
+
+### SYS-103 · A declared listen backlog
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** SYS-63
+- **Started:**
+- **Shipped:**
+- **Links:** [the result of SYS-63](#sys-63--the-accept-queue-its-count-and-what-a-client-sees), [the cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
+
+The HTTP transport of the service calls `server.listen` with the options of the caller, and it sets no backlog. The host of procedures gives only a port and a host. Thus each server gets the default of Node, 511, and `somaxconn` clamps it.
+
+SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, or it gets a reset with `tcp_abort_on_overflow` 1. This item adds a declared backlog to the listener of the service. Its default keeps the old behavior. The cells `AQ.1` to `AQ.7` are its test: a server of the service with a declared backlog gives the count of the law.
 
 ### SYS-64 · The port range: its count and its error
 
@@ -3029,7 +3079,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 66 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
@@ -3044,6 +3094,7 @@ The closed-loop families:
 | T10.commit | 5 | First write |
 | T11.writes | 3 | First write |
 | T12.resend | 5 | First write |
+| T11.confirms | 6 | First write |
 | K1.acks | 5 | First write |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |

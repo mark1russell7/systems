@@ -122,6 +122,18 @@ These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its
 - **The verdict.** The band of extra copies judges the cell (`GroupPrediction.duplicates`). A read that found no write is a finding, so a control cannot pass with an empty read.
 - **The source.** Each term cites ioredis 6.0.0 or Valkey 9.1.2 by file and line, in the comment of the module.
 
+## The cells of the confirms
+
+These cells are SYS-60 of S3 (`src/rabbit/confirms.ts`). They use the cluster of T11, and the final read of the harness drains the quorum queue. The question: does a confirmed publish survive a failure, and does a republish duplicate it?
+
+- **The law of the lost messages.** A confirm comes after a commit on a majority, thus each cell has the band 0.
+- **The law of the copies.** A leader change gives 0, as `rabbit_fifo` drops a repeat of one enqueuer (`T11.confirms.1`, `T11.confirms.2`). A close gives W, as a new channel is a new enqueuer (`T11.confirms.3`, `T11.confirms.4`).
+- **The cut.** `to-clients` drops the segments from the node of the leader to the client. Each publish arrives, and each confirm drops.
+- **The control.** The default heartbeat gives no close inside the cut, thus no copy (`T11.confirms.5`).
+- **The race.** A freeze of the node of the client gives the band [0, W], as a thawed first copy races the end of its channel (`T11.confirms.6`).
+- **The verdict.** The bands of lost messages and extra copies judge each cell (`GroupPrediction.lost`, `GroupPrediction.duplicates`).
+- **The source.** [S3](../../docs/S3.md#the-law-of-sys-60-the-confirms) cites each term of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 by file and line.
+
 ## The cells of acks
 
 These cells are SYS-71 of S3 (`src/kafka/acks.ts`). They use a group of three brokers and one controller of Apache Kafka 4.3.2. The client is the producer of kafka-clients 4.3.2 on Java. The question: which writes does Kafka lose at each `acks`?
