@@ -22,6 +22,7 @@ import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { CONFIRM_CELLS } from "./rabbit/confirms.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
+import { LADDER_CELLS } from "./ladder.ts";
 import { OPEN_LOOP_CELLS } from "./open-loop.ts";
 import { RESEND_CELLS } from "./resend.ts";
 import { RECOVERY_CELLS } from "./recovery.ts";
@@ -105,6 +106,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...LEASE_CELLS,
     ...RECOVERY_CELLS,
     ...OPEN_LOOP_CELLS,
+    ...LADDER_CELLS,
   ];
 };
 

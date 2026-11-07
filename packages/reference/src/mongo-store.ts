@@ -29,13 +29,15 @@ export const STORE_OPERATIONS: Readonly<Record<string, Operation>> = {
  * `indeterminate` tells that the store does not know: a put can then be in the store or not.
  */
 export class StoreError extends Error {
-  constructor(
-    readonly operation: string,
-    readonly outcome: "error" | "indeterminate",
-    detail: string,
-  ) {
+  // The fields are not parameter properties: the image starts this file by the type stripping of Node, which refuses them.
+  readonly operation: string;
+  readonly outcome: "error" | "indeterminate";
+
+  constructor(operation: string, outcome: "error" | "indeterminate", detail: string) {
     super(`${operation}: ${outcome}: ${detail}`);
     this.name = "StoreError";
+    this.operation = operation;
+    this.outcome = outcome;
   }
 }
 

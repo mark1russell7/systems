@@ -1077,6 +1077,12 @@ export interface LoadPrediction {
   /** This time is the largest lag of a send behind its planned time. A later send is a finding of its run. */
   readonly lag: Quantity;
   readonly bands: readonly LoadBand[];
+  /**
+   * This share is the limit on the failed arrivals of the counted runs, from 0 to 1. An arrival fails
+   * when the client did not send it, when it has no reply, or when its reply has the status of a
+   * failure. The verdict reads the Wilson interval at 0.95, thus a limit of 0.01 needs 381 arrivals.
+   */
+  readonly failures?: number;
 }
 
 /** A target is the server that a cell connects to: a stock image. */

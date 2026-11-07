@@ -571,7 +571,8 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         counted.map((run) => ({ name: name(run), load: run.load })),
       );
       const middleOfLoad = judged.load.latency?.p50;
-      const read = `${counted.length} runs on a schedule, ${judged.load.planned} arrivals, ${judged.load.unsent} not sent, ${judged.load.unfinished} with no reply. ${judged.load.bands.join(" ")} ${prediction.why}`;
+      const failed = judged.load.failed === 0 ? "" : `, ${judged.load.failed} with the status of a failure`;
+      const read = [`${counted.length} runs on a schedule, ${judged.load.planned} arrivals, ${judged.load.unsent} not sent, ${judged.load.unfinished} with no reply${failed}.`, ...judged.load.bands, ...(judged.load.failures === undefined ? [] : [judged.load.failures]), prediction.why].join(" ");
       return {
         ...empty,
         decision: prediction.load === undefined ? "measured" : judged.holds ? "holds" : "fails",

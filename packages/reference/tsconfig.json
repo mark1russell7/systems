@@ -4,6 +4,7 @@
   "compilerOptions": {
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
     "composite": false,
     "incremental": false,
     "declaration": false,
