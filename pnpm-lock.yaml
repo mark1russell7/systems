@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@mark1russell7/service': workspace:*
+
 importers:
 
   .:
@@ -237,7 +240,7 @@ importers:
         specifier: ^0.1.11
         version: 0.1.15
       '@mark1russell7/service':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../service
       zod:
         specifier: ^4.6.6
@@ -311,7 +314,7 @@ importers:
         specifier: ^0.1.3
         version: 0.1.6
       '@mark1russell7/service':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../service
       testcontainers:
         specifier: 12.2.0
@@ -413,6 +416,37 @@ importers:
       zod:
         specifier: ^4.6.6
         version: 4.6.7
+
+  packages/reference:
+    dependencies:
+      '@mark1russell7/service':
+        specifier: workspace:*
+        version: link:../service
+      '@procedures/client':
+        specifier: ^0.49.1
+        version: 0.49.1
+      '@procedures/peer':
+        specifier: ^0.49.1
+        version: 0.49.1
+      mongodb:
+        specifier: ^7.7.0
+        version: 7.7.0
+      zod:
+        specifier: ^4.6.6
+        version: 4.6.7
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
+      '@types/node':
+        specifier: ^26.6.4
+        version: 26.6.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/service:
     dependencies:
@@ -1135,6 +1169,22 @@ packages:
   '@kwsites/file-exists@1.1.1':
     resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
 
+  '@mark1russell7/algebra@0.8.1':
+    resolution: {integrity: sha512-lpuX4jO56Ht7F6ugymJwPCoL1F6fMVX/HAfuWaxfxBUCTrZxpSwD8qVk6O9M0fqaiyj2XUE+D5fz1XQP6BQlRA==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@mark1russell7/coeval@0.22.0':
+    resolution: {integrity: sha512-woojpBeRerVqxfFBx0yiR6ibSpm2f9mcfsUPDdvIyT9GKZ2uCtM0S/108Ur765C0rjNKxopwlSH4xXyhf906iA==}
+
+  '@mark1russell7/collections@0.5.0':
+    resolution: {integrity: sha512-/SBxY5LOLjIYuBiSf0hdxA6OeGPJUIAHSQSepVDZVnCLEvY1Jte0E3ec0ahN3oyO7oE677FY9d3LuuN18nyv3g==}
+    engines: {node: '>=22.12'}
+
   '@mark1russell7/collections@0.7.0':
     resolution: {integrity: sha512-tOTCmZcxKtWDW5Q/iuHUqycXgFs0mZjv+yMvRtqIkj7+Gk0qKx0DXW8AIKiZ0lqCLG9RQZdFvB5ayWJxpzI2KA==}
     engines: {node: '>=22.12'}
@@ -1165,6 +1215,15 @@ packages:
   '@mark1russell7/optional@1.2.0':
     resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
     engines: {node: '>=22.12'}
+
+  '@mark1russell7/quantity@0.3.0':
+    resolution: {integrity: sha512-psfyKmVrOz5ynHgr2ED7WM5Pa/XVy6DR28jCaSGY42gvV0CJEq7HJRpV6sgkvWx8s3Et7evJWR56aG5tjCHZIw==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@mark1russell7/rational@0.1.2':
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
@@ -1284,6 +1343,19 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@procedures/client@0.49.1':
+    resolution: {integrity: sha512-B+XImxZZuUMHZzo1mRd1nvkAeD4hZqk6yrYuug8JFSBdZ69sGgDH1HIzpYIr65lnq8glZ404z5kCSPYTE0CNHg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      express: ^4.0.0 || ^5.0.0
+    peerDependenciesMeta:
+      express:
+        optional: true
+
+  '@procedures/peer@0.49.1':
+    resolution: {integrity: sha512-KPy4pr3Ia2DQoWDOmg1WgtFc5l5UIE7Mfu9c5TfKNI9WXEvA8S/0sfMY3AtKo4i/wW9iY+meU4lwwlvQk0IYjA==}
+    engines: {node: '>=22'}
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -1524,6 +1596,9 @@ packages:
 
   '@types/whatwg-url@13.0.0':
     resolution: {integrity: sha512-N8WXpbE6Wgri7KUSvrmQcqrMllKZ9uxkYWMt+mCSGwNc0Hsw9VQTW7ApqI4XNrx6/SaM2QQJCzMPDEXE058s+Q==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
@@ -4022,6 +4097,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@mark1russell7/algebra@0.8.1(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+    optionalDependencies:
+      zod: 4.6.7
+
+  '@mark1russell7/coeval@0.22.0': {}
+
+  '@mark1russell7/collections@0.5.0': {}
+
   '@mark1russell7/collections@0.7.0':
     dependencies:
       '@mark1russell7/optional': 1.2.0
@@ -4035,6 +4120,12 @@ snapshots:
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
 
   '@mark1russell7/optional@1.2.0': {}
+
+  '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/rational': 0.1.2
+    optionalDependencies:
+      zod: 4.6.7
 
   '@mark1russell7/rational@0.1.2': {}
 
@@ -4132,6 +4223,30 @@ snapshots:
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
+
+  '@procedures/client@0.49.1':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.1(zod@4.6.7)
+      '@mark1russell7/coeval': 0.22.0
+      '@mark1russell7/collections': 0.5.0
+      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+      '@mark1russell7/service': link:packages/service
+      '@types/ws': 8.18.2
+      ws: 8.22.0
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@procedures/peer@0.49.1':
+    dependencies:
+      '@mark1russell7/service': link:packages/service
+      '@procedures/client': 0.49.1
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - bufferutil
+      - express
+      - utf-8-validate
 
   '@protobufjs/aspromise@1.1.2': {}
 
@@ -4339,6 +4454,10 @@ snapshots:
   '@types/whatwg-url@13.0.0':
     dependencies:
       '@types/webidl-conversions': 7.0.3
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 26.6.4
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
