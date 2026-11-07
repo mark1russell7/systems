@@ -14,6 +14,10 @@ export type {
   ClientImage,
   Cluster,
   Kafka,
+  KafkaPause,
+  PauseBand,
+  PausePrediction,
+  RunPause,
   ClusterClientAt,
   ClusterStage,
   DriverBand,
@@ -46,6 +50,9 @@ export type {
   PinnedImage,
   KernelRecord,
   Prediction,
+  LoadBand,
+  LoadPlan,
+  LoadPrediction,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -101,6 +108,8 @@ export {
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
+export type { LoadJudgement, LoadSpread, LoadVerdict } from "./load.ts";
+export { SCHEDULE_PATH, loadOf, loadVerdict } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { PortsReading } from "./ports.ts";
@@ -269,7 +278,7 @@ export {
   restamped,
   toolJsonOf,
 } from "./cluster.ts";
-export type { KafkaLab, PartitionView } from "./kafka.ts";
+export type { KafkaLab, KafkaMember, PartitionView } from "./kafka.ts";
 export {
   KAFKA_TAIL_MS,
   bootstrapOf,
@@ -279,10 +288,13 @@ export {
   kafkaArgs,
   kafkaCutOf,
   kafkaOnce,
+  kafkaPauseOnce,
   kafkaViewOf,
   nodeIdOf,
   openKafkaLab,
   topicOf,
 } from "./kafka.ts";
+export type { PauseCommit, PauseReading } from "./pause.ts";
+export { isFenceLine, logTimeOf, measurePause, namesGroup, pauseReady } from "./pause.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";

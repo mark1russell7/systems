@@ -7,6 +7,7 @@
       "name": "systems-kind-lab",
       "dependencies": {
         "@grpc/grpc-js": "1.14.6",
+        "@mark1russell7/collections": "0.7.0",
         "@mark1russell7/rational": "0.1.0",
         "@mark1russell7/rigor-generators": "0.1.0",
         "ioredis": "6.0.0",
@@ -58,6 +59,27 @@
       "funding": {
         "type": "opencollective",
         "url": "https://opencollective.com/js-sdsl"
+      }
+    },
+    "node_modules/@mark1russell7/collections": {
+      "version": "0.7.0",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/collections/-/collections-0.7.0.tgz",
+      "integrity": "sha512-tOTCmZcxKtWDW5Q/iuHUqycXgFs0mZjv+yMvRtqIkj7+Gk0qKx0DXW8AIKiZ0lqCLG9RQZdFvB5ayWJxpzI2KA==",
+      "license": "MIT",
+      "dependencies": {
+        "@mark1russell7/optional": "^1.2.0"
+      },
+      "engines": {
+        "node": ">=22.12"
+      }
+    },
+    "node_modules/@mark1russell7/optional": {
+      "version": "1.2.0",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/optional/-/optional-1.2.0.tgz",
+      "integrity": "sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22.12"
       }
     },
     "node_modules/@mark1russell7/rational": {

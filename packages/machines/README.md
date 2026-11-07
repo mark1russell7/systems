@@ -54,6 +54,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `ATEN_DETECTOR` | `aten` | aten 0.6.0: one node that the failure detector of another node of RabbitMQ watches | server | 7 implemented |
 | `RA_MEMBER` | `ra-member` | ra 3.1.10: one member of the Raft cluster of a quorum queue of RabbitMQ 4.3.6 | server | 25 implemented |
 | `KAFKA_PARTITION` | `kafka-partition` | Apache Kafka 4.3.2: one broker that leads one partition, its answers at each acks, its high watermark and the loss of its leadership | server | 24 implemented |
+| `KAFKA_CONSUMER_GROUP` | `kafka-consumer-group` | Apache Kafka 4.3.2: one member of a consumer group under a process stop, its fence, the takeover of its partition and its commit after the stop | server | 14 implemented |
 | `GRPC_JS` | `grpc-js` | grpc-js 1.14.6: one channel to a gRPC server, its HTTP/2 transport, its keepalive and a unary call | driver | 27 implemented, 1 observed |
 | `GRPC_GO_SERVER` | `grpc-go-server` | A server of grpc-go v1.84.0: one HTTP/2 connection, its keepalive, its policy for PINGs and its TCP socket | server | 13 implemented, 1 documented |
 | `ETCD_SERVER` | `etcd-server` | The server of etcd v3.6.15 on grpc-go v1.83.2: one gRPC connection of a client | server | 19 implemented, 1 documented |

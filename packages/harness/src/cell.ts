@@ -1,6 +1,7 @@
 import type { KernelRecord } from "@mark1russell7/prober";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import type { Profile, Schedule, ScheduleOptions } from "@mark1russell7/rigor-chaos";
 
 export type { KernelRecord };
 
@@ -369,6 +370,61 @@ export interface Kafka {
   readonly minInsync: number;
   /** This count is the number of writers of the client, each with one write at a time. */
   readonly writers: number;
+  /** This record makes each run a run of two members of a consumer group, with one member stopped. Without it, the client is a producer. */
+  readonly pause?: KafkaPause;
+}
+
+/**
+ * A Kafka pause is one run of two members of a consumer group, on a topic with two partitions. The
+ * fault stops the process of the first member while it holds a batch, and the hold of the cell ends
+ * that stop. Each setting of a member comes from `Cell.driverOptions`.
+ */
+export interface KafkaPause {
+  /** This name is the protocol of the group: the broker keeps the session under `consumer`, and the client sets it under `classic`. */
+  readonly protocol: "consumer" | "classic";
+  /** This time is how long the first member holds each batch before it commits. */
+  readonly process: Quantity;
+  /** This choice is what the first member does after the stop. It commits at once, or it polls until it has a new epoch and then commits. */
+  readonly afterPause: "commit" | "rejoin";
+  /** This count is the number of records in each partition before the members start. */
+  readonly fill: number;
+  /** This time is from the start of the processing of a batch to the stop. */
+  readonly stopAfter: Quantity;
+}
+
+/** A pause band is the band of one time of a paused consumer, from the stop. */
+export interface PauseBand {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * A pause prediction is the law of a paused consumer. A null fence tells that the stop is too short.
+ * The group then does not fence the member, and the other member does not get its partition.
+ */
+export interface PausePrediction {
+  readonly fence: PauseBand | null;
+  /** This band is the first report of the partition by the other member. Null tells that this cell has no band for it. */
+  readonly takeover: PauseBand | null;
+  /**
+   * This choice is the result of the commit after the stop:
+   * - `fails`: a commit before any poll fails with `CommitFailedException`.
+   * - `acknowledged`: the commit succeeds, and the epoch of the member does not change.
+   * - `rejoin`: the member gets a new epoch, the same commit succeeds, and the committed offset moves back.
+   */
+  readonly thaw: "fails" | "acknowledged" | "rejoin";
+  /** This time bounds the new epoch of `rejoin`, from the end of the stop. */
+  readonly rejoinWithin?: Quantity;
+}
+
+/** A run pause is what a run of a paused consumer records beyond the lines of the stopped member. */
+export interface RunPause {
+  /** These are the lines of the other member. */
+  readonly other: readonly ProbeEvent[];
+  /** These are the log lines of the brokers that tell that a member left this group. */
+  readonly fences: readonly string[];
+  /** This name is the group of the run. */
+  readonly group: string;
 }
 
 /**
@@ -840,6 +896,10 @@ export type Prediction =
        * when a held port comes back. A value outside it is a finding of its run.
        */
       readonly ports?: PortsPrediction;
+      /** This record is the law of a paused consumer (`Kafka.pause`). A run outside it is a finding of its run. */
+      readonly pause?: PausePrediction;
+      /** These are the limits of an open-loop cell (`Cell.probe.plan`). Without them, its load is a measurement. */
+      readonly load?: LoadPrediction;
     };
 
 /** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
@@ -930,6 +990,27 @@ export interface PortsPrediction {
   readonly freed?: QueueBand;
   /** This count is the segments that the sockets of the client send again. */
   readonly retransmissions?: number;
+}
+
+/** A load plan is the schedule of an open-loop client as data: the rate over time, and how the arrivals fall. */
+export interface LoadPlan {
+  readonly profile: Profile;
+  readonly options: ScheduleOptions;
+}
+
+/** A load band is a limit on one quantile of the latency of an open-loop cell, over the arrivals of its counted runs. */
+export interface LoadBand {
+  /** This number is the quantile, from 0 to 1. */
+  readonly quantile: number;
+  readonly low?: Quantity;
+  readonly high: Quantity;
+}
+
+/** A load prediction tells how close to its schedule a client stays, and where the latency lands. */
+export interface LoadPrediction {
+  /** This time is the largest lag of a send behind its planned time. A later send is a finding of its run. */
+  readonly lag: Quantity;
+  readonly bands: readonly LoadBand[];
 }
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -1161,8 +1242,11 @@ export interface Cell {
      * This mode tells if the client is idle after its first reply, or sends a request into the
      * fault. In a stream, it sends `count` requests into it, each `interval` after the reply before.
      * An HTTP client in a `gap` sends its second request a gap after its first reply, by itself.
+     * On a `schedule`, it sends each request at its time in `plan`, and a send does not wait for a reply.
      */
-    readonly mode: "idle" | "inflight" | "stream" | "gap";
+    readonly mode: "idle" | "inflight" | "stream" | "gap" | "schedule";
+    /** This plan is the schedule of the requests in the mode `schedule`. */
+    readonly plan?: LoadPlan;
     /** This count is the number of requests of a stream. */
     readonly count?: number;
     /** This time is the pause after each reply of a stream, before the next request. */
@@ -1452,8 +1536,12 @@ export interface Run {
   readonly group?: RunGroup;
   /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
   readonly server?: readonly ProbeEvent[];
+  /** This record is the other member and the broker logs of a run of a paused consumer. */
+  readonly pause?: RunPause;
   /** This record is the fabric of a cell with `Topology.fabric`. */
   readonly fabric?: RunFabric;
+  /** This schedule is the one that the client of an open-loop cell had: each planned time stays with its record. */
+  readonly schedule?: Schedule;
 }
 
 /** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */

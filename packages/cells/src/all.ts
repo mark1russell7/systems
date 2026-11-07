@@ -7,6 +7,7 @@ import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { ACKS_CELLS } from "./kafka/acks.ts";
+import { PAUSE_CELLS } from "./kafka/pause.ts";
 import { FABRIC_CELLS } from "./fabric.ts";
 import { LIMITER_CELLS } from "./limiter.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
@@ -20,6 +21,7 @@ import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { CONFIRM_CELLS } from "./rabbit/confirms.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
+import { OPEN_LOOP_CELLS } from "./open-loop.ts";
 import { RESEND_CELLS } from "./resend.ts";
 import { RECOVERY_CELLS } from "./recovery.ts";
 import { T02_CELLS } from "./t02.ts";
@@ -57,7 +59,7 @@ export interface Subjects {
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
  * range and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills are last.
+ * drills follow, and the open-loop cells are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -72,6 +74,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...WRITES_CELLS,
     ...RESEND_CELLS,
     ...ACKS_CELLS,
+    ...PAUSE_CELLS,
     ...HTTP_HARNESS_CELLS,
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),
@@ -99,6 +102,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...WATCH_CELLS,
     ...LEASE_CELLS,
     ...RECOVERY_CELLS,
+    ...OPEN_LOOP_CELLS,
   ];
 };
 

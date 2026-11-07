@@ -384,6 +384,22 @@ const response = await retry(
 );
 ```
 
+## The channels
+
+`@mark1russell7/service/channel` has channels in the style of Go. The entry imports only the clock and `@mark1russell7/collections`: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package does not give its functions.
+
+| Function | What it does |
+| --- | --- |
+| `channel(bufferSize)`, `buffered`, `unbuffered` | It makes a channel. With a buffer of 0, each send waits for a receiver. |
+| `select(...cases)` | It waits for the first case with a value. A case that loses keeps no receive. |
+| `timeout(ms, clock)` | It makes a channel that gets one value after `ms`, on the clock. |
+| `ticker(ms, clock)` | It makes a channel of ticks. Tick k comes due at the start plus (k + 1) periods, so the ticks do not drift. |
+| `pipeline`, `fanOut`, `fanIn`, `merge`, `workerPool` | They start work between channels. Each failure goes to `onError`, and the output closes. |
+
+- **The clock.** `timeout` and `ticker` take a clock. The default is `realClock`. A test gives `fakeClock()` of `./testing`, and the time of each channel is then exact.
+- **The timer of a timeout.** `timeout` gives no cancel, as `time.After` of Go. Its timer stays until it comes due, also after `select` takes another case.
+- **A late timer.** A ticker gives the number of the last tick that came due, and skips the ticks that it missed. A slow receiver loses ticks, because the buffer has one tick.
+
 ## The keyed limiter
 
 A keyed limiter gives each key its own limit, for example each tenant or each principal. `@mark1russell7/service/limiter` has it. The entry loads only the quantity package: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package also gives each function.

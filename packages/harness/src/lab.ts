@@ -389,7 +389,8 @@ export interface Lab {
    * instant on CLOCK_MONOTONIC (`at`), as the thaw at the end of a hold does.
    */
   event(event: HopEvent, undo?: boolean, at?: number): Promise<{ t0: number; t1: number } | null>;
-  probe(args: readonly string[]): Promise<Probe>;
+  /** This method starts the client with `args`. Each file is in its container before it starts. */
+  probe(args: readonly string[], files?: ReadonlyArray<{ readonly content: string; readonly target: string }>): Promise<Probe>;
   /**
    * This method waits for the next clock line of the prober, which gives the count of lost
    * records. It gives null when no clock line comes in 5 s, because then nothing tells the count.
@@ -1113,11 +1114,12 @@ export const openLab = async (
         const { port, user, database } = event.console;
         return stamped(hop.injector, ["/opt/harness/inject", "query", `127.0.0.1:${port}`, user, database, query]);
       },
-      async probe(args) {
+      async probe(args, files = []) {
         const events = lines<ProbeEvent>();
         const container = await new GenericContainer(clientImage)
           .withNetworkMode(`container:${client.getId()}`)
           .withCommand([...command, ...args])
+          .withCopyContentToContainer(files.map((file) => ({ ...file })))
           .withLogConsumer(events.consume)
           .start();
         return {

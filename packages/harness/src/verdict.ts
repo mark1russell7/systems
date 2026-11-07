@@ -2,6 +2,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { medianInterval as intervalOfMedian, median as middle, quantileSorted } from "@mark1russell7/rigor-statistics";
 import type { Prediction, Run, Stage } from "./cell.ts";
+import type { LoadVerdict } from "./load.ts";
+import { loadVerdict } from "./load.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
 /** This function gives the words of the outcome of a second request: its connection, a retry, and its end. */
@@ -128,6 +130,8 @@ export interface Verdict {
   readonly slowest?: Quantity;
   /** This record is the sum of what reordering did in each counted run of a measurement-only cell. */
   readonly reordering?: Reordering;
+  /** This record is the load of an open-loop cell over its counted runs. */
+  readonly load?: LoadVerdict;
   /** This record is the time of the proxy of a calibration cell, in each direction. */
   readonly proxy?: { readonly hop: string; readonly up: Spread | null; readonly down: Spread | null };
   /** This record is what the group of a group cell did over the counted runs: its stages, and its writes. */
@@ -465,15 +469,17 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
-    // the law of an accept queue or a port range: each run holds each term of it, or the run is outside
-    if (prediction.queue !== undefined || prediction.ports !== undefined) {
+    // the law of an accept queue, a port range or a paused consumer: each run holds each term of it, or the run is outside
+    const law =
+      prediction.queue !== undefined ? "queue" : prediction.ports !== undefined ? "port range" : prediction.pause !== undefined ? "paused consumer" : undefined;
+    if (law !== undefined) {
       const off = new Set(outside.map((each) => each.run)).size;
       return {
         ...empty,
         decision: off === 0 ? "holds" : "fails",
         band: null,
         outside,
-        why: `${counted.length - off} of ${counted.length} runs hold the law of the ${prediction.queue === undefined ? "port range" : "queue"}; ${prediction.why}`,
+        why: `${counted.length - off} of ${counted.length} runs hold the law of the ${law}; ${prediction.why}`,
       };
     }
     // a calibration of a proxy: its time in each direction, over all the requests of the runs
@@ -548,6 +554,25 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         outside: missed,
         median: times.length === 0 ? null : s(middle(times)),
         why: `${counted.length} runs measured: ${outcomes}; ${timed}.${late} ${prediction.why}`,
+      };
+    }
+    // an open-loop cell: each run keeps its schedule, and each band of the latency holds
+    if (counted.some((run) => run.load !== undefined)) {
+      const judged = loadVerdict(
+        prediction.load ?? { lag: quantity(Number.MAX_SAFE_INTEGER, "ms"), bands: [] },
+        counted.map((run) => ({ name: name(run), load: run.load })),
+      );
+      const middleOfLoad = judged.load.latency?.p50;
+      const read = `${counted.length} runs on a schedule, ${judged.load.planned} arrivals, ${judged.load.unsent} not sent, ${judged.load.unfinished} with no reply. ${judged.load.bands.join(" ")} ${prediction.why}`;
+      return {
+        ...empty,
+        decision: prediction.load === undefined ? "measured" : judged.holds ? "holds" : "fails",
+        band: null,
+        outside: judged.outside,
+        median: middleOfLoad === undefined ? null : s(valueIn(middleOfLoad, "s")),
+        ...(judged.load.latency === null ? {} : { slowest: s(valueIn(judged.load.latency.max, "s")) }),
+        load: judged.load,
+        why: read,
       };
     }
     const samples = counted
