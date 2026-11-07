@@ -410,6 +410,9 @@ importers:
       '@mark1russell7/algebra':
         specifier: workspace:^
         version: link:../algebra
+      '@mark1russell7/collections':
+        specifier: ^0.7.0
+        version: 0.7.0
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
@@ -1123,6 +1126,10 @@ packages:
   '@kwsites/file-exists@1.1.1':
     resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
 
+  '@mark1russell7/collections@0.7.0':
+    resolution: {integrity: sha512-tOTCmZcxKtWDW5Q/iuHUqycXgFs0mZjv+yMvRtqIkj7+Gk0qKx0DXW8AIKiZ0lqCLG9RQZdFvB5ayWJxpzI2KA==}
+    engines: {node: '>=22.12'}
+
   '@mark1russell7/conventions@0.26.0':
     resolution: {integrity: sha512-waIPrXWmB7DF5qJI74EGvyLh6sWUMzgYCZGG82rOEXsExQcHmlHvmr/O1mYl7Vz4YVFrUjWPfV/SPgRJRjzD4A==}
     engines: {node: '>=22'}
@@ -1145,6 +1152,10 @@ packages:
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
+
+  '@mark1russell7/optional@1.2.0':
+    resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
+    engines: {node: '>=22.12'}
 
   '@mark1russell7/rational@0.1.2':
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
@@ -3985,6 +3996,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@mark1russell7/collections@0.7.0':
+    dependencies:
+      '@mark1russell7/optional': 1.2.0
+
   '@mark1russell7/conventions@0.26.0': {}
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7': {}
@@ -3992,6 +4007,8 @@ snapshots:
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e': {}
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
+
+  '@mark1russell7/optional@1.2.0': {}
 
   '@mark1russell7/rational@0.1.2': {}
 

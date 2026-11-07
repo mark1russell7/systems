@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import * as backoffEntry from "./backoff.ts";
 import { retrySchedule } from "./client/core.ts";
 import { statusLineJudge } from "./client/dial.ts";
+import * as channelEntry from "./channel.ts";
 import * as clockEntry from "./clock.ts";
 import * as grpcEntry from "./grpc.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
@@ -88,7 +89,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -301,6 +302,44 @@ describe("the http entry: Node only, on node:http and node:net", () => {
       "writeOutcome",
     ]);
     for (const name of Object.keys(httpEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+});
+
+describe("the channel entry: a client in a browser can import it (collections C26)", () => {
+  it("loads only the clock and collections: no node: module and no zod", () => {
+    expect(reach("channel.ts")).toEqual({ files: ["channel.ts", "clock.ts"], packages: ["@mark1russell7/collections"] });
+    expect(reachAll("channel.ts")).toEqual([]);
+  });
+
+  it("gives the channels, and the root does not give them", () => {
+    expect(Object.keys(channelEntry).sort()).toEqual([
+      "Channel",
+      "buffered",
+      "channel",
+      "fanIn",
+      "fanOut",
+      "merge",
+      "pipeline",
+      "select",
+      "ticker",
+      "timeout",
+      "unbuffered",
+      "workerPool",
+    ]);
+    for (const name of Object.keys(channelEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("writes nothing to the console", () => {
+    expect(readFileSync(join(here, "channel.ts"), "utf8")).not.toMatch(/\bconsole\./);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./channel"]).toBe("./src/channel.ts");
+    expect(manifest.publishConfig.exports["./channel"]).toEqual({ types: "./build/channel.d.ts", default: "./build/channel.js" });
   });
 });
 
