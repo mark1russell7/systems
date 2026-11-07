@@ -37,6 +37,9 @@ export interface HeldRead {
   readonly reason: string;
 }
 
+/** A decided verdict is the part of a verdict that the read takes: its decision and why. A verdict of the harness and a kind verdict are both decided. */
+export type Decided = Pick<Verdict, "why"> & { readonly decision: string };
+
 /** This function counts a noun in words. */
 const counted = (n: number, noun: string): string => `${n} ${n === 1 ? noun : `${noun}s`}`;
 
@@ -48,7 +51,7 @@ const counted = (n: number, noun: string): string => `${n} ${n === 1 ? noun : `$
  */
 export const heldRead = (
   expected: readonly string[],
-  verdicts: ReadonlyMap<string, Verdict>,
+  verdicts: ReadonlyMap<string, Decided>,
   problems: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HeldRead => {
   const names = new Set(expected);

@@ -1,18 +1,19 @@
-# Runs the kind catalogs, T07, T15 and T18, on GitHub's runners. Each shard gets a runner of its own,
-# and each job makes its own kind clusters with the pinned kind and node image, then deletes them.
+# Runs the kind catalogs, T07, T15 and T18, on GitHub's runners. Each shard gets a runner of its own.
+# Each job makes its own kind clusters with the pinned kind and node image, then deletes them.
 # A cell of T15 gets Istio 1.31.3 in its cluster, from the pinned istioctl and images pinned by digest.
 #
-#   plan    The shards: the input for a dispatch, one for a pull request.
+#   plan    Gives the shards: the input of a dispatch, or one.
 #   kind    Writes what the runner is, and which kube-proxy modes its kernel can do. Then it runs
-#           the cells whose names match `only` (KIND_LAB=1), a shard on each runner, and uploads each
-#           raw record and summary.ndjson as an artifact. A cell of a mode that the kernel cannot do
-#           waits, with its reason in summary.ndjson. An ambient cell waits the same way when a
+#           the cells whose names match `only` (KIND_LAB=1), a shard on each runner. It uploads each
+#           raw record and `summary.ndjson` as an artifact. A cell of a mode that the kernel cannot
+#           do waits, with its reason in `summary.ndjson`. An ambient cell waits the same way when a
 #           module of istio-cni does not load.
-#   capture Makes a cluster with the dataplane cilium, and dumps the services of the agent of each
-#           node in three states of the backends (src/cilium.capture.test.ts). It uploads the dump as
-#           the artifact cilium-capture. It starts on a pull request, and on a dispatch with capture=true.
+#   capture Makes a cluster with the dataplane cilium. It dumps the services of the agent of each
+#           node in three states of the backends. The test is `src/cilium.capture.test.ts`, and the
+#           dump is the artifact cilium-capture. It starts on a pull request, and on a dispatch with
+#           capture=true.
 #
-# Start it with: gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10
+# Start it with `gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10`.
 # The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
 # A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
 #
@@ -20,8 +21,8 @@
 # shard of the backlog cells. Thus a shard that does not end fails fast, and the job still uploads
 # its records. A dispatch of a long catalog sets a larger bound, for example -f minutes=300.
 #
-# A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at about 1.2 GB
-# and a quarter of a CPU, thus each job makes one cluster at a time.
+# A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at approximately
+# 1.2 GB and a quarter of a CPU. Thus each job makes one cluster at a time.
 name: Kind
 
 on:
@@ -45,6 +46,9 @@ on:
       minutes:
         description: The bound of the step The cells on each runner, in minutes (5 to 330)
         default: "36"
+      held:
+        description: The run claims that its cells hold, and it fails unless each cell has a record and holds (true or false)
+        default: "false"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
@@ -172,8 +176,8 @@ jobs:
           echo "KIND_MODES=$modes" >> "$GITHUB_ENV"
           echo "KIND_WAITING=$waiting" >> "$GITHUB_ENV"
       # The dataplane cilium: Cilium 1.20.4 replaces kube-proxy. Its socket LB in a kind node needs
-      # cgroup v2, and a cgroup namespace for each node (Documentation/installation/kind.rst). kind
-      # v0.33.0 gives each node a private cgroup namespace, thus this step examines only cgroup v2.
+      # cgroup v2, and a cgroup namespace for each node (Documentation/installation/kind.rst). Version
+      # v0.33.0 of kind gives each node a private cgroup namespace, thus this step examines only cgroup v2.
       - name: The Cilium dataplane of this runner
         run: |
           cgroup="$(stat -fc %T /sys/fs/cgroup)"
@@ -212,14 +216,14 @@ jobs:
           echo "KIND_AMBIENT_WAITING=$waiting" >> "$GITHUB_ENV"
       # Each kind node is a container on the kernel of the runner, thus the pods of all nodes share its
       # inotify limits. The default of 128 instances for each user is too few for a cluster with the
-      # DaemonSets and the sidecars of a mesh, and a kubelet or a log stream then fails with "too many
+      # DaemonSets and the sidecars of a mesh. Then a kubelet or a log stream fails with "too many
       # open files". These are the limits that the known issues of kind give.
       - name: The inotify limits of the nodes
         run: |
           sudo sysctl -w fs.inotify.max_user_instances=512 fs.inotify.max_user_watches=524288
           echo "inotify: $(sysctl -n fs.inotify.max_user_instances) instances, $(sysctl -n fs.inotify.max_user_watches) watches" | tee -a "$RUNNER_TEMP/kindcells/runner.txt"
       # A dump of conntrack through netlink walks each bucket of the table of the kernel with the
-      # softirqs off, and a segment that comes in that walk waits for its end. The agent of each node
+      # softirqs off. A segment that comes in that walk waits for its end. The agent of each node
       # dumps the table each second. A runner of 16 GB has 262144 buckets: the table gets 16384.
       - name: A small conntrack table
         run: |
@@ -282,6 +286,18 @@ jobs:
           KIND_OUT: ${{ runner.temp }}/kindcells
           KIND_WORK: ${{ runner.temp }}/kind-work
         run: pnpm --filter @systems/cells test
+      # A failing cell of a manual run is a finding, thus it does not fail this workflow. A dispatch with
+      # held=true claims that its cells hold. This step judges each record again, and it fails unless each
+      # cell of the shard has a record that pins its programs and holds. A cell that waits has no record.
+      # Its flip test then turns the check red with four changes. These are an injected fault, a record
+      # gone, an image by a tag and a checkout with changes. The clean copy stays green.
+      - name: The cells hold
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.held == 'true' }}
+        env:
+          SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
+        run: |
+          pnpm exec tsx packages/site/scripts/held.ts --kind "$KIND_ONLY" --shard "$SHARD" "$RUNNER_TEMP/kindcells"
+          pnpm exec tsx packages/site/scripts/held.ts --flip --kind "$KIND_ONLY" --shard "$SHARD" "$RUNNER_TEMP/kindcells"
       # a job that stopped in the middle leaves its clusters: the pinned kind deletes them
       - name: Delete each cluster
         if: always()

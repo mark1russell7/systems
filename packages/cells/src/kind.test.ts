@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { Judged, KindCell, KindCellRecord, KindCellRecordV1 } from "@mark1russell7/kind";
 import { FORMAT, FORMAT_V1, calibrationOf, cellsTable, judgeKind, runKindCells, shardOf, upgrade } from "@mark1russell7/kind";
 import { describe, expect, it } from "vitest";
+import { codeHere } from "./commit.ts";
 import { KIND_CATALOG } from "./kinds.ts";
 
 /**
@@ -60,8 +61,11 @@ describe.skipIf(!RUN)("the kind catalogs, in kind", () => {
       appendFileSync(join(OUT, "summary.ndjson"), `${JSON.stringify(line)}\n`);
       console.log(`${cell.name}: waiting, ${why}`);
     }
+    // each raw record names the commit of this checkout, and if it had changes (SYS-101)
+    const code = codeHere();
     const results = await runKindCells(selected, {
       out: OUT,
+      ...(code === undefined ? {} : { code }),
       log: (line) => console.log(line),
       environments: ENVIRONMENTS,
       ...(process.env["KIND_WORK"] === undefined ? {} : { work: process.env["KIND_WORK"] }),

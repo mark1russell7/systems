@@ -8,11 +8,11 @@ import type { KindCellRecord } from "./record.ts";
  * each raw record again, and only `holds` passes.
  *
  * A record that does not pin the programs of its runs is not a record (SYS-101). A kind record pins
- * them with the commit of the checkout that operated, with no changes to tracked files, and with
- * each image of each cluster by its digest or by a build with its build record.
+ * them with the commit of a clean checkout that operated. It also pins each image of each cluster by
+ * its digest, or by a build with its build record.
  *
  * The flip test of the read needs an injected fault that turns each cell red. A kind cell measures
- * the requests of its clients and the states of its cluster after the fault, thus the fault is an
+ * the requests of its clients and the states of its cluster after the fault. Thus the fault is an
  * outage that the cell does not predict. From the fault of each counted run, each request fails, and
  * the cluster shows no other line.
  */
@@ -41,7 +41,7 @@ export const kindRecordProblems = (record: KindPinnable): string[] => [
 
 /**
  * This function gives the outcome of the failed requests of the fault. A prediction of no failure
- * can exclude only some outcomes by name: then the fault takes the first of them, thus the
+ * can exclude only some outcomes by name. Then the fault takes the first of them, thus the
  * prediction counts each failure.
  */
 const outcomeOf = (prediction: Prediction): string => {

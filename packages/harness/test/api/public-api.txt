@@ -271,6 +271,7 @@ highestHeld: build/index.d.ts#highestHeld
 hikariClientImage: build/index.d.ts#hikariClientImage
 hzOf: build/index.d.ts#hzOf
 imageOf: build/index.d.ts#imageOf
+imagePinProblems: build/index.d.ts#imagePinProblems
 imageProblems: build/index.d.ts#imageProblems
 inContext: build/index.d.ts#inContext
 infoOf: build/index.d.ts#infoOf
@@ -2592,6 +2593,9 @@ export declare const hzOf: (first: {
 
 ### build/index.d.ts#imageOf
 export declare const imageOf: (source: string | ImageSource) => Promise<string>;
+
+### build/index.d.ts#imagePinProblems
+export declare const imagePinProblems: (what: string, image: string, build: BuildRecord | undefined) => string[];
 
 ### build/index.d.ts#imageProblems
 export declare const imageProblems: (source: ImageSource) => string[];
