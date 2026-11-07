@@ -1,7 +1,7 @@
 import type { Cell, LoadBand, LoadPlan, LoadPrediction } from "@mark1russell7/harness";
 import type { Profile, ScheduleOptions } from "@mark1russell7/rigor-chaos";
 import { constant } from "@mark1russell7/rigor-chaos";
-import { REDIS, RUNS, ms, q, s } from "./catalog.ts";
+import { REDIS, REDIS_HELD, RUNS, ms, q, s } from "./catalog.ts";
 
 /**
  * The open-loop cells (SYS-68). The client sends each request at its time in a schedule, and a send
@@ -14,8 +14,12 @@ import { REDIS, RUNS, ms, q, s } from "./catalog.ts";
  * reply to the closed-loop client (coordinated omission).
  */
 
-/** This target can stop by a signal with stamps, thus its freeze ends at its instant. */
-const FROZEN = { ...REDIS, program: "redis-server" };
+/**
+ * This target can stop by a signal with stamps, thus its freeze ends at its instant. A shell is the
+ * first process of the target, and the server is its child. The kernel drops a STOP from the
+ * namespace to its first process.
+ */
+const FROZEN = { ...REDIS_HELD, program: "redis-server" };
 
 /** This time is the longest run of an open-loop cell. The schedules take 20 s at most. */
 const WINDOW = q(40);

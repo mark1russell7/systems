@@ -95,7 +95,9 @@ describe("the verdict of a schedule", () => {
 
   it("fails a band under its bottom: a stall that went away is a lost target", () => {
     const low: LoadPrediction = { lag: quantity(50, "ms"), bands: [{ quantile: 0.99, low: quantity(5, "ms"), high: quantity(10, "ms") }] };
-    expect(judged(measured(() => 1), low).holds).toBe(false);
+    const under = judged(measured(() => 1), low);
+    expect(under.holds).toBe(false);
+    expect(under.load.bands[0]).toContain("wanted in [5, 10] ms: under the bottom of the band.");
     expect(judged(measured(() => 7), low).holds).toBe(true);
   });
 

@@ -293,6 +293,12 @@ fn signal_number(name: &str) -> Result<libc::c_int, Box<dyn Error>> {
     })
 }
 
+/// tells if the kernel drops this signal to this pid: the first process of a namespace gets no STOP
+/// and no KILL from a process in that namespace, and kill(2) still returns 0
+fn dropped(pid: libc::pid_t, sig: libc::c_int) -> bool {
+    pid == 1 && (sig == libc::SIGSTOP || sig == libc::SIGKILL)
+}
+
 /// a process name: letters, digits, dots, dashes and underscores, as /proc/PID/comm holds it
 fn process_name(name: &str) -> Result<&str, Box<dyn Error>> {
     if !name.is_empty()
@@ -338,6 +344,10 @@ fn signal(args: &[String]) -> Result<(), Box<dyn Error>> {
     let pids = processes(name)?;
     if pids.is_empty() {
         return Err(format!("no process {name} in this process namespace").into());
+    }
+    // a fault that cannot land must not give stamps: run the server as the child of a shell
+    if pids.iter().any(|pid| dropped(*pid, sig)) {
+        return Err(format!("{name} is the first process of its namespace: the kernel drops {}", args[2]).into());
     }
     if let Some(at) = opts.at {
         until(at)?;
@@ -705,6 +715,12 @@ mod tests {
         assert!(zombie("812 (valkey-server) Z 1 812 812 0 -1"));
         assert!(!zombie("813 (valkey-server) S 1 813 813 0 -1"));
         assert!(!zombie("814 (a) Z) S 1"));
+        // the first process of a namespace: STOP and KILL do not reach it, the other signals can
+        assert!(dropped(1, libc::SIGSTOP));
+        assert!(dropped(1, libc::SIGKILL));
+        assert!(!dropped(1, libc::SIGCONT));
+        assert!(!dropped(1, libc::SIGTERM));
+        assert!(!dropped(7, libc::SIGSTOP));
     }
 
     #[test]

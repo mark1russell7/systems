@@ -108,9 +108,11 @@ const bandVerdict = (
   const low = band.low === undefined ? null : valueIn(band.low, "ms");
   const above = low === null || (read !== null && read >= low);
   const place = low === null ? `under ${high} ms` : `in [${low}, ${high}] ms`;
+  // the rung judges only the top of the band: a read under its bottom is not within the band
+  const outcome = top.outcome === "within" && !above ? "under the bottom of the band" : top.outcome;
   return {
     holds: top.outcome === "within" && above,
-    words: `p${band.quantile * 100} of the latency ${read === null ? "has no value" : `is ${read} ms`}, wanted ${place}: ${top.outcome}. ${top.reason}`,
+    words: `p${band.quantile * 100} of the latency ${read === null ? "has no value" : `is ${read} ms`}, wanted ${place}: ${outcome}. ${top.reason}`,
   };
 };
 
