@@ -12,6 +12,10 @@ import { round, secondsOf, timeAt, voidsOf } from "./records.ts";
 
 /** A record is the raw record of one cell, as the runner of @systems/cells writes it. */
 export interface CellRecord {
+  /** The commit of the code that operated, and if its tracked files had changes. An old record has none. */
+  readonly code?: { readonly commit: string; readonly dirty: boolean };
+  /** A local debug run marks its record so. */
+  readonly debug?: boolean;
   readonly cell: Cell;
   readonly manifests: readonly Manifest[];
   readonly runs: readonly Run[];

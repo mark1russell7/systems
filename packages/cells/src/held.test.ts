@@ -47,6 +47,19 @@ describe("the read of the scheduled cells", () => {
   it("does not pass an empty selection", () => {
     expect(heldRead([], new Map()).held).toBe(false);
   });
+
+  it("does not pass a cell that holds on a record with no pin of its programs (SYS-101)", () => {
+    const problems = new Map([["b", ["the target: the image redis:7.4 has no digest"]]]);
+    const read = heldRead(["a", "b"], named([["a", "holds"], ["b", "holds"]]), problems);
+    expect(read.held).toBe(false);
+    expect(read.cells.map((cell) => cell.held)).toEqual([true, false]);
+    expect(read.cells[1]!.why).toBe("not a record: the target: the image redis:7.4 has no digest");
+    expect(read.reason).toBe("1 cell of 2 did not hold, 1 record with no pin of the programs");
+  });
+
+  it("passes a record with an empty list of problems", () => {
+    expect(heldRead(["a"], named([["a", "holds"]]), new Map([["a", []]])).held).toBe(true);
+  });
 });
 
 describe("the injected fault", () => {

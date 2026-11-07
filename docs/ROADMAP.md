@@ -3369,7 +3369,7 @@ These assertions have no flip:
 - **Depends on:** SYS-99
 - **Started:** 2026-11-05
 - **Shipped:**
-- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368)
+- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368), [the pins of a record (#370)](https://github.com/mark1russell7/systems/pull/370)
 
 A page with a fixed study has no age limit today. Thus a page can show old numbers about code that changed. This item gives each study an age limit of 30 days and a scheduled refresh inside that limit. The study can drop the limit only if its numbers do not depend on current code. The stamp and the text of the page then say this.
 
@@ -3400,6 +3400,13 @@ The order of the work:
 3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
 
 The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
+
+A study needs records that pin their programs, because a refresh must operate the same programs. A record needs the commit of the harness, the digest of each image and the version of each client library. Without them, it is not a record. A commit with changes to tracked files is not a pin.
+
+- **Part 1 (#370, merged).** Each record has its commit, and each image of the harness has its build record. Each line of `summary.ndjson` gives the problems of its pins.
+- **Part 2.** The writer of the cells fails a record with a problem, and the run exits with 1. The read of a schedule refuses it too. Its flip has two more copies: a target by the tag `redis:7.4` with no digest, and a checkout with changes. Each exits with 1. A local debug run (`CELLS_DEBUG=1`) marks its records, and no page reads them. Part 2 merges after one night gives an empty list of problems for each record.
+- The old records that have only a tag stay. A read gives them the form "old form, no pin".
+- The records of `kind.yml` have their own writer. They get the same refusal with the check of SYS-99 in that workflow.
 
 ## Decisions for Mark
 
