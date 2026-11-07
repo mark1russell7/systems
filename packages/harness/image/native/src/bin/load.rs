@@ -326,8 +326,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut connections = Vec::with_capacity(streams.len());
     for stream in streams {
         let key = stream.key.clone();
-        connections.push(Connection::open(&args.host, args.port, stream)?);
-        emit("connected", json!({ "k": key }));
+        let connection = Connection::open(&args.host, args.port, stream)?;
+        // the harness finds the socket of a stream in the records of the kernel by this address
+        emit("connected", json!({ "k": key, "local": connection.socket.local_addr()?.to_string() }));
+        connections.push(connection);
     }
     emit("ready", json!({ "streams": connections.len() }));
     while !Path::new(&args.go).exists() {
