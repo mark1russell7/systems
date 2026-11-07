@@ -3,7 +3,7 @@ import { constant, measureLoad, schedule } from "@mark1russell7/rigor-chaos";
 import type { Completion, LoadMeasure, Schedule } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
 import type { LoadPrediction, ProbeEvent } from "./cell.ts";
-import { LOAD_FORMAT, loadOf, loadPlanOf, loadVerdict, streamsLoadOf } from "./load.ts";
+import { LOAD_FORMAT, estimateOf, estimateVerdict, loadOf, loadPlanOf, loadVerdict, streamsLoadOf } from "./load.ts";
 
 /** This schedule is 100 arrivals each second for 5 s: 500 arrivals, 10 ms apart. */
 const PLAN: Schedule = schedule(constant(100, 5_000), { arrivals: "uniform" });
@@ -242,5 +242,54 @@ describe("the verdict of a schedule", () => {
   it("does not hold with no run, or with a run that never started", () => {
     expect(loadVerdict(P99_UNDER_10, []).holds).toBe(false);
     expect(loadVerdict(P99_UNDER_10, [{ name: "a", load: undefined }]).outside).toEqual([{ run: "a", why: "the client never started its schedule" }]);
+  });
+});
+
+/**
+ * This function gives the requests of a stream of the client of the harness, in ns on its clock.
+ * Each reply comes 1 ms after its send, and the next send 10 ms after the reply. The request `stall.at`
+ * waits `stall.ms` for its reply.
+ */
+const stream = (count: number, stall?: { readonly at: number; readonly ms: number }): Array<{ sent: number; done: number | null }> => {
+  const out: Array<{ sent: number; done: number | null }> = [];
+  let sent = 0;
+  for (let index = 0; index < count; index += 1) {
+    const done = sent + (stall !== undefined && index === stall.at ? stall.ms : 1);
+    out.push({ sent: START + sent * 1e6, done: START + done * 1e6 });
+    sent = done + 10;
+  }
+  return out;
+};
+
+describe("the estimate of the open loop of a closed-loop stream", () => {
+  it("hides nothing in a stream with no stall, and counts no pause of the client", () => {
+    const estimate = estimateOf(stream(100), START + 1_200 * 1e6, 10);
+    expect(estimate).toMatchObject({ hidden: 0, driverGaps: 0, planned: 100, unsent: 0, unfinished: 0 });
+    expect(Math.max(...estimate!.latency)).toBe(1);
+  });
+
+  it("puts back the sends of a stall, each with the reply of the stall", () => {
+    // the request 50 waits 1 s: a closed loop gives one slow reply, the open loop 99 more
+    const estimate = estimateOf(stream(100, { at: 50, ms: 1_000 }), START + 2_200 * 1e6, 10);
+    expect(estimate).toMatchObject({ hidden: 99, driverGaps: 0, planned: 199 });
+    expect(estimate!.latency.filter((latency) => latency > 1)).toHaveLength(100);
+  });
+
+  it("gives no estimate for no request, or for a request with no reply before the last", () => {
+    expect(estimateOf([], START, 10)).toBeUndefined();
+    const broken = stream(3);
+    broken[1] = { ...broken[1]!, done: null };
+    expect(estimateOf(broken, START + 100 * 1e6, 10)).toBeUndefined();
+  });
+
+  it("sums the estimates of the counted runs, and moves the p99 of a stall that the replies hide", () => {
+    const calm = estimateOf(stream(100), START + 1_200 * 1e6, 10);
+    const stalled = estimateOf(stream(100, { at: 50, ms: 1_000 }), START + 2_200 * 1e6, 10);
+    const verdict = estimateVerdict([calm, stalled, undefined]);
+    expect(verdict).toMatchObject({ planned: 299, hidden: 99, driverGaps: 0 });
+    // 100 of 299 latencies are over 1 ms, thus the p99 of the estimate is in the stall
+    expect(verdict!.latency!.p99.value).toBeGreaterThan(900);
+    expect(verdict!.words).toContain("puts back 99 hidden sends, with no pause of the client");
+    expect(estimateVerdict([undefined])).toBeUndefined();
   });
 });

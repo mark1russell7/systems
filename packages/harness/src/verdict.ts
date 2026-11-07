@@ -2,8 +2,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { medianInterval as intervalOfMedian, median as middle, quantileSorted } from "@mark1russell7/rigor-statistics";
 import type { Prediction, Run, Stage } from "./cell.ts";
-import type { LoadVerdict } from "./load.ts";
-import { loadVerdict } from "./load.ts";
+import type { EstimateVerdict, LoadVerdict } from "./load.ts";
+import { estimateVerdict, loadVerdict } from "./load.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
 /** This function gives the words of the outcome of a second request: its connection, a retry, and its end. */
@@ -132,6 +132,8 @@ export interface Verdict {
   readonly reordering?: Reordering;
   /** This record is the load of an open-loop cell over its counted runs. */
   readonly load?: LoadVerdict;
+  /** This record is the estimate of the open loop of a closed-loop stream over its counted runs (SYS-91). */
+  readonly estimate?: EstimateVerdict;
   /** This record is the time of the proxy of a calibration cell, in each direction. */
   readonly proxy?: { readonly hop: string; readonly up: Spread | null; readonly down: Spread | null };
   /** This record is what the group of a group cell did over the counted runs: its stages, and its writes. */
@@ -597,10 +599,13 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         (count) => (count ?? 0) > 0,
       );
     const reordered = anything ? ` Reordering: ${reorderingWords(reordering)}.` : "";
+    // the reply times of a closed loop hide the sends of each stall: the estimate puts them back
+    const estimate = estimateVerdict(counted.map((run) => run.estimate));
+    const estimated = estimate === undefined ? "" : ` ${estimate.words}`;
     const why =
       samples.length === 0
         ? `${counted.length} runs measured, with no reply: ${prediction.why}`
-        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, p99 ${s(quantileOf(samples, 0.99)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended.${reordered} ${prediction.why}`;
+        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, p99 ${s(quantileOf(samples, 0.99)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended.${reordered}${estimated} ${prediction.why}`;
     return {
       ...empty,
       decision: "measured",
@@ -609,6 +614,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
       median: samples.length === 0 ? null : s(middle(samples)),
       ...(samples.length === 0 ? {} : { slowest: s(samples.at(-1)!) }),
       ...(reordering === undefined ? {} : { reordering }),
+      ...(estimate === undefined ? {} : { estimate }),
       why,
     };
   }
