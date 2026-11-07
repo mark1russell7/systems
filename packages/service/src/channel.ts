@@ -288,10 +288,15 @@ export const fanIn = <T>(inputs: readonly Channel<T>[], options: FlowOptions = {
  * This function gives one channel with the values of `inputs`, as `fanIn` does, but it closes when
  * the first input is closed and empty. It takes one value at a time, from the inputs in turn, and
  * keeps no receive on an input while it waits for the reader. Thus each value reaches the output
- * one time, in the order of its input, or stays in its input.
+ * one time, in the order of its input, or stays in its input. With no input, the output is closed.
  */
 export const merge = <T>(inputs: readonly Channel<T>[]): Channel<T> => {
   const output = new Channel<T>();
+  // With no input, no input can give a value, so the output is closed at once, as with fanIn
+  if (inputs.length === 0) {
+    output.close();
+    return output;
+  }
   void (async () => {
     // The input after the input of the last value comes first, so a busy input starves no other
     let start = 0;

@@ -257,6 +257,21 @@ describe("merge (audit O56 #6: no value of an input is lost)", () => {
     expect(b.trySend(5)).toBe(false);
   });
 
+  it("with no input, the output is closed and its iteration ends, as with fanIn", async () => {
+    for (const out of [merge<number>([]), fanIn<number>([])]) {
+      await flush();
+      expect(out.isClosed).toBe(true);
+      const seen: number[] = [];
+      await settles(
+        (async () => {
+          for await (const value of out) seen.push(value);
+        })(),
+        "the iteration of the output",
+      );
+      expect(seen).toEqual([]);
+    }
+  });
+
   it("keeps each value one time and the order of each input, with any capacity and any interleaving", async () => {
     for (const { capacities, script } of scripts(66)) {
       const inputs: Channel<number>[] = capacities.map((capacity) => channel<number>(capacity));

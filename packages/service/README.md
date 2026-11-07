@@ -397,6 +397,7 @@ const response = await retry(
 | `pipeline`, `fanOut`, `fanIn`, `merge`, `workerPool` | They start work between channels. Each failure goes to `onError`, and the output closes. |
 
 - **The clock.** `timeout` and `ticker` take a clock. The default is `realClock`. A test gives `fakeClock()` of `./testing`, and the time of each channel is then exact.
+- **The timer of a timeout.** `timeout` gives no cancel, as `time.After` of Go. Its timer stays until it comes due, also after `select` takes another case.
 - **A late timer.** A ticker gives the number of the last tick that came due, and skips the ticks that it missed. A slow receiver loses ticks, because the buffer has one tick.
 
 ## The keyed limiter
