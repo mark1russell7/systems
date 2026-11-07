@@ -12,6 +12,12 @@ allowBuilds:
   protobufjs: false
   ssh2: false
 
+# @procedures/peer has @mark1russell7/service as a plain dependency. Without this override, pnpm gives the peer
+# its own copy from npm, apart from the workspace link: two copies of the service in one process. CLI-117 of the
+# client makes the service a peer dependency. When that client release is on npm, SYS-104 removes this override.
+overrides:
+  "@mark1russell7/service": "workspace:*"
+
 minimumReleaseAgeExclude:
   # Our own packages: the release train updates them, so the release age check of pnpm does not apply to them.
   - "@mark1russell7/*"

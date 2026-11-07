@@ -3234,14 +3234,14 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
-- **Started:**
+- **Started:** 2026-11-07
 - **Shipped:**
 - **Links:**
 
-SYS-68 and SYS-94 are done, thus this item can start. The HTTP driver on a schedule is part of this item.
+SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
 A public multi-tenant service runs on the stack of this repository: `@mark1russell7/service`, `@procedures/peer` and a MongoDB replica set. It holds documents for each tenant and it sends each change over a socket. It has no product code. A gap in the stack goes to its home, and the service keeps no local copy.
 
@@ -3256,9 +3256,18 @@ A ladder as data names the rungs 1, 10, 100 and 1,000 tenants. Ten percent of th
 
 The request counts are the Wilson bound at 95 %. The availability claim has two parts: the calculation from measured failure rates and the RTO of SYS-94, and a run under a chaos schedule. The first measure sets the budgets of a read, a write, a first load, a server start and the noise of a heavy tenant. Each later run holds or improves them. A scheduled workflow and a release check call `ladderVerdict`, and they fail if a locked rung is lost.
 
-The format of a ladder has budgets on a median, a rate and a worst value. The times at p95 and p99 need a new budget kind, in `rigor-bench`.
+The format of a ladder has budgets on a median, a quantile, a rate and a worst value. The `quantile` budget of `rigor-bench` holds the times at p95 and p99. It also reads each arrival with no reply as a censored value. Thus no new budget kind is necessary.
 
-**The prediction.**
+**The plan.** The item has four slices, in this order.
+
+1. **The service.** A private package of this repository, `packages/reference`, declares the procedures `doc.put`, `doc.get` and `doc.list`. Each write publishes the event `doc.<tenant>`, and a caller gets only the events of its own tenant. `createProcedureHost` of `@procedures/peer` hosts HTTP and WebSocket on one port. One `service()` runs the process. The store is a MongoDB replica set behind a port, thus the tests use a store in memory.
+2. **The driver.** The client of the harness image gets the protocol HTTP/1.1 in its mode `schedule`, with a parser of replies that reads `Content-Length`. Each active tenant gets its own connection. One shared connection gives each request the queue of the requests before it. Then a heavy tenant moves each other tenant, and the measure of the noise has no meaning.
+3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction replaces the probabilities below, which are not from the base rates.
+4. **The gates.** A scheduled workflow and a release check call `ladderVerdict`. A run under a chaos schedule measures the availability.
+
+**A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.6.0` as a plain dependency. In this workspace the service is a workspace link, thus pnpm gives the peer its own copy from npm. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The general fix is in the client repository: the service becomes a peer dependency of each client package that passes values of the service (`CLI-117`). Until that release, an override at the root of this workspace sets the service to `workspace:*`. A comment on it names `CLI-117`, and an item of this roadmap removes it.
+
+**The first prediction, not from the base rates.**
 
 | Claim | Probability |
 | --- | --- |
@@ -3268,6 +3277,17 @@ The format of a ladder has budgets on a median, a rate and a worst value. The ti
 | Near capacity, the p99 of an open loop is at least twice that of a closed loop | 0.85 |
 | A heavy tenant at 10 times its share moves the median of the others by less than 50 % | 0.55 |
 | The naive claim: an open and a closed loop agree on the p99 near capacity | 0.08 |
+
+### SYS-104 · Remove the override of the service when the client release ships
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** SYS-93, `CLI-117` in the client repository
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`. Without it, `@procedures/peer` gets a second copy of the service. `CLI-117` makes the service a peer dependency of the client packages, in a MINOR release. This item takes that release and removes the override. The test: `pnpm why @mark1russell7/service` shows one copy, and the tests of the reference service pass.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
