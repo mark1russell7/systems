@@ -2598,8 +2598,8 @@ SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, 
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:** 2026-11-06
-- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/mark1russell7/systems/pull/339)
+- **Shipped:** 2026-11-07
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/mark1russell7/systems/pull/339), [main CI 42381495516](https://github.com/mark1russell7/systems/actions/runs/42381495516)
 
 `connect` fails with `EADDRNOTAVAIL` when the range has no port for that destination. The sysctl is set for each network namespace, thus a cell can use a small range.
 
