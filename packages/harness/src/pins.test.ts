@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BuildRecord } from "./image.ts";
 import type { Manifest } from "./lab.ts";
-import { commitProblems, manifestProblems } from "./pins.ts";
+import { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
 
 const DIGEST = `sha256:${"a".repeat(64)}`;
 const ID = `sha256:${"b".repeat(64)}`;
@@ -75,5 +75,35 @@ describe("the commit of a record", () => {
     expect(commitProblems("0123456789abcdef0123456789abcdef01234567")).toEqual([]);
     expect(commitProblems(undefined)).toEqual(["the record has no commit of the code that operated"]);
     expect(commitProblems("HEAD")).toEqual(["the record has the commit HEAD, which is not 40 hex digits"]);
+  });
+});
+
+describe("the problems of a record", () => {
+  const code = { commit: "0123456789abcdef0123456789abcdef01234567", dirty: false };
+
+  it("gives no problem for a clean commit and manifests that pin each program", () => {
+    expect(recordProblems({ code, manifests: [pinned, pinned] })).toEqual([]);
+  });
+
+  it("refuses the tag redis:7.4 with no digest", () => {
+    const tagged = { ...pinned, target: { ...pinned.target, image: "redis:7.4" } };
+    expect(recordProblems({ code, manifests: [pinned, tagged] })).toEqual(["the target: the image redis:7.4 has no digest"]);
+  });
+
+  it("refuses a commit with changes: dirty is not a pin", () => {
+    expect(recordProblems({ code: { ...code, dirty: true }, manifests: [pinned] })).toEqual([DIRTY]);
+  });
+
+  it("refuses a record with no commit: the old form, with no pin", () => {
+    expect(recordProblems({ manifests: [pinned] })).toEqual(["the record has no commit of the code that operated"]);
+  });
+
+  it("refuses the record of a local debug run, and gives each problem once", () => {
+    const tagged = { ...pinned, target: { ...pinned.target, image: "redis:7.4" } };
+    expect(recordProblems({ code: { ...code, dirty: true }, manifests: [tagged, tagged], debug: true })).toEqual([
+      DIRTY,
+      "the target: the image redis:7.4 has no digest",
+      DEBUG,
+    ]);
   });
 });

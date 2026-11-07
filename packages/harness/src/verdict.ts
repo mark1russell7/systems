@@ -465,15 +465,25 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
-    // the law of an accept queue, a port range or a conntrack table: each run holds each term of it, or the run is outside
-    if (prediction.queue !== undefined || prediction.ports !== undefined || prediction.conntrack !== undefined) {
+    // the law of an accept queue, a port range, a paused consumer or a conntrack table: each run holds each term of it, or the run is outside
+    const law =
+      prediction.queue !== undefined
+        ? "queue"
+        : prediction.ports !== undefined
+          ? "port range"
+          : prediction.pause !== undefined
+            ? "paused consumer"
+            : prediction.conntrack !== undefined
+              ? "conntrack table"
+              : undefined;
+    if (law !== undefined) {
       const off = new Set(outside.map((each) => each.run)).size;
       return {
         ...empty,
         decision: off === 0 ? "holds" : "fails",
         band: null,
         outside,
-        why: `${counted.length - off} of ${counted.length} runs hold the law of the ${prediction.queue !== undefined ? "queue" : prediction.ports !== undefined ? "port range" : "conntrack table"}; ${prediction.why}`,
+        why: `${counted.length - off} of ${counted.length} runs hold the law of the ${law}; ${prediction.why}`,
       };
     }
     // a calibration of a proxy: its time in each direction, over all the requests of the runs

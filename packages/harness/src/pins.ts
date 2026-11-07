@@ -65,3 +65,37 @@ export const commitProblems = (commit: string | undefined): string[] =>
     : COMMIT.test(commit)
       ? []
       : [`the record has the commit ${commit}, which is not 40 hex digits`];
+
+/** The code of a record is the commit of the checkout that operated, and if its tracked files had changes. */
+export interface RecordCode {
+  readonly commit: string;
+  readonly dirty: boolean;
+}
+
+/** These are the parts of a record that tell if it pins the programs of its runs. */
+export interface Pinnable {
+  readonly code?: RecordCode | undefined;
+  readonly manifests: readonly Manifest[];
+  /** A local debug run marks its record so. No page reads such a record. */
+  readonly debug?: boolean | undefined;
+}
+
+/** This problem is the problem of a checkout with changes: its commit does not hold the code that operated. */
+export const DIRTY = "the checkout has changes to tracked files that no commit holds";
+
+/** This problem is the problem of a record of a local debug run. */
+export const DEBUG = "the record is of a local debug run, and no page reads it";
+
+/**
+ * This function gives each problem that stops a record from pinning the programs of its runs. A
+ * record with a problem is not a record (SYS-101). The writer of the cells refuses it, and the read
+ * of a schedule refuses it. A commit with changes to tracked files is not a pin.
+ */
+export const recordProblems = (record: Pinnable): string[] => [
+  ...new Set([
+    ...commitProblems(record.code?.commit),
+    ...(record.code?.dirty === true ? [DIRTY] : []),
+    ...record.manifests.flatMap((manifest) => manifestProblems(manifest)),
+    ...(record.debug === true ? [DEBUG] : []),
+  ]),
+];

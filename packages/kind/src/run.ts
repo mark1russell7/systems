@@ -22,6 +22,8 @@ import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { OUTSIDE } from "./names.ts";
 import { PRODUCER, PULSAR_IMAGE, PULSAR_NAMESPACE, PULSAR_VERSION, holdPulsar, installPulsar, pulsarObjects, pulsarRecord } from "./pulsar.ts";
+import type { QuietGate } from "./quiet.ts";
+import { QUIET_GATE, baselineOf, neededIdle, quietWhy } from "./quiet.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
 import { byClients, ztunnelReplaced } from "./observe.ts";
@@ -157,7 +159,13 @@ interface Context {
   readonly vip: string | null;
   readonly loads: LoadSample[];
   readonly loader: StartedTestContainer;
-  readonly idle: number;
+  readonly gate: QuietGate;
+  /** This map gives the baseline of each cell. It outlives an environment, because the highest one holds. */
+  readonly baselines: Map<string, number>;
+  /** This stamp of the wall clock is the end of the deploy of the cell. */
+  readonly deployed: number;
+  /** This flag tells that this environment took its baseline. */
+  settled: boolean;
   readonly log: (line: string) => void;
   version: number;
   probed: string;
@@ -280,18 +288,46 @@ const sample = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSamp
  */
 const QUIET_WITHIN = 300_000;
 
+/** This function gives the names of this lab at a sample: the prober and the watcher start again with new names. */
+const oursAt = (ctx: Context, ours: ReadonlySet<string>): ReadonlySet<string> => new Set([...ours, ...ctx.lab.own(), ctx.loader.getName().replace(/^\//, "")]);
+
+/**
+ * This function takes the baseline of the cell in this environment, once. The first run after the
+ * warm-up calls it. It waits until the cell has its age. The conntrack table fills for the life of
+ * its entries, and the read of the table costs more until then.
+ */
+const takeBaseline = async (ctx: Context, ours: ReadonlySet<string>): Promise<void> => {
+  if (ctx.settled) return;
+  await sleep(Math.max(0, ctx.deployed + ctx.gate.settle - Date.now()));
+  const samples: LoadSample[] = [];
+  for (let index = 0; index < ctx.gate.samples; index += 1) samples.push(await sample(ctx, oursAt(ctx, ours)));
+  ctx.loads.push(...samples);
+  const baseline = baselineOf(ctx.baselines.get(ctx.cell.name) ?? null, samples);
+  if (baseline !== null) ctx.baselines.set(ctx.cell.name, baseline);
+  ctx.settled = true;
+  ctx.log(`  baseline: ${samples.map((each) => `${Math.round(each.idle * 100)}%`).join(", ")} idle, the gate needs ${Math.round(neededIdle(ctx.gate, baseline) * 100)}%`);
+};
+
+/** This function starts the planned load of a cell for the longest wait of the gate. The load runs in the loader, out of the cluster. */
+const startPlannedLoad = async (ctx: Context): Promise<void> => {
+  const cores = ctx.cell.plannedLoad;
+  if (cores === undefined) return;
+  const spec = JSON.stringify({ cores, ms: QUIET_WITHIN + 20_000 });
+  await ctx.loader.exec(["sh", "-c", `nohup node agent.mjs burn '${spec}' >/dev/null 2>&1 &`]);
+};
+
 /**
  * This function waits until the VM is quiet: no lab container of another agent, and an idle share of
- * the CPUs. It gives null, or the reason when the VM is not quiet in `within` ms.
+ * the CPUs (`neededIdle`). It gives null, or the reason when the VM is not quiet in `within` ms.
  */
 const quiet = async (ctx: Context, ours: ReadonlySet<string>, within = QUIET_WITHIN): Promise<string | null> => {
   const end = Date.now() + within;
+  const needed = neededIdle(ctx.gate, ctx.baselines.get(ctx.cell.name) ?? null);
   for (;;) {
-    // the prober and the watcher start again with new names, thus the names of this lab come at each sample
-    const load = await sample(ctx, new Set([...ours, ...ctx.lab.own(), ctx.loader.getName().replace(/^\//, "")]));
-    ctx.loads.push(load);
-    if (load.foreign.length === 0 && load.idle >= ctx.idle) return null;
-    const why = `${Math.round(load.idle * 100)}% idle, other lab containers: ${load.foreign.join("; ") || "none"}`;
+    const load = await sample(ctx, oursAt(ctx, ours));
+    ctx.loads.push({ ...load, needed });
+    if (load.foreign.length === 0 && load.idle >= needed) return null;
+    const why = quietWhy(load.idle, needed, load.foreign);
     if (Date.now() >= end) return `the VM was not quiet in ${within / 1000} s: ${why}`;
     ctx.log(`  waiting: ${why}`);
     await sleep(30_000);
@@ -754,6 +790,10 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   if (atRest !== null) return empty(`the cell was not at rest: ${atRest}`, await lab.now());
   await probeThePods(ctx);
   await pollListeners(ctx);
+  if (!warmup) {
+    await takeBaseline(ctx, ours);
+    await startPlannedLoad(ctx);
+  }
   const loud = await quiet(ctx, ours);
   if (loud !== null) {
     ctx.log(`  ${loud}`);
@@ -990,6 +1030,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   const groups = new Map<string, KindCell[]>();
   for (const cell of cells) groups.set(clusterKey(cell), [...(groups.get(clusterKey(cell)) ?? []), cell]);
   const results: KindCellResult[] = [];
+  const baselines = new Map<string, number>();
   for (const group of groups.values()) {
     const partial = new Map<string, { runs: KindRun[]; manifests: EnvironmentManifest[]; loads: LoadSample[] }>();
     for (let env = 0; env < environments; env += 1) {
@@ -1066,7 +1107,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             if (ztunnelEnv !== undefined) await setZtunnelEnv(cluster, ztunnelEnv, false);
             const clusterIp = await deploy(lab, cluster, cell, namespace, images, vip);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
-            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, vip: cell.vip === undefined ? null : vip, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map(), broker: null };
+            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, vip: cell.vip === undefined ? null : vip, loads, loader, gate: { ...QUIET_GATE, flat: options.idle ?? QUIET_GATE.flat }, baselines, deployed: Date.now(), settled: false, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map(), broker: null };
             const share = Math.ceil(cell.runs / environments) - (env < cell.runs % environments || cell.runs % environments === 0 ? 0 : 1);
             const runs: KindRun[] = [await runOnce(ctx, env, -1, true, ours)];
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));

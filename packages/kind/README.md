@@ -105,6 +105,12 @@ Each pod of a cluster shares the kernel of the Docker VM. Thus each stamp of the
 
 Before each run, the lab deletes the conntrack entries in SYN_SENT to the ClusterIP on each node (`forgetHandshakes`). A note of the run gives each count. Such an entry is a SYN with no answer, and it keeps its NAT for 120 s. A new SYN from the same port goes where the first one went, and it gets no answer either. The clients send requests between the runs too. Thus the restore of one run left such entries, and a client that took the port again in the next run timed out (T07, 2026-10-17).
 
+Before each run, the lab waits for a quiet VM (`quiet.ts`). It waits for no lab container of another agent, and for an idle share. The clients of the cell run at that time, and the agent of each node reads the conntrack table each second. Thus the idle share has the load of the cell in it, and a flat share voided a heavy cell with no other load (SYS-95). The gate reads the cell against itself:
+
+- **The baseline.** Before the first run of an environment, the lab waits until the cell is 120 s old, and it takes 3 samples. A baseline sample has no field `needed`. The baseline is the median of those samples, and the highest median of the environments holds, because a foreign load only lowers it.
+- **The share.** A run needs the baseline less the margin, between the floor and the flat share of 60%. Thus a cell at rest at 60% or more keeps its gate. A warm-up with no baseline needs only the floor. Each sample of the gate keeps its share in the field `needed`.
+- **The test of the gate.** A cell with `plannedLoad` starts a process in the loader after the baseline, and the process keeps that count of CPUs busy. The gate must refuse that run, and thus the run is void.
+
 ## The stacks
 
 From 0.2.0, a cell names its stack (`stack`): its server and its clients. A cell without a stack has the service.

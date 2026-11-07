@@ -9,6 +9,9 @@ import { quantity, valueIn } from "@mark1russell7/quantity";
  *
  * Only `holds` passes. A cell that reads `measured`, `extend`, `inconclusive` or `fails` is red, and
  * a cell of the selection that has no record is red too. A "no read" is not a pass.
+ *
+ * A record that does not pin the programs of its runs is not a record (SYS-101), thus its cell is red
+ * too. Examples are an image with no digest, a checkout with changes, and the record of a debug run.
  */
 
 /** This factor is the size of the injected fault: each counted run reads this factor times the top of its band. */
@@ -39,22 +42,32 @@ const counted = (n: number, noun: string): string => `${n} ${n === 1 ? noun : `$
 
 /**
  * This function reads the verdicts of a selection. `expected` holds the names that the selection
- * gives, and `verdicts` holds the verdict of each record. It passes only if each expected cell has a
- * record, each record is expected, and each decision is `holds`.
+ * gives, and `verdicts` holds the verdict of each record. `problems` holds the problems of the pins
+ * of each record (`recordProblems`). It passes only if each expected cell has a record, each record
+ * is expected, each record pins its programs, and each decision is `holds`.
  */
-export const heldRead = (expected: readonly string[], verdicts: ReadonlyMap<string, Verdict>): HeldRead => {
+export const heldRead = (
+  expected: readonly string[],
+  verdicts: ReadonlyMap<string, Verdict>,
+  problems: ReadonlyMap<string, readonly string[]> = new Map(),
+): HeldRead => {
   const names = new Set(expected);
   const missing = expected.filter((name) => !verdicts.has(name));
   const extra = [...verdicts.keys()].filter((name) => !names.has(name));
   const cells = expected.flatMap((name): HeldCell[] => {
     const verdict = verdicts.get(name);
-    return verdict === undefined ? [] : [{ name, decision: verdict.decision, held: verdict.decision === "holds", why: verdict.why }];
+    if (verdict === undefined) return [];
+    const unpinned = problems.get(name) ?? [];
+    if (unpinned.length > 0) return [{ name, decision: verdict.decision, held: false, why: `not a record: ${unpinned.join("; ")}` }];
+    return [{ name, decision: verdict.decision, held: verdict.decision === "holds", why: verdict.why }];
   });
+  const unpinned = cells.filter((cell) => (problems.get(cell.name) ?? []).length > 0);
   const red = cells.filter((cell) => !cell.held);
   const held = expected.length > 0 && missing.length === 0 && extra.length === 0 && red.length === 0;
   const parts = [
     ...(expected.length === 0 ? ["the selection names no cell"] : []),
     ...(red.length === 0 ? [] : [`${counted(red.length, "cell")} of ${cells.length} did not hold`]),
+    ...(unpinned.length === 0 ? [] : [`${counted(unpinned.length, "record")} with no pin of the programs`]),
     ...(missing.length === 0 ? [] : [`${counted(missing.length, "cell")} of the selection had no record`]),
     ...(extra.length === 0 ? [] : [`${counted(extra.length, "record")} outside the selection`]),
   ];

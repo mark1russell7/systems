@@ -1563,7 +1563,7 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 
 **The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
 
-**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate.
+**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate. Under its new gate, that cell gives 4 more counted runs, with 4, 3, 4 and 4 false deaths of 5 pauses. These runs hold the law, and the table above stays as it is.
 
 | Setting | T0 | Median failure time | Zone-loss runs in the band | False deaths in each run | Median failed requests outside |
 | --- | --- | --- | --- | --- | --- |
@@ -1584,11 +1584,11 @@ The kind page of the site shows the value of each counted run. A test of the sit
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-57
 - **Started:** 2026-11-04
-- **Shipped:**
+- **Shipped:** 2026-11-07
 - **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
 
 The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
@@ -1616,6 +1616,24 @@ This item changes a gate, thus the strategist reviews the plan. The result of SY
 - A floor refuses a cell that a load holds from its start.
 - The records of SYS-57 give the margin and the floor.
 - A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
+
+**The result.** Cells run [42384148667](https://github.com/mark1russell7/systems/actions/runs/42384148667) dispatched the pauses of 500 ms × 2 with the load pair, under the new gate.
+
+| Cell | Counted | Void | Reading |
+| --- | --- | --- | --- |
+| no load | 4 | 0 | each run passes the gate |
+| 1 CPU of planned load | 0 | 4 | 30 % to 32 % idle, against 51 % to 53 % needed |
+| 0.5 CPU of planned load | 0 | 4 | 49 % to 53 % idle, against 58 % needed |
+
+Thus the gate lets the heavy cell run, and it still refuses a load of half a core.
+
+The 4 counted runs give 4, 3, 4 and 4 false deaths of 5 pauses. This holds the law of SYS-57:
+
+- The pause of 1.2 s lives in each run.
+- The pauses of 4 s, 6 s and 9 s die in each run.
+- The pause of 2.2 s is in the open band of the law. It dies in 3 runs of 4.
+
+Each death comes 1.57 s to 2.40 s after the stop. 9 of the 14 claims of the prediction hit, with a Brier score of 0.1589. The miss same-four put a fixed count on the pause in the open band. The next band of a count gives a range for that pause.
 
 ## The systems of S1
 
@@ -2598,8 +2616,8 @@ SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, 
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:** 2026-11-06
-- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/mark1russell7/systems/pull/339)
+- **Shipped:** 2026-11-07
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/mark1russell7/systems/pull/339), [main CI 42381495516](https://github.com/mark1russell7/systems/actions/runs/42381495516)
 
 `connect` fails with `EADDRNOTAVAIL` when the range has no port for that destination. The sysctl is set for each network namespace, thus a cell can use a small range.
 
@@ -2712,6 +2730,10 @@ The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells ho
 
 New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
 
+The first run (42385278058, 2026-11-07): CT.3 holds with 4 counted runs. CT.1, CT.2, CT.4 and CT.5 have only void runs. The kernel of the runners has no `CONFIG_NF_CONNTRACK_PROCFS`, thus it has no `/proc/net/stat/nf_conntrack`. The client read the field `drop` there before connect M + 1. The read failed, and the client stopped before its end. CT.3 does not read the counters.
+
+The fix: the client reads the field `drop` over ctnetlink, with a dump of the statistics of each CPU. That message needs NET_ADMIN, thus a client image can add that capability. A client that stops writes its error, and the void names it. The four void cells get one more dispatch, alone, by the rule of the prediction.
+
 ### SYS-67 · Retry amplification: an exact count
 
 - **Status:** done
@@ -2798,14 +2820,35 @@ Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-71
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-07
+- **Links:** [#360](https://github.com/mark1russell7/systems/pull/360)
 
-The group rebalances at `session.timeout.ms`, and a stale commit fails with a fenced error (T13).
+The source at the tag 4.3.2 changes the first sentence of this item. In the consumer protocol the session is a setting of the broker, `group.consumer.session.timeout.ms`, not of the client. A commit after the fence gets UNKNOWN_MEMBER_ID, not a fenced error, and the client throws `CommitFailedException`.
+
+The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation.
+
+**The result.** The law holds. [Cells run 42384698068](https://github.com/mark1russell7/systems/actions/runs/42384698068) gave 4 counted runs for each of the 5 cells, with 0 void. Each cell holds.
+
+| Cell | Fence | Takeover | Commit at the thaw |
+| --- | --- | --- | --- |
+| `K2.pause.long` | 43.980 s to 43.991 s | 44.023 s to 49.064 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.setting` | 13.968 s to 13.983 s | 18.915 s to 19.031 s | `CommitFailedException`, unknown member ID |
+| `K2.pause.classic` | 13.997 s to 13.998 s | 16.901 s to 16.919 s | `CommitFailedException`, the group rebalanced |
+| `K2.pause.short` | none | none | acknowledged, the epoch stays the same |
+| `K2.pause.rejoin` | 43.986 s to 43.993 s | 44.023 s to 44.281 s | acknowledged at a new epoch |
+
+In each run of `K2.pause.rejoin`, the new epoch comes 0.027 s to 0.030 s after the thaw. The stale commit of offset 60 is acknowledged. The committed offset moves back to 60, below 1000, the progress of the other member.
+
+Two readings go into the next band:
+
+- Each fence comes approximately 1 s before the stop plus the session. The session starts at the last heartbeat before the stop.
+- The other member reports the partition at the fence, or one heartbeat later.
+
+The prediction gives 14 of 14 law claims and 0 of 4 naive claims, with a Brier score of 0.0722.
 
 ### SYS-73 · etcd: a lock holder past its lease
 
@@ -2856,11 +2899,11 @@ The cluster is a group of the harness and not three members in one container. In
 
 ### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-05
-- **Shipped:**
+- **Shipped:** 2026-11-07
 - **Links:** [SYS-76](#sys-76--the-environment-of-a-record)
 
 The 12 open cell branches come from before SYS-76. A run from such a branch gives a record with no environment, and rule 1 of `docs/S7.md` asks each record to name its environment. Thus each branch takes main before its dispatch.
@@ -2885,6 +2928,8 @@ The work:
 - SYS-66 follows SYS-63, and SYS-72 follows SYS-71. Each needs a dispatch of its own.
 
 This item is done when each of the 7 dispatches gives a record that names its environment.
+
+The 7 dispatches ran, and each of their 11 items shipped from its records by 2026-11-07. SYS-66 and SYS-72 took main on 2026-11-07, and each started its own dispatch.
 
 ## The items of S7
 
@@ -3078,9 +3123,9 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | --- | --- | --- | --- |
 | One request | 344 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
-| Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, reply times | 16 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
-| Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+| Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
 
@@ -3096,6 +3141,7 @@ The closed-loop families:
 | T12.resend | 5 | First write |
 | T11.confirms | 6 | First write |
 | K1.acks | 5 | First write |
+| K2.pause | 5 | Reply times |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |
@@ -3369,7 +3415,7 @@ These assertions have no flip:
 - **Depends on:** SYS-99
 - **Started:** 2026-11-05
 - **Shipped:**
-- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368)
+- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368), [the pins of a record (#370)](https://github.com/mark1russell7/systems/pull/370)
 
 A page with a fixed study has no age limit today. Thus a page can show old numbers about code that changed. This item gives each study an age limit of 30 days and a scheduled refresh inside that limit. The study can drop the limit only if its numbers do not depend on current code. The stamp and the text of the page then say this.
 
@@ -3400,6 +3446,13 @@ The order of the work:
 3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
 
 The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
+
+A study needs records that pin their programs, because a refresh must operate the same programs. A record needs the commit of the harness, the digest of each image and the version of each client library. Without them, it is not a record. A commit with changes to tracked files is not a pin.
+
+- **Part 1 (#370, merged).** Each record has its commit, and each image of the harness has its build record. Each line of `summary.ndjson` gives the problems of its pins.
+- **Part 2.** The writer of the cells fails a record with a problem, and the run exits with 1. The read of a schedule refuses it too. Its flip has two more copies: a target by the tag `redis:7.4` with no digest, and a checkout with changes. Each exits with 1. A local debug run (`CELLS_DEBUG=1`) marks its records, and no page reads them. Part 2 merges after one night gives an empty list of problems for each record.
+- The old records that have only a tag stay. A read gives them the form "old form, no pin".
+- The records of `kind.yml` have their own writer. They get the same refusal with the check of SYS-99 in that workflow.
 
 ## Decisions for Mark
 

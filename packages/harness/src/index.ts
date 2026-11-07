@@ -15,6 +15,10 @@ export type {
   ClientImage,
   Cluster,
   Kafka,
+  KafkaPause,
+  PauseBand,
+  PausePrediction,
+  RunPause,
   ClusterClientAt,
   ClusterStage,
   DriverBand,
@@ -171,7 +175,8 @@ export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrate
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
-export { commitProblems, manifestProblems } from "./pins.ts";
+export type { Pinnable, RecordCode } from "./pins.ts";
+export { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
 export {
   CLIENT_NAMES,
   PINNED,
@@ -273,7 +278,7 @@ export {
   restamped,
   toolJsonOf,
 } from "./cluster.ts";
-export type { KafkaLab, PartitionView } from "./kafka.ts";
+export type { KafkaLab, KafkaMember, PartitionView } from "./kafka.ts";
 export {
   KAFKA_TAIL_MS,
   bootstrapOf,
@@ -283,10 +288,13 @@ export {
   kafkaArgs,
   kafkaCutOf,
   kafkaOnce,
+  kafkaPauseOnce,
   kafkaViewOf,
   nodeIdOf,
   openKafkaLab,
   topicOf,
 } from "./kafka.ts";
+export type { PauseCommit, PauseReading } from "./pause.ts";
+export { isFenceLine, logTimeOf, measurePause, namesGroup, pauseReady } from "./pause.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";
