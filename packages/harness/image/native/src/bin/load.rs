@@ -9,12 +9,12 @@
 //! One shared connection gives each request the queue of all the requests before it. Then a heavy
 //! stream moves each other stream, and the noise of one tenant on the others cannot be measured.
 //!
-//! The driver opens each connection, then it waits for the file --go. Then it sends each arrival at
-//! its time, and a send does not wait for a reply (coordinated omission). The requests of a stream
-//! share its connection, and the replies come in their order. The lines sent and replied name the
-//! stream (k) and the arrival (i), and a replied line names the status. It ends with a done line when
-//! each connection has each reply or has ended. An error, an end or the deadline leaves the rest
-//! without a reply.
+//! The driver opens each connection and writes ready. Then it waits for the file --go. Then it
+//! sends each arrival at its time, and a send does not wait for a reply (coordinated omission).
+//! The requests of a stream share its connection, and the replies come in their order. The lines
+//! sent and replied name the stream (k) and the arrival (i), and a replied line names the status.
+//! It ends with a done line when each connection has each reply or has ended. An error, an end or
+//! the deadline leaves the rest without a reply.
 
 use harness_native::{arrivals_in, emit, emit_at};
 use prober::{errno_name, monotonic_ns};
@@ -329,6 +329,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         connections.push(Connection::open(&args.host, args.port, stream)?);
         emit("connected", json!({ "k": key }));
     }
+    emit("ready", json!({ "streams": connections.len() }));
     while !Path::new(&args.go).exists() {
         if monotonic_ns() > deadline {
             emit("deadline", json!({}));
