@@ -237,7 +237,7 @@ importers:
         specifier: ^0.2.10
         version: 0.2.23(esbuild@0.28.2)
       '@mark1russell7/rigor-chaos':
-        specifier: ^0.1.0
+        specifier: ^0.1.3
         version: 0.1.3
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.11
