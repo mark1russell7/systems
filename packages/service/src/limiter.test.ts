@@ -409,7 +409,7 @@ describe("the store is an interface: a shared store, or one store for each repli
     const decisions = [];
     for (let take = 0; take < 6; take += 1) decisions.push((await replicas[take % 2]!.take("t")).allowed);
     expect(decisions).toEqual([true, true, true, false, false, false]);
-    expect(store.requests[0]).toEqual({ limiter: "writes", key: "t", rule: { type: "sliding-window", limit: 3, window: 60_000 }, maxKeys: 100 });
+    expect(store.requests[0]).toEqual({ limiter: "writes", key: "t", rule: { type: "sliding-window", limit: 3, window: 60_000 }, maxKeys: 100, units: 1 });
   });
 
   it("lets each take in when the shared store fails and the spec declares open", async () => {
