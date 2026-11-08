@@ -93,6 +93,8 @@ Histories of operations and their checkers, load, exhaustion, retry storms and m
 
 S1 already records a history of writes for each group cell, thus S3 starts from a law for those counts. [SYS-58](#sys-58--valkey-the-accepted-writes-that-a-failover-loses) is the first cell. Its law predicts the writes that a Valkey failover loses, with `min-replicas-to-write` set. [The items of S3](#the-items-of-s3) give the order of the rest.
 
+The schedules of faults, of latency and of load come from `@mark1russell7/rigor-chaos`, the item R8 of the rigor repository. S3 keeps the laws, the cells and the checkers of histories. When a cell needs a schedule that the package does not have, the change goes to rigor.
+
 ### S4 · The host, the NIC and the cloud
 
 - **Status:** later
