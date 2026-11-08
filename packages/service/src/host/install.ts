@@ -215,14 +215,17 @@ export const startService = (spec: ServiceSpec, ports: HostPorts): Promise<Servi
       if (enabled.code !== 0) return enabled;
       return firstFailure(await run.run("schtasks", ["/Run", "/TN", spec.name]));
     }
-    return firstFailure(await run.run("systemctl", ["--user", "start", spec.start === "logon" ? `${spec.name}.service` : `${spec.name}.timer`]));
+    // stopService disables the unit or its timer, thus the start enables it again
+    return firstFailure(await run.run("systemctl", ["--user", "enable", "--now", enabledUnit(spec)]));
   });
 
 /**
  * This function stops a service, and keeps it stopped until `startService`. It does not throw.
  * - On Windows, it disables the task, thus its time trigger does not start it again, and ends the task.
  *   With a discovery file, it then stops the process tree of the instance. Windows has no signal that a child can catch.
- * - On Linux, `systemctl --user stop` sends SIGTERM, thus `run()` stops in its stages.
+ * - On Linux, it disables the unit of a logon service, or the timer of a daily job, and stops it.
+ *   Thus the next login or the next calendar time does not start it again. The stop sends SIGTERM,
+ *   thus `run()` stops in its stages. A daily job that operates stops too.
  */
 export const stopService = (spec: ServiceSpec, ports: HostPorts, options: InstanceOptions = {}): Promise<ServiceOutcome> =>
   operate(spec, ports, async (run) => {
@@ -233,6 +236,8 @@ export const stopService = (spec: ServiceSpec, ports: HostPorts, options: Instan
       await stopInstance(ports, options);
       return null;
     }
+    const disabled = await run.run("systemctl", ["--user", "disable", "--now", enabledUnit(spec)]);
+    if (disabled.code !== 0 || spec.start === "logon") return firstFailure(disabled);
     return firstFailure(await run.run("systemctl", ["--user", "stop", `${spec.name}.service`]));
   });
 
