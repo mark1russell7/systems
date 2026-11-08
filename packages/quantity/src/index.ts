@@ -47,5 +47,5 @@ export {
   valueIn,
   whyNotConvertible,
 } from "./quantity.ts";
-export type { FormatOptions } from "./format.ts";
-export { format, formatDuration, formatUnit } from "./format.ts";
+export type { FormatOptions, Scale, ScaleCompound, ScaleStep } from "./format.ts";
+export { BYTES_1000, BYTES_1024, DURATION_MS, format, formatDuration, formatOnScale, formatUnit } from "./format.ts";
