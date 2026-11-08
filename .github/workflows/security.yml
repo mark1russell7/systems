@@ -1,6 +1,7 @@
-# The security scans of this repository: dependency review, osv-scanner and CodeQL (CI.md of
-# mark1russell7/template). A pull request fails only for a new finding at or above high. Pushes to
-# main and the weekly scan upload the findings to the Security tab.
+# The security scans of this repository: dependency review, osv-scanner and CodeQL, in one job (the
+# action security-scan, CI.md of mark1russell7/template). A pull request fails only for a new finding
+# at or above high. Pushes to main and the weekly scan upload the findings to the Security tab. When
+# the download of the CodeQL bundle fails, the action starts CodeQL a second time after 60 s.
 name: Security
 
 on:
@@ -18,9 +19,18 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  security:
-    uses: mark1russell7/template/.github/workflows/reusable-security.yml@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+  # The scans run in this one job, thus a run asks for one runner. The last step of the action fails
+  # when a scan fails, and names that scan.
+  security-ok:
+    name: Security OK
+    runs-on: ubuntu-latest
+    # The time limit of the three scans together
+    timeout-minutes: 30
+    # security-events: write uploads the results (not on a pull request). actions: read lets CodeQL
+    # and the upload read the run.
     permissions:
       contents: read
       security-events: write
       actions: read
+    steps:
+      - uses: mark1russell7/template/.github/actions/security-scan@bd69ce93b7458512dc6b88beea73d359b1635508 # main
