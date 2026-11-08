@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { Cell, LineCount, Prediction, Target } from "@mark1russell7/harness";
 import { UNDICI_RETRY } from "@mark1russell7/machines";
+import { backoffDelay } from "@mark1russell7/service/backoff";
 import { ms, s } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
 
@@ -119,11 +120,16 @@ export const lawOf = (chain: Chain): ChainLaw => {
   return { tries, arrivals };
 };
 
-/** This function gives the time of the delays of one caller that gives up, in seconds, with no time on the wire. */
+/**
+ * This function gives the time of the delays of one caller that gives up, in seconds, with no time
+ * on the wire. The delay of a retry is the backoff of the service: `minTimeout` times the
+ * `timeoutFactor` of undici for each earlier retry, capped by its `maxTimeout`.
+ */
 export const delaysOf = (caller: UndiciCaller): number => {
-  const retries = caller.maxRetries ?? UNDICI_RETRY.knobs["maxRetries"]!.default!;
-  const first = caller.minTimeout ?? 500;
-  return Array.from({ length: retries }, (_, at) => first * 2 ** at).reduce((sum, each) => sum + each, 0) / 1000;
+  const knobs = UNDICI_RETRY.knobs;
+  const retries = caller.maxRetries ?? knobs["maxRetries"]!.default!;
+  const policy = { base: caller.minTimeout ?? knobs["minTimeout"]!.default!, factor: knobs["timeoutFactor"]!.default!, cap: knobs["maxTimeout"]!.default! };
+  return Array.from({ length: retries }, (_, at) => backoffDelay(policy, at + 1)).reduce((sum, each) => sum + each, 0) / 1000;
 };
 
 /** This function gives the argument of the program of the target: its hops and its failure. */
