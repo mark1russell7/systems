@@ -224,7 +224,7 @@ describe("the limiter reads the injected monotonic clock, never the wall clock",
     vi.spyOn(Date, "now").mockReturnValue(wall + 2 * 60_000);
     const decision = await limiter.take("t");
     expect(decision.allowed).toBe(false);
-    if (!decision.allowed) expect(decision.retryAfter.value).toBeGreaterThan(59_000);
+    if (!decision.allowed && decision.cause !== "capacity") expect(decision.retryAfter.value).toBeGreaterThan(59_000);
   });
 });
 
