@@ -35,6 +35,7 @@ export interface HttpKnobs {
    * This count is the backlog of listen(2), the limit of the accept queue that the server asks for (SYS-103). The
    * kernel clamps it to `net.core.somaxconn`, and a full queue holds the limit plus one (SYS-63). Without this
    * knob, the transport gives no backlog, and Node asks for 511. The knob needs the listen options of the transport.
+   * The knob is 1 or more: Node gives listen(2) 511 for a backlog of 0 (`lib/net.js` of Node 24.21.0, line 2325).
    */
   readonly server_listen_backlog?: Quantity;
   /** The other knobs of the server go to the declaration. The transport does not read them. */
@@ -196,6 +197,9 @@ export const backlogOf = (knobs: Readonly<Record<string, Extent | undefined>>, o
   if (amount.value === "infinite") throw new Error(`the knob server_listen_backlog of ${owner} has no bound: listen(2) takes a whole count`);
   const value = valueIn(amount, "count");
   if (!(Number.isInteger(value) && value >= 0)) throw new Error(`the knob server_listen_backlog is ${value}, not a whole count of 0 or more`);
+  // Node calls listen(2) with `backlog || 511` (lib/net.js of Node 24.21.0, line 2325), thus a backlog of 0 is 511
+  if (value === 0)
+    throw new Error(`the knob server_listen_backlog of ${owner} is 0, and Node gives listen(2) 511 for 0: the transport cannot ask for 0`);
   return value;
 };
 
