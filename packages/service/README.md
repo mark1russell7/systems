@@ -92,6 +92,9 @@ The format of a description is `mark1russell7.service/1`.
 - **The logger port.** A `Logger` has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines. `consoleLogger({ level })` writes to the console at `info` and above by default.
 - **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry, with `level`, `message` and each field. An error field gives its name, its message and its stack. The default format is `text`, as before.
 - **Trace ids.** `consoleLogger({ traceIds })`, with `traceIds` from `@mark1russell7/service/otel`, adds the `trace_id` and the `span_id` of the active span of OpenTelemetry to each entry. A field of the entry with the same name stays. When no span is active, for example when no program registered an SDK, the entry does not change. Only the entry `/otel` loads `@opentelemetry/api`.
+- **The context of a call.** `callContext` from `@mark1russell7/service/otel` takes the trace and the baggage across the network, with the propagator that the program registers:
+  - `httpTransport(server, knobs, { callContext })` runs each handler in the context of the headers of its request. The request joins the trace of `traceparent`. Its `baggage` is dropped, unless `trustBaggage(req)` gives true, for example after a token check.
+  - `httpClient(name, spec, { callContext })` and `grpcClient(name, spec, { callContext })` send the headers of the active context with each call, for example `traceparent`. A header of the call, or metadata of the spec or of the call, with the same name stays.
 - **No logger.** Without a logger, the runtime writes no log, as before. `testLogger()` of `@mark1russell7/service/testing` keeps each entry, thus a test can examine the log.
 
 ## The machines
@@ -816,7 +819,7 @@ pnpm add @mark1russell7/service
 
 For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`.
 
-For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids of `/otel`, it installs `@opentelemetry/api@1`.
+For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids and the call context of `/otel`, it installs `@opentelemetry/api@1`.
 
 ### One copy of service
 

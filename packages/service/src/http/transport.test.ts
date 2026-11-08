@@ -9,6 +9,7 @@ import type { Health } from "../health.ts";
 import type { RequestEvent, RequestStream } from "../requests.ts";
 import { tracker } from "../requests.ts";
 import { detachedLifecycle } from "../testing.ts";
+import type { CallContext, IncomingHeaders } from "../call-context.ts";
 import { FakeServer } from "./fake-server.ts";
 import type { FakeAnswer } from "./fake-server.ts";
 
@@ -844,5 +845,62 @@ describe("pathOf", () => {
     expect(pathOf(undefined)).toBe("/");
     expect(pathOf("http://example.test/p?q")).toBe("/p");
     expect(pathOf("*")).toBe("*");
+  });
+});
+
+describe("the call context: each handler runs in the context of its request (C11)", () => {
+  /** This call context keeps each call of run, and gives the handler the headers it ran in. */
+  const recording = () => {
+    const runs: Array<{ headers: IncomingHeaders; trusted: boolean }> = [];
+    let active: IncomingHeaders | undefined;
+    const callContext: CallContext = {
+      run: (headers, trusted, fn) => {
+        runs.push({ headers, trusted });
+        const before = active;
+        active = headers;
+        try {
+          return fn();
+        } finally {
+          active = before;
+        }
+      },
+      headers: () => ({}),
+    };
+    return { runs, callContext, active: () => active };
+  };
+
+  it("runs each handler in the headers of its request, and trusts no baggage by default", async () => {
+    const { runs, callContext, active } = recording();
+    const { server, transport } = await started(KNOBS, { callContext });
+    let seen: IncomingHeaders | undefined;
+    transport.mount((_req, res) => {
+      seen = active();
+      res.end("ok");
+      return true;
+    });
+    const headers = { traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", baggage: "tenant=acme" };
+    expect((await server.request("/a", "GET", headers)).body).toBe("ok");
+    expect(seen).toEqual(headers);
+    expect(runs).toEqual([{ headers, trusted: false }]);
+  });
+
+  it("asks trustBaggage about each request", async () => {
+    const { runs, callContext } = recording();
+    const { server, transport } = await started(KNOBS, { callContext, trustBaggage: (req) => req.headers["authorization"] === "Bearer t" });
+    transport.mount((_req, res) => {
+      res.end("ok");
+      return true;
+    });
+    await server.request("/a", "GET", { authorization: "Bearer t" });
+    await server.request("/b", "GET", { authorization: "Bearer x" });
+    expect(runs.map((run) => run.trusted)).toEqual([true, false]);
+  });
+
+  it("runs an upgrade handler in the headers of its request too", async () => {
+    const { runs, callContext } = recording();
+    const { server, transport } = await started(KNOBS, { callContext });
+    transport.upgrade("/ws", (_req, socket) => socket.destroy());
+    server.connect().upgrade("/ws");
+    expect(runs).toEqual([{ headers: { upgrade: "websocket" }, trusted: false }]);
   });
 });
