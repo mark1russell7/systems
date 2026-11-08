@@ -497,7 +497,12 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     expect(read.samples).toEqual([s(0.00012), s(0.2041), s(0.00012)]);
     const verdict = verdictOf(STREAM.prediction, [read, { ...read, index: 1 }]);
     expect(verdict).toMatchObject({ decision: "measured", band: null, outside: [], slowest: s(0.2041) });
-    expect(verdict.why).toMatch(/^2 runs, 6 replies: median 0\.00012 s, p99 0\.2041 s, slowest 0\.2041 s, 2 retransmissions, 0 connections ended\. a distribution/);
+    // the stall of 204 ms at an interval of 10 ms hides 20 sends in each run: the estimate puts them back (SYS-91)
+    expect(verdict.why).toBe(
+      "2 runs, 6 replies: median 0.00012 s, p99 0.2041 s, slowest 0.2041 s, 2 retransmissions, 0 connections ended. " +
+        "The estimate of the open loop puts back 40 hidden sends, with no pause of the client: median 0.094 s, p99 0.204 s, slowest 0.204 s. " +
+        "a distribution: the simulator predicts it",
+    );
   });
 
   it("times a long reply to its last byte, and counts what reordering did at the two ends", () => {

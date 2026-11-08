@@ -3159,6 +3159,8 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band.
 
+The 13 cells of reply times on the stream client of the harness (`T01`, `CAL`, `E3.F1` and `OL`) also give an estimate of the open loop. The client waits its interval after each reply. Thus `closedLoopPlan` of `rigor-chaos` puts back each send that a stall hid, with that interval as the pause of the driver. The verdict gives the hidden sends, the pauses of the client and the spread of the estimate. The estimate is not a measure: the open-loop twin of SYS-68 stays the better measure. The 5 cells `K2.pause` have their own verdict of a pause.
+
 The closed-loop families:
 
 | Family | Cells | Pacing |
@@ -3262,21 +3264,20 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 
 1. **The service.** A private package of this repository, `packages/reference`, declares the procedures `doc.put`, `doc.get` and `doc.list`. Each write publishes the event `doc.<tenant>`, and a caller gets only the events of its own tenant. `createProcedureHost` of `@procedures/peer` hosts HTTP and WebSocket on one port. One `service()` runs the process. The store is a MongoDB replica set behind a port, thus the tests use a store in memory.
 2. **The driver.** The client of the harness image gets the protocol HTTP/1.1 in its mode `schedule`, with a parser of replies that reads `Content-Length`. Each active tenant gets its own connection. One shared connection gives each request the queue of the requests before it. Then a heavy tenant moves each other tenant, and the measure of the noise has no meaning.
-3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction replaces the probabilities below, which are not from the base rates.
+3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction is in the table below.
 4. **The gates.** A scheduled workflow and a release check call `ladderVerdict`. A run under a chaos schedule measures the availability.
 
 **A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.6.0` as a plain dependency. In this workspace the service is a workspace link, thus pnpm gives the peer its own copy from npm. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The general fix is in the client repository: the service becomes a peer dependency of each client package that passes values of the service (`CLI-117`). Until that release, an override at the root of this workspace sets the service to `workspace:*`. A comment on it names `CLI-117`, and an item of this roadmap removes it.
 
-**The first prediction, not from the base rates.**
+**The prediction of the first dispatch, from the base rates.** The dispatch of the 4 cells `LADDER` comes from `base-rates.ts`. The systems role has no scored prediction yet. Thus each claim takes the rate of its family over the other roles.
 
 | Claim | Probability |
 | --- | --- |
-| The first dispatch gives a record for each rung, with no fix after it | 0.40 |
-| No request fails at any rung | 0.75 |
-| One runner carries at least 2,000 requests each second | 0.60 |
-| Near capacity, the p99 of an open loop is at least twice that of a closed loop | 0.85 |
-| A heavy tenant at 10 times its share moves the median of the others by less than 50 % | 0.55 |
-| The naive claim: an open and a closed loop agree on the p99 near capacity | 0.08 |
+| The first dispatch gives a decision for each of the 4 rungs, with no fix after it | 0.788 |
+| No arrival fails at any rung, thus each rung holds its limit | 0.788 |
+| No send is more than 50 ms later than its planned time | 0.788 |
+
+The claims of the capacity, the gap of the open loop and the noise are of later slices. Each gets its prediction from `base-rates.ts` before its dispatch. The first table of this item had probabilities that were not from the base rates, and this table replaces it.
 
 ### SYS-104 · Remove the override of the service when the client release ships
 
@@ -3288,6 +3289,17 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 - **Links:**
 
 SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`. Without it, `@procedures/peer` gets a second copy of the service. `CLI-117` makes the service a peer dependency of the client packages, in a MINOR release. This item takes that release and removes the override. The test: `pnpm why @mark1russell7/service` shows one copy, and the tests of the reference service pass.
+
+### SYS-105 · A report of the API for each public package
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:** [#393](https://github.com/mark1russell7/systems/pull/393)
+
+#393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. The other public packages get their reports in the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 

@@ -3,7 +3,7 @@ import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Rung, RungRecord } from "@mark1russell7/rigor-bench";
 import { rungVerdict } from "@mark1russell7/rigor-bench";
 import type { Completion, LoadMeasure, Schedule } from "@mark1russell7/rigor-chaos";
-import { measureLoad, schedule, scheduleHeld } from "@mark1russell7/rigor-chaos";
+import { closedLoopPlan, measureLoad, schedule, scheduleHeld } from "@mark1russell7/rigor-chaos";
 import { quantile } from "@mark1russell7/rigor-statistics";
 import type { LoadPrediction, LoadStream, ProbeEvent, RunStream } from "./cell.ts";
 
@@ -98,22 +98,55 @@ export const streamsLoadOf = (
   const start = events.find((event) => event.ev === "scheduled")?.t;
   if (start === undefined) return null;
   const each = streams.map((stream) => [stream.key, measureOf(events, start, stream.schedule, stream.key)] as const);
-  const measures = each.map(([, measure]) => measure);
+  return { pool: poolOf(each.map(([, measure]) => measure)), streams: Object.fromEntries(each) };
+};
+
+/** This function gives the pool of some measures: it sums the counts and joins the times, in the order of the measures. */
+export const poolOf = (measures: readonly RunLoad[]): RunLoad & { readonly failed: number } => {
   const sum = (count: (measure: RunLoad) => number) => measures.reduce((total, measure) => total + count(measure), 0);
   const join = (times: (measure: RunLoad) => readonly number[]) => measures.flatMap(times);
   return {
-    pool: {
-      planned: sum((measure) => measure.planned),
-      unsent: sum((measure) => measure.unsent),
-      unfinished: sum((measure) => measure.unfinished),
-      failed: sum((measure) => measure.failed ?? 0),
-      latency: join((measure) => measure.latency),
-      service: join((measure) => measure.service),
-      lag: join((measure) => measure.lag),
-      censored: join((measure) => measure.censored),
-    },
-    streams: Object.fromEntries(each),
+    planned: sum((measure) => measure.planned),
+    unsent: sum((measure) => measure.unsent),
+    unfinished: sum((measure) => measure.unfinished),
+    failed: sum((measure) => measure.failed ?? 0),
+    latency: join((measure) => measure.latency),
+    service: join((measure) => measure.service),
+    lag: join((measure) => measure.lag),
+    censored: join((measure) => measure.censored),
   };
+};
+
+/**
+ * This time is the tolerance of a closed-loop estimate, in ms. A send later than its expected time
+ * by more than this tolerance is a pause of the client: a driver gap.
+ */
+export const CLOSED_TOLERANCE = 5;
+
+/**
+ * A run estimate is the latency of the open loop that a closed-loop stream hid (SYS-91). The package
+ * rigor-chaos puts back each send that a stall or a pause of the client hid (`closedLoopPlan`).
+ * `hidden` counts those sends, and `driverGaps` counts the pauses of the client. Its times are in ms.
+ */
+export type RunEstimate = LoadMeasure & { readonly hidden: number; readonly driverGaps: number; readonly driverGapTotal: number };
+
+/**
+ * This function gives the estimate of one closed-loop stream from its requests, in the order of their
+ * sends. Each time is a time of a line of the client. The client waits `interval` ms after each reply,
+ * thus the interval is also the pause of the driver. The function gives undefined for no request, and
+ * for a request with no reply before the last request.
+ */
+export const estimateOf = (
+  requests: ReadonlyArray<{ readonly sent: number; readonly done: number | null }>,
+  end: number,
+  interval: number,
+): RunEstimate | undefined => {
+  const start = requests[0]?.sent;
+  if (start === undefined || requests.slice(0, -1).some((request) => request.done === null)) return undefined;
+  const loop = requests.map((request) => ({ sent: fromStart(start, request.sent), done: request.done === null ? null : fromStart(start, request.done) }));
+  const stop = Math.max(fromStart(start, end), ...loop.map((request) => request.done ?? request.sent), interval);
+  const run = closedLoopPlan(loop, { interval, end: stop, tolerance: CLOSED_TOLERANCE, pause: interval });
+  return { ...measureLoad(run.plan, run.completions, stop), hidden: run.hidden, driverGaps: run.driverGaps, driverGapTotal: run.driverGapTotal };
 };
 
 /** A load spread is a part of the distribution of one measure of an open-loop cell, over its counted runs. */
@@ -265,5 +298,43 @@ export const loadVerdict = (
       bands: bands.map((band) => band.words),
       ...(failures === undefined ? {} : { failures: failures.words }),
     },
+  };
+};
+
+/**
+ * An estimate verdict sums the closed-loop estimates of a cell over its counted runs. Its latency
+ * is an estimate of the open loop, not a measure of it: a record of an open-loop client stays the
+ * better measure. Each hidden send after a request with no reply counts at its age at the end.
+ */
+export interface EstimateVerdict {
+  readonly planned: number;
+  readonly hidden: number;
+  readonly driverGaps: number;
+  readonly driverGapTotal: Quantity;
+  readonly latency: LoadSpread | null;
+  /** This text gives the estimate in words, for the verdict of the cell. */
+  readonly words: string;
+}
+
+/** This function gives the estimate verdict of the counted runs, or undefined when no run has an estimate. */
+export const estimateVerdict = (estimates: ReadonlyArray<RunEstimate | undefined>): EstimateVerdict | undefined => {
+  const runs = estimates.filter((estimate): estimate is RunEstimate => estimate !== undefined);
+  if (runs.length === 0) return undefined;
+  const pool = poolOf(runs);
+  const total = (count: (estimate: RunEstimate) => number) => runs.reduce((sum, estimate) => sum + count(estimate), 0);
+  const hidden = total((estimate) => estimate.hidden);
+  const driverGaps = total((estimate) => estimate.driverGaps);
+  const driverGapTotal = total((estimate) => estimate.driverGapTotal);
+  const latency = spreadOf([...pool.latency, ...pool.censored]);
+  const seconds = (time: Quantity) => (valueIn(time, "ms") / 1000).toFixed(3);
+  const spread = latency === null ? "no latency" : `median ${seconds(latency.p50)} s, p99 ${seconds(latency.p99)} s, slowest ${seconds(latency.max)} s`;
+  const gaps = driverGaps === 0 ? "no pause of the client" : `${driverGaps} pauses of the client, ${Math.round(driverGapTotal)} ms in all`;
+  return {
+    planned: pool.planned,
+    hidden,
+    driverGaps,
+    driverGapTotal: quantity(driverGapTotal, "ms"),
+    latency,
+    words: `The estimate of the open loop puts back ${hidden} hidden sends, with ${gaps}: ${spread}.`,
   };
 };
