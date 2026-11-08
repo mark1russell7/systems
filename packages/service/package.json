@@ -107,6 +107,7 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@mark1russell7/harness": "workspace:^",
     "@types/node": "^26.6.4",
+    "@vitest/coverage-v8": "^5.0.3",
     "ioredis": "6.0.0",
     "testcontainers": "12.2.0",
     "tsdown": "^0.23.1",
