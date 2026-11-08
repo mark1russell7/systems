@@ -178,7 +178,7 @@ export {
   topologyOf,
 } from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
-export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export { AWS_FROM, CLOUDS, LAYERS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";

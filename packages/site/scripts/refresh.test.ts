@@ -1,8 +1,11 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { REFRESHES, UNSCHEDULED } from "../../cells/src/refresh.ts";
 import { siteDataStamps } from "../src/lib/stamps.ts";
+import { changedFiles, snapshot } from "./copies.ts";
 
 const DATA = fileURLToPath(new URL("../src/data/", import.meta.url));
 const PAGE = fileURLToPath(new URL("../src/content/docs/results/refresh.mdx", import.meta.url));
@@ -36,5 +39,24 @@ describe("the refresh of the studies", () => {
       expect(text).toContain(`| ${round} | ${names.join(", ")} | ${Math.round(seconds / 3600)} |`);
     }
     for (const each of UNSCHEDULED) expect(text, each.page).toContain(each.page === "index.html" ? "the home page" : `/${each.page.split("/")[1]}/)`);
+  });
+});
+
+describe("the copies of a refresh", () => {
+  it("copies a new file and a file that a copy overwrote, and not a file that stayed the same", () => {
+    const folder = mkdtempSync(join(tmpdir(), "site-refresh-"));
+    try {
+      writeFileSync(join(folder, "kept.json"), "{}\n");
+      writeFileSync(join(folder, "kind-2026-11-08.json"), '{"round":1}\n');
+      writeFileSync(join(folder, "notes.txt"), "a");
+      const before = snapshot(folder);
+      // a second round on the same day overwrites the copy of the first round
+      writeFileSync(join(folder, "kind-2026-11-08.json"), '{"round":2}\n');
+      writeFileSync(join(folder, "pg-2026-11-08.json"), "{}\n");
+      writeFileSync(join(folder, "notes.txt"), "b");
+      expect(changedFiles(before, snapshot(folder)).sort()).toEqual(["kind-2026-11-08.json", "pg-2026-11-08.json"]);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });

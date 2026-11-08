@@ -18,7 +18,7 @@
 #           and makes its lockfile. The count of shards must divide the count of selected limiter
 #           specs. Then each cell of a spec operates on the same runner, and paired.ndjson gets
 #           the PairedTime records of rigor-bench.
-#           With E3 in `only`, the job installs the pinned containerlab for the routers of a fabric.
+#           A shard with a cell on a fabric (E3) installs the pinned containerlab for its routers.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
@@ -335,9 +335,22 @@ jobs:
             (cd "$dir" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund --before "$AT" && mv package-lock.json npm-lock.json)
             echo "pair $version: $(jq -c '[.packages | to_entries[] | select(.key != "") | {key: (.key | sub("^node_modules/"; "")), value: .value.version}] | from_entries' "$dir/npm-lock.json")" | tee -a "$RUNNER_TEMP/cells/runner.txt"
           done
-      # the routers of layer E3 come from containerlab: only a run that asks for its cells pays for it
+      # The routers of layer E3 come from containerlab: only a shard that holds a cell on a fabric pays
+      # for it. The step reads the selection of the shard as the runner does, thus '.' and a refresh
+      # round count too (needs.ts).
+      - name: The needs of the shard
+        id: needs
+        env:
+          CELLS_ONLY: ${{ needs.plan.outputs.only }}
+          CELLS_SELECTION: ${{ needs.plan.outputs.selection }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
+          CELLS_FILE_AT: ${{ inputs.file }}
+          CELLS_PAIR: ${{ inputs.pair }}
+        run: |
+          if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
+          pnpm exec tsx packages/cells/src/needs-cli.ts | tee -a "$RUNNER_TEMP/cells/runner.txt"
       - name: The pinned containerlab
-        if: contains(inputs.only, 'E3')
+        if: steps.needs.outputs.containerlab == 'true'
         run: |
           deb=containerlab_0.82.0_linux_amd64.deb
           curl -fsSL -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
