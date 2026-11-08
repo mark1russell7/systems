@@ -135,7 +135,7 @@ const labBuilt = (): Promise<LabBuild> => {
 export const labImage = async (): Promise<string> => (await labBuilt()).tag;
 
 /**
- * This function gives the build record of the lab image (SYS-99): its bases by digest, the sha256 of
- * each lockfile, and the versions of the packages. It builds the image as `labImage` does.
+ * This function gives the build record of the lab image (SYS-99). The record has its bases by digest,
+ * the sha256 of each lockfile and the versions of the packages. It builds the image as `labImage` does.
  */
 export const labBuildRecord = async (): Promise<BuildRecord | undefined> => (await labBuilt()).build;

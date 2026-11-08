@@ -55,6 +55,9 @@ const waiting = chosen.filter((cell) => whyWaiting(cell) !== null);
 describe.skipIf(!RUN)("the kind catalogs, in kind", () => {
   it(`runs ${selected.length} cells`, async () => {
     mkdirSync(OUT, { recursive: true });
+    // the held read takes the cells of this shard from this line, thus a runner that stops early leaves no gap (SYS-99)
+    const selection = { only: process.env["KIND_ONLY"] ?? ".", shard: `${shard}/${of}`, names: chosen.map((cell) => cell.name) };
+    writeFileSync(join(OUT, "selection.ndjson"), `${JSON.stringify(selection)}\n`);
     for (const cell of waiting) {
       const why = whyWaiting(cell)!;
       const line = { id: cell.id, name: cell.name, mode: cell.mode, trigger: cell.trigger.kind, prediction: cell.prediction.kind, decision: "waiting", why };

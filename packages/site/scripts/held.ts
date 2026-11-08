@@ -8,7 +8,9 @@
 // It prints each cell, and it exits with 1 unless each cell of the selection has a record and holds.
 //
 // --kind reads the output of one shard of the workflow Kind. Its value is the input `only` of that
-// workflow. The script judges each raw record again with the cell of the same name in the kind catalog.
+// workflow. The cells of the shard come from selection.ndjson, which the runner writes before its first
+// cell. The script compares the input and the shard as text, and it builds no regular expression.
+// The script judges each raw record again with the cell of the same name in the kind catalog.
 // A cell that waits has no record, thus it does not pass.
 //
 // --fault reads the same records with the injected fault of the cells package or the kind package.
@@ -29,7 +31,6 @@ import type { Manifest } from "../../harness/src/index.ts";
 import { recordProblems } from "../../harness/src/index.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellRecordV1 } from "../../kind/src/record.ts";
 import { FORMAT, FORMAT_V1, upgrade } from "../../kind/src/record.ts";
-import { shardOf } from "../../kind/src/run.ts";
 import { judgeKind } from "../../kind/src/verdict.ts";
 import { faultedKind, kindRecordProblems } from "../../kind/src/held.ts";
 import { catalogs, SCHEDULED_CELLS, selectedOf } from "../../cells/src/all.ts";
@@ -123,6 +124,16 @@ const cellsSource = (name: string): Source => {
   };
 };
 
+/**
+ * The line of selection.ndjson of the workflow Kind: the input `only`, the shard, and the name of each
+ * cell of the shard. The runner writes it before its first cell.
+ */
+interface KindSelection {
+  readonly only: string;
+  readonly shard: string;
+  readonly names: readonly string[];
+}
+
 /** A line of summary.ndjson of the workflow Kind: a verdict, or a cell that waited and why. */
 interface KindSummary {
   readonly name: string;
@@ -136,10 +147,14 @@ interface KindSummary {
  * or when a line of a verdict has no record. A line of a cell that waited has no record.
  */
 const kindSource = (pattern: string): Source => {
-  const only = new RegExp(pattern);
+  const expected: string[] = [];
   const records = new Map<string, KindCellRecord>();
   const waited = new Map<string, string>();
   for (const folder of folders) {
+    const selection = JSON.parse(readFileSync(join(folder, "selection.ndjson"), "utf8")) as KindSelection;
+    if (selection.only !== pattern || selection.shard !== shardText)
+      throw new Error(`${folder}: the runner selected only=${selection.only} in the shard ${selection.shard}, not only=${pattern} in the shard ${shardText}`);
+    expected.push(...selection.names);
     const lines = readFileSync(join(folder, "summary.ndjson"), "utf8")
       .split("\n")
       .filter((line) => line.trim() !== "")
@@ -162,7 +177,7 @@ const kindSource = (pattern: string): Source => {
   const cellOf = (record: KindCellRecord) => KIND_CATALOG.find((each) => each.name === record.cell.name) ?? record.cell;
   return {
     select: ["--kind", pattern],
-    expected: shardOf(KIND_CATALOG.filter((cell) => only.test(cell.name)), shard, of).map((cell) => cell.name),
+    expected,
     // each record is judged with the cell of today's catalog, or with its own cell when the catalog has none
     verdicts: (underFault) =>
       new Map(
