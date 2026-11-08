@@ -50,6 +50,7 @@ export type { Retrier, RetrierOptions, RetryOptions } from "./retrier.ts";
 export { retrier, retry, retryAfterDelay } from "./retrier.ts";
 export type {
   Allowed,
+  CapacityRefused,
   Decision,
   KeyState,
   KeyedLimiter,
@@ -70,10 +71,13 @@ export type {
   TakeStep,
   TakeRequest,
   TokenBucket,
+  WaitCause,
+  WaitRefused,
 } from "./limiter.ts";
 export {
   SLIDING_WINDOW_MACHINE,
   TOKEN_BUCKET_MACHINE,
+  capacityOf,
   decide,
   freeAt,
   idleSpan,
@@ -84,7 +88,9 @@ export {
   limiterStateOf,
   longestRetryAfter,
   memoryStore,
+  overCapacity,
   retryAfterSeconds,
+  unitsOf,
 } from "./limiter.ts";
 export type { Outcome, Result } from "./latch.ts";
 export type { CheckFn } from "./poller.ts";

@@ -353,6 +353,7 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
     expect(Object.keys(limiterEntry).sort()).toEqual([
       "SLIDING_WINDOW_MACHINE",
       "TOKEN_BUCKET_MACHINE",
+      "capacityOf",
       "decide",
       "freeAt",
       "idleSpan",
@@ -363,7 +364,9 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
       "limiterStateOf",
       "longestRetryAfter",
       "memoryStore",
+      "overCapacity",
       "retryAfterSeconds",
+      "unitsOf",
     ]);
     for (const name of Object.keys(limiterEntry)) expect(root, name).toHaveProperty(name);
   });
