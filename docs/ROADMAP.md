@@ -3300,9 +3300,9 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 - **Depends on:**
 - **Started:**
 - **Shipped:**
-- **Links:** [#393](https://github.com/mark1russell7/systems/pull/393)
+- **Links:** [#393](https://github.com/mark1russell7/systems/pull/393), [#371](https://github.com/mark1russell7/systems/pull/371)
 
-#393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. The other public packages get their reports in the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
+#393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. An earlier version of the release train PR #371 added the reports of all 7 public packages. The release train wrote #371 again before it merged on 2026-11-08, and the merged PR changes only dependency ranges. Thus the field `apiReport` still names `harness` only. This item adds the other public packages to the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
 
 ### SYS-106 · The units of a take in the keyed limiter
 
