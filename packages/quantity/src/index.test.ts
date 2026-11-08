@@ -110,6 +110,11 @@ describe("arithmetic", () => {
     expect(sum([], "USD")).toEqual({ value: 0, unit: "USD" });
     expect(add(quantity(1, "h"), quantity(30, "min"))).toEqual({ value: 1.5, unit: "h" });
     expect(round(quantity(10 / 3, "USD"))).toEqual({ value: 3.33, unit: "USD" });
+    // the exact half goes up: the double 1.005 * 100 is 100.49999999999999, and a rounding of it gave 1
+    expect(round(quantity(1.005, "USD"))).toEqual({ value: 1.01, unit: "USD" });
+    expect(round(quantity(-1.005, "USD"))).toEqual({ value: -1, unit: "USD" });
+    expect(round(quantity(2.675, "s"), 2)).toEqual({ value: 2.68, unit: "s" });
+    expect(format(quantity(1.005, "USD"))).toBe("$1.01");
     expect(() => add(quantity(1, "kg"), quantity(1, "s"))).toThrow(/cannot convert s to kg/);
   });
 

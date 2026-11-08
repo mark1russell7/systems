@@ -281,6 +281,32 @@ describe("formatOnScale", () => {
     expect(() => formatOnScale(quantity(1, "B"), { steps: [] })).toThrow(RangeError);
   });
 
+  it("rounds the exact amount of a step, with a half going up: 9995 ms is 10 s, 1005 ms is 1.01 s", () => {
+    // the double 9.995 * 100 is 999.4999999999999, thus a rounding of the double gave "9.99 s" (quantity 0.3.1)
+    expect(ms(9995)).toBe("10 s");
+    expect(ms(1005)).toBe("1.01 s");
+    for (let t = 1000; t < 60_000; t++) {
+      // the hundredths of a second, rounded with integers only: floor((t + 5) / 10)
+      const hundredths = Math.floor((t + 5) / 10);
+      const expected = hundredths < 6000 ? `${number2.format(hundredths / 100)} s` : "1 min";
+      expect(ms(t), `${t} ms`).toBe(expected);
+    }
+  });
+
+  it("rounds the exact amount on the steps of 1000 bytes", () => {
+    const bytes1000 = (b: number) => formatOnScale(quantity(b, "B"), BYTES_1000);
+    for (let b = 1000; b < 100_000; b++) {
+      const tenths = Math.floor((b + 50) / 100);
+      expect(bytes1000(b), `${b} B`).toBe(`${number1.format(tenths / 10)} kB`);
+    }
+  });
+
+  it("rounds the exact amount of the smallest unit of a compound", () => {
+    expect(formatOnScale(quantity(62_500, "ms"), DURATION_MS)).toBe("1 min 3 s");
+    expect(formatOnScale(quantity(62_499, "ms"), DURATION_MS)).toBe("1 min 2 s");
+    expect(formatOnScale(quantity(0.0125, "h"), DURATION_MS)).toBe("45 s");
+  });
+
   it("is formatDuration for a compound with no step", () => {
     for (const s of [1, 59.6, 61, 3599.6, 7875, 86_400, 97_200]) {
       const compound: Scale = { steps: [], compound: { units: ["d", "h", "min", "s"], parts: 3 } };

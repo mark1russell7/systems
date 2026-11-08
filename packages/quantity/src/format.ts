@@ -1,7 +1,9 @@
 import type { Component } from "./parse.ts";
 import { parseUnit } from "./parse.ts";
 import type { Extent, Quantity, Unknown } from "./quantity.ts";
-import { convert, quantity, valueIn, whyNotConvertible } from "./quantity.ts";
+import { convert, convertExact, roundExact, whyNotConvertible } from "./quantity.ts";
+import * as q from "@mark1russell7/rational";
+import type { Rational } from "@mark1russell7/rational";
 import { UnitError } from "./parse.ts";
 
 export interface FormatOptions {
@@ -75,7 +77,7 @@ export const format = (amount: Extent | Unknown, options: FormatOptions = {}): s
   // money leads with its symbol, whatever it is per: $500/mo, $42.49
   if (parsed.kind === "money" || parsed.kind === "money-rate") {
     const cents = lead?.atom?.decimals ?? 2;
-    const whole = Math.round(magnitude * 10 ** cents) % 10 ** cents === 0;
+    const whole = q.isInteger(roundExact(q.fromNumber(magnitude), cents));
     const digits = options.digits ?? (whole ? 0 : cents);
     const per = formatUnit(amount.unit).split("/")[1];
     return `${sign}${lead?.atom?.display ?? ""}${number(magnitude, digits, true)}${
@@ -134,7 +136,11 @@ const placesOf = (step: ScaleStep, value: number): number => {
   return Math.min(digits, Math.max(0, step.significant - 1 - Math.floor(Math.log10(value))));
 };
 
-const roundTo = (value: number, places: number): number => Math.round(value * 10 ** places) / 10 ** places;
+/** This function gives an amount in a unit, exactly: 9995 ms is 1999/200 s, not the double 9.995. */
+const exactIn = (amount: Quantity, unit: string): Rational => convertExact(q.fromNumber(amount.value), amount.unit, unit);
+
+/** This function gives the size of one `unit` in `of`, exactly. */
+const sizeIn = (unit: string, of: string): Rational => convertExact(q.ONE, unit, of);
 
 const checkUnits = (amount: Quantity, units: readonly string[]): void => {
   for (const unit of units) {
@@ -153,21 +159,22 @@ const wholeText = (whole: number, unit: string): string => {
 const compoundText = (magnitude: Quantity, compound: ScaleCompound): string => {
   const smallestUnit = compound.units.at(-1);
   if (smallestUnit === undefined) throw new RangeError("a compound of a scale needs one unit or more");
-  const spans = compound.units.map((unit) => [unit, valueIn(quantity(1, unit), smallestUnit)] as const);
+  const spans = compound.units.map((unit) => [unit, sizeIn(unit, smallestUnit)] as const);
   const parts = compound.parts ?? spans.length;
-  const spansFor = (value: number) => {
-    const start = Math.max(0, spans.findIndex(([, size]) => value >= size));
+  const spansFor = (value: Rational) => {
+    const start = Math.max(0, spans.findIndex(([, size]) => q.compare(value, size) >= 0));
     return spans.slice(start, start + parts);
   };
-  const value = valueIn(magnitude, smallestUnit);
-  const smallest = spansFor(value).at(-1)?.[1] ?? 1;
-  // round first, then name the parts: 59 min 59.6 s is 1 h, never 59 min 60 s
-  let rest = Math.round(value / smallest) * smallest;
+  const value = exactIn(magnitude, smallestUnit);
+  const smallest = spansFor(value).at(-1)?.[1] ?? q.ONE;
+  // round first, then name the parts: 59 min 59.6 s is 1 h, never 59 min 60 s. The rounding is exact, thus
+  // 1 min 2.5 s with whole seconds gives 1 min 3 s
+  let rest = q.mul(roundExact(q.div(value, smallest), 0), smallest);
   const named: string[] = [];
   for (const [unit, size] of spansFor(rest)) {
-    const whole = Math.floor(rest / size);
-    rest -= whole * size;
-    if (whole > 0) named.push(wholeText(whole, unit));
+    const whole = q.floor(q.div(rest, size));
+    rest = q.sub(rest, q.mul(whole, size));
+    if (q.sign(whole) > 0) named.push(wholeText(q.toNumber(whole), unit));
   }
   return named.length === 0 ? wholeText(0, smallestUnit) : named.join(" ");
 };
@@ -185,14 +192,16 @@ export const formatOnScale = (amount: Quantity, scale: Scale): string => {
   const magnitude = { value: Math.abs(amount.value), unit: amount.unit };
   for (let index = 0; index < steps.length; index++) {
     const step = steps[index] as ScaleStep;
-    const value = valueIn(magnitude, step.unit);
-    const places = placesOf(step, value);
-    const shown = roundTo(value, places);
+    const value = exactIn(magnitude, step.unit);
+    const places = placesOf(step, q.toNumber(value));
+    // the rounding is of the exact value: 9995 ms is 9.995 s and shows "10 s", where the double 9.995 * 100 rounds down
+    const rounded = roundExact(value, places);
+    const shown = q.toNumber(rounded);
     // the next step: the next unit of the scale, or the smallest unit of the compound above this step
     const next =
       steps[index + 1]?.unit ??
-      [...(compound?.units ?? [])].reverse().find((unit) => valueIn(quantity(1, unit), step.unit) > 1);
-    if (next === undefined || shown < valueIn(quantity(1, next), step.unit)) {
+      [...(compound?.units ?? [])].reverse().find((unit) => q.compare(sizeIn(unit, step.unit), q.ONE) > 0);
+    if (next === undefined || q.compare(rounded, sizeIn(next, step.unit)) < 0) {
       // an amount that rounds to 0 has no sign: "0 ms", not "-0 ms"
       return `${shown === 0 ? "" : sign}${number(shown, places, step.fixed === true)} ${formatUnit(step.unit, shown !== 1)}`;
     }
