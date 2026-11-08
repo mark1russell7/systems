@@ -181,6 +181,33 @@ export const RECOVERY_CELLS: readonly Cell[] = [
   }),
 ];
 
+/**
+ * These are the drills of the size of a restore (SYS-97). The restores of 100 MB and 1 GB differ by a
+ * ratio of 1.44, thus a fixed part is large at these sizes. A third size gives the law of the time
+ * for a far larger store. No rung holds these drills, thus the lock of the rungs does not read them.
+ *
+ * The prediction came before the first run. The linear fit of the two sizes of three members gives
+ * 14.5 s + 7.09 s/GB, thus 74 s at 8 GB. The fit of all three sizes, with the one node of RD.1,
+ * gives 7.9 s + 13.9 s/GB, thus 125 s. The band is 60 to 180 s: a ratio of 2.7 to 8.2 to the 1 GB
+ * restore. At 8 GB the data is 32 times the cache of a member. The page cache of the runner cannot
+ * hold four copies, thus the band is wider above the fits.
+ *
+ * Three members, the dump and the oplogs need 44 to 59 GB. A runner with less disk does no
+ * seed, and each run is void with the room of the runner (`roomVoidOf` of the harness).
+ */
+export const RECOVERY_SIZE_CELLS: readonly Cell[] = [
+  drillCell({
+    name: "RD.8000.restore three members, each disk lost, 8 GB, a dump and slices of the oplog: the third size of the time of a restore",
+    members: THREE_MEMBERS,
+    drill: { tenants: 8_000, perTenant: TENANT, slices: 3, sliceEvery: AGE_OF_A_SLICE, age: AGE_OF_A_SLICE, recovery: "restore" },
+    lands: "same",
+    failover: false,
+    lost: { low: 1, high: writesIn(AGE_OF_A_SLICE) },
+    band: { low: s(60), high: s(180) },
+    what: WHOLE_RESTORE,
+  }),
+];
+
 /** This name is the measure of the data that a rung loses: the interval of its schedule plus the excess that a drill measured. */
 export const RPO = "rpo";
 /** This name is the measure of the time to service. */

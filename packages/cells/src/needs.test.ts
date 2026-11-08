@@ -17,7 +17,7 @@ describe("the needs of a shard of the workflow Cells", () => {
     expect(all.containerlab).toBe(true);
     expect(all.cells).toEqual(FABRIC_CELLS.map((each) => each.name));
     expect(needsOf({ CELLS_ONLY: "^E3[.]" }, none).containerlab).toBe(true);
-    expect(needsOf({ CELLS_ONLY: "^WS" }, none)).toEqual({ containerlab: false, cells: [] });
+    expect(needsOf({ CELLS_ONLY: "^WS" }, none)).toEqual({ containerlab: false, cells: [], disk: { value: 0, unit: "B" } });
   });
 
   it("gives the shards of a run their own needs, and together they hold each cell on a fabric", () => {
@@ -35,9 +35,17 @@ describe("the needs of a shard of the workflow Cells", () => {
     expect(() => needsOf({ CELLS_SELECTION: "refresh-0", CELLS_ONLY: "^E3" }, none)).toThrow("takes no CELLS_ONLY");
   });
 
+  it("gives a shard the most disk of its drills: the data on each member, the dump and an oplog of the whole data on each member", () => {
+    const gb = 8_000 * 1_048_576;
+    expect(needsOf({ CELLS_ONLY: "^RD[.]8000[.]" }, none).disk).toEqual({ value: 7 * gb, unit: "B" });
+    // the Sunday run holds the drills of 1 GB at most, and the drill of 8 GB waits for its first measured time
+    expect(needsOf({ CELLS_SELECTION: "drills" }, none).disk).toEqual({ value: 7 * 1_000 * 1_048_576, unit: "B" });
+    expect(needsOf({ CELLS_ONLY: "^RD[.]" }, none).disk).toEqual({ value: 7 * gb, unit: "B" });
+  });
+
   it("reads the cells of a file in place of the catalogs, and gives no need to a limiter pair", () => {
     const file = JSON.stringify([FABRIC_CELLS[0]]);
     expect(needsOf({ CELLS_FILE: "cells.json" }, () => file).cells).toEqual([FABRIC_CELLS[0]?.name]);
-    expect(needsOf({ CELLS_PAIR: "0.5.6,0.6.0", CELLS_ONLY: "." }, none)).toEqual({ containerlab: false, cells: [] });
+    expect(needsOf({ CELLS_PAIR: "0.5.6,0.6.0", CELLS_ONLY: "." }, none)).toEqual({ containerlab: false, cells: [], disk: { value: 0, unit: "B" } });
   });
 });

@@ -1,19 +1,23 @@
 import { describe, expect, it } from "vitest";
-import type { Drill, ProbeEvent, ReplicaSet, Run, RunDrill } from "./cell.ts";
+import type { Cell, Drill, ProbeEvent, ReplicaSet, Run, RunDrill } from "./cell.ts";
 import {
   LOSS_MARGIN,
   drillSpan,
   hashOf,
   highestHeld,
+  memAvailableOf,
   readOplog,
   recoveryFindings,
   recoveryOf,
+  roomNeeded,
+  roomVoidOf,
   seedScript,
   sliceQuery,
   standaloneCommand,
   stopScript,
 } from "./recovery.ts";
 import type { Writes } from "./timeline.ts";
+import { measureGroup } from "./timeline.ts";
 
 const DRILL: Drill = {
   tenants: 2,
@@ -97,6 +101,44 @@ describe("the pure parts of a drill", () => {
 
   it("asks a slice for each entry after an oplog time", () => {
     expect(JSON.parse(sliceQuery({ t: 5, i: 2 }))).toEqual({ ts: { $gt: { $timestamp: { t: 5, i: 2 } } } });
+  });
+});
+
+describe("the room of a drill on its runner", () => {
+  const MB = 1_048_576;
+  const GB = 1_073_741_824;
+  const big: Drill = { ...DRILL, tenants: 8_000, perTenant: { value: MB, unit: "B" } };
+  const data = 8_000 * MB;
+
+  it("needs the data on each member and the dump, and an oplog of 5% of the disk on each member, up to the data", () => {
+    // 5% of 100 GB is 5 GB, thus each oplog is smaller than the data
+    expect(roomNeeded(big, 3, { value: 100 * GB, unit: "B" })).toEqual({ value: 4 * data + 3 * 5 * GB, unit: "B" });
+    // an oplog has at least 990 MB, and the seed fills it only up to the data
+    expect(roomNeeded(DRILL, 1, { value: GB, unit: "B" })).toEqual({ value: 2 * 262_144 + 262_144, unit: "B" });
+    expect(roomNeeded(big, 3, { value: 10 * GB, unit: "B" })).toEqual({ value: 4 * data + 3 * 990 * MB, unit: "B" });
+    // with no limit on the disk, each oplog holds the whole data: the bound of the needs of a shard
+    expect(roomNeeded(big, 3, { value: Infinity, unit: "B" })).toEqual({ value: 7 * data, unit: "B" });
+  });
+
+  it("reads MemAvailable from /proc/meminfo, and refuses a text with no such line", () => {
+    expect(memAvailableOf("MemTotal:       16374028 kB\nMemFree:         1000 kB\nMemAvailable:   12000000 kB\n")).toEqual({ value: 12_000_000 * 1024, unit: "B" });
+    expect(() => memAvailableOf("MemTotal: 1 kB")).toThrow("no line MemAvailable");
+  });
+
+  it("is void only when the disk is under the need, and a record with no room is not void for this reason", () => {
+    const room = { disk: { value: 30e9, unit: "B" }, memory: { value: 12e9, unit: "B" }, need: { value: 42e9, unit: "B" } } as const;
+    expect(roomVoidOf(room)).toBe("the runner has 30.0 GB of disk for the drill, and the drill needs 42.0 GB: the data on each member, the dump and the oplogs");
+    expect(roomVoidOf({ ...room, disk: { value: 42e9, unit: "B" } })).toBeNull();
+    expect(roomVoidOf(undefined)).toBeNull();
+  });
+
+  it("makes the run of a drill with no room void with its reason, before it reads the client", () => {
+    const room = { disk: { value: 1e9, unit: "B" }, memory: { value: 1e9, unit: "B" }, need: { value: 2e9, unit: "B" } } as const;
+    const cell = { drill: big, prediction: { group: undefined } } as unknown as Cell;
+    const run = { events: [], kernel: [], fault: null, lost: 0, group: { primary: "m0", drill: { backups: [], room } } } as unknown as Run;
+    expect(measureGroup(cell, run).void).toBe("the runner has 1.0 GB of disk for the drill, and the drill needs 2.0 GB: the data on each member, the dump and the oplogs");
+    const before = { ...run, group: { primary: "m0", drill: { backups: [] } } } as unknown as Run;
+    expect(measureGroup(cell, before).void).toBe("the client never became ready");
   });
 });
 

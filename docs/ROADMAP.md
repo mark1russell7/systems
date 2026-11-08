@@ -3374,14 +3374,18 @@ A hash of the data comes before the service starts, because a service writes. Th
 
 ### SYS-97 · A third size of a restore
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-94
-- **Started:**
+- **Started:** 2026-11-08
 - **Shipped:**
 - **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
 
 The restores of 100 MB and 1 GB differ by a ratio of 1.44, and the forecast was 3 to 12. A fixed part is large at these sizes. Two sizes give no law for a far larger store. Thus no claim on the page goes past 1 GB until a third size has a record.
+
+The prediction came before the first run. A linear fit of the two sizes of three members gives 14.5 s + 7.09 s/GB, thus 74 s at 8 GB. A fit of all three sizes gives 7.9 s + 13.9 s/GB, thus 125 s. The band is 60 to 180 s, a ratio of 2.7 to 8.2 to the 1 GB restore.
+
+The first part is in the catalog. The cell `RD.8000.restore` reads the free disk and the memory of the runner before its seed. When the disk is less than the need, the run is void and its record gives the two sizes. The step "Room on the disk for the drills" of the workflow removes unused tools of the runner image when a shard needs more disk. The Sunday run does not hold the cell until one dispatch of `^RD[.]` measures the time of the job.
 
 The work:
 
