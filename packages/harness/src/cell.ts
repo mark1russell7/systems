@@ -1743,6 +1743,21 @@ export interface RunDrill {
   readonly restored: { readonly started: number; readonly ended: number } | null;
   /** This number is the first sequence number of the second client, or null with one client. */
   readonly second: number | null;
+  /** This record is the room of the runner before the seed. A record from before SYS-97 has none. */
+  readonly room?: DrillRoom;
+}
+
+/**
+ * A drill room is what the runner had before the seed of a drill, and what the drill needs. When the
+ * free disk is under the need, the drill does no seed and its run is void (`roomVoidOf`).
+ */
+export interface DrillRoom {
+  /** This size is the free disk of the backup host. Each container of the lab writes to the same disk of the runner. */
+  readonly disk: Quantity;
+  /** This size is MemAvailable of the runner. The cache of each member has a fixed size, thus it is a record and not a limit. */
+  readonly memory: Quantity;
+  /** This size is the most disk that the drill needs (`roomNeeded`). */
+  readonly need: Quantity;
 }
 
 /**

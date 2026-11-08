@@ -25,7 +25,8 @@
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
 # Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
-# The step of the locked rungs fails that run when a rung is not within its budgets.
+# The step of the locked rungs fails that run when a rung is not within its budgets. The Sunday run
+# does not hold the drill of 8 GB (SYS-97) until a run of '^RD[.]' on one shard measures its time.
 # Each Wednesday, the schedule runs one round of the refresh of the studies of the site (SYS-101).
 # There are 4 rounds, thus each study operates again each 28 days, inside its age limit of 30 days.
 # The file packages/cells/src/refresh.ts gives the studies of each round. Then the job export writes
@@ -201,7 +202,7 @@ jobs:
           # first day of round 0, modulo the 4 rounds (roundAt in packages/cells/src/refresh.ts).
           case "$SCHEDULE" in
             "30 3 * * *") ONLY='^WS'; SHARDS=4; SELECTION='' ;;
-            "30 9 * * 0") ONLY='^RD[.]'; SHARDS=1; SELECTION='' ;;
+            "30 9 * * 0") ONLY='^RD[.](?!8000[.])'; SHARDS=1; SELECTION='' ;;
             "30 12 * * 3")
               days=$(( ($(date -u +%s) - $(date -u -d "$REFRESH_EPOCH" +%s)) / 86400 ))
               if [ "$days" -lt 0 ]; then echo "::error::no round operates before $REFRESH_EPOCH"; exit 1; fi
@@ -349,6 +350,22 @@ jobs:
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
           pnpm exec tsx packages/cells/src/needs-cli.ts | tee -a "$RUNNER_TEMP/cells/runner.txt"
+      # A drill of a large store needs disk for the data on each member, the dump and the oplogs
+      # (SYS-97). The needs give the most disk that a drill of the shard can need. When the runner has
+      # less, the tools of the image that no cell uses go. The drill reads its disk again before its
+      # seed, and a drill with no room is void.
+      - name: Room on the disk for the drills
+        if: steps.needs.outputs.disk != '0'
+        env:
+          NEED: ${{ steps.needs.outputs.disk }}
+        run: |
+          root="$(docker info -f '{{.DockerRootDir}}')"
+          free() { df -B1 --output=avail "$root" | tail -n 1 | tr -d ' '; }
+          before="$(free)"
+          if [ "$before" -lt "$NEED" ]; then
+            sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          fi
+          echo "disk: $before B free, then $(free) B, for the drills that need $NEED B at most" | tee -a "$RUNNER_TEMP/cells/runner.txt"
       - name: The pinned containerlab
         if: steps.needs.outputs.containerlab == 'true'
         run: |

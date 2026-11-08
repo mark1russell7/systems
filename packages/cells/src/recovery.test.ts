@@ -3,8 +3,8 @@ import type { GroupReading } from "@mark1russell7/harness";
 import { valueIn } from "@mark1russell7/quantity";
 import { checkLadder, ladderVerdict, type RungRecord } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
-import { ALL } from "./all.ts";
-import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
+import { ALL, SCHEDULED_CELLS } from "./all.ts";
+import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RECOVERY_SIZE_CELLS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
 
 const AT = "2026-11-04T12:00:00.000Z";
 
@@ -139,6 +139,23 @@ describe("the drills", () => {
     expect(RECOVERY_RUNGS.map((rung) => rung.tenants)).toEqual([1, 100, 1000]);
     expect(named("RD.1000.restore").drill?.tenants).toBe(1000);
     expect(named("RD.1000.failover").drill?.recovery).toBe("election");
+  });
+
+  it("has a third size of a restore in the catalog, outside the rungs and outside the Sunday run until its time is measured", () => {
+    expect(RECOVERY_SIZE_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual(["RD.8000.restore"]);
+    const [eight] = RECOVERY_SIZE_CELLS;
+    if (eight === undefined) throw new Error("the drill of 8 GB");
+    expect(ALL).toContain(eight);
+    expect(eight.drill).toMatchObject({ tenants: 8_000, slices: 3, recovery: "restore" });
+    expect(eight.replicaSet?.members).toHaveLength(3);
+    const prediction = eight.prediction;
+    if (prediction.detects !== true) throw new Error("a detection");
+    expect([valueIn(prediction.low, "s"), valueIn(prediction.high, "s")]).toEqual([60, 180]);
+    expect(RECOVERY_RUNGS.map((rung) => rung.drill)).not.toContain("RD.8000.restore");
+    const sunday = SCHEDULED_CELLS["drills"];
+    expect(ALL.filter((cell) => sunday?.test(cell.name)).map((cell) => cell.name)).toEqual(RECOVERY_CELLS.map((cell) => cell.name));
+    // the cron of the workflow selects the same cells as the scheduled selection
+    expect(readFileSync(new URL("../../../.github/workflows/cells.yml", import.meta.url), "utf8")).toContain(`ONLY='${sunday?.source}'`);
   });
 
   it("stops the writes of a control before its backup ends", () => {

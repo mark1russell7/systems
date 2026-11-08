@@ -25,7 +25,7 @@ import { T11_RABBIT } from "./rabbit/t11.ts";
 import { LADDER_CELLS } from "./ladder.ts";
 import { OPEN_LOOP_CELLS } from "./open-loop.ts";
 import { RESEND_CELLS } from "./resend.ts";
-import { RECOVERY_CELLS } from "./recovery.ts";
+import { RECOVERY_CELLS, RECOVERY_SIZE_CELLS } from "./recovery.ts";
 import { REFRESH_CELLS } from "./refresh.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
@@ -106,6 +106,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...WATCH_CELLS,
     ...LEASE_CELLS,
     ...RECOVERY_CELLS,
+    ...RECOVERY_SIZE_CELLS,
     ...OPEN_LOOP_CELLS,
     ...LADDER_CELLS,
   ];
@@ -119,8 +120,11 @@ export const ALL: readonly Cell[] = catalogs();
  * records takes a name and not a regular expression. The name `night` selects the nightly run. The
  * name `drills` selects the Sunday run. The names `refresh-0` to `refresh-3` select the rounds of the
  * refresh of the studies, each Wednesday (refresh.ts).
+ *
+ * The Sunday run does not hold the drill of 8 GB (SYS-97) yet. First, a run of `^RD[.]` on one
+ * shard measures the time of the job with it. The job has a limit of 340 minutes.
  */
-export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/, ...REFRESH_CELLS };
+export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.](?!8000[.])/, ...REFRESH_CELLS };
 
 /**
  * This function gives the selection of a run: a scheduled selection by its name, or the regular
