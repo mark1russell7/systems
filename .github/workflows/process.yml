@@ -96,7 +96,7 @@ jobs:
 
   process-ok:
     name: Process OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, process]
     runs-on: ubuntu-latest
     timeout-minutes: 2

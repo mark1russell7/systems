@@ -76,7 +76,7 @@ jobs:
 
   site-shots-ok:
     name: Site shots OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, shots]
     runs-on: ubuntu-latest
     timeout-minutes: 2

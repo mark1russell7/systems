@@ -93,7 +93,7 @@ jobs:
 
   http-ok:
     name: HTTP OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, http]
     runs-on: ubuntu-latest
     timeout-minutes: 2

@@ -401,7 +401,7 @@ jobs:
 
   flip-ok:
     name: Flip OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, redis, f6, http, process]
     runs-on: ubuntu-latest
     timeout-minutes: 2
