@@ -110,13 +110,15 @@ The VM tier starts in S7, as [SYS-81](#sys-81--the-vm-tier-qemu-on-a-runner-and-
 
 ### HW-1 · The lab for the NIC and the cloud parts of S4
 
-- **Status:** waiting
+- **Status:** later
 - **Area:** program
 - **Depends on:**
-- **Waiting on:** Mark, with no hurry, because S4 has not started. Pick one: (1) an SR-IOV NIC in a box of yours, (2) a cloud account with VMs, or (3) the two. If you want, Claude first researches which used cards fit.
+- **Waiting on:**
 - **Started:**
 - **Shipped:**
 - **Links:**
+
+Later, until S4 starts. Then the research of the cards comes first, and a hub ask gives Mark three options. Option 1 is an SR-IOV NIC in a box of Mark's. Option 2 is a cloud account with VMs. Option 3 is the two. The choice costs money, thus Mark makes it.
 
 The NIC part of S4 tests the virtual functions of SR-IOV, their failover, and a firmware upgrade of the card. The hosted runners of GitHub cannot test these. Their VM has no physical NIC, thus it cannot make virtual functions, fail them over or change firmware.
 
