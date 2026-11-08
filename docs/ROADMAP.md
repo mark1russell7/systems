@@ -3305,14 +3305,14 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 
 ### SYS-106 · The units of a take in the keyed limiter
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-28
 - **Started:** 2026-11-08
-- **Shipped:**
-- **Links:** [#408](https://github.com/mark1russell7/systems/pull/408)
+- **Shipped:** 2026-11-08
+- **Links:** [#408](https://github.com/mark1russell7/systems/pull/408), [#411](https://github.com/mark1russell7/systems/pull/411), [the release run](https://github.com/mark1russell7/systems/actions/runs/42460247618)
 
-A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`.
+A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`. Service `0.7.0` is on npm, with provenance.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
