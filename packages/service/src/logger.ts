@@ -39,6 +39,18 @@ export type ConsoleTarget = Readonly<Record<LogLevel, (...data: unknown[]) => vo
  */
 export type LogFormat = "text" | "json";
 
+/** These are the ids of the trace and of the span of a log entry, with the names of the OpenTelemetry log data model. */
+export interface TraceIds {
+  readonly trace_id: string;
+  readonly span_id: string;
+}
+
+/**
+ * A source of trace ids gives the ids of the active span, or nothing when no span is active. The
+ * entry `@mark1russell7/service/otel` has one on the API of OpenTelemetry: `traceIds`.
+ */
+export type TraceIdsSource = () => TraceIds | undefined;
+
 /** These options make the console logger. */
 export interface ConsoleLoggerOptions {
   /** This level is the least severe level that the logger writes. The default is `info`. */
@@ -47,7 +59,20 @@ export interface ConsoleLoggerOptions {
   readonly console?: ConsoleTarget | undefined;
   /** This format tells how the logger writes each entry. The default is `text`. */
   readonly format?: LogFormat | undefined;
+  /**
+   * This source gives the trace ids of each entry. The logger adds them to the fields, but a field
+   * of the entry with the same name stays. With no source, or when the source gives nothing, the
+   * entry does not change.
+   */
+  readonly traceIds?: TraceIdsSource | undefined;
 }
+
+/** This function gives the fields with the trace ids of the source added. A field of the entry stays. */
+const withTraceIds = (fields: LogFields, source: TraceIdsSource): LogFields => {
+  const ids = source();
+  if (ids === undefined) return fields;
+  return { trace_id: ids.trace_id, span_id: ids.span_id, ...fields };
+};
 
 /** This function gives a value of a field that JSON can write: an error as its name, message and stack, and a bigint as text. */
 const jsonValue = (_key: string, value: unknown): unknown => {
@@ -77,10 +102,12 @@ const jsonLine = (level: LogLevel, message: string, fields: LogFields): string =
 export const consoleLogger = (options: ConsoleLoggerOptions = {}): Logger => {
   const least = options.level ?? "info";
   const format = options.format ?? "text";
+  const source = options.traceIds;
   if (format !== "text" && format !== "json") throw new Error(`the log format ${JSON.stringify(format)} is not "text" or "json"`);
   return {
-    log(level, message, fields) {
+    log(level, message, entryFields) {
       if (!atLeast(level, least)) return;
+      const fields = source === undefined ? entryFields : withTraceIds(entryFields, source);
       const target = options.console ?? globalThis.console;
       if (format === "json") target[level](jsonLine(level, message, fields));
       else if (Object.keys(fields).length === 0) target[level](message);

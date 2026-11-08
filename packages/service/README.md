@@ -91,6 +91,7 @@ The format of a description is `mark1russell7.service/1`.
 - **The levels.** Each step of the startup, each phase with its cap, its outcome and its duration, and the exit code are `info`. A phase at its cap is `warn`, and an error of the lifecycle is `error`. The polls are `debug`.
 - **The logger port.** A `Logger` has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines. `consoleLogger({ level })` writes to the console at `info` and above by default.
 - **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry, with `level`, `message` and each field. An error field gives its name, its message and its stack. The default format is `text`, as before.
+- **Trace ids.** `consoleLogger({ traceIds })`, with `traceIds` from `@mark1russell7/service/otel`, adds the `trace_id` and the `span_id` of the active span of OpenTelemetry to each entry. A field of the entry with the same name stays. When no span is active, for example when no program registered an SDK, the entry does not change. Only the entry `/otel` loads `@opentelemetry/api`.
 - **No logger.** Without a logger, the runtime writes no log, as before. `testLogger()` of `@mark1russell7/service/testing` keeps each entry, thus a test can examine the log.
 
 ## The machines
@@ -815,7 +816,7 @@ pnpm add @mark1russell7/service
 
 For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`.
 
-For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package.
+For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids of `/otel`, it installs `@opentelemetry/api@1`.
 
 ### One copy of service
 
