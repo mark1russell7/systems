@@ -1,3 +1,4 @@
+import type { Substrate } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { extentSchema, quantitySchema } from "@mark1russell7/quantity/schema";
 import type { Stage } from "@mark1russell7/service";
@@ -117,31 +118,49 @@ const run: z.ZodType<KindRun> = z.object({
   dropped: z.record(z.string(), count),
   notes: z.array(z.string()).optional(),
 });
-const manifest = z.object({
-  env: count,
-  // A record from before the dataplane `cilium` has no `dataplane`: its dataplane is the mode of its kube-proxy.
-  scenario: z
-    .object({
-      name: z.string(),
-      kubernetes: z.string(),
-      workers: count,
-      dataplane: z.enum(MODES).optional(),
-      kubeProxy: z.object({ mode: z.enum(KUBE_PROXY), minSyncPeriod: time, syncPeriod: time }).nullable(),
-      cni: z.enum(["kindnet", "cilium"]),
-      podSubnet: z.string(),
-      serviceSubnet: z.string(),
-    })
-    .transform(({ dataplane, ...rest }) => ({ ...rest, dataplane: dataplane ?? rest.kubeProxy?.mode ?? "cilium" })),
-  cluster: z.object({
-    kind: z.string(),
-    nodeImage: z.string(),
-    server: z.string(),
-    mode: z.string(),
-    docker: z.string(),
-    nodes: z.array(z.object({ name: z.string(), kubelet: z.string(), kernel: z.string(), runtime: z.string(), os: z.string() })),
-  }),
-  images: z.record(z.string(), z.string()),
+/**
+ * This schema accepts the substrate of a record (`Substrate` of the harness). The entry ./judge loads
+ * no module of the harness, thus the schema is here. Its test holds it to the layers and the clouds of
+ * the harness.
+ */
+export const substrateSchema: z.ZodType<Substrate> = z.object({
+  layer: z.enum(["E0", "E1", "E2", "E3", "E4", "E5", "E6"]),
+  cloud: z.enum(["azure", "aws", "unknown"]),
+  vendor: z.string().nullable(),
+  kernel: z.string().nullable(),
+  hz: z.number().nullable(),
+  kvm: z.boolean().nullable(),
+  image: z.string().nullable(),
 });
+const manifest = z
+  .object({
+    env: count,
+    // A record from before the dataplane `cilium` has no `dataplane`: its dataplane is the mode of its kube-proxy.
+    scenario: z
+      .object({
+        name: z.string(),
+        kubernetes: z.string(),
+        workers: count,
+        dataplane: z.enum(MODES).optional(),
+        kubeProxy: z.object({ mode: z.enum(KUBE_PROXY), minSyncPeriod: time, syncPeriod: time }).nullable(),
+        cni: z.enum(["kindnet", "cilium"]),
+        podSubnet: z.string(),
+        serviceSubnet: z.string(),
+        zoned: z.boolean().optional(),
+      })
+      .transform(({ dataplane, zoned, ...rest }) => ({ ...rest, dataplane: dataplane ?? rest.kubeProxy?.mode ?? "cilium", ...(zoned === true ? { zoned } : {}) })),
+    cluster: z.object({
+      kind: z.string(),
+      nodeImage: z.string(),
+      server: z.string(),
+      mode: z.string(),
+      docker: z.string(),
+      nodes: z.array(z.object({ name: z.string(), kubelet: z.string(), kernel: z.string(), runtime: z.string(), os: z.string() })),
+    }),
+    images: z.record(z.string(), z.string()),
+    substrate: substrateSchema.optional(),
+  })
+  .transform(({ substrate, ...rest }) => (substrate === undefined ? rest : { ...rest, substrate }));
 const load = z.object({ t: z.number(), idle: z.number(), top: z.array(z.string()), foreign: z.array(z.string()), needed: z.number().optional() });
 
 /**
