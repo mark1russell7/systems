@@ -61,6 +61,25 @@ const problems = replay(CONNECTION_MACHINE, recorded, { machine: CONNECTION_MACH
 // for example ["c1: app.machine.connection has no transition from OPEN on open to OPEN"]
 ```
 
+## The clock
+
+`@mark1russell7/algebra/clock` gives the clock of a runtime and a fake clock for tests. The entry imports nothing: no `node:` module, no zod and no other package. Thus a client in a browser can use it. The service and collections read time through it.
+
+| Export | What it does |
+| --- | --- |
+| `Clock` | `now()` gives the monotonic time in milliseconds. `after(ms, run)` starts `run` after `ms` and gives its `Cancel`. |
+| `platformClock({ unref })` | A clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. |
+| `realClock` | The clock of the platform with `unref: true`. |
+| `fakeClock(start)` | A clock that moves only on `advance(ms)`. `block(ms)` moves it and starts no timer, as a blocked event loop does. `pending` counts the live timers. |
+
+```ts
+import { fakeClock } from "@mark1russell7/algebra/clock";
+
+const clock = fakeClock();
+clock.after(30_000, () => cache.sweep());
+await clock.advance(30_000); // the sweep runs, at 30 s exactly
+```
+
 ## Installation
 
 ```sh

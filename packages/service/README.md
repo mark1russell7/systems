@@ -309,7 +309,7 @@ const findings = lint(svc.describe(), scenario, DRAIN_RULES);
 
 ## The timers
 
-The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module, no zod and no other package. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
+The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module and no zod. The only other package that they import is `@mark1russell7/algebra/clock`, which imports nothing. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
 
 | Entry | Exports |
 | --- | --- |
@@ -318,6 +318,7 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 | `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
 
 - **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
+- **The home of the clock.** The clock lives in `@mark1russell7/algebra/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
 - **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
 - **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.
 - **The hooks of a heartbeat.** At each tick, `due` tells if the tick sends a ping. `live` tells if a miss counts. `turn` waits one turn of the event loop before the heartbeat counts. Without `overlap`, the heartbeat sends one ping at a time.

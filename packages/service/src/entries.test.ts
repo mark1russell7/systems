@@ -23,9 +23,9 @@ import * as wsEntry from "./websocket.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * This function follows the imports of a module that load code at run time, and gives each
- * module that it reaches: a file of the package, or the specifier of another package. An import
- * of types only loads nothing.
+ * This function follows the imports of a module that load code at run time. It gives each module
+ * that it reaches: a file of the package, or the specifier of another package. An import of types
+ * only loads nothing.
  */
 const reach = (entry: string): { files: string[]; packages: string[] } => {
   const files = new Set<string>();
@@ -117,10 +117,20 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
 });
 
 describe("the timer entries: a client in a browser can import them", () => {
-  it("load no other package: no node: module, no zod, no quantity", () => {
-    expect(reach("clock.ts")).toEqual({ files: ["clock.ts"], packages: [] });
-    expect(reach("heartbeat.ts")).toEqual({ files: ["clock.ts", "heartbeat.ts"], packages: [] });
+  it("load only the clock of the algebra, which loads nothing: no node: module, no zod, no quantity", () => {
+    expect(reach("clock.ts")).toEqual({ files: ["clock.ts"], packages: ["@mark1russell7/algebra/clock"] });
+    expect(reach("heartbeat.ts")).toEqual({ files: ["clock.ts", "heartbeat.ts"], packages: ["@mark1russell7/algebra/clock"] });
     expect(reach("backoff.ts")).toEqual({ files: ["backoff.ts"], packages: [] });
+    // the search follows the clock into the algebra, and it finds no package and no node: module there
+    for (const entry of ["clock.ts", "heartbeat.ts", "backoff.ts"]) expect(reachAll(entry), entry).toEqual([]);
+  });
+
+  it("give the clock of the algebra itself, thus a clock of either entry is the same clock", async () => {
+    const algebra = await import("@mark1russell7/algebra/clock");
+    expect(clockEntry.platformClock).toBe(algebra.platformClock);
+    expect(clockEntry.realClock).toBe(algebra.realClock);
+    const testing = await import("./testing.ts");
+    expect(testing.fakeClock).toBe(algebra.fakeClock);
   });
 
   it("give their functions, and the root gives them too", () => {
@@ -195,7 +205,7 @@ describe("the http-client entry: node:http is a built-in, loaded only at the con
   it("loads no node:http at its import, and no node: module other than node:net", () => {
     const { packages } = reach("http-client.ts");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -223,7 +233,7 @@ describe("the websocket entry: ws is an optional peer, loaded only at the connec
     const { packages } = reach("websocket.ts");
     expect(packages).not.toContain("ws");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -251,7 +261,7 @@ describe("the grpc entry: @grpc/grpc-js is an optional peer, loaded only at the 
     const { packages } = reach("grpc.ts");
     expect(packages).not.toContain("@grpc/grpc-js");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -278,7 +288,7 @@ describe("the http entry: Node only, on node:http and node:net", () => {
   it("loads no node: module other than node:http and node:net, and no package other than quantity", () => {
     const { packages } = reach("http.ts");
     expect(packages.filter((name) => name.startsWith("node:")).every((name) => name === "node:http" || name === "node:net")).toBe(true);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -307,7 +317,7 @@ describe("the http entry: Node only, on node:http and node:net", () => {
 
 describe("the channel entry: a client in a browser can import it (collections C26)", () => {
   it("loads only the clock and collections: no node: module and no zod", () => {
-    expect(reach("channel.ts")).toEqual({ files: ["channel.ts", "clock.ts"], packages: ["@mark1russell7/collections"] });
+    expect(reach("channel.ts")).toEqual({ files: ["channel.ts", "clock.ts"], packages: ["@mark1russell7/algebra/clock", "@mark1russell7/collections"] });
     expect(reachAll("channel.ts")).toEqual([]);
   });
 
@@ -408,7 +418,7 @@ describe("the rules entry: the drain rules as data, without kind and its Testcon
 describe("the host entry: Node only, and its effects go through ports (SYS-36)", () => {
   it("loads only node: built-ins and quantity, and no fakes of its tests", () => {
     const { files, packages } = reach("host.ts");
-    expect(packages).toEqual(["@mark1russell7/quantity", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
+    expect(packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
     expect(files.filter((file) => file.includes("fake"))).toEqual([]);
   });
 
@@ -470,6 +480,6 @@ describe("the root entry: free of node: modules", () => {
 
   it("gives the worker loop and the queue drain, which load only quantity (SYS-14)", () => {
     for (const name of ["workerLoop", "queueDrain", "redeliverOnce"]) expect(root, name).toHaveProperty(name);
-    for (const entry of ["worker.ts", "queue.ts"]) expect(reach(entry).packages, entry).toEqual(["@mark1russell7/quantity"]);
+    for (const entry of ["worker.ts", "queue.ts"]) expect(reach(entry).packages, entry).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 });
