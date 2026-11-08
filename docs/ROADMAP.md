@@ -3301,6 +3301,17 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 
 #393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. The other public packages get their reports in the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
 
+### SYS-106 · The units of a take in the keyed limiter
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-28
+- **Started:** 2026-11-08
+- **Shipped:**
+- **Links:** [#408](https://github.com/mark1russell7/systems/pull/408)
+
+A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`.
+
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
 - **Status:** done
