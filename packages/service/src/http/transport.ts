@@ -1,5 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { convertible, valueIn } from "@mark1russell7/quantity";
+import type { CallContext } from "../call-context.ts";
 import type { IncomingMessage, Server, ServerEventMap, ServerResponse } from "node:http";
 import type { Http2Server, Http2ServerResponse, Http2Session } from "node:http2";
 import type { ListenOptions, Socket } from "node:net";
@@ -130,6 +131,16 @@ export interface HttpTransportOptions<S extends EdgeServer = Server> {
   readonly keepAlive?: (() => boolean) | undefined;
   /** This function receives each error of a handler. The transport then answers 500, or it destroys the response. */
   readonly onError?: ((error: unknown, req: IncomingMessage) => void) | undefined;
+  /**
+   * With this call context, each handler runs in the context of the headers of its request. The context
+   * has the trace of `traceparent`, and the baggage of a trusted request. `callContext` of the entry `/otel` gives one.
+   */
+  readonly callContext?: CallContext | undefined;
+  /**
+   * This function tells if the baggage of a request is trusted, for example after a token check. The
+   * default trusts no request: each request joins the trace of its caller, and its baggage is dropped.
+   */
+  readonly trustBaggage?: ((req: IncomingMessage) => boolean) | undefined;
 }
 
 /** An HTTP transport is a server of `node:http` or `node:http2` as a transport of the lifecycle, with a list of mounts on its listener. */
@@ -485,6 +496,11 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
     else refuse(res);
   };
 
+  // each handler runs in the context of the headers of its request, when the options give a call context
+  const callContext = options.callContext;
+  const trustBaggage = options.trustBaggage ?? (() => false);
+  const inCall = <T>(req: IncomingMessage, fn: () => T): T => (callContext === undefined ? fn() : callContext.run(req.headers, trustBaggage(req), fn));
+
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     responses.add(res);
     // the bytes of an answer went: a drain after its deadline can end
@@ -494,7 +510,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       settled();
     });
     watchHeaders(res);
-    void route(req, res);
+    void inCall(req, () => route(req, res));
   };
 
   const onUpgrade = (req: IncomingMessage, socket: UpgradeSocket, head: UpgradeArgs[2]): void => {
@@ -513,7 +529,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       settled();
     });
     try {
-      mount.handler(req, socket, head, context);
+      inCall(req, () => mount.handler(req, socket, head, context));
     } catch (error) {
       report(error, req);
       socket.destroy();

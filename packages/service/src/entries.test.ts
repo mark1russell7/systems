@@ -483,9 +483,10 @@ describe("the otel entry: the only entry that loads the API of OpenTelemetry, an
     expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
   });
 
-  it("gives the source of the trace ids, and the root does not give it", () => {
-    expect(Object.keys(otelEntry)).toEqual(["traceIds"]);
+  it("gives the source of the trace ids and the call context, and the root gives neither", () => {
+    expect(Object.keys(otelEntry)).toEqual(["traceIds", "callContext"]);
     expect(root).not.toHaveProperty("traceIds");
+    expect(root).not.toHaveProperty("callContext");
   });
 
   it("is in the manifest, for the source and for npm", () => {

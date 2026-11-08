@@ -139,10 +139,10 @@ export class FakeConnection {
     readonly socket: FakeSocket,
   ) {}
   /** This method sends a request on the connection, and gives the answer, or an error when the connection closes first. */
-  request(url: string, method = "GET"): Promise<FakeAnswer> {
+  request(url: string, method = "GET", headers: Readonly<Record<string, string>> = {}): Promise<FakeAnswer> {
     if (this.socket.destroyed) return Promise.reject(new Error("ECONNRESET: the connection is closed"));
     this.idle = false;
-    const req = Object.assign(new EventEmitter(), { url, method, headers: {} });
+    const req = Object.assign(new EventEmitter(), { url, method, headers });
     const res = new FakeResponse(this.socket);
     this.response = res;
     return new Promise<FakeAnswer>((resolve, reject) => {
@@ -227,8 +227,8 @@ export class FakeServer extends EventEmitter {
     return connection;
   }
   /** This method sends one request on a new connection. */
-  async request(url: string, method = "GET"): Promise<FakeAnswer> {
-    return this.connect().request(url, method);
+  async request(url: string, method = "GET", headers: Readonly<Record<string, string>> = {}): Promise<FakeAnswer> {
+    return this.connect().request(url, method, headers);
   }
   private closeIfDrained(): void {
     if (!this.closing || this.listening || this.connections.size > 0) return;
