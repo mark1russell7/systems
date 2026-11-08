@@ -168,7 +168,7 @@ describe("the start", () => {
   });
 
   it("gives listen(2) the backlog of the knob server_listen_backlog, and no backlog without the knob (SYS-103)", async () => {
-    const count = (value: number | "infinite") => ({ value, unit: "count" });
+    const count = (value: number) => ({ value, unit: "count" });
     for (const backlog of [0, 4, 511]) {
       const { server, transport } = await started({ ...KNOBS, server_listen_backlog: count(backlog) });
       expect(server.listens).toEqual([{ port: 8080, backlog }]);
@@ -180,7 +180,9 @@ describe("the start", () => {
     const make = (knobs: HttpKnobs, listen: Parameters<typeof httpTransport>[2] = { listen: { port: 1 } }) => () =>
       httpTransport(new FakeServer().asServer, knobs, listen);
     expect(make({ ...KNOBS, server_listen_backlog: s(4) })).toThrow("the knob server_listen_backlog is not a count");
-    expect(make({ ...KNOBS, server_listen_backlog: count("infinite") })).toThrow(/has no bound: listen\(2\) takes a whole count/);
+    // the type refuses an unbounded backlog, and a declaration read from data can still give one
+    const unbounded = { ...KNOBS, server_listen_backlog: { value: "infinite", unit: "count" } } as unknown as HttpKnobs;
+    expect(make(unbounded)).toThrow(/has no bound: listen\(2\) takes a whole count/);
     expect(make({ ...KNOBS, server_listen_backlog: count(-1) })).toThrow("the knob server_listen_backlog is -1, not a whole count of 0 or more");
     expect(make({ ...KNOBS, server_listen_backlog: count(2.5) })).toThrow(/is 2.5, not a whole count/);
     for (const listen of [{}, { listen: async () => {} }])
