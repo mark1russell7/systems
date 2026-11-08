@@ -26,6 +26,7 @@ import { LADDER_CELLS } from "./ladder.ts";
 import { OPEN_LOOP_CELLS } from "./open-loop.ts";
 import { RESEND_CELLS } from "./resend.ts";
 import { RECOVERY_CELLS } from "./recovery.ts";
+import { REFRESH_CELLS } from "./refresh.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { PORT_RANGE_CELLS } from "./port-range.ts";
@@ -116,9 +117,10 @@ export const ALL: readonly Cell[] = catalogs();
 /**
  * These are the selections of the scheduled runs of the workflow Cells, by name. The read of the
  * records takes a name and not a regular expression. The name `night` selects the nightly run. The
- * name `drills` selects the Sunday run.
+ * name `drills` selects the Sunday run. The names `refresh-0` to `refresh-3` select the rounds of the
+ * refresh of the studies, each Wednesday (refresh.ts).
  */
-export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/ };
+export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/, ...REFRESH_CELLS };
 
 /**
  * This function gives the cells of one shard: the cells whose names match `only`, then each `of`-th

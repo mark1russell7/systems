@@ -77,6 +77,7 @@ export default defineConfig({
             "results/timers",
             "results/harness",
             "results/ci",
+            "results/refresh",
           ],
         },
         { label: "About", items: ["about"] },

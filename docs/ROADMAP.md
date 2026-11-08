@@ -3501,13 +3501,27 @@ This is the first read of the 17 pages, from their text, their data files and th
 
 These commits came after 2026-10-17: 55 in the machines, 33 in the image of the harness and 9 in the algebra. The verdict has 5 and the prober has 4. The kernel of the runner also changed from 6.17 to 7.0. Thus the first refresh can fail some cells. Each failure is a finding, and no band gets wider to hide it. A prediction comes before the first dispatch.
 
-The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2. Four weekly rounds at 3 jobs take approximately 12 hours each.
+The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2.
 
 The order of the work:
 
 1. By 2026-11-14: the schedule, the commits in the stamps, and the public text of the limit.
 2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
 3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
+
+**The schedule (step 1).** The workflow `cells.yml` operates one round each Wednesday at 12:30 UTC, on 8 shards. There are 4 rounds, thus each study operates again each 28 days. Round 0 operates first on 2026-11-11. The file `packages/cells/src/refresh.ts` gives the studies of each round. The selection `refresh-<round>` takes the cells of those studies by their whole names.
+
+| Round | Studies | Runner hours |
+| --- | --- | --- |
+| 0 | `results/mongodb`, `results/faults` | 15 |
+| 1 | `results/rabbitmq`, `results/sentinel`, `results/topologies`, `results/http` | 13 |
+| 2 | `results/pg` | 17 |
+| 3 | `results/grpc` | 19 |
+
+- The runner hours come from the seconds of each cell in the original runs (`refresh-cost.json`). A test simulates each shard of each round with these seconds, and each shard stays below 300 minutes.
+- The job `export` starts the exporter of each study of the round on the records of all its shards. It uploads the new data files as the artifact `refresh`. A pull request then moves each page to its new copy.
+- The page `results/refresh` gives the limit and the rounds in public text. A test compares its table with the plan.
+- Seven pages with a limit have no round yet: `results/r3`, `results/kind`, `results/mesh`, `results/calibration`, `results/timers`, `lab/detection` and the home page. `refresh.ts` gives what each one needs first. A test of the site fails for a page with a limit that has no round and no such entry.
 
 The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
 
