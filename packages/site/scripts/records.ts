@@ -201,21 +201,59 @@ export const middle = (values: readonly number[]): number | null => (values.leng
 /** This form is the reason of a void run whose timer the VM delayed. */
 const DELAYED = /^its (retransmit|keepalive) timer ran (\d+) jiffies behind its wheel slot: the VM delayed it, not the kernel$/;
 
+/** This form finds each number of a reason that stands alone: 13.3 and 2, but not the 6 of ip6tables. */
+const STANDALONE = /(?<![\w.])-?\d+(?:\.\d+)?(?![\w.])/g;
+
+/** This function gives the range of some numbers as a text: "8.4", or "8.4 to 13.3". */
+const rangeOf = (values: readonly string[]): string => {
+  const sorted = [...values].sort((a, b) => Number(a) - Number(b));
+  return sorted[0] === sorted.at(-1) ? sorted[0]! : `${sorted[0]} to ${sorted.at(-1)}`;
+};
+
+/** This function tells the void runs whose reason is a timer that the VM delayed: the timers and the range of their delays. */
+const delayedOf = (matches: readonly RegExpExecArray[]): string => {
+  const timers = [...new Set(matches.map((match) => match[1]!))].sort().join(" or the ");
+  const jiffies = `${rangeOf(matches.map((match) => match[2]!))} jiffies`;
+  return matches.length === 1
+    ? `One run is void: its ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed it, not the kernel.`
+    : `${matches.length} runs are void: in each, the ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed them, not the kernel.`;
+};
+
 /**
- * This function tells each void run of a cell in one text, or gives null for none. In these copies,
- * the reason of each void run is a timer that the VM delayed. Thus the text gives the timers and the
- * range of their delays. It stops at another reason.
+ * This function tells the void runs that have one shape of reason. The shape is the reason with no numbers.
+ * The text gives the reason, with the range of each number over the runs.
+ */
+const shapedOf = (reasons: readonly string[]): string => {
+  const numbers = reasons.map((reason) => reason.match(STANDALONE) ?? []);
+  // the reasons of one shape have the same count of numbers: the range at each place is over all of them
+  let place = 0;
+  const text = reasons[0]!.replace(STANDALONE, () => {
+    const at = place++;
+    return rangeOf(numbers.map((each) => each[at]!));
+  });
+  return reasons.length === 1 ? `One run is void: ${text}.` : `${reasons.length} runs are void: in each, ${text}.`;
+};
+
+/**
+ * This function tells each void run of a cell in one text, or gives null for none. It groups the runs by
+ * the shape of their reason, in the order of the first run of each shape. A timer that the VM delayed has
+ * its own text. Each other reason is a clause of the harness, and the text gives the range of its numbers.
  */
 export const voidsOf = (reasons: readonly string[]): string | null => {
   if (reasons.length === 0) return null;
-  const delays = reasons.map((reason) => DELAYED.exec(reason));
-  const other = reasons.find((_, n) => delays[n] === null);
-  if (other !== undefined) throw new Error(`the void reason "${other}" has no text for the page`);
-  const timers = [...new Set(delays.map((match) => match![1]!))].sort().join(" or the ");
-  const behind = delays.map((match) => Number(match![2]));
-  const [low, high] = [Math.min(...behind), Math.max(...behind)];
-  const jiffies = low === high ? `${low} jiffies` : `${low} to ${high} jiffies`;
-  return reasons.length === 1
-    ? `One run is void: its ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed it, not the kernel.`
-    : `${reasons.length} runs are void: in each, the ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed them, not the kernel.`;
+  const delayed = reasons.map((reason) => DELAYED.exec(reason)).filter((match) => match !== null);
+  const shapes = new Map<string, string[]>();
+  for (const reason of reasons.filter((each) => !DELAYED.test(each))) {
+    const shape = reason.replace(STANDALONE, "#");
+    shapes.set(shape, [...(shapes.get(shape) ?? []), reason]);
+  }
+  const first = (text: string): number => reasons.findIndex((reason) => reason === text);
+  const parts = [
+    ...(delayed.length === 0 ? [] : [{ at: first(delayed[0]![0]), text: delayedOf(delayed) }]),
+    ...[...shapes.values()].map((group) => ({ at: first(group[0]!), text: shapedOf(group) })),
+  ];
+  return parts
+    .sort((a, b) => a.at - b.at)
+    .map((part) => part.text)
+    .join(" ");
 };
