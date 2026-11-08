@@ -455,4 +455,44 @@ mod tests {
             assert_eq!(lengths, [7, 9, 7], "reads of {size}");
         }
     }
+
+    fn thread_cpu_ns() -> u64 {
+        let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+        // SAFETY: one timespec on this stack
+        unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) };
+        time.tv_sec as u64 * 1_000_000_000 + time.tv_nsec as u64
+    }
+
+    #[test]
+    fn a_full_socket_does_not_spin_the_schedule_mode() {
+        // a peer that accepts and does not read: the socket of the client fills, and the arrivals stay overdue
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut stream = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let _peer = listener.accept().unwrap();
+        stream.set_nonblocking(true).unwrap();
+        let go = std::env::temp_dir().join(format!("client-go-{}", std::process::id()));
+        std::fs::write(&go, b"").unwrap();
+        let args = Args {
+            host: "127.0.0.1".into(),
+            port: 0,
+            inflight: false,
+            stream: None,
+            interval: Duration::ZERO,
+            keepalive: false,
+            user_timeout_ms: None,
+            go: go.to_string_lossy().into_owned(),
+            sample: Duration::from_millis(10),
+            max: Duration::from_secs(1),
+            request: vec![b'x'; 1 << 20],
+            schedule: None,
+        };
+        let plan = vec![0u64; 1_000];
+        let length = Duration::from_millis(400).as_nanos() as u64;
+        let before = thread_cpu_ns();
+        open_loop(&mut stream, &plan, &args, monotonic_ns() + length).unwrap();
+        let used = thread_cpu_ns() - before;
+        std::fs::remove_file(&go).ok();
+        // a spin takes the CPU for all of the 400 ms: a wait of one tick takes a small part of it
+        assert!(used < length / 4, "the schedule mode used {used} ns of CPU in {length} ns");
+    }
 }
