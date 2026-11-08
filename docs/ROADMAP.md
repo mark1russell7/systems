@@ -3137,12 +3137,12 @@ vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults w
 
 ### SYS-91 · The cells that time a closed-loop client
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** harness
 - **Depends on:** 
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
+- **Shipped:** 2026-11-08
+- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355), [#398](https://github.com/mark1russell7/systems/pull/398), [harness 0.15.1](https://www.npmjs.com/package/@mark1russell7/harness/v/0.15.1)
 
 A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. SYS-68 gives the load generator, and a family moves to it when its cells change.
 
@@ -3199,7 +3199,7 @@ What the audit found:
 
 The maximum is in the record: a verdict of a distribution has `slowest`, the slowest reply of the cell.
 
-The intended send time is not in the record yet. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `measureLoad` in `rigor-chaos` does this with a fixed plan, and a local copy breaks the map of homes. That package is not on npm, thus this part waits and this item stays in progress. Each stored record has its `sent` lines and its interval, thus this part can read the old records too.
+The intended send time comes from the record. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `closedLoopPlan` of `rigor-chaos` 0.1.3 does this, and `estimateOf` of the harness calls it (#398, harness 0.15.1). Its input is the `sent` and `done` time of each request and the interval. Each stored record has these lines, thus the estimate also reads the old records.
 
 ### SYS-92 · A topology as a graph
 
