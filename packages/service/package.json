@@ -47,6 +47,7 @@
     "./limiter": "./src/limiter.ts",
     "./rules": "./src/rules.ts",
     "./host": "./src/host.ts",
+    "./otel": "./src/otel.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -72,6 +73,7 @@
   },
   "peerDependencies": {
     "@grpc/grpc-js": "^1.14.6",
+    "@opentelemetry/api": "^1.9.0",
     "amqplib": "^2.2.0",
     "ioredis": "^6.0.0",
     "mongodb": "^7.7.0",
@@ -81,6 +83,9 @@
   },
   "peerDependenciesMeta": {
     "@grpc/grpc-js": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
       "optional": true
     },
     "amqplib": {
@@ -106,6 +111,8 @@
     "@grpc/grpc-js": "1.14.6",
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@mark1russell7/harness": "workspace:^",
+    "@opentelemetry/api": "^1.10.0",
+    "@opentelemetry/context-async-hooks": "^2.12.0",
     "@types/node": "^26.6.4",
     "ioredis": "6.0.0",
     "testcontainers": "12.2.0",
@@ -186,6 +193,10 @@
       "./host": {
         "types": "./build/host.d.ts",
         "default": "./build/host.js"
+      },
+      "./otel": {
+        "types": "./build/otel.d.ts",
+        "default": "./build/otel.js"
       },
       "./package.json": "./package.json"
     }

@@ -105,7 +105,7 @@ export type {
 export type { CheckMetrics, DurationHistogram, Episode, HealthMetrics } from "./metrics.ts";
 export { DURATION_FRACTIONS, EPISODES_KEPT, redact } from "./metrics.ts";
 export type { LifecycleEvent, MachineName, Recorder } from "./events.ts";
-export type { ConsoleLoggerOptions, ConsoleTarget, LogEntry, LogFields, LogFormat, LogLevel, Logger } from "./logger.ts";
+export type { ConsoleLoggerOptions, ConsoleTarget, LogEntry, LogFields, LogFormat, LogLevel, Logger, TraceIds, TraceIdsSource } from "./logger.ts";
 export { LOG_LEVELS, atLeast, consoleLogger, logEvents } from "./logger.ts";
 export type {
   DependencyHandle,
