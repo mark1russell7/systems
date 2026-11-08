@@ -60,11 +60,22 @@ export const formatUnit = (unit: string, many = true): string => {
   return `${numerator}/${bottom.length > 1 ? `(${denominator})` : denominator}`;
 };
 
-const number = (value: number, digits: number, fixed: boolean): string =>
-  value.toLocaleString("en-US", {
-    minimumFractionDigits: fixed ? digits : 0,
-    maximumFractionDigits: digits,
-  });
+/** These are the formats of numbers, one for each count of digits, fixed or not. */
+const formats = new Map<string, Intl.NumberFormat>();
+
+/**
+ * This function prints a number in the format of en-US. A call of `toLocaleString` with options makes a new
+ * format each time. That is most of the time of a call, thus this function makes each format one time.
+ */
+const number = (value: number, digits: number, fixed: boolean): string => {
+  const key = `${digits}:${fixed}`;
+  let format = formats.get(key);
+  if (format === undefined) {
+    format = new Intl.NumberFormat("en-US", { minimumFractionDigits: fixed ? digits : 0, maximumFractionDigits: digits });
+    formats.set(key, format);
+  }
+  return format.format(value);
+};
 
 /** This function prints an amount: "$1,234.56", "$500/mo", "7,875 s", "34.5%", "72°F", "12 reps", "∞ s". */
 export const format = (amount: Extent | Unknown, options: FormatOptions = {}): string => {
