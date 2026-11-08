@@ -5,7 +5,7 @@ import { cloudOf, measure, noiseOf, pairingsOf, readHost, recordProblems, runCel
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
-import { catalogs, SCHEDULED_CELLS, selectedOf } from "./all.ts";
+import { catalogs, selectedOf, selectionOf } from "./all.ts";
 import { codeHere } from "./commit.ts";
 import { environmentOf } from "./environments.ts";
 import type { BenchTime, PairCell, PairSlot } from "./limiter.ts";
@@ -31,15 +31,7 @@ import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./
  * Each raw record of a pair cell has its slot. paired.ndjson gets the PairedTime lines of rigor-bench.
  */
 const RUN = process.env["CELLS"] === "1";
-/** This function gives the selection of the run: a scheduled selection by its name (CELLS_SELECTION), or CELLS_ONLY. */
-const onlyOf = (selection: string | undefined, only: string | undefined): RegExp => {
-  if (selection === undefined) return new RegExp(only ?? ".");
-  const scheduled = SCHEDULED_CELLS[selection];
-  if (scheduled === undefined) throw new Error(`no scheduled selection has the name ${selection}: ${Object.keys(SCHEDULED_CELLS).join(", ")}`);
-  if ((only ?? ".") !== ".") throw new Error("CELLS_SELECTION takes no CELLS_ONLY: the selection names its cells");
-  return scheduled;
-};
-const ONLY = onlyOf(process.env["CELLS_SELECTION"] || undefined, process.env["CELLS_ONLY"] || undefined);
+const ONLY = selectionOf(process.env["CELLS_SELECTION"] || undefined, process.env["CELLS_ONLY"] || undefined);
 const [shard, of] = (process.env["CELLS_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 const OUT = process.env["CELLS_OUT"] ?? fileURLToPath(new URL("../out/", import.meta.url));
 const FILE = process.env["CELLS_FILE"] || undefined;

@@ -123,6 +123,21 @@ export const ALL: readonly Cell[] = catalogs();
 export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/, ...REFRESH_CELLS };
 
 /**
+ * This function gives the selection of a run: a scheduled selection by its name, or the regular
+ * expression `only`. A selection names its cells, thus it takes no `only`.
+ */
+export const selectionOf = (selection: string | undefined, only: string | undefined): RegExp => {
+  if (selection === undefined) return new RegExp(only ?? ".");
+  const scheduled = SCHEDULED_CELLS[selection];
+  if (scheduled === undefined) throw new Error(`no scheduled selection has the name ${selection}: ${Object.keys(SCHEDULED_CELLS).join(", ")}`);
+  if ((only ?? ".") !== ".") throw new Error("CELLS_SELECTION takes no CELLS_ONLY: the selection names its cells");
+  return scheduled;
+};
+
+/** This function tells if a cell needs containerlab: a cell of a fabric, on layer E3, needs its routers. */
+export const needsContainerlab = (cell: Cell): boolean => cell.topology?.fabric !== undefined;
+
+/**
  * This function gives the cells of one shard: the cells whose names match `only`, then each `of`-th
  * cell from the `shard`-th. The runner and the read of its records use this one selection.
  */
