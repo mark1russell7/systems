@@ -15,7 +15,7 @@ const cost = JSON.parse(readFileSync(new URL("./refresh-cost.json", import.meta.
 const SHARD_BUDGET = 300 * 60;
 
 const DAY = 86_400_000;
-const at = (days: number): Date => new Date(Date.parse(`${REFRESH_EPOCH}T12:00:00Z`) + days * DAY);
+const at = (days: number): Date => new Date(Date.parse(`${REFRESH_EPOCH}T12:30:00Z`) + days * DAY);
 
 describe("the studies of the refresh", () => {
   const all = new Set(catalogs().map((cell) => cell.name));

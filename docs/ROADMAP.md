@@ -3509,7 +3509,7 @@ The order of the work:
 2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
 3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
 
-**The schedule (step 1).** The workflow `cells.yml` operates one round each Wednesday at 12:00 UTC, on 8 shards. There are 4 rounds, thus each study operates again each 28 days. Round 0 operates first on 2026-11-11. The file `packages/cells/src/refresh.ts` gives the studies of each round. The selection `refresh-<round>` takes the cells of those studies by their whole names.
+**The schedule (step 1).** The workflow `cells.yml` operates one round each Wednesday at 12:30 UTC, on 8 shards. There are 4 rounds, thus each study operates again each 28 days. Round 0 operates first on 2026-11-11. The file `packages/cells/src/refresh.ts` gives the studies of each round. The selection `refresh-<round>` takes the cells of those studies by their whole names.
 
 | Round | Studies | Runner hours |
 | --- | --- | --- |

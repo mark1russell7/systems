@@ -58,7 +58,7 @@ on:
   schedule:
     - cron: "30 3 * * *"
     - cron: "30 9 * * 0"
-    - cron: "0 12 * * 3"
+    - cron: "30 12 * * 3"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
@@ -202,7 +202,7 @@ jobs:
           case "$SCHEDULE" in
             "30 3 * * *") ONLY='^WS'; SHARDS=4; SELECTION='' ;;
             "30 9 * * 0") ONLY='^RD[.]'; SHARDS=1; SELECTION='' ;;
-            "0 12 * * 3")
+            "30 12 * * 3")
               days=$(( ($(date -u +%s) - $(date -u -d "$REFRESH_EPOCH" +%s)) / 86400 ))
               if [ "$days" -lt 0 ]; then echo "::error::no round operates before $REFRESH_EPOCH"; exit 1; fi
               ONLY='.'; SHARDS="$REFRESH_SHARDS"; SELECTION="refresh-$(( days / 7 % 4 ))" ;;

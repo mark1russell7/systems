@@ -40,8 +40,8 @@ export const ROUNDS = 4;
 /** Round 0 operated first on this day, a Wednesday. The workflow Cells has the same day as `REFRESH_EPOCH`. */
 export const REFRESH_EPOCH = "2026-11-11";
 
-/** The schedule of the rounds in the workflow Cells: each Wednesday at 12:00 UTC. */
-export const REFRESH_CRON = "0 12 * * 3";
+/** The schedule of the rounds in the workflow Cells: each Wednesday at 12:30 UTC. */
+export const REFRESH_CRON = "30 12 * * 3";
 
 /** Each round operates on this count of shards. The workflow Cells has the same count as `REFRESH_SHARDS`. */
 export const REFRESH_SHARDS = 8;
