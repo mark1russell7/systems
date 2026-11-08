@@ -8,6 +8,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { median } from "@mark1russell7/rigor-statistics";
+import type { RecordCode } from "../../harness/src/index.ts";
+import { commitProblems, DEBUG, DIRTY } from "../../harness/src/index.ts";
 import { duration } from "../src/lib/format.ts";
 
 /** A found cell is the raw record of a cell, its line of summary.ndjson, and the decision of a run that a re-run replaced. */
@@ -169,6 +171,29 @@ export const stringify = (copy: unknown): string => `${JSON.stringify(copy, null
 
 /** This function gives the date of a copy: the day that the last of its records ended. */
 export const dateOf = (ended: readonly string[]): string => ended.map((each) => each.slice(0, 10)).sort().at(-1)!;
+
+/** These are the parts of a record that give the commit of its code. A record of the old form has none of them. */
+interface CodeOf {
+  readonly code?: RecordCode | undefined;
+  readonly debug?: boolean | undefined;
+}
+
+/**
+ * This function gives the commit of the code that operated for the records of a copy, as its field `commit`. The stamp
+ * of the page reads it (SYS-101). The records of the old form have no commit, thus their copy gets no field.
+ * It stops at a local debug run, at a checkout with changes, at a mix of the two forms, and at two commits.
+ */
+export const commitOf = (records: readonly object[]): { readonly commit?: string } => {
+  const codes = records as readonly CodeOf[];
+  if (codes.every((record) => record.code === undefined && record.debug === undefined)) return {};
+  const problems = [
+    ...new Set(
+      codes.flatMap((record) => [...commitProblems(record.code?.commit), ...(record.code?.dirty === true ? [DIRTY] : []), ...(record.debug === true ? [DEBUG] : [])]),
+    ),
+  ];
+  if (problems.length > 0) throw new Error(`the copy cannot name the commit of its code: ${problems.join(", ")}`);
+  return { commit: only("the commit of the code", codes.map((record) => record.code!.commit)) };
+};
 
 /** This function gives the median of a set of numbers, or null for none. */
 export const middle = (values: readonly number[]): number | null => (values.length === 0 ? null : median(values));
