@@ -2602,16 +2602,20 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-103 · A declared listen backlog
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** SYS-63
-- **Started:**
+- **Started:** 2026-11-08
 - **Shipped:**
 - **Links:** [the result of SYS-63](#sys-63--the-accept-queue-its-count-and-what-a-client-sees), [the cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
 
 The HTTP transport of the service calls `server.listen` with the options of the caller, and it sets no backlog. The host of procedures gives only a port and a host. Thus each server gets the default of Node, 511, and `somaxconn` clamps it.
 
 SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, or it gets a reset with `tcp_abort_on_overflow` 1. This item adds a declared backlog to the listener of the service. Its default keeps the old behavior. The cells `AQ.1` to `AQ.7` are its test: a server of the service with a declared backlog gives the count of the law.
+
+The first part is the knob. `httpTransport` reads the optional knob `server_listen_backlog`, a whole count of 0 or more, and gives it to listen(2). Without the knob, the transport gives no backlog, as before. The transport refuses the knob without its own listen options, and it refuses a second backlog in those options. The declaration of the server gets the knob with the other knobs.
+
+The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of the native image, not a server of the service. Thus a new server of the image operates `httpTransport` with the knob, and new cells give it the backlogs of `AQ.1` to `AQ.3`. The host of procedures is in the client repository: a backlog option there is a request to that repository.
 
 ### SYS-64 · The port range: its count and its error
 
