@@ -1537,6 +1537,17 @@ export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
   typeof place === "object" && "hop" in place;
 
 /**
+ * This function gives each problem of the environments of a cell. An empty list means that the
+ * environments of the cell can operate. A value of the host is the same for each environment of the
+ * host. Thus a cell with sysctls of the host operates one environment at a time. Otherwise, a lab
+ * reads the value of a different lab as its value before, and the restore does not give back the host.
+ */
+export const environmentProblems = (cell: Cell): string[] =>
+  (cell.hostSysctls?.length ?? 0) > 0 && (cell.concurrency ?? 1) > 1
+    ? [`${cell.name}: a cell with sysctls of the host operates one environment at a time, not ${cell.concurrency}`]
+    : [];
+
+/**
  * This function tells if the request of a client goes before the fault of its cell. That is so for a
  * hop event that comes while the request is in flight (`HopEvent.inFlight`). Then a request after the fault is void.
  */

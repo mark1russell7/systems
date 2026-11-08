@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Prediction } from "./cell.ts";
+import type { Cell, Prediction } from "./cell.ts";
+import { environmentProblems } from "./cell.ts";
 import { countFinding } from "./driver.ts";
 import type { Measured } from "./observe.ts";
 import { hzOf } from "./lab.ts";
-import { spread } from "./run.ts";
+import { environmentCounts, spread } from "./run.ts";
 import { NOISE, delayVoids, medianInterval, noiseOf, verdictOf } from "./verdict.ts";
 
 describe("the environment of a cell (0.9.0)", () => {
@@ -162,5 +163,26 @@ describe("a cell's verdict", () => {
     expect(spread(11, 2)).toEqual([6, 5]);
     expect(spread(11, 3)).toEqual([4, 4, 3]);
     expect(spread(1, 2)).toEqual([1]);
+  });
+
+  // only the fields these two functions read: the rest of a cell does not change them
+  const cellWith = (fields: Partial<Cell>): Cell => ({ name: "C1", environments: 2, ...fields }) as Cell;
+  const pair = { synchronous: true, writers: 1, interval: { value: 10, unit: "ms" }, cuts: "standby" } as const;
+
+  it("gives a pair cell one environment for each run, because its run promotes the standby", () => {
+    expect(environmentCounts(cellWith({ pair }), 11)).toEqual(Array.from({ length: 11 }, () => 1));
+    expect(environmentCounts(cellWith({ pair, concurrency: 4 }), 3)).toEqual([1, 1, 1]);
+    expect(environmentCounts(cellWith({}), 11)).toEqual([6, 5]);
+    expect(environmentCounts(cellWith({ concurrency: 4 }), 11)).toEqual([3, 3, 3, 2]);
+  });
+
+  it("refuses sysctls of the host in environments at the same time, because a lab reads the value of another as its value before", () => {
+    const host = [{ name: "net.netfilter.nf_conntrack_max", value: "64" }];
+    expect(environmentProblems(cellWith({ hostSysctls: host, concurrency: 2 }))).toEqual([
+      "C1: a cell with sysctls of the host operates one environment at a time, not 2",
+    ]);
+    expect(environmentProblems(cellWith({ hostSysctls: host }))).toEqual([]);
+    expect(environmentProblems(cellWith({ hostSysctls: host, concurrency: 1 }))).toEqual([]);
+    expect(environmentProblems(cellWith({ concurrency: 8 }))).toEqual([]);
   });
 });

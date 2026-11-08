@@ -1,7 +1,7 @@
 import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
 import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
-import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
+import { environmentProblems, isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { drillOnce } from "./drill.ts";
 import { countOf, longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
@@ -697,6 +697,14 @@ export const spread = (runs: number, environments: number): number[] =>
   ).filter((count) => count > 0);
 
 /**
+ * This function gives the count of runs of each new environment of a cell, for `runs` more runs. A
+ * pair cell has an environment for each run, because its run promotes the standby. Other cells
+ * go across their environments, and at least one for each environment at the same time.
+ */
+export const environmentCounts = (cell: Cell, runs: number): number[] =>
+  spread(runs, cell.pair !== undefined ? runs : Math.max(cell.environments, Math.max(1, cell.concurrency ?? 1)));
+
+/**
  * This function tells if the fault of a cell ends its environment. A server that stopped cannot serve
  * the next run. Also, a cell can say that its fault changes the environment (`fresh`).
  */
@@ -848,6 +856,7 @@ const inPairEnvironment = async (
   count: number,
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  if (count !== 1) throw new Error(`${cell.name}: a pair environment has one run, not ${count}: the run promotes the standby`);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
     await lab.warm();
@@ -938,6 +947,8 @@ export const runCell = async (
   cell: Cell,
   say: (line: string) => void = () => {},
 ): Promise<CellResult> => {
+  const problems = environmentProblems(cell);
+  if (problems.length > 0) throw new Error(problems.join(", "));
   const started = new Date().toISOString();
   const manifests: Manifest[] = [];
   const runs: Run[] = [];
@@ -946,7 +957,7 @@ export const runCell = async (
   let target: number = cell.runs;
   let next = 0;
   for (;;) {
-    const counts = spread(target - runs.length, Math.max(cell.environments, concurrency));
+    const counts = environmentCounts(cell, target - runs.length);
     for (let at = 0; at < counts.length; at += concurrency) {
       const batch = counts.slice(at, at + concurrency).map((count) => ({ count, env: next++ }));
       const done = await Promise.all(
