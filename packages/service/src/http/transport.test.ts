@@ -169,7 +169,7 @@ describe("the start", () => {
 
   it("gives listen(2) the backlog of the knob server_listen_backlog, and no backlog without the knob (SYS-103)", async () => {
     const count = (value: number) => ({ value, unit: "count" });
-    for (const backlog of [0, 4, 511]) {
+    for (const backlog of [1, 4, 511]) {
       const { server, transport } = await started({ ...KNOBS, server_listen_backlog: count(backlog) });
       expect(server.listens).toEqual([{ port: 8080, backlog }]);
       expect(transport.knobs.server_listen_backlog).toEqual(count(backlog));
@@ -184,6 +184,8 @@ describe("the start", () => {
     const unbounded = { ...KNOBS, server_listen_backlog: { value: "infinite", unit: "count" } } as unknown as HttpKnobs;
     expect(make(unbounded)).toThrow(/has no bound: listen\(2\) takes a whole count/);
     expect(make({ ...KNOBS, server_listen_backlog: count(-1) })).toThrow("the knob server_listen_backlog is -1, not a whole count of 0 or more");
+    // Node gives listen(2) 511 for a backlog of 0, thus the knob that says 0 is refused
+    expect(make({ ...KNOBS, server_listen_backlog: count(0) })).toThrow(/is 0, and Node gives listen\(2\) 511 for 0/);
     expect(make({ ...KNOBS, server_listen_backlog: count(2.5) })).toThrow(/is 2.5, not a whole count/);
     for (const listen of [{}, { listen: async () => {} }])
       expect(make({ ...KNOBS, server_listen_backlog: count(4) }, listen)).toThrow(/needs the listen options of the transport/);
