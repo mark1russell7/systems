@@ -167,6 +167,28 @@ describe("the start", () => {
     expect(listening.listens).toEqual([]);
   });
 
+  it("gives listen(2) the backlog of the knob server_listen_backlog, and no backlog without the knob (SYS-103)", async () => {
+    const count = (value: number | "infinite") => ({ value, unit: "count" });
+    for (const backlog of [0, 4, 511]) {
+      const { server, transport } = await started({ ...KNOBS, server_listen_backlog: count(backlog) });
+      expect(server.listens).toEqual([{ port: 8080, backlog }]);
+      expect(transport.knobs.server_listen_backlog).toEqual(count(backlog));
+    }
+    const { server, transport } = await started();
+    expect(server.listens).toEqual([{ port: 8080 }]);
+    expect(transport.knobs).not.toHaveProperty("server_listen_backlog");
+    const make = (knobs: HttpKnobs, listen: Parameters<typeof httpTransport>[2] = { listen: { port: 1 } }) => () =>
+      httpTransport(new FakeServer().asServer, knobs, listen);
+    expect(make({ ...KNOBS, server_listen_backlog: s(4) })).toThrow("the knob server_listen_backlog is not a count");
+    expect(make({ ...KNOBS, server_listen_backlog: count("infinite") })).toThrow(/has no bound: listen\(2\) takes a whole count/);
+    expect(make({ ...KNOBS, server_listen_backlog: count(-1) })).toThrow("the knob server_listen_backlog is -1, not a whole count of 0 or more");
+    expect(make({ ...KNOBS, server_listen_backlog: count(2.5) })).toThrow(/is 2.5, not a whole count/);
+    for (const listen of [{}, { listen: async () => {} }])
+      expect(make({ ...KNOBS, server_listen_backlog: count(4) }, listen)).toThrow(/needs the listen options of the transport/);
+    expect(make({ ...KNOBS, server_listen_backlog: count(4) }, { listen: { port: 1, backlog: 8 } })).toThrow(/give it once, as the knob/);
+    expect(make(KNOBS, { listen: { port: 1, backlog: 8 } })).not.toThrow();
+  });
+
   it("refuses a server that does not listen, without listen options, and a closed transport", async () => {
     const transport = httpTransport(new FakeServer().asServer, KNOBS);
     await expect(transport.start(new AbortController().signal, detachedLifecycle())).rejects.toThrow(/has no listen options/);
