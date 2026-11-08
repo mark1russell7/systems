@@ -119,7 +119,7 @@ export interface QueueSpec {
 /** This folder is the build context of the target of a declared backlog: its Dockerfile, its lockfile and its scripts. */
 const SERVICE_CONTEXT = fileURLToPath(new URL("../targets/service-backlog/", import.meta.url));
 /** These are the files of that build context. */
-const SERVICE_FILES = ["Dockerfile", "package.json", "npm-lock.json", "server.mjs", "control.mjs", "emit.mjs"];
+const SERVICE_FILES = ["Dockerfile", "package.json", "npm-lock.json", "server.ts", "control.ts", "proc.ts", "emit.ts"];
 /** This is the version of the service in that target. The name of each cell has its MAJOR and MINOR. */
 export const BACKLOG_SERVICE = "0.7.3";
 const BACKLOG_LABEL = BACKLOG_SERVICE.split(".").slice(0, 2).join(".");
@@ -132,7 +132,7 @@ const BACKLOG_LABEL = BACKLOG_SERVICE.split(".").slice(0, 2).join(".");
 const SERVICE_TARGET: Target = {
   image: NODE_IMAGE,
   subject: { kind: "build", name: "service-backlog", context: SERVICE_CONTEXT, files: SERVICE_FILES },
-  command: ["node", "/srv/server.mjs", "--port", String(PORT)],
+  command: ["node", "/srv/server.ts", "--port", String(PORT)],
   port: PORT,
   ready: '"ev":"listening"',
   lines: true,

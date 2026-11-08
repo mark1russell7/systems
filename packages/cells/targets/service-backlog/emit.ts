@@ -5,6 +5,6 @@
 import { writeSync } from "node:fs";
 
 /** This function writes one line, with `t` from process.hrtime: CLOCK_MONOTONIC, the clock of the prober. */
-export const emit = (ev, fields = {}) => {
+export const emit = (ev: string, fields: Readonly<Record<string, unknown>> = {}): void => {
   writeSync(1, `${JSON.stringify({ ev, t: Number(process.hrtime.bigint()), ...fields })}\n`);
 };

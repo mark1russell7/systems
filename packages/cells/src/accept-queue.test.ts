@@ -6,6 +6,7 @@ import { ACCEPT_QUEUE_CELLS, BACKLOG_SERVICE, SERVICE_QUEUE_CELLS, synAckFiring,
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
+import { countersIn, countIn, limitIn, localOf } from "../targets/service-backlog/proc.ts";
 
 const seconds = (band: { readonly low: { value: number; unit: string }; readonly high: { value: number; unit: string } }) => [
   valueIn(band.low, "s"),
@@ -70,7 +71,7 @@ describe("the cells of the accept queue", () => {
       expect(ALL.some((each) => each.name === cell.name)).toBe(true);
       expect(cell.name).toMatch(/^AQ[.]\d+ the count of service 0[.]7: /);
       expect(cell.target.subject).toMatchObject({ kind: "build", name: "service-backlog" });
-      expect(cell.target.command).toEqual(["node", "/srv/server.mjs", "--port", "6390"]);
+      expect(cell.target.command).toEqual(["node", "/srv/server.ts", "--port", "6390"]);
       // the client, the sysctls and the backlog are those of the native cell. AQ.10 has a limit of 511, thus it makes 514 connects
       const command = (each: typeof cell): readonly string[] => (typeof each.client === "object" ? each.client.command : []);
       expect(command(cell).slice(0, -1)).toEqual(command(native).slice(0, -1));
@@ -92,5 +93,28 @@ describe("the cells of the accept queue", () => {
     expect(manifest.dependencies["@mark1russell7/service"]).toBe(BACKLOG_SERVICE);
     const lock = JSON.parse(readFileSync(join(subject.context, "npm-lock.json"), "utf8")) as { packages: Record<string, { version?: string }> };
     expect(lock.packages["node_modules/@mark1russell7/service"]?.version).toBe(BACKLOG_SERVICE);
+  });
+
+  it("reads the count, the limit and the counters of the target of the service from the text of the kernel", () => {
+    // /proc/net/tcp: the queues are tx_queue:rx_queue, and the rx_queue of a listener is its count
+    const tcp = [
+      "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode",
+      "   0: 00000000:18F7 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 101 1 0 100 0 0 10 0",
+      "   1: 00000000:18F6 00000000:0000 0A 00000000:00000005 00:00000000 00000000     0        0 102 1 0 100 0 0 10 0",
+      "   2: 0100007F:18F6 0100007F:9C40 01 00000000:00000000 00:00000000 00000000     0        0 103 1 0 20 4 30 10 -1",
+    ].join("\n");
+    expect(localOf(6390)).toBe("00000000:18F6");
+    expect(countIn(tcp, 6390)).toBe(5);
+    expect(countIn(tcp, 6392)).toBeUndefined();
+    // ss -Hltn: Recv-Q is the count, Send-Q is the limit
+    expect(limitIn("LISTEN 5      511    0.0.0.0:6390      0.0.0.0:*\n")).toBe(511);
+    expect(limitIn("")).toBeUndefined();
+    const netstat = [
+      "TcpExt: SyncookiesSent EmbryonicRsts TCPTimeouts ListenOverflows ListenDrops TCPReqQFullDoCookies",
+      "TcpExt: 0 1 12 2 3 0",
+      "IpExt: InNoRoutes InTruncatedPkts",
+      "IpExt: 0 0",
+    ].join("\n");
+    expect(countersIn(netstat)).toEqual({ overflows: 2, drops: 3, cookies: 0, timeouts: 12, resets: 1 });
   });
 });
