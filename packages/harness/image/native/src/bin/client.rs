@@ -150,6 +150,16 @@ fn wait_for(fd: i32, writing: bool, ns: u64) -> std::io::Result<(bool, bool)> {
     }
 }
 
+/// Gives the time of the next wait of the schedule mode: up to the next arrival, and one tick at most.
+/// A full socket cannot take the arrival that is due. Thus the wait is then for POLLOUT, for one tick.
+/// Without this, an overdue arrival gives a wait of 0, and the loop spins while the socket is full.
+fn wait_ns(blocked: bool, next_at: Option<&u64>, start: u64, now: u64, tick: u64) -> u64 {
+    match next_at {
+        Some(at) if !blocked => (start + at).saturating_sub(now).min(tick),
+        _ => tick,
+    }
+}
+
 /// Sends each arrival of `plan` at its time after the file --go appears, whatever the replies do.
 /// The stamp of a send comes before the write that ends it. Thus a full socket shows as the lag of
 /// each arrival behind it.
@@ -197,8 +207,7 @@ fn open_loop(stream: &mut TcpStream, plan: &[u64], args: &Args, deadline: u64) -
             emit("deadline", json!({}));
             return Ok(());
         }
-        let due = plan.get(next).map_or(tick, |at| (start + at).saturating_sub(now));
-        let (can_read, can_write) = wait_for(fd, blocked, due.min(tick))?;
+        let (can_read, can_write) = wait_for(fd, blocked, wait_ns(blocked, plan.get(next), start, now, tick))?;
         blocked = blocked && !can_write;
         if !can_read {
             continue;
@@ -454,6 +463,19 @@ mod tests {
             }
             assert_eq!(lengths, [7, 9, 7], "reads of {size}");
         }
+    }
+
+    #[test]
+    fn the_wait_is_one_tick_while_the_socket_is_full() {
+        let (start, tick) = (1_000, 10_000_000);
+        // an arrival in the future: the wait ends at it
+        assert_eq!(wait_ns(false, Some(&5_000), start, 2_000, tick), 4_000);
+        // an overdue arrival with room in the socket: no wait
+        assert_eq!(wait_ns(false, Some(&0), start, 2_000, tick), 0);
+        // an overdue arrival and a full socket: a wait for POLLOUT, not a wait of 0
+        assert_eq!(wait_ns(true, Some(&0), start, 2_000, tick), tick);
+        // no arrival left: one tick
+        assert_eq!(wait_ns(false, None, start, 2_000, tick), tick);
     }
 
     fn thread_cpu_ns() -> u64 {
