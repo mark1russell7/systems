@@ -96,7 +96,7 @@ export type {
   Toxic,
   WsProbe,
 } from "./cell.ts";
-export { CLIENT_CAPABILITIES, isHopPlace, latestEndOf } from "./cell.ts";
+export { CLIENT_CAPABILITIES, environmentProblems, isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
   DROP_HANDLING,
@@ -304,4 +304,4 @@ export {
 export type { PauseCommit, PauseReading } from "./pause.ts";
 export { isFenceLine, logTimeOf, measurePause, namesGroup, pauseReady } from "./pause.ts";
 export type { CellResult } from "./run.ts";
-export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";
+export { LINGER_MS, QUIET_MS, environmentCounts, judge, runCell, spread } from "./run.ts";
