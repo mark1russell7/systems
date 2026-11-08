@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { type AddressInfo, connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import { RUNS } from "./catalog.ts";
 import {
   LADDER_CELLS,
   REFERENCE_BUILD,
+  REFERENCE_FILES,
   RUNGS,
   activeOf,
   decidingCount,
@@ -58,6 +59,22 @@ describe("the hop of the reference service", () => {
   it("builds from the reference package, with a lockfile beside the manifest", () => {
     expect(REFERENCE_BUILD).toMatchObject({ kind: "build", dockerfile: "image/Dockerfile" });
     expect(REFERENCE_BUILD.files).toEqual(expect.arrayContaining(["image/package.json", "image/npm-lock.json", "src/main.ts"]));
+  });
+
+  // the image copies named files: the cells of SYS-93 needed service.ts, which the first list did not have
+  it("copies each source that main.ts imports, and the Dockerfile copies the same sources", () => {
+    const sources = new Set<string>();
+    const visit = (file: string) => {
+      if (sources.has(file)) return;
+      sources.add(file);
+      const text = readFileSync(fileURLToPath(new URL(`../../reference/${file}`, import.meta.url)), "utf8");
+      for (const match of text.matchAll(/from "\.\/([\w-]+\.ts)"/g)) visit(`src/${match[1]}`);
+    };
+    visit("src/main.ts");
+    expect(REFERENCE_FILES.filter((file) => file.startsWith("src/")).sort()).toEqual([...sources].sort());
+    const dockerfile = readFileSync(fileURLToPath(new URL("../../reference/image/Dockerfile", import.meta.url)), "utf8");
+    const copied = /^COPY (src\/.+) \.\/src\/$/m.exec(dockerfile)?.[1]?.split(" ") ?? [];
+    expect(copied.sort()).toEqual([...sources].sort());
   });
 
   it("writes the address of the replica set and each tenant of the rung into its files", () => {
