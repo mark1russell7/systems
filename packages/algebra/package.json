@@ -30,6 +30,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./clock": "./src/clock.ts",
     "./replay": "./src/replay.ts",
     "./schema": "./src/schema.ts",
     "./package.json": "./package.json"
@@ -76,6 +77,10 @@
       ".": {
         "types": "./build/index.d.ts",
         "default": "./build/index.js"
+      },
+      "./clock": {
+        "types": "./build/clock.d.ts",
+        "default": "./build/clock.js"
       },
       "./replay": {
         "types": "./build/replay.d.ts",
