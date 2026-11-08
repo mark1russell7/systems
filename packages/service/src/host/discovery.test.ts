@@ -41,6 +41,27 @@ describe("the discovery file", () => {
     expect(logger.messages("info")).toEqual([`the host removed the stale discovery file ${PATH}`]);
   });
 
+  it("cleans only the file that it examined: a new instance that writes after the read keeps its file", async () => {
+    const host = fakeHost({ files: { [PATH]: JSON.stringify({ pid: 555, startedAt: ISO }) } });
+    const fresh = JSON.stringify({ pid: 777, startedAt: ISO });
+    // The new instance writes its file between the read and the clean.
+    const alive = (pid: number): boolean => (host.files.set(PATH, fresh), host.ports.processes.alive(pid));
+    const ports = { ...host.ports, processes: { ...host.ports.processes, alive } };
+    expect((await readDiscovery(PATH, ports, { clean: true })).kind).toBe("stale");
+    expect(host.text(PATH)).toBe(fresh);
+    expect(host.text(`${PATH}.rm`)).toBeNull();
+  });
+
+  it("removes a discovery file of this process only while it has the text that the removal read", async () => {
+    const host = fakeHost({ files: { [PATH]: JSON.stringify({ pid: 100, startedAt: ISO }) } });
+    const fresh = JSON.stringify({ pid: 777, startedAt: ISO });
+    const create = host.ports.files.create;
+    // The new instance writes its file after the read of the removal, before its removal lock.
+    const files = { ...host.ports.files, create: async (path: string, data: string) => (host.files.set(PATH, fresh), create(path, data)) };
+    expect(await removeDiscovery(PATH, { ...host.ports, files })).toBe(false);
+    expect(host.text(PATH)).toBe(fresh);
+  });
+
   it("gives stale for a new process with the same ID", async () => {
     const host = fakeHost({ files: { [PATH]: JSON.stringify({ pid: 555, startedAt: ISO }) } });
     host.processes.set(555, WALL + 60_000);
