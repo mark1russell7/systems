@@ -1,0 +1,35 @@
+---
+title: The age of the studies
+description: Each study of the site that depends on current code has an age limit of 30 days. A weekly round of the lab operates each study again inside its limit.
+---
+
+A page with a study shows the numbers of some runs of the cells. The code under test changes, thus old numbers can be wrong about the current code. Thus each study that depends on current code has an age limit of 30 days. The stamp at the top of its page gives the date of its runs and its limit. The ruling is in [issue 368](https://github.com/mark1russell7/systems/issues/368).
+
+Each limit starts at the first green read of its study, or on 2026-12-07, at the earlier date. After its start, the build of the site fails for a page whose study is older than its limit.
+
+## The rounds
+
+The workflow `cells.yml` operates one round each Wednesday at 12:00 UTC. There are 4 rounds, thus each study operates again each 28 days. Round 0 operates first on 2026-11-11. Each round operates on 8 shards, and each shard is one job.
+
+| Round | Studies | Runner hours |
+| --- | --- | --- |
+| 0 | [mongodb](../mongodb/), [faults](../faults/) | 15 |
+| 1 | [rabbitmq](../rabbitmq/), [sentinel](../sentinel/), [topologies](../topologies/), [http](../http/) | 13 |
+| 2 | [pg](../pg/) | 17 |
+| 3 | [grpc](../grpc/) | 19 |
+
+The runner hours come from the original runs of each study. The file `packages/cells/src/refresh-cost.json` gives the seconds of each cell and the runs that it read.
+
+The job `export` of the round writes the new copy of each of its studies, with the exporter of the site. A pull request then moves each page to its new copy. A failing cell at a refresh is a finding. No band gets wider to hide it.
+
+## The studies with no round
+
+These studies have a limit, but no round operates them yet. Each one gets its round before 2026-12-07.
+
+- [r3](../r3/): its cells are compiled from the corpus into a file at a ref. Thus a round needs that file on a branch.
+- [kind](../kind/) and [mesh](../mesh/): the workflow `kind.yml` needs a check that fails on a failing cell first. Then `kind.yml` gets a schedule.
+- [calibration](../calibration/), [timers](../timers/), [detection](../../lab/detection/) and the home page: their runs operated on one lab machine. Each one needs a study on the runners of GitHub.
+
+## The pages with no limit
+
+The pages [harness](../harness/) and [cells](../cells/) are records of history from one lab machine. No current run can reproduce them, and they claim nothing about the current code.

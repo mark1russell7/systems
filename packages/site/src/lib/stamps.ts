@@ -100,6 +100,7 @@ const KIND_FIRST = "kind-2026-10-18.json";
 export const NOT_STAMPED: Readonly<Record<string, string>> = {
   "results/recovery": "A scheduled run replaces its data each Sunday, and its first scheduled run is on 2026-11-08. The limit of this page follows that run.",
   "results/ci": "The ledger counts the runs of the workflows, and it names no engine. The page says the period of its runs.",
+  "results/refresh": "The page gives the schedule of the refresh of the studies, and it names no engine.",
 };
 
 /** This function gives each name with its version in a text, for example `redis:7.4` or `grpc-go v1.84.0`. */
