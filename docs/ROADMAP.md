@@ -2357,6 +2357,7 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 - **Status:** in progress
 - **Area:** site
 - **Depends on:**
+- **Waiting on:** Mark: choose the next page of the item (the first page, the path of one request, shipped 2026-11-02)
 - **Started:** 2026-11-02
 - **Shipped:**
 - **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
@@ -3310,7 +3311,7 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 - **Depends on:** SYS-28
 - **Started:** 2026-11-08
 - **Shipped:** 2026-11-08
-- **Links:** [#408](https://github.com/mark1russell7/systems/pull/408), [#411](https://github.com/mark1russell7/systems/pull/411), [the release run](https://github.com/mark1russell7/systems/actions/runs/42460247618)
+- **Links:** [#408](https://github.com/mark1russell7/systems/pull/408), [#408 merged (da0db58)](https://github.com/mark1russell7/systems/commit/da0db58), [service 0.7.0 #411](https://github.com/mark1russell7/systems/pull/411), [service 0.7.0 release run](https://github.com/mark1russell7/systems/actions/runs/42460247618), [roadmap #418](https://github.com/mark1russell7/systems/pull/418)
 
 A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`. Service `0.7.0` is on npm, with provenance.
 
