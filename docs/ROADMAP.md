@@ -2617,7 +2617,9 @@ SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, 
 
 The first part is the knob. `httpTransport` reads the optional knob `server_listen_backlog`, a whole count of 0 or more, and gives it to listen(2). Without the knob, the transport gives no backlog, as before. The transport refuses the knob without its own listen options, and it refuses a second backlog in those options. The declaration of the server gets the knob with the other knobs.
 
-The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of the native image, not a server of the service. Thus a new server of the image operates `httpTransport` with the knob, and new cells give it the backlogs of `AQ.1` to `AQ.3`. The host of procedures is in the client repository: a backlog option there is a request to that repository.
+The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of the native image, not a server of the service. Thus a new target (`packages/cells/targets/service-backlog/`) operates `httpTransport` of service 0.7.3 from npm with the knob. The cells `AQ.8` to `AQ.10` give it the backlogs of `AQ.1` to `AQ.3`. The main thread of the target blocks, thus Node accepts nothing. A worker serves the protocol of the native target, thus the client is the same. The host of procedures is in the client repository: a backlog option there is a request to that repository.
+
+**A finding of the design.** Node calls listen(2) with `backlog || 511` ([`lib/net.js` of Node 24.21.0, line 2325](https://github.com/nodejs/node/blob/v24.21.0/lib/net.js#L2325)). Thus the knob 0 of service 0.7.3 gives the kernel 511, not 0. `AQ.10` measures this limit, and [#437](https://github.com/mark1russell7/systems/pull/437) refuses the knob 0.
 
 ### SYS-64 · The port range: its count and its error
 
@@ -3159,7 +3161,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 344 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 347 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |

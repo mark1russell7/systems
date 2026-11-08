@@ -1,5 +1,5 @@
 import type { Cell, Subject } from "@mark1russell7/harness";
-import { ACCEPT_QUEUE_CELLS } from "./accept-queue.ts";
+import { ACCEPT_QUEUE_CELLS, SERVICE_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { CONNTRACK_CELLS } from "./conntrack.ts";
@@ -99,6 +99,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...LIMITER_CELLS,
     ...POOL_CELLS,
     ...ACCEPT_QUEUE_CELLS,
+    ...SERVICE_QUEUE_CELLS,
     ...PORT_RANGE_CELLS,
     ...CONNTRACK_CELLS,
     ...FABRIC_CELLS,
