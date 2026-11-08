@@ -811,6 +811,10 @@ For the Redis client, the application also installs `ioredis@6`. For the Postgre
 
 For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package.
 
+### One copy of service
+
+Service keeps state for some objects by identity, for example the late holds of each lifecycle and the mark of each HTTP answer. Each copy of the package has its own state. Thus a lifecycle of one copy and a transport of another copy lose that state with no error. `IDENTITY_TYPES` names each exported type that holds or reaches such a value. A package whose public API takes or gives one of these types declares service as a peer dependency. A test calculates the list from the sources, thus the list stays current.
+
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 
 ## Example
