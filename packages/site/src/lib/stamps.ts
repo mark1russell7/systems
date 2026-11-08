@@ -14,7 +14,7 @@ const LAB_KERNEL = "6.6";
 const LAB_TARGET = "7.4";
 
 /** One data file of a page. */
-interface Source {
+export interface Source {
   readonly file: string;
   /** The words that the page shows in place of `run`. */
   readonly method: string;
@@ -122,6 +122,8 @@ interface StudyData {
   readonly kernel?: string;
   readonly kubernetes?: string;
   readonly kind?: string;
+  /** The commit of the code that operated. An export writes it from the records, and a copy of old records has none. */
+  readonly commit?: string;
 }
 
 /**
@@ -153,8 +155,8 @@ export function dateInName(name: string): string {
 
 const read = (folder: string, name: string): StudyData => JSON.parse(readFileSync(join(folder, name), "utf8")) as StudyData;
 
-/** This function gives the run of one data file. */
-function runOf(folder: string, source: Source): DataRun {
+/** This function gives the run of one data file, with the commit of its code if the file names it. */
+export function runOf(folder: string, source: Source): DataRun {
   const data = read(folder, source.file);
   return {
     id: source.file,
@@ -162,6 +164,7 @@ function runOf(folder: string, source: Source): DataRun {
     date: data.ranAt ?? data.date ?? dateInName(source.file),
     engines: { ...enginesOf(data), ...source.engines },
     method: source.method,
+    ...(data.commit === undefined ? {} : { commit: data.commit }),
   };
 }
 
