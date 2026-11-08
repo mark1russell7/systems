@@ -12,6 +12,7 @@ type BuildImage: build/cell.chunk.d.ts#BuildImage
 type BuildRecord: build/index.d.ts#BuildRecord
 CLIENT_CAPABILITIES: build/cell.chunk.d.ts#CLIENT_CAPABILITIES
 CLIENT_NAMES: build/index.d.ts#CLIENT_NAMES
+CLOSED_TOLERANCE: build/index.d.ts#CLOSED_TOLERANCE
 CLUSTER_STAGES: build/index.d.ts#CLUSTER_STAGES
 CONVERGE_MS: build/index.d.ts#CONVERGE_MS
 type CallReading: build/index.d.ts#CallReading
@@ -43,6 +44,7 @@ type DriverSocket: build/index.d.ts#DriverSocket
 type DriverStep: build/cell.chunk.d.ts#DriverStep
 type DriverStepTime: build/index.d.ts#DriverStepTime
 type ErrorOnTheWay: build/index.d.ts#ErrorOnTheWay
+type EstimateVerdict: build/index.d.ts#EstimateVerdict
 FABRIC_CLIENT: build/index.d.ts#FABRIC_CLIENT
 FABRIC_DEVICE: build/index.d.ts#FABRIC_DEVICE
 FABRIC_TARGET: build/index.d.ts#FABRIC_TARGET
@@ -178,6 +180,7 @@ type RttRange: build/cell.chunk.d.ts#RttRange
 type Run: build/cell.chunk.d.ts#Run
 type RunBackup: build/cell.chunk.d.ts#RunBackup
 type RunDrill: build/cell.chunk.d.ts#RunDrill
+type RunEstimate: build/index.d.ts#RunEstimate
 type RunFabric: build/cell.chunk.d.ts#RunFabric
 type RunGroup: build/cell.chunk.d.ts#RunGroup
 type RunLoad: build/index.d.ts#RunLoad
@@ -253,6 +256,8 @@ dropOf: build/index.d.ts#dropOf
 endpointAfter: build/index.d.ts#endpointAfter
 envOf: build/index.d.ts#envOf
 errorsOf: build/index.d.ts#errorsOf
+estimateOf: build/index.d.ts#estimateOf
+estimateVerdict: build/index.d.ts#estimateVerdict
 exitOf: build/index.d.ts#exitOf
 fieldOf: build/index.d.ts#fieldOf
 fieldsOf: build/index.d.ts#fieldsOf
@@ -344,6 +349,7 @@ pgClientImage: build/index.d.ts#pgClientImage
 pingsOf: build/index.d.ts#pingsOf
 plainOf: build/index.d.ts#plainOf
 planOf: build/index.d.ts#planOf
+poolOf: build/index.d.ts#poolOf
 programLines: build/index.d.ts#programLines
 programOf: build/index.d.ts#programOf
 quantileOf: build/index.d.ts#quantileOf
@@ -1338,6 +1344,9 @@ interface BuildRecord {
 ### build/index.d.ts#CLIENT_NAMES
 export declare const CLIENT_NAMES: readonly [Client, ...Client[]];
 
+### build/index.d.ts#CLOSED_TOLERANCE
+export declare const CLOSED_TOLERANCE = 5;
+
 ### build/index.d.ts#CLUSTER_STAGES
 export declare const CLUSTER_STAGES: readonly ClusterStage[];
 
@@ -1471,6 +1480,16 @@ interface ErrorOnTheWay {
   readonly name: string;
   readonly first: Quantity;
   readonly count: number;
+}
+
+### build/index.d.ts#EstimateVerdict
+interface EstimateVerdict {
+  readonly planned: number;
+  readonly hidden: number;
+  readonly driverGaps: number;
+  readonly driverGapTotal: Quantity;
+  readonly latency: LoadSpread | null;
+  readonly words: string;
 }
 
 ### build/index.d.ts#FABRIC_CLIENT
@@ -1929,6 +1948,7 @@ interface Measured {
   readonly steps: readonly Quantity[];
   readonly samples?: readonly Quantity[];
   readonly load?: RunLoad;
+  readonly estimate?: RunEstimate;
   readonly probes: number;
   readonly retransmissions: number;
   readonly acks: number;
@@ -2251,6 +2271,13 @@ interface RouteLine {
   readonly dev: string | null;
 }
 
+### build/index.d.ts#RunEstimate
+type RunEstimate = LoadMeasure & {
+  readonly hidden: number;
+  readonly driverGaps: number;
+  readonly driverGapTotal: number;
+};
+
 ### build/index.d.ts#RunLoad
 type RunLoad = LoadMeasure & {
   readonly failed?: number;
@@ -2387,6 +2414,7 @@ interface Verdict {
   readonly slowest?: Quantity;
   readonly reordering?: Reordering;
   readonly load?: LoadVerdict;
+  readonly estimate?: EstimateVerdict;
   readonly proxy?: {
     readonly hop: string;
     readonly up: Spread | null;
@@ -2530,6 +2558,15 @@ export declare const envOf: (property: string) => string;
 
 ### build/index.d.ts#errorsOf
 export declare const errorsOf: (events: readonly ProbeEvent[], after: number) => ErrorOnTheWay[];
+
+### build/index.d.ts#estimateOf
+export declare const estimateOf: (requests: ReadonlyArray<{
+  readonly sent: number;
+  readonly done: number | null;
+}>, end: number, interval: number) => RunEstimate | undefined;
+
+### build/index.d.ts#estimateVerdict
+export declare const estimateVerdict: (estimates: ReadonlyArray<RunEstimate | undefined>) => EstimateVerdict | undefined;
 
 ### build/index.d.ts#exitOf
 export declare const exitOf: (run: Run, cookie: number | undefined) => number | undefined;
@@ -2828,6 +2865,11 @@ export declare const plainOf: (text: string) => string;
 
 ### build/index.d.ts#planOf
 export declare const planOf: (source: string | ImageSource) => ImagePlan;
+
+### build/index.d.ts#poolOf
+export declare const poolOf: (measures: readonly RunLoad[]) => RunLoad & {
+  readonly failed: number;
+};
 
 ### build/index.d.ts#programLines
 export declare const programLines: (cell: Cell, run: Run) => readonly ProbeEvent[];

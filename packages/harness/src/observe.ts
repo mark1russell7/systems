@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { CallReading, ReconnectReading } from "./application.ts";
-import type { RunLoad } from "./load.ts";
+import type { RunEstimate, RunLoad } from "./load.ts";
 import {
   callOf,
   closeOrExit,
@@ -22,7 +22,7 @@ import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { ConntrackReading } from "./conntrack.ts";
 import { measureConntrack } from "./conntrack.ts";
-import { loadOf, streamsLoadOf } from "./load.ts";
+import { estimateOf, loadOf, streamsLoadOf } from "./load.ts";
 import type { PauseReading } from "./pause.ts";
 import { measurePause } from "./pause.ts";
 import type { GroupMeasured } from "./timeline.ts";
@@ -86,6 +86,8 @@ export interface Measured {
   readonly samples?: readonly Quantity[];
   /** This measure is the run of an open-loop cell against its schedule (`Run.schedule`), with its failed replies. Its times are in ms. */
   readonly load?: RunLoad;
+  /** This estimate is the open loop that a closed-loop stream of the client of the harness hid (SYS-91). Its times are in ms. */
+  readonly estimate?: RunEstimate;
   /** This count is the number of keepalive probes that the kernel sent. */
   readonly probes: number;
   /** This count is the number of segments that the kernel sent again. */
@@ -760,11 +762,20 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     const sends = load === undefined ? events.filter((event) => event.ev === "sent").slice(1) : [];
     // a reply ends at its last byte when the client says so (`replied`), and at its first data otherwise
     const answers = events.some((event) => event.ev === "replied") ? "replied" : "data";
-    const samples = sends.flatMap((send, n) => {
+    const requests = sends.map((send, n) => {
       const next = sends[n + 1]?.t ?? Infinity;
-      const reply = events.find((event) => event.ev === answers && event.t > send.t && event.t < next);
-      return reply === undefined ? [] : [between(send.t, reply.t)];
+      return { send, reply: events.find((event) => event.ev === answers && event.t > send.t && event.t < next) };
     });
+    const samples = requests.flatMap(({ send, reply }) => (reply === undefined ? [] : [between(send.t, reply.t)]));
+    // a stream of the client of the harness waits its interval after each reply: the closed loop of SYS-91
+    const estimate =
+      cell.probe.mode === "stream" && cell.probe.driver === undefined && cell.probe.interval !== undefined
+        ? estimateOf(
+            requests.map(({ send, reply }) => ({ sent: send.t, done: reply?.t ?? null })),
+            events.reduce((latest, event) => Math.max(latest, event.t), 0),
+            valueIn(cell.probe.interval, "ms"),
+          )
+        : undefined;
     const from = prediction.from === undefined ? undefined : referenceAt(prediction.from);
     const until = ended ?? after.at(-1)?.t;
     // the data of the client comes from its peer: the receiver and the sender of each reply
@@ -804,6 +815,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         .map((record) => between(request.t, record.mono)),
       samples,
       ...(load === undefined ? {} : { load }),
+      ...(estimate === undefined ? {} : { estimate }),
       reordering: reorderingOf(
         socket.filter((record) => record.mono > request.t),
         peerRecords.filter((record) => record.mono > request.t),
