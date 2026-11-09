@@ -23,6 +23,9 @@ export type { KernelRecord };
  * - `mtu-blackhole` drops each segment to the observer that is longer than `Cell.mtu` bytes.
  * - `netem` is tc netem on the egress of the target (`Cell.netem`): loss, duplication,
  *   reordering or corruption. Its outcome is a distribution.
+ * - `fin-ack` drops the first ACK of each FIN of the client, in the namespace of the client. The
+ *   client sends its FIN again, and the ACK of that FIN passes. Thus each connection that the
+ *   client closes second stays in `LAST_ACK` until its retransmission timer fires.
  *
  * These faults are of a topology (`Cell.topology`):
  * - `middlebox-forget` injects nothing. The router of the topology forgets an idle flow at its own
@@ -79,6 +82,7 @@ export type Fault =
   | "simplex"
   | "mtu-blackhole"
   | "netem"
+  | "fin-ack"
   | "middlebox-forget"
   | "proxy-idle"
   | "toxic"

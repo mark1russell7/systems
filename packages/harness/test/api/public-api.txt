@@ -662,7 +662,7 @@ interface FabricManifest extends Fabric {
 }
 
 ### build/cell.chunk.d.ts#Fault
-type Fault = "blackhole" | "freeze-process" | "rst" | "stall" | "fin" | "unreachable" | "simplex" | "mtu-blackhole" | "netem" | "middlebox-forget" | "proxy-idle" | "toxic" | "server-close" | "partition" | "planned-failover" | "app-stall" | "step-down" | "drain" | "hop-event" | "silence" | "none";
+type Fault = "blackhole" | "freeze-process" | "rst" | "stall" | "fin" | "unreachable" | "simplex" | "mtu-blackhole" | "netem" | "fin-ack" | "middlebox-forget" | "proxy-idle" | "toxic" | "server-close" | "partition" | "planned-failover" | "app-stall" | "step-down" | "drain" | "hop-event" | "silence" | "none";
 
 ### build/cell.chunk.d.ts#FaultPlace
 type FaultPlace = "target" | "client" | HopPlace | GroupPlace;
@@ -2058,7 +2058,7 @@ export declare const NODE_MARKS: Readonly<Record<Exclude<ClusterStage, "first-wr
 export declare const NOISE: Quantity;
 
 ### build/index.d.ts#NetworkFault
-type NetworkFault = "blackhole" | "rst" | "reject" | "mtu";
+type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack";
 
 ### build/index.d.ts#NodeLine
 interface NodeLine extends SentinelEvent {

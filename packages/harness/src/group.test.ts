@@ -244,6 +244,11 @@ describe("a run of a group cell, measured", () => {
     const again = verdictOf(CELL.prediction, [...runs.slice(1), moved].map((run) => measure(CELL, run)));
     expect(again.decision).toBe("holds");
     expect(again.group?.stages[0]?.decision).toBe("fails");
+    // a stage that no Sentinel announced fails that stage, and its finding names the stage
+    const quiet = { ...late, group: { ...late.group!, timeline: late.group!.timeline.filter((line) => line.event !== "+sdown") } };
+    const missing = verdictOf(CELL.prediction, [...runs.slice(1), quiet].map((run) => measure(CELL, run)));
+    expect(missing.group?.stages[0]?.decision).toBe("fails");
+    expect(JSON.stringify(missing.group?.stages[0])).toMatch(/no Sentinel announced \+sdown/);
   });
 
   it("judges a measurement-only cell by its band of lost writes, and each other finding of its runs", () => {
