@@ -1,6 +1,6 @@
-import type { Expr, Machine } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/algebra";
 import { machineSchema } from "@mark1russell7/algebra/schema";
-import { NODE_TIMER_EARLY, nodeTimerLateness } from "./http/timers.ts";
+import { NODE_EARLY_MS as EARLY, NODE_TIMER_EARLY, nodeLateMs as late, nodeTimerLateness } from "./http/timers.ts";
 
 /**
  * This module holds the machine documents of Socket.IO 4.8.4 on Node, with the WebSocket transport
@@ -25,17 +25,6 @@ const SC = "socket.io-client 4.8.4 build/esm-debug";
 const ES = "engine.io 6.6.11 build";
 /** This text is the ws package at its version. */
 const WS = "ws 8.21.3 lib";
-
-/** This function gives the arithmetic of a duration in ms. */
-const arithmetic = (duration: Expr): string => {
-  if (!("expr" in duration) || duration.unit !== "ms") throw new Error("not arithmetic in ms");
-  return duration.expr;
-};
-
-/** This text is the late bound of one Node timer, in ms, for a time in ms. */
-const late = (ms: string): string => arithmetic(nodeTimerLateness(ms));
-/** This text is the early bound of one Node timer, in ms. */
-const EARLY = arithmetic(NODE_TIMER_EARLY);
 
 /** This text is the wait of the client for the next ping, in ms: the sum that the handshake gives. */
 const PING_WAIT = "ping_interval + ping_timeout";

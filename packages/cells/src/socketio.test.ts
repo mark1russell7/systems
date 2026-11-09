@@ -4,9 +4,9 @@ import { SOCKETIO_CLIENT, SOCKETIO_SERVER, nodeEarlySeconds, nodeLateSeconds } f
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { ALL, SCHEDULED_CELLS } from "./all.ts";
-import { HZ } from "./catalog.ts";
+import { HZ, count } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
-import { SOCKETIO, SOCKETIO_CELLS, SOCKETIO_SPECS } from "./socketio.ts";
+import { SOCKETIO, SOCKETIO_CELLS, SOCKETIO_SPECS, STAYING_CLIENT, clientValues, predictSocketIoAt } from "./socketio.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
 const cell = (name: string) => {
@@ -101,5 +101,24 @@ describe("the Socket.IO catalog", () => {
     expect(cell("client idle, fin of the server, three tries refused").target).toHaveProperty("kill");
     expect(cell("client idle, blackhole, ping 2 s and 1 s").probe.ws?.reconnect).toMatchObject({ multiplier: 2, attempts: 10, jitter: 0 });
     expect(cell("server idle, blackhole, ping 2 s and 1 s").probe.ws?.reconnect).toBeNull();
+  });
+
+  it("gives a client with no reconnect no delay, no attempts and no jitter", () => {
+    const spec = { ...SOCKETIO_SPECS[0]!, client: STAYING_CLIENT };
+    const values = clientValues(spec);
+    expect(values("reconnection_delay")).toEqual({ value: "infinite", unit: "ms" });
+    expect(values("reconnection_delay_max")).toEqual({ value: "infinite", unit: "ms" });
+    expect(values("reconnection_attempts")).toEqual({ value: 0, unit: "count" });
+    expect(values("randomization_factor")).toEqual({ value: 0, unit: "count" });
+  });
+
+  it("lets the kernel give up a call in flight before a slow ping timer, with ETIMEDOUT from its first retransmission", () => {
+    const inflight = SOCKETIO_SPECS.find((each) => each.mode === "inflight")!;
+    const spec = { ...inflight, server: { pingInterval: 60_000, pingTimeout: 60_000 }, linux: { tcp_retries2: count(3) } };
+    const p = predictSocketIoAt(spec, 1);
+    expect(p).toMatchObject({ detects: true, errno: "ETIMEDOUT", from: "first-retransmission" });
+    if (p.detects !== true) throw new Error("detects");
+    expect(p.timer).not.toBe("ping");
+    expect(p.high.value).toBeLessThan(120);
   });
 });
