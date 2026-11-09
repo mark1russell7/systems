@@ -27,7 +27,9 @@ concurrency:
 
 jobs:
   checks:
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+    # This pin is later than the other pins of the template: it has the coverage of each push to main
+    # (template#263). The release build keeps the pin of release.yml.
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@600ff4b757d17c8681961d19aea7b5224ab4fa80 # main
     permissions:
       contents: read
     with:
