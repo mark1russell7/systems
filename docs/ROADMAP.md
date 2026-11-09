@@ -3315,6 +3315,32 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 
 #393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. An earlier version of the release train PR #371 added the reports of all 7 public packages. The release train wrote #371 again before it merged on 2026-11-08, and the merged PR changes only dependency ranges. Thus the field `apiReport` still names `harness` only. This item adds the other public packages to the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
 
+### SYS-109 · A floor of the coverage for each package
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-09
+- **Shipped:**
+- **Links:** [#442](https://github.com/mark1russell7/systems/pull/442), [#457](https://github.com/mark1russell7/systems/pull/457), [the first coverage of main](https://github.com/mark1russell7/systems/actions/runs/42558826949)
+
+Each push to main gives the artifact `coverage` for the ten packages with Vitest (#442, #457). The floor is 0, thus a drop of the coverage fails nothing.
+
+- **The floor.** Each package gets a floor for its lines, functions and branches. The floor is the worst of 5 or more CI runs on main, less their spread, rounded down to 0.1. The tests are deterministic, thus the spread is near 0. No run starts only for this item: the runs come from the merges to main.
+- **The record.** The file `coverage-floors.json` at the root gives each floor, the id of each run and the formula. The Vitest config of each package reads its floors from that file.
+- **The gate.** CI starts the coverage on each pull request too, and a package under its floor fails its run. A pull request that lowers a floor gives the reason, as for the other limits. A pull request that raises the coverage can raise the floor.
+
+### SYS-110 · The coverage of the labs of harness and kind
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-109
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The unit tests do not start the labs of harness and kind. The containers and the kind clusters run only in the workflows Cells and Kind. Thus these two packages have the lowest coverage of main, 53 % and 62 % of their lines. This item merges the coverage of the lab code from those runs with the unit report. It starts only when a lab run already uploads its raw coverage, and the work is in CI only. It blocks no item.
+
 ### SYS-106 · The units of a take in the keyed limiter
 
 - **Status:** done
