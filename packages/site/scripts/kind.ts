@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, Prediction, Reference, TimeSpread } from "../../kind/src/index.ts";
-import { FORMAT, FORMAT_V1, KIND_NOISE, calibrationOf, cyclesOf, judgeKind, judgeReconnects, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
+import { FORMAT, FORMAT_V1, KIND_NOISE, NOT_QUIET, calibrationOf, cyclesOf, judgeKind, judgeReconnects, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
@@ -43,7 +43,7 @@ import { OUTSIDE, SERVER } from "../../kind/src/names.ts";
 import { backlogPredictionOf, backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { substrateKey, substrateOf, unpoolable } from "../../harness/src/substrate.ts";
-import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
+import { commitOf, dateOf, only, readFolders, round, runnerOf, stringify, time, timeAt } from "./records.ts";
 
 /** This function writes a time of a cell of T15 to the ms: its bands are minutes long and their edges are milliseconds apart. */
 const fine = timeAt(3);
@@ -897,8 +897,9 @@ interface Dispatch {
  */
 const VOIDS: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
   [
-    /^the VM was not quiet in (\d+) s: (\d+)% idle, other lab containers: (.*)$/,
-    (match) => `the VM was not quiet in ${match[1]} s: ${match[2]}% idle, other lab containers: ${match[3] === "none" ? "none" : match[3]!.split("; ").length}`,
+    NOT_QUIET,
+    (match) =>
+      `the VM was not quiet in ${match[1]} s: ${match[2]}% idle${match[3] === undefined ? "" : `, the gate needs ${match[3]}%`}, other lab containers: ${match[4] === "none" ? "none" : match[4]!.split("; ").length}`,
   ],
   [/^the cell was not at rest: /, () => "the cell was not at rest"],
 ];
@@ -1037,6 +1038,7 @@ const dnsOnly = records.every((record) => DNS_CELLS.some((cell) => cell.name ===
 const copy = {
   source: "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
   ranAt: date,
+  ...commitOf(records),
   units: "s",
   runs: dnsOnly ? Math.max(...records.map((record) => record.cell.runs)) : Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,

@@ -3,7 +3,7 @@ import type { KindCell, KindRun, ReconnectsPrediction } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import type { Line } from "./observe.ts";
 import { PRODUCER_BACKOFF } from "./pulsar.ts";
-import { judgeReconnects, latestReturn, triesOf } from "./reconnects.ts";
+import { judgeReconnects, latestReturn, nominalOf, triesOf } from "./reconnects.ts";
 import { checkRun, observationEnd } from "./verdict.ts";
 
 const s = (value: number) => ({ value, unit: "s" }) as const;
@@ -221,5 +221,23 @@ describe("the check of a run of the reconnects", () => {
 
   it("observes up to the latest return after the fault", () => {
     expect(observationEnd(cell, runOf(lines))).toBe(FAULT + latestReturn(PREDICTION) + 1000 + 100);
+  });
+});
+
+describe("the nominal delay: the backoff of the service gives the delays of the old formula", () => {
+  it("gives min(initial × 2^index, max) for each call, within 1e-12 of the delay (the backoff of Backoff.cc)", () => {
+    for (const initial of [0, 1, 50, 100, 250, 333.3])
+      for (const max of [100, 1000, 30_000, 60_000, Number.POSITIVE_INFINITY])
+        for (let index = 0; index < 60; index += 1) {
+          const old = Math.min(initial * 2 ** index, max);
+          expect(Math.abs(nominalOf({ initial, max }, index) - old)).toBeLessThanOrEqual(1e-12 * Math.max(1, old));
+        }
+  });
+  it("gives the iterated doubling of the old path, call for call", () => {
+    let next = 100;
+    for (let index = 0; index < 1000; index += 1) {
+      expect(nominalOf({ initial: 100, max: 60_000 }, index)).toBe(next);
+      next = Math.min(2 * next, 60_000);
+    }
   });
 });

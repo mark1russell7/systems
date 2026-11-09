@@ -1,18 +1,20 @@
 import { valueIn } from "@mark1russell7/quantity";
+import { schedule } from "@mark1russell7/rigor-chaos";
 import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
-import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
+import { environmentProblems, isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { drillOnce } from "./drill.ts";
 import { countOf, longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
+import { LOAD_PATH, SCHEDULE_PATH, loadPlanOf } from "./load.ts";
 import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { etcdOnce, openEtcdLab } from "./etcd.ts";
-import { kafkaOnce, openKafkaLab } from "./kafka.ts";
+import { kafkaOnce, kafkaPauseOnce, openKafkaLab } from "./kafka.ts";
 import { openStandby, pairOnce } from "./standby.ts";
 import { readCpu, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
@@ -154,6 +156,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
   if (probe.keepalive) args.push("--keepalive");
   if (probe.userTimeout !== undefined)
     args.push("--user-timeout-ms", String(valueIn(probe.userTimeout, "ms")));
+  if (probe.plan !== undefined) args.push("--schedule", SCHEDULE_PATH);
+  if (probe.streams !== undefined) args.push("--plan", LOAD_PATH);
   args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
   return args;
 };
@@ -376,7 +380,14 @@ const once = async (
   const middleboxFrom = lab.middlebox.length;
   const serverFrom = lab.server.length;
   const lostBefore = droppedSoFar(lab.kernel);
-  const probe = await lab.probe(probeArgs(cell, lab));
+  const plan = cell.probe.plan === undefined ? undefined : schedule(cell.probe.plan.profile, cell.probe.plan.options);
+  // the client load reads one plan with the schedule and the requests of each of its streams
+  const load = cell.probe.streams === undefined ? undefined : loadPlanOf(cell.probe.streams);
+  const files = [
+    ...(plan === undefined ? [] : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }]),
+    ...(load === undefined ? [] : [{ content: load.content, target: LOAD_PATH }]),
+  ];
+  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files);
   const server = cell.observer === "server";
   const peer = server
     ? { freeze: () => probe.freeze(), thaw: () => probe.thaw() }
@@ -387,7 +398,11 @@ const once = async (
       const last = probe.events.slice(-3).map((event) => JSON.stringify(event));
       throw new Error(`${(error as Error).message}; the client's last lines: ${last.join(" ")}`);
     });
-  const placed = lab.topology === null ? {} : { topology: lab.topology };
+  const placed = {
+    ...(lab.topology === null ? {} : { topology: lab.topology }),
+    ...(plan === undefined ? {} : { schedule: plan }),
+    ...(load === undefined ? {} : { streams: load.streams }),
+  };
   const fabricOf = () => {
     if (lab.fabric === undefined) throw new Error(`${cell.name} silences a router of a lab with no fabric`);
     return lab.fabric;
@@ -576,7 +591,7 @@ const once = async (
         if (cell.idleBefore !== undefined && cell.probe.mode !== "idle")
           await sleep(valueIn(cell.idleBefore, "ms"));
         // a client in a gap sends its second request by itself, a gap after its first reply
-        if ((cell.probe.mode === "inflight" || cell.probe.mode === "stream") && !replyInFlight) await go();
+        if ((cell.probe.mode === "inflight" || cell.probe.mode === "stream" || cell.probe.mode === "schedule") && !replyInFlight) await go();
         const { prediction } = cell;
         const http = cell.probe.http !== undefined;
         if (prediction.detects !== null && prediction.driver !== undefined) {
@@ -640,7 +655,7 @@ const once = async (
       }
       // a thawed target answers the request that it held: the client sees the late reply. An idle
       // client sent no request
-      if (cell.fault === "freeze-process" && !server && cell.probe.mode !== "idle")
+      if (cell.fault === "freeze-process" && !server && cell.probe.mode !== "idle" && cell.probe.mode !== "schedule")
         await probe.until(["data"], 5_000).catch(() => undefined);
       // the client tries its new connections after the fault lifted: one `dial` line for each try.
       // A measurement-only cell can give the waits too: the end of its connection has no band
@@ -681,6 +696,14 @@ export const spread = (runs: number, environments: number): number[] =>
     { length: environments },
     (_, at) => Math.floor(runs / environments) + (at < runs % environments ? 1 : 0),
   ).filter((count) => count > 0);
+
+/**
+ * This function gives the count of runs of each new environment of a cell, for `runs` more runs. A
+ * pair cell has an environment for each run, because its run promotes the standby. Other cells
+ * go across their environments, and at least one for each environment at the same time.
+ */
+export const environmentCounts = (cell: Cell, runs: number): number[] =>
+  spread(runs, cell.pair !== undefined ? runs : Math.max(cell.environments, Math.max(1, cell.concurrency ?? 1)));
 
 /**
  * This function tells if the fault of a cell ends its environment. A server that stopped cannot serve
@@ -741,8 +764,16 @@ const inEnvironment = async (
     // the first connection must not wait for ARP: under a delay, that is a longer first round trip
     await lab.warm();
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls), settings, targetSysctls);
+    // after the first connection: a rule that starts conntrack must not count the packets of the warm-up
+    const missing = await lab
+      .namespaceSetup(cell.namespaceSetup ?? [])
+      .then(() => lab.hostSysctl(cell.hostSysctls ?? []))
+      .then(
+        () => undefined,
+        (error: unknown) => (error instanceof Error ? error.message : String(error)),
+      );
     // each run records the jitter of its program, which sets the window of its pairings
-    const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run) });
+    const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run), ...(missing === undefined ? {} : { missing }) });
     const warmed = timed(await withSteal(() => once(lab, cell, environment, -1, endsEnvironment(cell))));
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
@@ -752,7 +783,8 @@ const inEnvironment = async (
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }
-    return { manifest, runs, warmup };
+    const host = await lab.restoreHost();
+    return { manifest: host.length === 0 ? manifest : { ...manifest, host }, runs, warmup };
   } finally {
     await lab.close();
   }
@@ -826,6 +858,7 @@ const inPairEnvironment = async (
   count: number,
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  if (count !== 1) throw new Error(`${cell.name}: a pair environment has one run, not ${count}: the run promotes the standby`);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
     await lab.warm();
@@ -915,14 +948,15 @@ const inKafkaEnvironment = async (
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
   const lab = await openKafkaLab(cell.kafka!);
+  const once = cell.kafka!.pause === undefined ? kafkaOnce : kafkaPauseOnce;
   try {
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
-    const warmed = await kafkaOnce(lab, cell, environment, -1);
+    const warmed = await once(lab, cell, environment, -1);
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = await kafkaOnce(lab, cell, environment, index);
+      const run = await once(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }
@@ -945,6 +979,8 @@ export const runCell = async (
   cell: Cell,
   say: (line: string) => void = () => {},
 ): Promise<CellResult> => {
+  const problems = environmentProblems(cell);
+  if (problems.length > 0) throw new Error(problems.join(", "));
   const started = new Date().toISOString();
   const manifests: Manifest[] = [];
   const runs: Run[] = [];
@@ -953,7 +989,7 @@ export const runCell = async (
   let target: number = cell.runs;
   let next = 0;
   for (;;) {
-    const counts = spread(target - runs.length, Math.max(cell.environments, concurrency));
+    const counts = environmentCounts(cell, target - runs.length);
     for (let at = 0; at < counts.length; at += concurrency) {
       const batch = counts.slice(at, at + concurrency).map((count) => ({ count, env: next++ }));
       const done = await Promise.all(

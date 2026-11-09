@@ -34,6 +34,7 @@ export {
   dnsCommands,
   faultSpan,
   middleboxCommands,
+  middleboxRemoval,
   placementOf,
   planOf,
   policyObject,
@@ -155,6 +156,8 @@ export {
   restartBand,
   stallRemovalBand,
 } from "./predict.ts";
+export type { QuietGate } from "./quiet.ts";
+export { NOT_QUIET, QUIET_GATE, baselineOf, neededIdle, quietWhy } from "./quiet.ts";
 export type { Verdicts } from "./rules.ts";
 export { DRAIN_RULES, O04, O09, O10, O16, describeCell, lintCell, scenarioOf, stopOf, verdictsOf } from "./rules.ts";
 export type { RunOptions } from "./run.ts";

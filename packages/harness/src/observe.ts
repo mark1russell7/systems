@@ -1,6 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { CallReading, ReconnectReading } from "./application.ts";
+import type { RunEstimate, RunLoad } from "./load.ts";
 import {
   callOf,
   closeOrExit,
@@ -21,6 +22,11 @@ import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { HistoryMeasured } from "./history.ts";
 import { measureEtcd } from "./history.ts";
+import type { ConntrackReading } from "./conntrack.ts";
+import { measureConntrack } from "./conntrack.ts";
+import { estimateOf, loadOf, streamsLoadOf } from "./load.ts";
+import type { PauseReading } from "./pause.ts";
+import { measurePause } from "./pause.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import type { PortsReading } from "./ports.ts";
 import { measurePorts } from "./ports.ts";
@@ -28,7 +34,7 @@ import type { QueueReading } from "./queue.ts";
 import { measureQueue } from "./queue.ts";
 import { measureGroup } from "./timeline.ts";
 import type { Pairing } from "./verdict.ts";
-import { INJECT, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
+import { commitVoid, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -80,6 +86,10 @@ export interface Measured {
    * sample is the time from its send to the first data after it.
    */
   readonly samples?: readonly Quantity[];
+  /** This measure is the run of an open-loop cell against its schedule (`Run.schedule`), with its failed replies. Its times are in ms. */
+  readonly load?: RunLoad;
+  /** This estimate is the open loop that a closed-loop stream of the client of the harness hid (SYS-91). Its times are in ms. */
+  readonly estimate?: RunEstimate;
   /** This count is the number of keepalive probes that the kernel sent. */
   readonly probes: number;
   /** This count is the number of segments that the kernel sent again. */
@@ -110,6 +120,8 @@ export interface Measured {
   readonly queue?: QueueReading;
   /** This record is what a run of a port cell measured: the count of each search, and when each port came back. */
   readonly ports?: PortsReading;
+  /** This record is what a run of a conntrack cell measured: the flows, the count, and when a slot came back. */
+  readonly conntrack?: ConntrackReading;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
   /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
@@ -136,6 +148,8 @@ export interface Measured {
    * reader can check each pairing of the run again.
    */
   readonly pairing?: Pairing;
+  /** This record is what a run of a paused consumer measured. */
+  readonly pause?: PauseReading;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -476,8 +490,24 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
+  if (run.missing !== undefined)
+    return {
+      environment: run.environment,
+      index: run.index,
+      outcome: { kind: "answered" },
+      elapsed: null,
+      socket: null,
+      noticed: null,
+      steps: [],
+      probes: 0,
+      retransmissions: 0,
+      acks: 0,
+      void: `the environment cannot do this cell: ${run.missing}`,
+      finding: null,
+    };
   // a cluster of etcd: the checker judges the history, and no socket
   if (cell.etcd !== undefined) return measureEtcd(cell, run);
+  if (cell.prediction.detects === null && cell.prediction.pause !== undefined) return measurePause(run, cell.prediction.pause);
   if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined || cell.kafka !== undefined) {
     const read = measureGroup(cell, run);
     return {
@@ -500,6 +530,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     return measureQueue(run, cell.prediction.queue);
   if (cell.prediction.detects === null && cell.prediction.ports !== undefined)
     return measurePorts(run, cell.prediction.ports);
+  if (cell.prediction.detects === null && cell.prediction.conntrack !== undefined)
+    return measureConntrack(run, cell.prediction.conntrack);
   // a driver with more than one socket: its bands name their socket and their line
   if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;
@@ -724,14 +756,32 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // a measurement-only cell: each request of the run and the time to its reply, and the time from
   // its reference to the end of the connection, or to the last data
   if (prediction.detects === null) {
-    const sends = events.filter((event) => event.ev === "sent").slice(1);
+    // an open-loop client names the arrival of each line, and each time counts from its planned time
+    // the client load has one schedule for each stream, and its measure is the pool of the streams
+    const load =
+      run.streams !== undefined
+        ? (streamsLoadOf(events, run.streams)?.pool ?? null)
+        : run.schedule === undefined
+          ? undefined
+          : loadOf(events, run.schedule);
+    if (load === null) return { ...base, ...nothing, void: "the client never started its schedule" };
+    const sends = load === undefined ? events.filter((event) => event.ev === "sent").slice(1) : [];
     // a reply ends at its last byte when the client says so (`replied`), and at its first data otherwise
     const answers = events.some((event) => event.ev === "replied") ? "replied" : "data";
-    const samples = sends.flatMap((send, n) => {
+    const requests = sends.map((send, n) => {
       const next = sends[n + 1]?.t ?? Infinity;
-      const reply = events.find((event) => event.ev === answers && event.t > send.t && event.t < next);
-      return reply === undefined ? [] : [between(send.t, reply.t)];
+      return { send, reply: events.find((event) => event.ev === answers && event.t > send.t && event.t < next) };
     });
+    const samples = requests.flatMap(({ send, reply }) => (reply === undefined ? [] : [between(send.t, reply.t)]));
+    // a stream of the client of the harness waits its interval after each reply: the closed loop of SYS-91
+    const estimate =
+      cell.probe.mode === "stream" && cell.probe.driver === undefined && cell.probe.interval !== undefined
+        ? estimateOf(
+            requests.map(({ send, reply }) => ({ sent: send.t, done: reply?.t ?? null })),
+            events.reduce((latest, event) => Math.max(latest, event.t), 0),
+            valueIn(cell.probe.interval, "ms"),
+          )
+        : undefined;
     const from = prediction.from === undefined ? undefined : referenceAt(prediction.from);
     const until = ended ?? after.at(-1)?.t;
     // the data of the client comes from its peer: the receiver and the sender of each reply
@@ -770,6 +820,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         .filter((record) => record.mono > request.t)
         .map((record) => between(request.t, record.mono)),
       samples,
+      ...(load === undefined ? {} : { load }),
+      ...(estimate === undefined ? {} : { estimate }),
       reordering: reorderingOf(
         socket.filter((record) => record.mono > request.t),
         peerRecords.filter((record) => record.mono > request.t),
@@ -995,10 +1047,17 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   if (slow !== undefined)
     voided ??= `a listing of the router took ${Math.round(Number(slow["took"]) * 1e4) / 10} ms, longer than the bound of its prediction`;
   // a toxic starts somewhere in the commit of its request. A commit longer than the noise of the
-  // pipeline leaves its start unknown within δ_abs
-  const commit = run.fault === null ? 0 : (run.fault.t1 - run.fault.t0) / 1e6;
-  if (prediction.from === "fault" && commit > valueIn(INJECT, "ms"))
-    voided ??= `the commit of the fault took ${Math.round(commit * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+  // pipeline leaves its start unknown: the run is void when that can change the read of its band
+  const elapsed = between(reference, ended);
+  if (prediction.from === "fault" && run.fault !== null) {
+    const noise = valueIn(noiseOf(cell), "s");
+    const commit = quantity((run.fault.t1 - run.fault.t0) / 1e9, "s");
+    const times =
+      prediction.detects === true
+        ? [{ at: elapsed, low: quantity(valueIn(prediction.low, "s") - noise, "s"), high: quantity(valueIn(prediction.high, "s") + noise, "s") }]
+        : [];
+    voided ??= commitVoid(commit, times);
+  }
   // the view of the program of a heartbeat: from the line of its first ping without an answer to
   // the line of its drop, or to the line of the error that it saw
   const unanswered = prediction.from === "ping-sent" ? firstUnanswered(pings, socket, ended) : undefined;
@@ -1015,7 +1074,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     ...base,
     ...chain,
     outcome,
-    elapsed: between(reference, ended),
+    elapsed,
     socket: view,
     noticed,
     steps,

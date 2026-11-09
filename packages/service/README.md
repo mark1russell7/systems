@@ -91,6 +91,10 @@ The format of a description is `mark1russell7.service/1`.
 - **The levels.** Each step of the startup, each phase with its cap, its outcome and its duration, and the exit code are `info`. A phase at its cap is `warn`, and an error of the lifecycle is `error`. The polls are `debug`.
 - **The logger port.** A `Logger` has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines. `consoleLogger({ level })` writes to the console at `info` and above by default.
 - **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry, with `level`, `message` and each field. An error field gives its name, its message and its stack. The default format is `text`, as before.
+- **Trace ids.** `consoleLogger({ traceIds })`, with `traceIds` from `@mark1russell7/service/otel`, adds the `trace_id` and the `span_id` of the active span of OpenTelemetry to each entry. A field of the entry with the same name stays. When no span is active, for example when no program registered an SDK, the entry does not change. Only the entry `/otel` loads `@opentelemetry/api`.
+- **The context of a call.** `callContext` from `@mark1russell7/service/otel` takes the trace and the baggage across the network, with the propagator that the program registers:
+  - `httpTransport(server, knobs, { callContext })` runs each handler in the context of the headers of its request. The request joins the trace of `traceparent`. Its `baggage` is dropped, unless `trustBaggage(req)` gives true, for example after a token check.
+  - `httpClient(name, spec, { callContext })` and `grpcClient(name, spec, { callContext })` send the headers of the active context with each call, for example `traceparent`. A header of the call, or metadata of the spec or of the call, with the same name stays.
 - **No logger.** Without a logger, the runtime writes no log, as before. `testLogger()` of `@mark1russell7/service/testing` keeps each entry, thus a test can examine the log.
 
 ## The machines
@@ -309,7 +313,7 @@ const findings = lint(svc.describe(), scenario, DRAIN_RULES);
 
 ## The timers
 
-The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module, no zod and no other package. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
+The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module and no zod. The only other package that they import is `@mark1russell7/algebra/clock`, which imports nothing. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
 
 | Entry | Exports |
 | --- | --- |
@@ -318,6 +322,7 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 | `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
 
 - **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
+- **The home of the clock.** The clock lives in `@mark1russell7/algebra/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
 - **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
 - **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.
 - **The hooks of a heartbeat.** At each tick, `due` tells if the tick sends a ping. `live` tells if a miss counts. `turn` waits one turn of the event loop before the heartbeat counts. Without `overlap`, the heartbeat sends one ping at a time.
@@ -384,6 +389,23 @@ const response = await retry(
 );
 ```
 
+## The channels
+
+`@mark1russell7/service/channel` has channels in the style of Go. The entry imports only the clock and `@mark1russell7/collections`: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package does not give its functions.
+
+| Function | What it does |
+| --- | --- |
+| `channel(bufferSize)`, `buffered`, `unbuffered` | It makes a channel. With a buffer of 0, each send waits for a receiver. |
+| `select(...cases)` | It waits for the first case with a value. A case that loses keeps no receive. |
+| `timeout(ms, clock)` | It makes a channel that gets one value after `ms`, on the clock. |
+| `ticker(ms, clock)` | It makes a channel of ticks. Tick k comes due at the start plus (k + 1) periods, so the ticks do not drift. |
+| `pipeline`, `fanOut`, `fanIn`, `merge`, `workerPool` | They start work between channels. Each failure goes to `onError`, and the output closes. |
+| `preemptivePool(max)` | It operates at most `max` tasks at a time. A new task stops the oldest task with a `PreemptedError`, and `stop` stops each task. |
+
+- **The clock.** `timeout` and `ticker` take a clock. The default is `realClock`. A test gives `fakeClock()` of `./testing`, and the time of each channel is then exact.
+- **The timer of a timeout.** `timeout` gives no cancel, as `time.After` of Go. Its timer stays until it comes due, also after `select` takes another case.
+- **A late timer.** A ticker gives the number of the last tick that came due, and skips the ticks that it missed. A slow receiver loses ticks, because the buffer has one tick.
+
 ## The keyed limiter
 
 A keyed limiter gives each key its own limit, for example each tenant or each principal. `@mark1russell7/service/limiter` has it. The entry loads only the quantity package: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package also gives each function.
@@ -391,9 +413,10 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 | Export | Function |
 | --- | --- |
 | `svc.limiter(name, spec)` | The declaration of a limiter, as data. `describe()` shows it in `limiters`. |
-| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key)` gives a `Decision`, and `tryTakeSync(key)` gives it at once on a memory store |
+| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key, units?)` gives a `Decision`, and `tryTakeSync(key, units?)` gives it at once on a memory store |
 | `memoryStore(clock)` | The store of one replica, on the injected monotonic clock |
-| `decide(rule, state, now)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
+| `decide(rule, state, now, units?)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
+| `capacityOf(rule)`, `overCapacity(rule, units)`, `unitsOf(units)` | The most units of one take, its refusal, and the check of the units |
 | `idleSpan(policy)`, `longestRetryAfter(policy)`, `retryAfterSeconds(retryAfter)` | The times of a policy, and `Retry-After` in whole seconds |
 | `limiterProblems(name, spec)` | The problems of a spec that `describe()` and `keyedLimiter` refuse |
 | `LIMITER_RULES` | The rules O29 and O30 of the law, as data. Their identifiers are provisional. |
@@ -404,7 +427,10 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
 - **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time.
-- **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
+- **The decision.** `take(key)` gives `{ allowed: true, remaining }` or a refusal. The type of a refusal is a union on its `cause`, thus the compiler checks each branch.
+- **A wait refusal.** `{ allowed: false, cause, retryAfter }` has the cause `limit`, `cap` or `store`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in.
+- **The units of a take.** `take(key, units)` takes `units` units in one atomic step, or none. The units are a whole number of 1 or more, and 1 when absent. Other units throw a `RangeError`.
+- **The capacity.** The capacity of a policy is its `burst` or its `limit` (`capacityOf`). No wait lets in a take of more units, thus the limiter refuses it before the store with `{ allowed: false, cause: "capacity", units, capacity }`. Split such work into parts of at most the capacity.
 - **A take with no promise.** `tryTakeSync(key)` gives the same `Decision` at once. `keyedLimiter` on a `memoryStore` gives a `LocalLimiter`, whose type has it. On `KeyedLimiter`, it is optional.
 - **Only a local store.** `tryTakeSync` throws for a shared store, before the take. It also throws for a local store whose take gives a promise. That take still counts, thus use `take()` with such a store.
 - **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
@@ -419,7 +445,7 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **A bound on the keys.** `evict.maxKeys` is the most keys that the store holds for the limiter. `describe()` refuses a count without a bound.
 - **The cost of a new key at the cap.** At the cap, the store refuses a new key with the cause `cap`. Its `retryAfter` is at most the time until the earliest held key is free. That time is at most `idleSpan`, and a held key keeps its count.
 - **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times.
-- **The HTTP edge.** `retryAfterSeconds(retryAfter)` gives whole seconds, rounded up, for `Retry-After` (RFC 9110). `limitedResponse(refused)` of `@mark1russell7/service/http` gives 429 with that header (RFC 6585).
+- **The HTTP edge.** `retryAfterSeconds(retryAfter)` gives whole seconds, rounded up, for `Retry-After` (RFC 9110). `limitedResponse(refused)` of `@mark1russell7/service/http` gives 429 with that header (RFC 6585). For the cause `capacity`, it gives 413 with no `Retry-After`, and the body gives the units and the capacity.
 - **The law.** `lint()` applies O29 and O30 (`LIMITER_RULES`) one time for each limiter. The scenario gives the values of the callers of each limiter (`scenario.limiters`).
 - **Provisional identifiers.** The corpus of the law has the rules O01 to O28. It does not have these two rules yet, thus O29 and O30 are provisional identifiers.
 - **O29.** The longest `Retry-After` of a limiter (`retry_after@limiter`) is at most the retry window of its caller (`client_retry_window@caller`). Its second inequality applies the same bound to a new key at the cap (`retry_after_at_cap@limiter`). Otherwise the caller stops before the limit lets its call in.
@@ -466,12 +492,13 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 | `writeOutcome(res, stream, options)` | The stream of a request as a response of `node:http`, unary or a stream |
 | `ndjson`, `sse` | The formats of a stream: NDJSON, and server-sent events |
 | `outcomeResponse`, `endRecord`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
-| `limitedResponse(refused)` | The answer to a take that a keyed limiter refused: 429, with `Retry-After` in whole seconds |
+| `limitedResponse(refused)` | The answer to a take that a keyed limiter refused: 429, with `Retry-After` in whole seconds, or 413 for the cause `capacity` |
 
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` or `node:http2` (`EdgeServer`) a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
 - **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
 - **The idle close.** `server_idle_close` is the real idle close of the server, which O01 compares with the idle time of a client. Node closes an idle connection at `keepAliveTimeout` plus `keepAliveTimeoutBuffer`. Thus the transport sets `keepAliveTimeout` to `server_idle_close` less the buffer of the server.
 - **The hint.** The buffer stays, thus the hint of each response (`Keep-Alive: timeout=…`) is less than the real close. A Node without a buffer gives 0. The transport refuses a `server_idle_close` at or below the buffer. A time without a bound stops the timer.
+- **The backlog.** The optional knob `server_listen_backlog` is a whole count of 1 or more. Node gives listen(2) 511 for a backlog of 0, thus the transport refuses 0. The transport gives it to listen(2) as the limit of the accept queue (SYS-103). The kernel clamps it to `net.core.somaxconn`, and a full queue holds the limit plus one (SYS-63). Without the knob, the transport gives no backlog, and Node asks for 511. The knob needs the listen options of the transport. The transport refuses the knob with a listen function, with a server that listens already, and with a second backlog in the listen options.
 - **The three times.** `transport.knobs` adds `server_idle_close_hint` and `server_idle_close_buffer` to the knobs of the caller. Thus the declaration shows the hint, the buffer and the real close.
 - **The count.** The count of the work in flight comes from events. Each response counts until its `close` event, and each upgraded connection counts until it closes. The transport polls nothing.
 - **The stop of the intake.** `stopIntake()` closes the listener, thus each new connection gets a refusal. It closes the idle connections at once, and again at each `server_idle_sweep_interval`. Each later response gets `Connection: close`, and each later request gets a retryable 503. A connection is not idle while the bytes of its answer go, thus a slow client gets the whole body (SYS-33).
@@ -676,7 +703,7 @@ console.log(outcome.kind);
 - **The manifestations.** `meets` lists the manifestations that the client can meet, and the detectors of each, with their times from the knobs. `unwatched(meets)` lists each manifestation and situation that no detector finds.
 - **The machine.** `REDIS_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document. The tests replay the transitions of the client against it.
 - **The store of a keyed limiter.** `redisLimiterStore(client, { prefix })` keeps the counts of a [keyed limiter](#the-keyed-limiter) in Redis 7, for each replica of a service. Give it to `keyedLimiter` with `{ kind: "shared", dependency, onStoreFailure }`.
-- **One atomic step.** Each take is one `EVAL` of `LIMITER_SCRIPT`, which does the arithmetic of `decide`. The script reads `TIME` of the server, thus each replica gets the one clock of the store.
+- **One atomic step.** Each take is one `EVAL` of `LIMITER_SCRIPT`, which does the arithmetic of `decide` for all the units of the take. The script reads `TIME` of the server, thus each replica gets the one clock of the store. A take over the capacity does not go to Redis.
 - **No second send.** `EVAL` is not idempotent, thus the client does not send a take again. An error or an outcome that is not certain rejects the take of the store. `keyedLimiter` then applies `onStoreFailure`, as for each shared store.
 - **The clock of the store.** `TIME` is the wall clock of the Redis host, not a monotonic clock. Thus a step of that clock moves the counts of each key. The replicas still share one clock.
 - **Exact eviction in Redis.** The state of each key expires at the time that the key is free. A sorted set of each limiter bounds its busy keys to `maxKeys`, and it gives the exact `retryAfter` of a key at the cap.
@@ -793,7 +820,11 @@ pnpm add @mark1russell7/service
 
 For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`.
 
-For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package.
+For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids and the call context of `/otel`, it installs `@opentelemetry/api@1`.
+
+### One copy of service
+
+Service keeps state for some objects by identity, for example the late holds of each lifecycle and the mark of each HTTP answer. Each copy of the package has its own state. Thus a lifecycle of one copy and a transport of another copy lose that state with no error. `IDENTITY_TYPES` names each exported type that holds or reaches such a value. A package whose public API takes or gives one of these types declares service as a peer dependency. A test calculates the list from the sources, thus the list stays current.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 

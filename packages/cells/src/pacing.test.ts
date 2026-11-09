@@ -15,12 +15,13 @@ describe("the pacing of each cell", () => {
 
   it("keeps the counts of the table of SYS-91", () => {
     expect(pacingCounts(ALL, KIND_CATALOG), TABLE).toEqual({
-      "one request": 339,
+      "one request": 347,
       "one gap": 64,
-      "closed loop, reply times": 11,
-      "closed loop, first write": 72,
+      "closed loop, reply times": 18,
+      "closed loop, first write": 73,
       "closed loop, history": 4,
-      timer: 222,
+      timer: 224,
+      "open loop": 10,
     });
   });
 
@@ -33,9 +34,12 @@ describe("the pacing of each cell", () => {
       "LR.2: closed loop, history": 1,
       "LR.3: closed loop, history": 1,
       "LR.4: closed loop, history": 1,
+      "OL.aa: closed loop, reply times": 1,
+      "OL.freeze: closed loop, reply times": 1,
       "RD.1: closed loop, first write": 1,
       "RD.100: closed loop, first write": 2,
       "RD.1000: closed loop, first write": 2,
+      "RD.8000: closed loop, first write": 1,
       "RD.control: closed loop, first write": 1,
       "T01: closed loop, reply times": 8,
       "T10.commit: closed loop, first write": 5,
@@ -43,6 +47,7 @@ describe("the pacing of each cell", () => {
       "T12.resend: closed loop, first write": 5,
       "T11.confirms: closed loop, first write": 6,
       "K1.acks: closed loop, first write": 5,
+      "K2.pause: closed loop, reply times": 5,
       "T11.border-off: closed loop, first write": 10,
       "T11.defaults: closed loop, first write": 16,
       "T12.border-off: closed loop, first write": 4,
@@ -56,5 +61,10 @@ describe("the pacing of each cell", () => {
     const [netem] = ALL.filter((cell) => cell.name.includes("client stream, netem"));
     expect(pacingOf(idle!)).toBe("one request");
     expect(pacingOf(netem!)).toBe("closed loop, reply times");
+  });
+
+  it("reads a client on a schedule as open loop, whatever its prediction", () => {
+    const open = ALL.filter((cell) => cell.name.startsWith("OL."));
+    expect(open.map(pacingOf)).toEqual(["open loop", "open loop", "open loop", "closed loop, reply times", "open loop", "closed loop, reply times"]);
   });
 });

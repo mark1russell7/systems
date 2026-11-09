@@ -2,6 +2,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { medianInterval as intervalOfMedian, median as middle, quantileSorted } from "@mark1russell7/rigor-statistics";
 import type { Prediction, Run, Stage } from "./cell.ts";
+import type { EstimateVerdict, LoadVerdict } from "./load.ts";
+import { estimateVerdict, loadVerdict } from "./load.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
 /** This function gives the words of the outcome of a second request: its connection, a retry, and its end. */
@@ -28,6 +30,36 @@ export const NOISE: Quantity = quantity(4, "ms");
  * 2.75 ms at 4 environments, where δ_abs is 1 ms. Thus a cell's δ_abs does not change it.
  */
 export const INJECT: Quantity = NOISE;
+
+/** A time from the fault is one time of a run from the start of the commit of its fault. It has the edges of the band that judges it. */
+export interface TimeFromFault {
+  readonly at: Quantity;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * This function gives the void of a run from the commit of its fault, or null (SYS-99). A fault
+ * starts somewhere in its commit, thus each time from the start of the commit is too long by the
+ * commit or less. A commit up to `INJECT` is in the noise. A longer commit voids the run only when
+ * that shift can move a time across an edge of its band. Thus a drill with a band of minutes keeps
+ * a run with a commit of 8 ms. `times` holds each time that a band judges, with the edges of the
+ * verdict. A run with no time is void.
+ */
+export const commitVoid = (commit: Quantity, times: readonly TimeFromFault[]): string | null => {
+  const took = valueIn(commit, "s");
+  if (took <= valueIn(INJECT, "s")) return null;
+  const crosses = (time: TimeFromFault): boolean => {
+    const at = valueIn(time.at, "s");
+    const low = valueIn(time.low, "s");
+    const high = valueIn(time.high, "s");
+    const inside = at - took >= low && at <= high;
+    const outside = at < low || at - took > high;
+    return !inside && !outside;
+  };
+  if (times.length > 0 && !times.some(crosses)) return null;
+  return `the commit of the fault took ${Math.round(valueIn(commit, "ms") * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+};
 
 /** This function gives the δ_abs of a cell: its own, or `NOISE` for a cell that gives none. */
 export const noiseOf = (cell: { readonly noise?: Quantity | undefined }): Quantity => cell.noise ?? NOISE;
@@ -128,6 +160,10 @@ export interface Verdict {
   readonly slowest?: Quantity;
   /** This record is the sum of what reordering did in each counted run of a measurement-only cell. */
   readonly reordering?: Reordering;
+  /** This record is the load of an open-loop cell over its counted runs. */
+  readonly load?: LoadVerdict;
+  /** This record is the estimate of the open loop of a closed-loop stream over its counted runs (SYS-91). */
+  readonly estimate?: EstimateVerdict;
   /** This record is the time of the proxy of a calibration cell, in each direction. */
   readonly proxy?: { readonly hop: string; readonly up: Spread | null; readonly down: Spread | null };
   /** This record is what the group of a group cell did over the counted runs: its stages, and its writes. */
@@ -465,15 +501,25 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
-    // the law of an accept queue or a port range: each run holds each term of it, or the run is outside
-    if (prediction.queue !== undefined || prediction.ports !== undefined) {
+    // the law of an accept queue, a port range, a paused consumer or a conntrack table: each run holds each term of it, or the run is outside
+    const law =
+      prediction.queue !== undefined
+        ? "queue"
+        : prediction.ports !== undefined
+          ? "port range"
+          : prediction.pause !== undefined
+            ? "paused consumer"
+            : prediction.conntrack !== undefined
+              ? "conntrack table"
+              : undefined;
+    if (law !== undefined) {
       const off = new Set(outside.map((each) => each.run)).size;
       return {
         ...empty,
         decision: off === 0 ? "holds" : "fails",
         band: null,
         outside,
-        why: `${counted.length - off} of ${counted.length} runs hold the law of the ${prediction.queue === undefined ? "port range" : "queue"}; ${prediction.why}`,
+        why: `${counted.length - off} of ${counted.length} runs hold the law of the ${law}; ${prediction.why}`,
       };
     }
     // a calibration of a proxy: its time in each direction, over all the requests of the runs
@@ -567,6 +613,26 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         why: `${counted.length} runs measured: ${outcomes}; ${timed}.${late} ${prediction.why}`,
       };
     }
+    // an open-loop cell: each run keeps its schedule, and each band of the latency holds
+    if (counted.some((run) => run.load !== undefined)) {
+      const judged = loadVerdict(
+        prediction.load ?? { lag: quantity(Number.MAX_SAFE_INTEGER, "ms"), bands: [] },
+        counted.map((run) => ({ name: name(run), load: run.load })),
+      );
+      const middleOfLoad = judged.load.latency?.p50;
+      const failed = judged.load.failed === 0 ? "" : `, ${judged.load.failed} with the status of a failure`;
+      const read = [`${counted.length} runs on a schedule, ${judged.load.planned} arrivals, ${judged.load.unsent} not sent, ${judged.load.unfinished} with no reply${failed}.`, ...judged.load.bands, ...(judged.load.failures === undefined ? [] : [judged.load.failures]), prediction.why].join(" ");
+      return {
+        ...empty,
+        decision: prediction.load === undefined ? "measured" : judged.holds ? "holds" : "fails",
+        band: null,
+        outside: judged.outside,
+        median: middleOfLoad === undefined ? null : s(valueIn(middleOfLoad, "s")),
+        ...(judged.load.latency === null ? {} : { slowest: s(valueIn(judged.load.latency.max, "s")) }),
+        load: judged.load,
+        why: read,
+      };
+    }
     const samples = counted
       .flatMap((run) => (run.samples ?? []).map((sample) => valueIn(sample, "s")))
       .sort((a, b) => a - b);
@@ -580,10 +646,13 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         (count) => (count ?? 0) > 0,
       );
     const reordered = anything ? ` Reordering: ${reorderingWords(reordering)}.` : "";
+    // the reply times of a closed loop hide the sends of each stall: the estimate puts them back
+    const estimate = estimateVerdict(counted.map((run) => run.estimate));
+    const estimated = estimate === undefined ? "" : ` ${estimate.words}`;
     const why =
       samples.length === 0
         ? `${counted.length} runs measured, with no reply: ${prediction.why}`
-        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, p99 ${s(quantileOf(samples, 0.99)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended.${reordered} ${prediction.why}`;
+        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, p99 ${s(quantileOf(samples, 0.99)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended.${reordered}${estimated} ${prediction.why}`;
     return {
       ...empty,
       decision: "measured",
@@ -592,6 +661,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
       median: samples.length === 0 ? null : s(middle(samples)),
       ...(samples.length === 0 ? {} : { slowest: s(samples.at(-1)!) }),
       ...(reordering === undefined ? {} : { reordering }),
+      ...(estimate === undefined ? {} : { estimate }),
       why,
     };
   }

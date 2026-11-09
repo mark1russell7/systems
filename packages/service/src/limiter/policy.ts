@@ -78,14 +78,23 @@ export interface Limiter extends LimiterSpec {
 }
 
 /**
- * A refusal cause tells why a take is refused:
+ * A wait cause tells why a take is refused for a time:
  * - `limit`: the key used its limit.
  * - `cap`: the store holds its cap of keys, and the key is new.
  * - `store`: the shared store failed, and its spec declares `onStoreFailure: "closed"`.
  */
-export type RefusalCause = "limit" | "cap" | "store";
+export type WaitCause = "limit" | "cap" | "store";
 
-/** A permitted take used one unit of its key. `remaining` is the count of takes that the key can make at this time. */
+/**
+ * A refusal cause tells why a take is refused: a wait cause, or `capacity`. The cause `capacity` is
+ * a take whose units are over the capacity of the policy. No wait lets it in.
+ */
+export type RefusalCause = WaitCause | "capacity";
+
+/**
+ * A permitted take used its units of its key. `remaining` is the count of units that the key can
+ * take at this time.
+ */
 export interface Allowed {
   readonly allowed: true;
   readonly remaining: number;
@@ -94,16 +103,34 @@ export interface Allowed {
 }
 
 /**
- * A refused take used nothing. `retryAfter` is the time until the limiter lets the same take in, when
+ * A wait refusal used nothing. `retryAfter` is the time until the limiter lets the same take in, when
  * no other take comes first. It is always above zero.
  */
-export interface Refused {
+export interface WaitRefused {
   readonly allowed: false;
+  readonly cause: WaitCause;
   readonly retryAfter: Quantity;
-  readonly cause: RefusalCause;
   /** This text is the failure of a shared store, for the cause `store`. */
   readonly failure?: string | undefined;
 }
+
+/**
+ * A capacity refusal used nothing, and the same take is refused at each time. Its `units` are over
+ * the `capacity` of the policy: the `burst` of a bucket, or the `limit` of a window. A caller can
+ * split the take into parts of at most `capacity` units.
+ */
+export interface CapacityRefused {
+  readonly allowed: false;
+  readonly cause: "capacity";
+  readonly units: number;
+  readonly capacity: number;
+}
+
+/**
+ * A refused take used nothing. The cause tells the type: a `WaitRefused` has a `retryAfter`, and a
+ * `CapacityRefused` has none. Thus a caller examines the cause before it reads `retryAfter`.
+ */
+export type Refused = WaitRefused | CapacityRefused;
 
 /** A decision is the answer of a limiter to one take. */
 export type Decision = Allowed | Refused;
@@ -273,20 +300,46 @@ export const freeAt = (rule: LimitRule, state: KeyState): number => {
   return last === undefined ? Number.NEGATIVE_INFINITY : last + (rule.type === "sliding-window" ? rule.window : 0);
 };
 
+/** This function gives the capacity of a rule: the most units of one take. That is the `burst` of a bucket, or the `limit` of a window. */
+export const capacityOf = (rule: LimitRule): number => (rule.type === "token-bucket" ? rule.burst : rule.limit);
+
 /**
- * This function decides one take of a key at the time `now`, in milliseconds, from the state of the
- * key (`undefined` for a new key). It is the one decision of each store in this process. A store in
- * another process does the same arithmetic in its own atomic step.
- * - A token bucket (GCRA): the store lets the take in when, with the take, the bucket is full
- *   again in at most `burst` intervals. A refusal waits until one token is back.
- * - A sliding window: the store lets the take in when fewer than `limit` takes are in the window.
- *   A refusal waits until the oldest take leaves the window.
+ * This function gives the units of a take: 1 when they are absent. It throws for units that are not
+ * a whole number of 1 or more, because such a take has no meaning.
  */
-export const decide = (rule: LimitRule, state: KeyState | undefined, now: number): TakeStep => {
+export const unitsOf = (units: number | undefined): number => {
+  if (units === undefined) return 1;
+  if (typeof units !== "number" || !Number.isSafeInteger(units) || units < 1)
+    throw new RangeError(`the units of a take are a whole number of 1 or more, not ${String(units)}`);
+  return units;
+};
+
+/** This function gives the capacity refusal of a take whose units are over the capacity of its rule, or `undefined`. */
+export const overCapacity = (rule: LimitRule, units: number): CapacityRefused | undefined => {
+  const capacity = capacityOf(rule);
+  return units > capacity ? { allowed: false, cause: "capacity", units, capacity } : undefined;
+};
+
+/**
+ * This function decides one take of `units` units (1 when absent) of a key at the time `now`, in
+ * milliseconds, from the state of the key (`undefined` for a new key). It is the one decision of each
+ * store in this process. A store in another process does the same arithmetic in its own atomic step.
+ * - A take over the capacity of the rule (`capacityOf`) is refused with the cause `capacity`, and
+ *   the state does not change.
+ * - A token bucket (GCRA): the store lets the take in when, with the take, the bucket is full
+ *   again in at most `burst` intervals. A refusal waits until `units` tokens are back.
+ * - A sliding window: the store lets the take in when at most `limit - units` takes are in the
+ *   window. A refusal waits until enough of the oldest takes leave the window.
+ * - A take of `units` units is the same as `units` takes of 1 at one time, when all of them are let in.
+ */
+export const decide = (rule: LimitRule, state: KeyState | undefined, now: number, units?: number): TakeStep => {
+  const n = unitsOf(units);
+  const over = overCapacity(rule, n);
   if (rule.type === "token-bucket") {
     const span = rule.interval * rule.burst;
     const full = state?.type === "token-bucket" ? Math.max(state.full, now) : now;
-    const next = full + rule.interval;
+    if (over !== undefined) return { decision: over, state: { type: "token-bucket", full } };
+    const next = full + rule.interval * n;
     if (next - now > span + TOLERANCE)
       return { decision: { allowed: false, retryAfter: ms(next - span - now), cause: "limit" }, state: { type: "token-bucket", full } };
     const remaining = Math.max(0, Math.floor((span - (next - now)) / rule.interval + TOLERANCE));
@@ -295,7 +348,13 @@ export const decide = (rule: LimitRule, state: KeyState | undefined, now: number
   const held = state?.type === "sliding-window" ? state.stamps : [];
   // a take counts for one window from its time: it leaves the window at stamp + window
   const live = held.filter((stamp) => stamp + rule.window > now + TOLERANCE);
-  if (live.length >= rule.limit)
-    return { decision: { allowed: false, retryAfter: ms(live[0]! + rule.window - now), cause: "limit" }, state: { type: "sliding-window", stamps: live } };
-  return { decision: { allowed: true, remaining: rule.limit - live.length - 1 }, state: { type: "sliding-window", stamps: [...live, now] } };
+  if (over !== undefined) return { decision: over, state: { type: "sliding-window", stamps: live } };
+  // the take fits when the oldest (live + n - limit) takes have left the window
+  const excess = live.length + n - rule.limit;
+  if (excess > 0)
+    return { decision: { allowed: false, retryAfter: ms(live[excess - 1]! + rule.window - now), cause: "limit" }, state: { type: "sliding-window", stamps: live } };
+  return {
+    decision: { allowed: true, remaining: rule.limit - live.length - n },
+    state: { type: "sliding-window", stamps: [...live, ...Array.from({ length: n }, () => now)] },
+  };
 };

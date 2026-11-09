@@ -255,6 +255,7 @@ These cells (`src/accept-queue.ts`, SYS-63) give the law of an accept queue on t
 - **The recovery.** `AQ.7` accepts 3 connections at 2.5 s. The SYN-ACK at 3 s brings a challenge ACK, which is a new final ACK. No connection fails, and the target accepts all 8.
 - **The counters.** `ListenOverflows`, `EmbryonicRsts` and `TCPReqQFullDoCookies` are the changes in the run, from `/proc/net/netstat` of the namespace of the target. The law has no SYN cookie, thus one cookie is a finding.
 - **The time.** `TCPTimeouts` counts each firing of a SYN-ACK timer, thus its 12th change dates the expiry of two requests in `AQ.5`.
+- **A declared backlog.** `AQ.8` to `AQ.10` (SYS-103) give the laws of `AQ.1` to `AQ.3` to a server of service 0.7.3 (`targets/service-backlog/`). `httpTransport` gives the knob `server_listen_backlog` to Node, and Node gives it to listen(2). The main thread of the target blocks, thus Node accepts nothing. A worker serves the protocol of `queue`, and it reads the limit with `ss`. Node gives listen(2) 511 for a backlog of 0, thus `AQ.10` holds 512.
 
 ## The cells of the port range
 
@@ -589,7 +590,9 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.
 - `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that the private repository lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
-- Each record has the code that operated (`code`, from `codeHere`). It is the commit of the checkout of this repository, and if a tracked file had changes. It is not the commit of a repository that calls the runner. Each line of `summary.ndjson` has its `pins`: each problem that stops the record from pinning its programs (`manifestProblems`, `commitProblems`). An empty list means that the record pins each program.
+- Each record has the code that operated (`code`, from `codeHere`). It is the commit of the checkout of this repository, and if a tracked file had changes. It is not the commit of a repository that calls the runner. Each line of `summary.ndjson` has its `pins`: each problem that stops the record from pinning its programs (`recordProblems`). An empty list means that the record pins each program.
+- A record with a problem of its pins is not a record, thus its cell fails, and the run exits with 1. A commit with changes to tracked files is not a pin. The read of a schedule refuses such a record too.
+- `CELLS_DEBUG=1` marks a local debug run. Such a run can operate from a checkout with changes. Each of its records has `debug: true`, and no page reads it.
 
 `KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
 

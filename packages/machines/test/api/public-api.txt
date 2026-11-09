@@ -1,0 +1,246 @@
+# The public API of @mark1russell7/machines
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): names
+
+AMQPLIB: build/index.d.ts#AMQPLIB
+ATEN_DETECTOR: build/index.d.ts#ATEN_DETECTOR
+CADDY_HTTP2: build/index.d.ts#CADDY_HTTP2
+DEADLINE_CALL: build/index.d.ts#DEADLINE_CALL
+DOCKER_PROXY_LINK: build/index.d.ts#DOCKER_PROXY_LINK
+ENVOY_HTTP2: build/index.d.ts#ENVOY_HTTP2
+ETCD_SERVER: build/index.d.ts#ETCD_SERVER
+GO_TRANSPORT: build/index.d.ts#GO_TRANSPORT
+GRPC_GO_SERVER: build/index.d.ts#GRPC_GO_SERVER
+GRPC_JS: build/index.d.ts#GRPC_JS
+HAPROXY_TCP: build/index.d.ts#HAPROXY_TCP
+HIKARICP_PGJDBC: build/index.d.ts#HIKARICP_PGJDBC
+IOREDIS_SENTINEL: build/index.d.ts#IOREDIS_SENTINEL
+IOREDIS_STATUS: build/index.d.ts#IOREDIS_STATUS
+ISTIO_SIDECAR_INBOUND: build/index.d.ts#ISTIO_SIDECAR_INBOUND
+ISTIO_SIDECAR_OUTBOUND: build/index.d.ts#ISTIO_SIDECAR_OUTBOUND
+KAFKA_CONSUMER_GROUP: build/index.d.ts#KAFKA_CONSUMER_GROUP
+KAFKA_PARTITION: build/index.d.ts#KAFKA_PARTITION
+KUBELET_READINESS: build/index.d.ts#KUBELET_READINESS
+LINUX_TCP: build/index.d.ts#LINUX_TCP
+MACHINES: build/index.d.ts#MACHINES
+MANIFESTATIONS: build/index.d.ts#MANIFESTATIONS
+MONGODB_NODE: build/index.d.ts#MONGODB_NODE
+MONGOD_REPL: build/index.d.ts#MONGOD_REPL
+MONGOD_SESSION: build/index.d.ts#MONGOD_SESSION
+NF_CONNTRACK_TCP: build/index.d.ts#NF_CONNTRACK_TCP
+NGINX_GRPC: build/index.d.ts#NGINX_GRPC
+NODE_HTTP_AGENT: build/index.d.ts#NODE_HTTP_AGENT
+NODE_HTTP_SERVER: build/index.d.ts#NODE_HTTP_SERVER
+NODE_POSTGRES: build/index.d.ts#NODE_POSTGRES
+NODE_TIMER_EARLY: build/index.d.ts#NODE_TIMER_EARLY
+PGBOUNCER_CLIENT: build/index.d.ts#PGBOUNCER_CLIENT
+PGBOUNCER_SERVER: build/index.d.ts#PGBOUNCER_SERVER
+PGPOOL_SESSION: build/index.d.ts#PGPOOL_SESSION
+PILOT_AGENT: build/index.d.ts#PILOT_AGENT
+POSTGRES_SESSION: build/index.d.ts#POSTGRES_SESSION
+PROCEDURES_WS_CLIENT: build/index.d.ts#PROCEDURES_WS_CLIENT
+PROCEDURES_WS_SERVER: build/index.d.ts#PROCEDURES_WS_SERVER
+RABBITMQ_CONNECTION: build/index.d.ts#RABBITMQ_CONNECTION
+RA_MEMBER: build/index.d.ts#RA_MEMBER
+REDIS_CLIENT: build/index.d.ts#REDIS_CLIENT
+SENTINEL: build/index.d.ts#SENTINEL
+SUPAVISOR_CLIENT: build/index.d.ts#SUPAVISOR_CLIENT
+SUPAVISOR_SERVER: build/index.d.ts#SUPAVISOR_SERVER
+type SidecarSide: build/index.d.ts#SidecarSide
+TOXIPROXY_LINK: build/index.d.ts#TOXIPROXY_LINK
+TRAEFIK_HTTP2: build/index.d.ts#TRAEFIK_HTTP2
+UNDICI_CLIENT: build/index.d.ts#UNDICI_CLIENT
+UNDICI_RETRY: build/index.d.ts#UNDICI_RETRY
+UNDICI_TICK_MS: build/index.d.ts#UNDICI_TICK_MS
+ZTUNNEL_HBONE: build/index.d.ts#ZTUNNEL_HBONE
+goLateSeconds: build/index.d.ts#goLateSeconds
+goTimerLateness: build/index.d.ts#goTimerLateness
+istioSidecar: build/index.d.ts#istioSidecar
+nodeEarlySeconds: build/index.d.ts#nodeEarlySeconds
+nodeLateSeconds: build/index.d.ts#nodeLateSeconds
+nodeTimerLateness: build/index.d.ts#nodeTimerLateness
+undiciFastEarly: build/index.d.ts#undiciFastEarly
+undiciFastLateness: build/index.d.ts#undiciFastLateness
+
+## Declarations
+
+### build/index.d.ts#AMQPLIB
+export declare const AMQPLIB: Machine;
+
+### build/index.d.ts#ATEN_DETECTOR
+export declare const ATEN_DETECTOR: Machine;
+
+### build/index.d.ts#CADDY_HTTP2
+export declare const CADDY_HTTP2: Machine;
+
+### build/index.d.ts#DEADLINE_CALL
+export declare const DEADLINE_CALL: Machine;
+
+### build/index.d.ts#DOCKER_PROXY_LINK
+export declare const DOCKER_PROXY_LINK: Machine;
+
+### build/index.d.ts#ENVOY_HTTP2
+export declare const ENVOY_HTTP2: Machine;
+
+### build/index.d.ts#ETCD_SERVER
+export declare const ETCD_SERVER: Machine;
+
+### build/index.d.ts#GO_TRANSPORT
+export declare const GO_TRANSPORT: Machine;
+
+### build/index.d.ts#GRPC_GO_SERVER
+export declare const GRPC_GO_SERVER: Machine;
+
+### build/index.d.ts#GRPC_JS
+export declare const GRPC_JS: Machine;
+
+### build/index.d.ts#HAPROXY_TCP
+export declare const HAPROXY_TCP: Machine;
+
+### build/index.d.ts#HIKARICP_PGJDBC
+export declare const HIKARICP_PGJDBC: Machine;
+
+### build/index.d.ts#IOREDIS_SENTINEL
+export declare const IOREDIS_SENTINEL: Machine;
+
+### build/index.d.ts#IOREDIS_STATUS
+export declare const IOREDIS_STATUS: Machine;
+
+### build/index.d.ts#ISTIO_SIDECAR_INBOUND
+export declare const ISTIO_SIDECAR_INBOUND: Machine;
+
+### build/index.d.ts#ISTIO_SIDECAR_OUTBOUND
+export declare const ISTIO_SIDECAR_OUTBOUND: Machine;
+
+### build/index.d.ts#KAFKA_CONSUMER_GROUP
+export declare const KAFKA_CONSUMER_GROUP: Machine;
+
+### build/index.d.ts#KAFKA_PARTITION
+export declare const KAFKA_PARTITION: Machine;
+
+### build/index.d.ts#KUBELET_READINESS
+export declare const KUBELET_READINESS: Machine;
+
+### build/index.d.ts#LINUX_TCP
+export declare const LINUX_TCP: Machine;
+
+### build/index.d.ts#MACHINES
+export declare const MACHINES: Readonly<Record<string, Machine>>;
+
+### build/index.d.ts#MANIFESTATIONS
+export declare const MANIFESTATIONS: Readonly<Record<string, readonly string[]>>;
+
+### build/index.d.ts#MONGODB_NODE
+export declare const MONGODB_NODE: Machine;
+
+### build/index.d.ts#MONGOD_REPL
+export declare const MONGOD_REPL: Machine;
+
+### build/index.d.ts#MONGOD_SESSION
+export declare const MONGOD_SESSION: Machine;
+
+### build/index.d.ts#NF_CONNTRACK_TCP
+export declare const NF_CONNTRACK_TCP: Machine;
+
+### build/index.d.ts#NGINX_GRPC
+export declare const NGINX_GRPC: Machine;
+
+### build/index.d.ts#NODE_HTTP_AGENT
+export declare const NODE_HTTP_AGENT: Machine;
+
+### build/index.d.ts#NODE_HTTP_SERVER
+export declare const NODE_HTTP_SERVER: Machine;
+
+### build/index.d.ts#NODE_POSTGRES
+export declare const NODE_POSTGRES: Machine;
+
+### build/index.d.ts#NODE_TIMER_EARLY
+export declare const NODE_TIMER_EARLY: Expr;
+
+### build/index.d.ts#PGBOUNCER_CLIENT
+export declare const PGBOUNCER_CLIENT: Machine;
+
+### build/index.d.ts#PGBOUNCER_SERVER
+export declare const PGBOUNCER_SERVER: Machine;
+
+### build/index.d.ts#PGPOOL_SESSION
+export declare const PGPOOL_SESSION: Machine;
+
+### build/index.d.ts#PILOT_AGENT
+export declare const PILOT_AGENT: Machine;
+
+### build/index.d.ts#POSTGRES_SESSION
+export declare const POSTGRES_SESSION: Machine;
+
+### build/index.d.ts#PROCEDURES_WS_CLIENT
+export declare const PROCEDURES_WS_CLIENT: Machine;
+
+### build/index.d.ts#PROCEDURES_WS_SERVER
+export declare const PROCEDURES_WS_SERVER: Machine;
+
+### build/index.d.ts#RABBITMQ_CONNECTION
+export declare const RABBITMQ_CONNECTION: Machine;
+
+### build/index.d.ts#RA_MEMBER
+export declare const RA_MEMBER: Machine;
+
+### build/index.d.ts#REDIS_CLIENT
+export declare const REDIS_CLIENT: Machine;
+
+### build/index.d.ts#SENTINEL
+export declare const SENTINEL: Machine;
+
+### build/index.d.ts#SUPAVISOR_CLIENT
+export declare const SUPAVISOR_CLIENT: Machine;
+
+### build/index.d.ts#SUPAVISOR_SERVER
+export declare const SUPAVISOR_SERVER: Machine;
+
+### build/index.d.ts#SidecarSide
+type SidecarSide = "outbound" | "inbound";
+
+### build/index.d.ts#TOXIPROXY_LINK
+export declare const TOXIPROXY_LINK: Machine;
+
+### build/index.d.ts#TRAEFIK_HTTP2
+export declare const TRAEFIK_HTTP2: Machine;
+
+### build/index.d.ts#UNDICI_CLIENT
+export declare const UNDICI_CLIENT: Machine;
+
+### build/index.d.ts#UNDICI_RETRY
+export declare const UNDICI_RETRY: Machine;
+
+### build/index.d.ts#UNDICI_TICK_MS
+export declare const UNDICI_TICK_MS = 499;
+
+### build/index.d.ts#ZTUNNEL_HBONE
+export declare const ZTUNNEL_HBONE: Machine;
+
+### build/index.d.ts#goLateSeconds
+export declare const goLateSeconds: (seconds: number) => number;
+
+### build/index.d.ts#goTimerLateness
+export declare const goTimerLateness: (s: string) => Expr;
+
+### build/index.d.ts#istioSidecar
+export declare const istioSidecar: (side: SidecarSide) => Machine;
+
+### build/index.d.ts#nodeEarlySeconds
+export declare const nodeEarlySeconds: (hz: number) => number;
+
+### build/index.d.ts#nodeLateSeconds
+export declare const nodeLateSeconds: (seconds: number, hz: number) => number;
+
+### build/index.d.ts#nodeTimerLateness
+export declare const nodeTimerLateness: (ms: string) => Expr;
+
+### build/index.d.ts#undiciFastEarly
+export declare const undiciFastEarly: (ms: string) => Expr;
+
+### build/index.d.ts#undiciFastLateness
+export declare const undiciFastLateness: (ms: string) => Expr;

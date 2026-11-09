@@ -61,7 +61,7 @@ const SETUP_TIMEOUT = 1000;
  * leadership on the new broker after the lift. The heap of 512 MB has no source: four nodes and a
  * client fit a runner of 4 CPUs and 16 GB.
  */
-const groupOf = (minInsync: number, writers: number): Kafka => ({
+export const groupOf = (minInsync: number, writers: number, extra: Readonly<Record<string, string>> = {}): Kafka => ({
   image: KAFKA_IMAGE,
   brokers: ["k1", "k2", "k3"],
   controller: "c1",
@@ -73,6 +73,7 @@ const groupOf = (minInsync: number, writers: number): Kafka => ({
     "socket.connection.setup.timeout.ms": String(SETUP_TIMEOUT),
     "socket.connection.setup.timeout.max.ms": String(SETUP_TIMEOUT),
     "auto.leader.rebalance.enable": "false",
+    ...extra,
   },
   ready: READY,
   minInsync,

@@ -157,12 +157,27 @@ export const outcomeResponse = <T>(items: readonly T[], end: RequestEnd, options
 };
 
 /**
- * This function gives the response of a take that a keyed limiter refused: 429 (RFC 6585), with
- * `Retry-After` in whole seconds, rounded up (RFC 9110). The body tells the cause (`limit`, `cap` or
- * `store`) and the same whole seconds, but not the failure of a store. The work did not start, thus
- * the caller can send it again.
+ * This function gives the response of a take that a keyed limiter refused. The work did not start.
+ * - A wait refusal (`limit`, `cap` or `store`) gives 429 (RFC 6585), with `Retry-After` in whole
+ *   seconds, rounded up (RFC 9110). The body tells the cause and the same whole seconds, but not the
+ *   failure of a store. The caller can send the request again.
+ * - A capacity refusal gives 413 (RFC 9110) with no `Retry-After`, because no wait lets the take in.
+ *   The body tells the units and the capacity, thus the caller can split the request into parts.
  */
 export const limitedResponse = (refused: Refused): OutcomeResponse => {
+  if (refused.cause === "capacity")
+    return {
+      status: 413,
+      headers: { "content-type": JSON_TYPE },
+      body: JSON.stringify({
+        end: "refused",
+        delivered: 0,
+        retryable: false,
+        cause: `the limiter refused the take: capacity, ${refused.units} units over a capacity of ${refused.capacity}`,
+        units: refused.units,
+        capacity: refused.capacity,
+      }),
+    };
   const seconds = retryAfterSeconds(refused.retryAfter);
   return {
     status: 429,

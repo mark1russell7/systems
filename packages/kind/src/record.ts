@@ -17,12 +17,17 @@ export const FORMAT = "systems.kind-cell-record/2";
 /** This format is the first format. Its bands, its medians and its times are numbers. */
 export const FORMAT_V1 = "systems.kind-cell-record/1";
 
-/** A load sample is what the VM did in 4 s before a run: when (a stamp of the wall clock in milliseconds), its idle share, and its busiest processes. */
+/**
+ * A load sample is what the VM did in 4 s before a run: when (a stamp of the wall clock in
+ * milliseconds), its idle share, and its busiest processes. A sample of the gate has `needed`, the
+ * idle share of the gate at that time. A baseline sample has no `needed`.
+ */
 export interface LoadSample {
   readonly t: number;
   readonly idle: number;
   readonly top: readonly string[];
   readonly foreign: readonly string[];
+  readonly needed?: number | undefined;
 }
 
 /** A cluster manifest is what a run records about its cluster: the versions, the images, the nodes and the mode as read back. */

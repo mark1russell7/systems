@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import * as backoffEntry from "./backoff.ts";
 import { retrySchedule } from "./client/core.ts";
 import { statusLineJudge } from "./client/dial.ts";
+import * as channelEntry from "./channel.ts";
 import * as clockEntry from "./clock.ts";
 import * as grpcEntry from "./grpc.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
@@ -14,6 +15,7 @@ import * as httpEntry from "./http.ts";
 import * as httpClientEntry from "./http-client.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
+import * as otelEntry from "./otel.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
 import * as rulesEntry from "./rules.ts";
@@ -22,9 +24,9 @@ import * as wsEntry from "./websocket.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * This function follows the imports of a module that load code at run time, and gives each
- * module that it reaches: a file of the package, or the specifier of another package. An import
- * of types only loads nothing.
+ * This function follows the imports of a module that load code at run time. It gives each module
+ * that it reaches: a file of the package, or the specifier of another package. An import of types
+ * only loads nothing.
  */
 const reach = (entry: string): { files: string[]; packages: string[] } => {
   const files = new Set<string>();
@@ -88,10 +90,12 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
+    // only the entry of the trace ids loads the API of OpenTelemetry
+    expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
     // the negative control: the schema entry of quantity loads zod, and the search finds it
     const schema = sourceOf("@mark1russell7/quantity/schema");
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
@@ -102,9 +106,10 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "@opentelemetry/api", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
       "@grpc/grpc-js": { optional: true },
+      "@opentelemetry/api": { optional: true },
       amqplib: { optional: true },
       ioredis: { optional: true },
       mongodb: { optional: true },
@@ -116,10 +121,20 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
 });
 
 describe("the timer entries: a client in a browser can import them", () => {
-  it("load no other package: no node: module, no zod, no quantity", () => {
-    expect(reach("clock.ts")).toEqual({ files: ["clock.ts"], packages: [] });
-    expect(reach("heartbeat.ts")).toEqual({ files: ["clock.ts", "heartbeat.ts"], packages: [] });
+  it("load only the clock of the algebra, which loads nothing: no node: module, no zod, no quantity", () => {
+    expect(reach("clock.ts")).toEqual({ files: ["clock.ts"], packages: ["@mark1russell7/algebra/clock"] });
+    expect(reach("heartbeat.ts")).toEqual({ files: ["clock.ts", "heartbeat.ts"], packages: ["@mark1russell7/algebra/clock"] });
     expect(reach("backoff.ts")).toEqual({ files: ["backoff.ts"], packages: [] });
+    // the search follows the clock into the algebra, and it finds no package and no node: module there
+    for (const entry of ["clock.ts", "heartbeat.ts", "backoff.ts"]) expect(reachAll(entry), entry).toEqual([]);
+  });
+
+  it("give the clock of the algebra itself, thus a clock of either entry is the same clock", async () => {
+    const algebra = await import("@mark1russell7/algebra/clock");
+    expect(clockEntry.platformClock).toBe(algebra.platformClock);
+    expect(clockEntry.realClock).toBe(algebra.realClock);
+    const testing = await import("./testing.ts");
+    expect(testing.fakeClock).toBe(algebra.fakeClock);
   });
 
   it("give their functions, and the root gives them too", () => {
@@ -194,7 +209,7 @@ describe("the http-client entry: node:http is a built-in, loaded only at the con
   it("loads no node:http at its import, and no node: module other than node:net", () => {
     const { packages } = reach("http-client.ts");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -222,7 +237,7 @@ describe("the websocket entry: ws is an optional peer, loaded only at the connec
     const { packages } = reach("websocket.ts");
     expect(packages).not.toContain("ws");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -250,7 +265,7 @@ describe("the grpc entry: @grpc/grpc-js is an optional peer, loaded only at the 
     const { packages } = reach("grpc.ts");
     expect(packages).not.toContain("@grpc/grpc-js");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -277,7 +292,7 @@ describe("the http entry: Node only, on node:http and node:net", () => {
   it("loads no node: module other than node:http and node:net, and no package other than quantity", () => {
     const { packages } = reach("http.ts");
     expect(packages.filter((name) => name.startsWith("node:")).every((name) => name === "node:http" || name === "node:net")).toBe(true);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -304,6 +319,46 @@ describe("the http entry: Node only, on node:http and node:net", () => {
   });
 });
 
+describe("the channel entry: a client in a browser can import it (collections C26)", () => {
+  it("loads only the clock and collections: no node: module and no zod", () => {
+    expect(reach("channel.ts")).toEqual({ files: ["channel.ts", "clock.ts"], packages: ["@mark1russell7/algebra/clock", "@mark1russell7/collections"] });
+    expect(reachAll("channel.ts")).toEqual([]);
+  });
+
+  it("gives the channels, and the root does not give them", () => {
+    expect(Object.keys(channelEntry).sort()).toEqual([
+      "Channel",
+      "PreemptedError",
+      "buffered",
+      "channel",
+      "fanIn",
+      "fanOut",
+      "merge",
+      "pipeline",
+      "preemptivePool",
+      "select",
+      "ticker",
+      "timeout",
+      "unbuffered",
+      "workerPool",
+    ]);
+    for (const name of Object.keys(channelEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("writes nothing to the console", () => {
+    expect(readFileSync(join(here, "channel.ts"), "utf8")).not.toMatch(/\bconsole\./);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./channel"]).toBe("./src/channel.ts");
+    expect(manifest.publishConfig.exports["./channel"]).toEqual({ types: "./build/channel.d.ts", default: "./build/channel.js" });
+  });
+});
+
 describe("the limiter entry: a client in a browser can import it (SYS-28)", () => {
   it("loads only quantity: no node: module and no zod", () => {
     expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/quantity"]);
@@ -314,6 +369,7 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
     expect(Object.keys(limiterEntry).sort()).toEqual([
       "SLIDING_WINDOW_MACHINE",
       "TOKEN_BUCKET_MACHINE",
+      "capacityOf",
       "decide",
       "freeAt",
       "idleSpan",
@@ -324,7 +380,9 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
       "limiterStateOf",
       "longestRetryAfter",
       "memoryStore",
+      "overCapacity",
       "retryAfterSeconds",
+      "unitsOf",
     ]);
     for (const name of Object.keys(limiterEntry)) expect(root, name).toHaveProperty(name);
   });
@@ -364,9 +422,9 @@ describe("the rules entry: the drain rules as data, without kind and its Testcon
 });
 
 describe("the host entry: Node only, and its effects go through ports (SYS-36)", () => {
-  it("loads only node: built-ins and quantity, and no fakes of its tests", () => {
+  it("loads only node: built-ins, quantity, the clock and the escape of text, and no fakes of its tests", () => {
     const { files, packages } = reach("host.ts");
-    expect(packages).toEqual(["@mark1russell7/quantity", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
+    expect(packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity", "@mark1russell7/text", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
     expect(files.filter((file) => file.includes("fake"))).toEqual([]);
   });
 
@@ -421,6 +479,28 @@ describe("the host entry: Node only, and its effects go through ports (SYS-36)",
   });
 });
 
+describe("the otel entry: the only entry that loads the API of OpenTelemetry, an optional peer (C11)", () => {
+  it("loads only @opentelemetry/api, and no node: module", () => {
+    expect(reach("otel.ts")).toEqual({ files: ["otel.ts"], packages: ["@opentelemetry/api"] });
+    expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
+  });
+
+  it("gives the source of the trace ids and the call context, and the root gives neither", () => {
+    expect(Object.keys(otelEntry)).toEqual(["traceIds", "callContext"]);
+    expect(root).not.toHaveProperty("traceIds");
+    expect(root).not.toHaveProperty("callContext");
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./otel"]).toBe("./src/otel.ts");
+    expect(manifest.publishConfig.exports["./otel"]).toEqual({ types: "./build/otel.d.ts", default: "./build/otel.js" });
+  });
+});
+
 describe("the root entry: free of node: modules", () => {
   it("loads no node: module", () => {
     expect(reach("index.ts").packages.filter((name) => name.startsWith("node:"))).toEqual([]);
@@ -428,6 +508,6 @@ describe("the root entry: free of node: modules", () => {
 
   it("gives the worker loop and the queue drain, which load only quantity (SYS-14)", () => {
     for (const name of ["workerLoop", "queueDrain", "redeliverOnce"]) expect(root, name).toHaveProperty(name);
-    for (const entry of ["worker.ts", "queue.ts"]) expect(reach(entry).packages, entry).toEqual(["@mark1russell7/quantity"]);
+    for (const entry of ["worker.ts", "queue.ts"]) expect(reach(entry).packages, entry).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
   });
 });

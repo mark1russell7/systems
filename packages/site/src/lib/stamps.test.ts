@@ -1,8 +1,10 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDataStamps, renderDataStamp } from "@mark1russell7/site-pages";
 import { describe, expect, it } from "vitest";
-import { dateInName, enginesOf, HOME_LAB_FILE, homeStamp, homeStampHtml, NOT_STAMPED, newestSeriesFile, siteDataStamps, stampOfPage, versionsIn } from "./stamps.ts";
+import { dateInName, enginesOf, HOME_LAB_FILE, homeStamp, homeStampHtml, NOT_STAMPED, newestSeriesFile, runOf, siteDataStamps, stampOfPage, versionsIn } from "./stamps.ts";
 
 const DATA = fileURLToPath(new URL("../data/", import.meta.url));
 const RESULTS = fileURLToPath(new URL("../content/docs/results/", import.meta.url));
@@ -26,6 +28,19 @@ describe("the versions of a data file", () => {
   it("reads a date in a name, and refuses a name with none", () => {
     expect(dateInName("s2-2026-10-26.json")).toBe("2026-10-26");
     expect(() => dateInName("cells.json")).toThrow("no date");
+  });
+
+  it("gives a run the commit of its code if the file names it", () => {
+    const folder = mkdtempSync(join(tmpdir(), "stamps-"));
+    try {
+      const commit = "c".repeat(40);
+      writeFileSync(join(folder, "new-2026-11-20.json"), JSON.stringify({ ranAt: "2026-11-20", target: "redis:7.4", commit }));
+      writeFileSync(join(folder, "old-2026-10-17.json"), JSON.stringify({ ranAt: "2026-10-17", target: "redis:7.4" }));
+      expect(runOf(folder, { file: "new-2026-11-20.json", method: "data file" }).commit).toBe(commit);
+      expect(runOf(folder, { file: "old-2026-10-17.json", method: "data file" })).not.toHaveProperty("commit");
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 
   it("takes the newest file of the series by its date", () => {
@@ -64,18 +79,18 @@ describe("the stamps of the site", () => {
     const lab = readFileSync(fileURLToPath(new URL("../components/DetectionLab.tsx", import.meta.url)), "utf8");
     expect(lab).toContain(`"../data/${HOME_LAB_FILE}"`);
     expect(stamps.pages.map((page) => page.page)).toContain("index.html");
-    expect(renderDataStamp(homeStamp(DATA))).toContain("a fixed study");
+    expect(renderDataStamp(homeStamp(DATA))).toContain("The age limit of this data is 30 days, from 2026-12-07.");
     expect(homeStamp(DATA).runs.map((run) => run.id)).toEqual([HOME_LAB_FILE]);
   });
 
   it("names only the lab on the home page, which also shows other studies", () => {
-    expect(homeStampHtml(DATA)).toContain("The runs of this lab are a fixed study");
+    expect(homeStampHtml(DATA)).toContain("The runs of this lab are a study");
     expect(homeStampHtml(DATA)).not.toContain("this page");
   });
 
   it("names the study of a page in plain words", () => {
     const stamp = stampOfPage(DATA, "results/faults");
-    expect(stamp === undefined ? "" : renderDataStamp(stamp)).toContain("The measured numbers of this page are a fixed study of redis 7.4 and kernel 6.17.0.");
+    expect(stamp === undefined ? "" : renderDataStamp(stamp)).toContain("The measured numbers of this page are a study of redis 7.4 and kernel 6.17.0.");
     expect(stampOfPage(DATA, "thesis")).toBeUndefined();
   });
 

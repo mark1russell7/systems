@@ -1,4 +1,5 @@
 import type { HostPorts } from "./ports.ts";
+import { removeIfSame } from "./lock.ts";
 import { sameProcess } from "./processes.ts";
 
 /**
@@ -90,11 +91,11 @@ export const writeDiscovery = async (path: string, record: Discovery, ports: Hos
  * a record, or a failed read, gives `malformed`. With `clean`, it removes a stale or malformed file.
  */
 export const readDiscovery = async (path: string, ports: HostPorts, options: ReadDiscoveryOptions = {}): Promise<DiscoveryRead> => {
-  const found = await examine(path, ports);
-  if (options.clean === true && (found.kind === "stale" || found.kind === "malformed")) {
+  const { found, text } = await examine(path, ports);
+  // The clean removes only the text that it examined: a new instance can write its file after the read.
+  if (options.clean === true && text !== null && (found.kind === "stale" || found.kind === "malformed")) {
     try {
-      await ports.files.remove(path);
-      ports.logger?.log("info", `the host removed the ${found.kind} discovery file ${path}`, { path, kind: found.kind });
+      if (await removeIfSame(path, text, ports)) ports.logger?.log("info", `the host removed the ${found.kind} discovery file ${path}`, { path, kind: found.kind });
     } catch {
       // the next read examines the file again
     }
@@ -102,22 +103,22 @@ export const readDiscovery = async (path: string, ports: HostPorts, options: Rea
   return found;
 };
 
-const examine = async (path: string, ports: HostPorts): Promise<DiscoveryRead> => {
+const examine = async (path: string, ports: HostPorts): Promise<{ readonly found: DiscoveryRead; readonly text: string | null }> => {
   let text: string | null;
   try {
     text = await ports.files.read(path);
   } catch (error) {
-    return { kind: "malformed", problem: `the read failed: ${error instanceof Error ? error.message : String(error)}` };
+    return { found: { kind: "malformed", problem: `the read failed: ${error instanceof Error ? error.message : String(error)}` }, text: null };
   }
-  if (text === null) return { kind: "absent" };
+  if (text === null) return { found: { kind: "absent" }, text };
   const record = parseDiscovery(text);
-  if (typeof record === "string") return { kind: "malformed", problem: record };
+  if (typeof record === "string") return { found: { kind: "malformed", problem: record }, text };
   const mark = { pid: record.pid, startedAt: Date.parse(record.startedAt) };
-  if (await sameProcess(mark, ports)) return { kind: "running", record };
+  if (await sameProcess(mark, ports)) return { found: { kind: "running", record }, text };
   const why = ports.processes.alive(record.pid)
     ? `the process ${record.pid} started after the record, thus it is a different process`
     : `the process ${record.pid} stopped`;
-  return { kind: "stale", record, why };
+  return { found: { kind: "stale", record, why }, text };
 };
 
 /** This function removes a discovery file when it names the process `pid`, by default the process of the host. It tells if it removed the file. */
@@ -127,8 +128,7 @@ export const removeDiscovery = async (path: string, ports: HostPorts, pid: numbe
     if (text === null) return false;
     const record = parseDiscovery(text);
     if (typeof record === "string" || record.pid !== pid) return false;
-    await ports.files.remove(path);
-    return true;
+    return await removeIfSame(path, text, ports);
   } catch {
     return false;
   }

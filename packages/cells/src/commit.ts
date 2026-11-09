@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { RecordCode } from "@mark1russell7/harness";
 
 /**
  * This module gives the commit of the code that operates the cells. It is the commit of the
@@ -9,11 +10,8 @@ import { fileURLToPath } from "node:url";
  * with a change to a tracked file is not a commit, and the record says so (`dirty`).
  */
 
-/** The code of a record is the commit of the checkout that operated, and if its tracked files had changes. */
-export interface Code {
-  readonly commit: string;
-  readonly dirty: boolean;
-}
+/** The code of a record is the commit of the checkout that operated, and if its tracked files had changes (`RecordCode` of the harness). */
+export type Code = RecordCode;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const git = (args: readonly string[]): string => execFileSync("git", [...args], { cwd: here, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();

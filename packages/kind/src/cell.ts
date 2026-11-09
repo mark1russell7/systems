@@ -643,6 +643,12 @@ export interface KindCell<A = Quantity> {
    * send messages to one topic and look up its owner. Without it, the cell has no broker.
    */
   readonly pulsar?: PulsarSettings | undefined;
+  /**
+   * This count is the CPUs, 1 or less, that a process outside the cluster keeps busy before each run
+   * (SYS-95). The load starts after the baseline of the environment. Thus this cell tests that the
+   * quiet gate refuses a loaded VM, and each of its runs is void when the gate holds.
+   */
+  readonly plannedLoad?: number | undefined;
 }
 
 /** These are the settings of the broker of a cell (`KindCell.pulsar`). */

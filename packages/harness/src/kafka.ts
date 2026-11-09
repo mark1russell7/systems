@@ -3,9 +3,10 @@ import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, GroupPlace, Kafka, KernelRecord, ProbeEvent, Run, RunPart } from "./cell.ts";
 import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.ts";
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
-import { harnessImage, kafkaClientImage } from "./image.ts";
+import { harnessImage, kafkaClientImage, shippedSource } from "./image.ts";
 import type { Manifest } from "./lab.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, buildOf, containers, harnessRecord, lines, netnsOf, output, withPid } from "./lab.ts";
+import { isFenceLine, namesGroup, pauseReady } from "./pause.ts";
 import type { Cut } from "./replset.ts";
 
 /**
@@ -19,6 +20,15 @@ import type { Cut } from "./replset.ts";
  * not in the namespace that the prober watches. The record of a run is the lines of the client and
  * the whole partition, read to its high watermark after the group converged.
  */
+
+/**
+ * This function gives the record of the Kafka client for a manifest: its image, its source and its
+ * build record. The pins check refuses a record of a built client without its build record.
+ */
+export const kafkaClientRecord = (image: string): Manifest["client"] => {
+  const source = shippedSource("kafka");
+  return { kind: "image", image, source, ...buildOf(source) };
+};
 
 /** This path is the class path of the Kafka image: the JVM expands the star itself. */
 const CLASS_PATH = "/opt/harness/kafka/classes:/opt/harness/kafka/lib/*";
@@ -115,6 +125,12 @@ export const bootstrapOf = (kafka: Kafka): string => kafka.brokers.map((name) =>
 /** This function gives the name of the topic of a run. A warm-up has the index -1. */
 export const topicOf = (environment: number, index: number): string => `cells-e${environment}-r${index + 1}`;
 
+/** A Kafka member is one member of a consumer group. A signal goes from a sidecar in its process namespace. */
+export interface KafkaMember extends GroupClient {
+  /** This method sends a signal to the process of the member, at once or at an instant of the VM. The injector stamps it. */
+  signal(signal: "STOP" | "CONT", at?: number): Promise<Stamp>;
+}
+
 /** A Kafka lab is one environment of a Kafka cell. */
 export interface KafkaLab {
   readonly kafka: Kafka;
@@ -130,8 +146,14 @@ export interface KafkaLab {
   sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
   /** This method waits until each broker is not fenced. */
   brokersUp(within?: number): Promise<void>;
-  /** This method makes the topic of a run. */
-  create(topic: string): Promise<void>;
+  /** These are the log lines of the brokers that tell that a member left a group (`isFenceLine`), in sequence. */
+  readonly fences: readonly string[];
+  /** This method makes the topic of a run, with one partition or more. */
+  create(topic: string, partitions?: number): Promise<void>;
+  /** This method writes `count` records in each partition of a topic, each acknowledged by each in-sync replica. */
+  fill(topic: string, partitions: number, count: number): Promise<void>;
+  /** This method starts one member of a consumer group, with the arguments of `ConsumerKafka` after the bootstrap. */
+  consumer(args: readonly string[]): Promise<KafkaMember>;
   /** This method waits until the partition is whole and calm, and gives the name of the broker of its leader. */
   converge(topic: string, within?: number): Promise<string>;
   /** This method gives the sequence numbers that the partition holds, one entry for each copy. */
@@ -188,6 +210,7 @@ export const openKafkaLab = async (kafka: Kafka): Promise<KafkaLab> => {
     const injectors = new Map<string, StartedTestContainer>();
     const parts: Record<string, RunPart> = {};
     const raw: Record<string, string[]> = {};
+    const fences: string[] = [];
     const openNode = async (name: string, environment: Record<string, string>): Promise<void> => {
       let partial = "";
       const box = await new GenericContainer(kafka.image)
@@ -206,6 +229,7 @@ export const openKafkaLab = async (kafka: Kafka): Promise<KafkaLab> => {
               const tail = (raw[name] ??= []);
               tail.push(text);
               if (tail.length > RAW_TAIL) tail.shift();
+              if (isFenceLine(text)) fences.push(text);
             }
           }),
         )
@@ -278,6 +302,7 @@ export const openKafkaLab = async (kafka: Kafka): Promise<KafkaLab> => {
       netns: { client: clientNetns },
       kernel: records.seen,
       raw,
+      fences,
       async sysctl(values) {
         const settings = Object.entries(values).map(([key, value]) => `${key}=${value}`);
         if (settings.length > 0) await output(admin, ["sysctl", "-q", "-w", ...settings]);
@@ -296,10 +321,37 @@ export const openKafkaLab = async (kafka: Kafka): Promise<KafkaLab> => {
         }
         throw new Error(`the brokers did not come up in ${within} ms: ${last}`);
       },
-      async create(topic) {
+      async create(topic, partitions = 1) {
         const ids = kafka.brokers.map((name) => nodeIdOf(kafka, name)).join(",");
-        const reply = await tool("create", topic, String(kafka.minInsync), ids);
+        const reply = await tool("create", topic, String(kafka.minInsync), ids, String(partitions));
         if (!reply.includes('"ok":true')) throw new Error(`the create of the topic failed: ${reply}`);
+      },
+      async fill(topic, partitions, count) {
+        const reply = await tool("fill", topic, String(partitions), String(count));
+        if (!reply.includes('"ok":true')) throw new Error(`the fill of the topic failed: ${reply}`);
+      },
+      async consumer(args) {
+        const events = lines<ProbeEvent>();
+        // sh stays as process 1, because a signal from inside a process namespace to its process 1 has no effect
+        const container = await new GenericContainer(clientImage)
+          .withNetworkMode(`container:${holder.getId()}`)
+          .withCommand(["sh", "-c", 'java "$@"; :', "consumer", CLIENT_HEAP, "-cp", CLASS_PATH, "ConsumerKafka", bootstrap, ...args])
+          .withLogConsumer(events.consume)
+          .start();
+        const signaller = await withPid(
+          new GenericContainer(image).withNetworkMode(`container:${holder.getId()}`).withAddedCapabilities("NET_ADMIN", "NET_RAW"),
+          `container:${container.getId()}`,
+        ).start();
+        return {
+          events: events.seen,
+          until: (kinds, within) => events.until(kinds, within, "client"),
+          signal: (signal, at) => stamped(signaller, ["/opt/harness/inject", "signal", "java", signal, ...after(at)]),
+          // process 1 is sh and it ignores a TERM, thus this stop ends with a KILL, and it writes no done line
+          stop: async () => {
+            await container.stop({ timeout: 2 }).catch(() => undefined);
+            await signaller.stop(STOP).catch(() => undefined);
+          },
+        };
       },
       async converge(topic, within = CONVERGE_MS) {
         const begin = Date.now();
@@ -397,8 +449,9 @@ export const openKafkaLab = async (kafka: Kafka): Promise<KafkaLab> => {
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "image", image: clientImage },
+          client: kafkaClientRecord(clientImage),
           netns: { client: clientNetns, target: members[kafka.brokers[0]!]!.netns },
           sysctls,
           group: { members: brokers, sentinels: await list([kafka.controller]), observer: { image: clientImage } },
@@ -523,5 +576,93 @@ export const kafkaOnce = async (lab: KafkaLab, cell: Cell, environment: number, 
       after,
       holds,
     },
+  };
+};
+
+/** This count is the partitions of the topic of a run of a paused consumer: one for each member. */
+const PAUSE_PARTITIONS = 2;
+
+/** This time bounds the wait for one partition for each member and for two commits, in ms. It has no source: it is far above two batches and one rebalance. */
+const PAUSE_READY_MS = 90_000;
+
+/** This time bounds the wait for the next batch of the first member, in ms. It has no source: it is far above one batch. */
+const PAUSE_BATCH_MS = 30_000;
+
+/**
+ * This function does one run of a paused consumer:
+ * - The topic of the run has two partitions, each with records that a run does not finish.
+ * - Two members join one group, and the run waits until each member holds one partition and the
+ *   first member has two commits on its partition.
+ * - A SIGSTOP stops the first member while it holds its next batch, and a SIGCONT ends the stop
+ *   after the hold of the cell. The run then waits for the tail.
+ *
+ * The fault is null when the members did not get one partition each. The measure then voids the run.
+ * The law reads no kernel record, thus a lost record does not void this run.
+ */
+export const kafkaPauseOnce = async (lab: KafkaLab, cell: Cell, environment: number, index: number): Promise<Run> => {
+  const pause = cell.kafka?.pause;
+  if (pause === undefined) throw new Error("a run of a paused consumer needs `Kafka.pause`");
+  if (cell.fault !== "freeze-process") throw new Error(`a paused consumer has no fault ${cell.fault}`);
+  if (cell.hold === undefined) throw new Error("a paused consumer needs a hold: its law reads it");
+  const hold = valueIn(cell.hold, "s");
+  const topic = topicOf(environment, index);
+  const group = `pause-e${environment}-r${index + 1}`;
+  await lab.brokersUp();
+  await lab.create(topic, PAUSE_PARTITIONS);
+  const leader = await lab.converge(topic);
+  await lab.fill(topic, PAUSE_PARTITIONS, pause.fill);
+  await lab.forget();
+  const from = lab.kernel.length;
+  const lostBefore = droppedSoFar(lab.kernel);
+  const common = [
+    "--topic",
+    topic,
+    "--group",
+    group,
+    "--protocol",
+    pause.protocol,
+    "--max-s",
+    String(Math.ceil(hold + 180)),
+    ...Object.entries(cell.driverOptions ?? {}).flatMap(([name, value]) => ["--set", `${name}=${String(value)}`]),
+  ];
+  const members: KafkaMember[] = [];
+  let fault: Run["fault"] = null;
+  let heal: Run["heal"] = null;
+  let otherEvents: readonly ProbeEvent[] = [];
+  let firstEvents: readonly ProbeEvent[] = [];
+  try {
+    const first = await lab.consumer([...common, "--process-ms", String(valueIn(pause.process, "ms")), "--after-pause", pause.afterPause]);
+    members.push(first);
+    const other = await lab.consumer([...common, "--process-ms", "0", "--after-pause", "commit"]);
+    members.push(other);
+    firstEvents = first.events;
+    otherEvents = other.events;
+    const begun = Date.now();
+    while (Date.now() - begun < PAUSE_READY_MS && !pauseReady(first.events, other.events)) await sleep(100);
+    if (pauseReady(first.events, other.events)) {
+      const seen = first.events.at(-1)?.t ?? 0;
+      const batch = await waitFor(first, (event) => event.ev === "processing" && event.t > seen, PAUSE_BATCH_MS);
+      if (batch !== undefined) {
+        fault = await first.signal("STOP", batch.t + valueIn(pause.stopAfter, "s") * 1e9);
+        // the injector holds the signal in the VM: its exec returns at the instant, and the stamps come with it
+        heal = await first.signal("CONT", fault.t0 + hold * 1e9);
+        await sleep(KAFKA_TAIL_MS);
+      }
+    }
+  } finally {
+    for (const member of members) await member.stop();
+  }
+  const settled = await lab.settle();
+  return {
+    environment,
+    index,
+    events: [...firstEvents],
+    fault,
+    ...(heal === null ? {} : { heal }),
+    kernel: lab.kernel.slice(from),
+    netns: lab.netns.client,
+    targetNetns: lab.members[leader]!.netns,
+    lost: settled === null ? null : settled - lostBefore,
+    pause: { other: [...otherEvents], fences: lab.fences.filter((line) => namesGroup(line, group)), group },
   };
 };
