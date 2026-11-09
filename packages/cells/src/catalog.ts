@@ -1,4 +1,4 @@
-import type { Detection, KnobValues, Manifestation } from "@mark1russell7/algebra";
+import type { Detection, KnobValues, Manifestation } from "@mark1russell7/automata";
 import {
   detection,
   errnoOf,
@@ -6,7 +6,7 @@ import {
   recovery,
   stackedDetection,
   timerUnder,
-} from "@mark1russell7/algebra";
+} from "@mark1russell7/automata";
 import type { Cell, Fault, Prediction, Reference, Target } from "@mark1russell7/harness";
 import { LINUX_TCP, REDIS_CLIENT } from "@mark1russell7/machines";
 import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";

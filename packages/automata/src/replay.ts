@@ -1,4 +1,4 @@
-// @mark1russell7/algebra/replay: the replay of a trace against a machine document. A machine of
+// @mark1russell7/automata/replay: the replay of a trace against a machine document. A machine of
 // any name, with its own states and events, replays here. The entry does not import zod. Thus
 // a client in a browser can replay its own transitions.
 

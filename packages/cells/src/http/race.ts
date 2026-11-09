@@ -1,5 +1,5 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
-import { timerOf } from "@mark1russell7/algebra";
+import type { KnobValues, Machine } from "@mark1russell7/automata";
+import { timerOf } from "@mark1russell7/automata";
 import {
   GO_TRANSPORT,
   NODE_HTTP_AGENT,

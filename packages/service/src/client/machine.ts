@@ -2,7 +2,7 @@
 // own states and transitions, because the states are the states of its driver. The helpers, the
 // knob shape, the timer of the bounded close and the events that the core records are the same.
 
-import type { TransitionDef } from "@mark1russell7/algebra";
+import type { TransitionDef } from "@mark1russell7/automata";
 
 /** This function gives one transition of a machine document. */
 export const transition = (

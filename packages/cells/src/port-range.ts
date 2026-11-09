@@ -1,4 +1,4 @@
-import { timerOf } from "@mark1russell7/algebra";
+import { timerOf } from "@mark1russell7/automata";
 import type { Cell, PortsPrediction, QueueBand, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { wheelOf } from "./accept-queue.ts";

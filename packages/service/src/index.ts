@@ -178,5 +178,5 @@ export {
   capKnob,
   drainMachine,
 } from "./machines.ts";
-// the replay of a trace moved to @mark1russell7/algebra, with open machine names: this export keeps it for the users of 0.3
-export { replay } from "@mark1russell7/algebra/replay";
+// the replay of a trace moved to @mark1russell7/automata, with open machine names: this export keeps it for the users of 0.3
+export { replay } from "@mark1russell7/automata/replay";

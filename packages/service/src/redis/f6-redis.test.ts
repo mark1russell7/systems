@@ -105,7 +105,7 @@ const shell = process.platform === "win32";
 const buildProbe = async (): Promise<void> => {
   const context = mkdtempSync(join(tmpdir(), "f6-"));
   try {
-    execFileSync("pnpm", ["--filter", "@mark1russell7/quantity", "--filter", "@mark1russell7/algebra", "--filter", "@mark1russell7/service", "build"], { cwd: REPO, shell, stdio: "ignore" });
+    execFileSync("pnpm", ["--filter", "@mark1russell7/quantity", "--filter", "@mark1russell7/automata", "--filter", "@mark1russell7/service", "build"], { cwd: REPO, shell, stdio: "ignore" });
     for (const name of ["quantity", "algebra", "service"])
       execFileSync("pnpm", ["pack", "--pack-destination", context], { cwd: join(REPO, "packages", name), shell, stdio: "ignore" });
     const tarball = (name: string): string => `file:./${readdirSync(context).find((file) => file.startsWith(`mark1russell7-${name}-`))!}`;
@@ -117,12 +117,12 @@ const buildProbe = async (): Promise<void> => {
         type: "module",
         dependencies: {
           "@mark1russell7/quantity": tarball("quantity"),
-          "@mark1russell7/algebra": tarball("algebra"),
+          "@mark1russell7/automata": tarball("algebra"),
           "@mark1russell7/service": tarball("service"),
           ioredis: "6.0.0",
           zod: "^4.1.0",
         },
-        overrides: { "@mark1russell7/quantity": "$@mark1russell7/quantity", "@mark1russell7/algebra": "$@mark1russell7/algebra" },
+        overrides: { "@mark1russell7/quantity": "$@mark1russell7/quantity", "@mark1russell7/automata": "$@mark1russell7/automata" },
       }),
     );
     for (const file of ["probe.mjs", "agent.mjs"]) copyFileSync(join(FILES, file), join(context, file));

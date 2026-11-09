@@ -1,4 +1,4 @@
-import { timerOf } from "@mark1russell7/algebra";
+import { timerOf } from "@mark1russell7/automata";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";

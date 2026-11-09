@@ -1,4 +1,4 @@
-import { algebraProblems, machineProblems, overValues, timerOf } from "@mark1russell7/algebra";
+import { algebraProblems, machineProblems, overValues, timerOf } from "@mark1russell7/automata";
 import { LINUX_TCP, MONGOD_REPL, MONGOD_SESSION, MONGODB_NODE } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ, given } from "../catalog.ts";

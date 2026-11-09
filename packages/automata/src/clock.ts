@@ -1,4 +1,4 @@
-// @mark1russell7/algebra/clock: the clock of a runtime, and a fake clock for tests. It imports
+// @mark1russell7/automata/clock: the clock of a runtime, and a fake clock for tests. It imports
 // nothing: no `node:` module, no zod and no other package. Thus a client in a browser can use it.
 // The service gives this clock again as @mark1russell7/service/clock.
 

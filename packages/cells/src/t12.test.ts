@@ -1,4 +1,4 @@
-import { algebraProblems, machineProblems, timerOf } from "@mark1russell7/algebra";
+import { algebraProblems, machineProblems, timerOf } from "@mark1russell7/automata";
 import { IOREDIS_SENTINEL, SENTINEL } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";

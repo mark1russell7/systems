@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { timerOf } from "@mark1russell7/algebra";
+import { timerOf } from "@mark1russell7/automata";
 import type { BuildImage, Cell, DriverStep, LineMatch, Measured, Prediction, Target } from "@mark1russell7/harness";
 import { UNDICI_RETRY } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";

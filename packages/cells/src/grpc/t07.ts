@@ -1,4 +1,4 @@
-import { recovery, timerOf } from "@mark1russell7/algebra";
+import { recovery, timerOf } from "@mark1russell7/automata";
 import type { KindCell, KubeProxyMode, Prediction, Propagation, TriggerKind } from "@mark1russell7/kind";
 import { kubeletBand } from "@mark1russell7/kind";
 import { GRPC_JS, LINUX_TCP } from "@mark1russell7/machines";

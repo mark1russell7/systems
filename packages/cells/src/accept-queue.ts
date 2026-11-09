@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { evaluate, timerOf } from "@mark1russell7/algebra";
+import { evaluate, timerOf } from "@mark1russell7/automata";
 import type { Cell, QueueBand, QueueConnection, QueuePrediction, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { given, HZ, LINUX_66, ms, seconds, s } from "./catalog.ts";

@@ -1,5 +1,5 @@
-import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, overValues, recovery, timerOf, timerUnder } from "@mark1russell7/algebra";
+import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/automata";
+import { detection, errnoOf, overValues, recovery, timerOf, timerUnder } from "@mark1russell7/automata";
 import type { Cell, MiddleboxExpectation, Prediction, RouterHop, Target } from "@mark1russell7/harness";
 import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

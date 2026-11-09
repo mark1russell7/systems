@@ -99,9 +99,9 @@ The format of a description is `mark1russell7.service/1`.
 
 ## The machines
 
-The machines of the runtime are `mark1russell7.machine/1` documents, which `@mark1russell7/algebra` reads. They are the gate, the latch (a debounce), the window, the poller, the exit manager and the watchdog. `drainMachine(description)` gives the drain of a declaration, with one state for each phase. The keyed limiter has its own documents.
+The machines of the runtime are `mark1russell7.machine/1` documents, which `@mark1russell7/automata` reads. They are the gate, the latch (a debounce), the window, the poller, the exit manager and the watchdog. `drainMachine(description)` gives the drain of a declaration, with one state for each phase. The keyed limiter has its own documents.
 
-Each machine gives its transitions to `run({ record })` or `start({ record })`. `replay(doc, events)` gives each transition that the document does not permit. It is the replay of `@mark1russell7/algebra`, which reads a machine of any name.
+Each machine gives its transitions to `run({ record })` or `start({ record })`. `replay(doc, events)` gives each transition that the document does not permit. It is the replay of `@mark1russell7/automata`, which reads a machine of any name.
 
 The tests replay the real runtime against each document. They also compare each timer of the documents, from the algebra, with the time that the runtime keeps.
 
@@ -313,7 +313,7 @@ const findings = lint(svc.describe(), scenario, DRAIN_RULES);
 
 ## The timers
 
-The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module and no zod. The only other package that they import is `@mark1russell7/algebra/clock`, which imports nothing. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
+The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module and no zod. The only other package that they import is `@mark1russell7/automata/clock`, which imports nothing. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
 
 | Entry | Exports |
 | --- | --- |
@@ -322,7 +322,7 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 | `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
 
 - **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
-- **The home of the clock.** The clock lives in `@mark1russell7/algebra/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
+- **The home of the clock.** The clock lives in `@mark1russell7/automata/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
 - **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
 - **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.
 - **The hooks of a heartbeat.** At each tick, `due` tells if the tick sends a ping. `live` tells if a miss counts. `turn` waits one turn of the event loop before the heartbeat counts. Without `overlap`, the heartbeat sends one ping at a time.
@@ -451,7 +451,7 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **O30.** The least delay of a caller before a retry (`retry_delay@caller`) is at least the longest `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too early.
 - **A closed failure.** The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy. Thus O29 and O30 apply to it too.
 - **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds: one interval of the bucket, or one window. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
-- **The machine of a key.** Each policy has a document of one key, which `@mark1russell7/algebra` reads. A key is `new` (the store holds no count, or a count equal to a new key), `open` (its next take is permitted) or `limited` (its next take is refused).
+- **The machine of a key.** Each policy has a document of one key, which `@mark1russell7/automata` reads. A key is `new` (the store holds no count, or a count equal to a new key), `open` (its next take is permitted) or `limited` (its next take is refused).
 - **The timers of a token bucket.** `token` fires at most `1 / rate` after the take that used the last token. That time is the longest `Retry-After`. `full` fires from one to `burst` intervals after a permitted take: the bucket is full, and the key is new again.
 - **The timers of a sliding window.** `oldest` fires at most one window after the take that filled the window. `last` fires one window after the last permitted take, and the key is new again.
 - **The other transitions.** A refused take leaves a limited key limited. A new key at the cap stays new, with the cause `cap`. A failure of a shared store leaves each state as it is.

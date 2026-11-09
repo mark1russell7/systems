@@ -3,7 +3,7 @@
  * fault starts on the path. Each layer, from the program to the NIC, can find the fault, or it stays
  * silent. This module computes when each layer finds it.
  *
- * The times come from the algebra (`@mark1russell7/algebra`) over four machine documents of
+ * The times come from the algebra (`@mark1russell7/automata`) over four machine documents of
  * `@mark1russell7/machines`. They are Linux TCP, conntrack, the call of the program with a
  * deadline, and the readiness probe of the kubelet. The bands, the firings and the trains of probes
  * come from `timerBand`, `firings` and `probeTrain` of the algebra. Each amount is a quantity of
@@ -25,7 +25,7 @@ import {
   type KnobValues,
   type Manifestation,
   type TimerBounds,
-} from "@mark1russell7/algebra";
+} from "@mark1russell7/automata";
 import { DEADLINE_CALL, KUBELET_READINESS, LINUX_TCP, MANIFESTATIONS, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import { add, convert, format, formatDuration, isUnbounded, quantity, valueIn, type Extent, type Quantity, type Unknown } from "@mark1russell7/quantity";
 import harness from "../data/harness-2026-10-13.json";

@@ -1,5 +1,5 @@
-import { machineProblems } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import { machineProblems } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 import { describe, expect, it } from "vitest";
 import type { CallContext } from "../call-context.ts";
 import type { GrpcClientOptions, GrpcClientSpec, GrpcConnectOptions, GrpcKnobs, GrpcStatus } from "../grpc.ts";
