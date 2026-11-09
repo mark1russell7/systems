@@ -417,10 +417,15 @@ The Socket.IO catalog has the client and the server of Socket.IO 4.8.4 on a dire
   - The client waits `pingInterval + pingTimeout` for each ping, from the last ping that it read. At the end of that wait, close() of ws writes a close frame.
   - The server waits `pingTimeout` for the pong of each ping. At the end of that wait, it writes a close frame.
 - **The cells.** Each cell has a ping each 2 s and a wait of 1 s for its pong:
-  - A black hole, idle or with a call in flight, and a frozen server. The client drops the connection 3 s after the pong of its last ping. The band counts from that pong (`last-data`).
+  - A black hole, idle or with a call in flight, and a frozen server. The client drops the connection 3 s after the pong of its last ping. The band counts from the write of that pong (`pong-sent`).
   - A FIN. The client reads the end of the file at once, and the reconnect waits 0.5 s, 1 s and 2 s.
   - The server, with a black hole. The server drops the connection 1 s after its first ping without an answer.
-- **What stays for slice 2.** The recovery of the state of a connection, and the delivery modes of a message.
+- **The delivery cells** (`DELIVERY_SPECS`, slice 2 of `docs/S7.md`). A stream of numbered events crosses a stall of 5.6 s, and the cell counts the events that the receiver loses or gets twice:
+  - D1, D2 and D4: the server streams to the client. D1 has no recovery (`--recovery off`), and D2 has a recovery of 30 s. D4 has a recovery of 2 s, which ends before the new connection.
+  - U1, U2 and U3: the client streams to the server, with no retries, 3 retries and 2 retries.
+  - The client names a room in its auth (`stream`). The server sends the stream to that room, thus each connection of the client gets it, and no other client does.
+  - `deliveryOf` derives the bands `lost` and `duplicates` and the value of `recovered`. It refuses a cell where an edge of a timer falls in a band. An example is the end of the stall in the band of a SYN.
+- **What stays for later.** D3: a recovery whose session lives, but whose events the timer of the adapter removed. It needs a quiet time of 70 s before the fault.
 
 ## The calibration of the proxies
 

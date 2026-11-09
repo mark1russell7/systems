@@ -1,12 +1,25 @@
-// server --port N --ping-interval-ms N --ping-timeout-ms N
+// server --port N --ping-interval-ms N --ping-timeout-ms N --recovery off|N
 //
 // The server program of the Socket.IO cells (SYS-87): the Server of socket.io 4.8.4 on engine.io
-// 6.6.11 and the http.Server of Node, with the WebSocket transport only. It serves two events with an
-// acknowledgement: `echo` answers at once, and `hold` answers after `ms` milliseconds.
+// 6.6.11 and the http.Server of Node, with the WebSocket transport only. It serves these events with
+// an acknowledgement.
+//   echo     answers at once.
+//   hold     answers after `ms` milliseconds.
+//   stream   answers at once. Then it sends `count` numbered events (`event`), one each `interval`
+//            milliseconds, to the room of the client. Before each event, it writes `emitted`.
+//   event    a numbered event of the client. The server writes `got`, and answers when the client
+//            asks for an answer.
 //
 // --ping-interval-ms and --ping-timeout-ms are pingInterval and pingTimeout of the Server. The
-// server gives both to the client in its handshake. Each setting is a flag, and the server has no
+// server gives both to the client in its handshake. --recovery is connectionStateRecovery: off, or
+// its maxDisconnectionDuration in milliseconds. Each setting is a flag, and the server has no
 // default.
+//
+// The client names its room in its auth (`stream`), and each connection of the client joins that
+// room. The stream goes to the room (`io.to(room).emit`), not to the socket of the request. Without
+// recovery, a new connection of the client thus gets the events after its join. With recovery, the
+// adapter keeps each event with an offset, and a restored session gets the events after its last
+// offset. A stream of an earlier client goes to its own room, thus it does not reach this client.
 //
 // The readiness of the target is the line `listening`: the harness waits for it. Each event is a
 // JSON line on the clock of the clients: a connection (`accepted`), each ping (`ping`), a request, a
@@ -19,12 +32,14 @@ import { createRequire } from "node:module";
 import type { Socket as NetSocket } from "node:net";
 import { Server } from "socket.io";
 import { WebSocket } from "ws";
-import { bootId, commandLine, emit, versions } from "./lines.ts";
+import { bootId, commandLine, emit, every, versions } from "./lines.ts";
 
-const line = commandLine("server --port N --ping-interval-ms N --ping-timeout-ms N");
+const line = commandLine("server --port N --ping-interval-ms N --ping-timeout-ms N --recovery off|N");
 const port = line.number("--port");
 const pingInterval = line.number("--ping-interval-ms");
 const pingTimeout = line.number("--ping-timeout-ms");
+const recovery = line.required("--recovery") === "off" ? null : line.number("--recovery");
+if (recovery !== null && recovery < 1) line.fail("--recovery is off, or at least 1 ms");
 
 // engine.io must use the copy of ws that this program changes
 const require = createRequire(import.meta.url);
@@ -45,7 +60,13 @@ WebSocket.prototype.close = function (this: WithSocket, ...args: Parameters<type
 };
 
 const httpServer = http.createServer();
-const io = new Server(httpServer, { transports: ["websocket"], pingInterval, pingTimeout, serveClient: false });
+const io = new Server(httpServer, {
+  transports: ["websocket"],
+  pingInterval,
+  pingTimeout,
+  serveClient: false,
+  ...(recovery === null ? {} : { connectionStateRecovery: { maxDisconnectionDuration: recovery, skipMiddlewares: true } }),
+});
 
 /** The parts of a socket of engine.io that the lines use. */
 interface EngineSocket {
@@ -65,6 +86,8 @@ io.engine.on("connection", (socket: EngineSocket) => {
 });
 
 io.on("connection", (socket) => {
+  const room: unknown = (socket.handshake.auth as { stream?: unknown }).stream;
+  if (typeof room === "string") void socket.join(room);
   socket.on("echo", (_input: unknown, ack: (reply: unknown) => void) => {
     emit("request", { method: "echo" });
     ack({ ok: true });
@@ -76,6 +99,22 @@ io.on("connection", (socket) => {
       ack({ ok: true, held: input.ms });
     }, input.ms);
   });
+  socket.on("stream", (input: { count: number; interval: number }, ack: (reply: unknown) => void) => {
+    emit("request", { method: "stream", count: input.count, interval: input.interval });
+    if (typeof room !== "string") {
+      ack({ ok: false, why: "the client names no room (auth.stream)" });
+      return;
+    }
+    ack({ ok: true });
+    every(input.count, input.interval, (n) => {
+      emit("emitted", { n });
+      io.to(room).emit("event", { n });
+    });
+  });
+  socket.on("event", (input: { n: number }, ack?: (reply: unknown) => void) => {
+    emit("got", { n: input.n, recovered: socket.recovered });
+    if (typeof ack === "function") ack({ ok: true });
+  });
 });
 
 httpServer.listen(port, "0.0.0.0", () =>
@@ -83,9 +122,10 @@ httpServer.listen(port, "0.0.0.0", () =>
     port,
     boot_id: bootId(),
     node: process.version,
-    packages: versions(["socket.io", "engine.io", "ws"]),
+    packages: versions(["socket.io", "socket.io-adapter", "engine.io", "ws"]),
     server: "socket.io",
     pingInterval,
     pingTimeout,
+    recovery,
   }),
 );
