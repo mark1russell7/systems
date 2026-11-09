@@ -1,7 +1,8 @@
-// client HOST PORT --mode idle|inflight --websocket ws --heartbeat off
+// client HOST PORT --mode idle|inflight|stream --websocket ws --heartbeat off
 //        --reconnect on|off [--reconnect-initial-ms N --reconnect-multiplier 2 --reconnect-max-ms N
 //                            --reconnect-attempts N --reconnect-jitter X]
 //        --request-timeout-ms N --connection-timeout-ms N [--hold-ms N] [--go PATH] [--max-s N]
+//        [--count N --interval-ms N --sender client|target] [--retries N]
 //
 // The client program of the Socket.IO cells (SYS-87): the Manager and the Socket of
 // socket.io-client 4.8.4, on the Node WebSocket transport of engine.io-client 6.6.7 (the `ws`
@@ -15,35 +16,49 @@
 //                 factor 2, thus --reconnect-multiplier is 2 only. The Manager reads 0 as its default
 //                 for the delay and for the attempts (`||`), thus each is at least 1.
 //   --connection-timeout-ms is the `timeout` of the Manager: the time limit of each try.
-//   --request-timeout-ms is the time limit of each call: socket.timeout(N).emitWithAck().
+//   --request-timeout-ms is the time limit of each call: socket.timeout(N).emitWithAck(). With
+//                 --retries, it is also the ackTimeout of the Socket: the time limit of each try.
+//   --retries     is the `retries` of the Socket. Each event waits for its ack, and the client sends
+//                 it again after a failed try. Without the flag, the Socket has no queue.
 // Each setting is a flag, and the client has no default: a missing flag is a failure.
 //
-// Both modes call `echo` first. Then the client waits for the next ping of the server, and writes
-// `ready`. Thus the last data that the client got before the fault is that ping: the reference
-// of the ping timer of the client. idle: then hold the connection. inflight: then wait for the file
-// --go, and call `echo` (or `hold` for --hold-ms) into the fault.
+// Each mode calls `echo` first. Then the client waits for the next ping of the server, and writes
+// `ready`. The client writes its pong in the same tick, and its ping timer starts there. This is
+// the reference `pong-sent` of the harness. The modes then do this:
+//   idle      hold the connection.
+//   inflight  wait for the file --go, and call `echo` (or `hold` for --hold-ms) into the fault.
+//   stream    send --count events, one each --interval-ms, from --sender.
+// The two senders of a stream:
+//   target  the client asks for the stream (`stream`) before `ready`. The fault comes before the
+//           signal, thus the request cannot wait for it. The client writes `got` for each event. At
+//           the signal, it writes `sent` and sends nothing. The server sends the stream to a room
+//           that the client names in its auth. Each process has a new name.
+//   client  at the signal, the client writes `sent`. Then it sends the events (`event`), and it
+//           writes `emitted` before each one.
 //
 // The lines are those of the procedures subject of the client repository:
-//   dial {conn}             before each new socket of the transport (conn counts from 1)
-//   connected {conn, local} the socket opened: its local address
-//   write {conn, local, type} before each frame: the type of its engine.io packet
-//   drop {conn, local, how} before close() of an open socket: a close frame of ws
-//   reconnecting {attempt}  the Manager starts its reconnect timer
-//   status {status}         connect, disconnect (with the reason) and the errors of the Manager
-//   conn-end {conn, code}   the close event of each socket, with the errno of its socket error
-//   error {errno} / eof     the end of socket 1, the socket of the run, when the client did not drop it
-//   sent / ready / data / call-error   each call, its reply, or its failure
+//   dial {conn}             before each new socket of the transport. conn counts from 1.
+//   connected {conn, local} the socket opened: its local address.
+//   write {conn, local, type} before each frame: the type of its engine.io packet.
+//   drop {conn, local, how} before close() of an open socket: a close frame of ws.
+//   reconnecting {attempt}  the Manager starts its reconnect timer.
+//   status {status}         a connect (with `recovered`), a disconnect (with the reason), or an error of the Manager.
+//   emitted {n} / got {n}   the send or the receipt of each event of a stream.
+//   conn-end {conn, code}   the close event of each socket, with the errno of its socket error.
+//   error {errno} / eof     the end of socket 1 (the socket of the run), when the client did not drop it.
+//   sent / ready / data / call-error   each call, its reply, or its failure.
 
+import { randomUUID } from "node:crypto";
 import { NodeWebSocket } from "engine.io-client";
 import { Manager } from "socket.io-client";
-import { bootId, commandLine, emit, now, versions, waitFor } from "./lines.ts";
+import { bootId, commandLine, emit, every, now, versions, waitFor } from "./lines.ts";
 
 const USAGE =
-  "client HOST PORT --mode idle|inflight --websocket ws --heartbeat off --reconnect on|off --request-timeout-ms N --connection-timeout-ms N";
+  "client HOST PORT --mode idle|inflight|stream --websocket ws --heartbeat off --reconnect on|off --request-timeout-ms N --connection-timeout-ms N";
 const line = commandLine(USAGE, 2);
 const [host, port] = line.args;
 const mode = line.required("--mode");
-if (mode !== "idle" && mode !== "inflight") line.fail("--mode is idle or inflight");
+if (mode !== "idle" && mode !== "inflight" && mode !== "stream") line.fail("--mode is idle, inflight or stream");
 if (line.required("--websocket") !== "ws") line.fail("--websocket is ws: the Node build of engine.io-client opens its sockets with the ws package");
 if (line.toggle("--heartbeat")) line.fail("--heartbeat is off: the server gives the times of the ping in its handshake");
 const reconnect = line.toggle("--reconnect")
@@ -65,6 +80,15 @@ const connectionTimeout = line.number("--connection-timeout-ms");
 const hold = line.flag("--hold-ms") === undefined ? undefined : line.number("--hold-ms");
 const go = line.flag("--go") ?? "/tmp/go";
 const max = Number(line.flag("--max-s") ?? 60) * 1000;
+const stream =
+  mode === "stream" ? { count: line.number("--count"), interval: line.number("--interval-ms"), sender: line.required("--sender") } : null;
+if (stream !== null) {
+  if (stream.sender !== "client" && stream.sender !== "target") line.fail("--sender is client or target");
+  if (stream.count < 1 || stream.interval < 1) line.fail("--count and --interval-ms are at least 1");
+}
+const retries = line.flag("--retries") === undefined ? undefined : line.number("--retries");
+// `emit` of the Socket reads `retries` as a boolean: 0 turns the queue off, and is not one try
+if (retries !== undefined && retries < 1) line.fail("--retries is at least 1: the Socket reads 0 as no queue");
 
 emit("start", {
   boot_id: bootId(),
@@ -72,7 +96,7 @@ emit("start", {
   client: "socketio",
   packages: versions(["socket.io-client", "engine.io-client", "ws"]),
   node: process.version,
-  settings: { reconnect, requestTimeout, connectionTimeout, hold: hold ?? null },
+  settings: { reconnect, requestTimeout, connectionTimeout, hold: hold ?? null, stream, retries: retries ?? null },
 });
 
 /** One socket of the transport: its number, its local address, and if the client dropped it. */
@@ -195,12 +219,17 @@ const manager = new Manager(`http://${host}:${port}`, {
   timeout: connectionTimeout,
 } as ConstructorParameters<typeof Manager>[1]);
 manager.on("error", (error: SocketError) => emit("status", { status: "error", message: error?.message ?? null }));
-const socket = manager.socket("/");
+// the room of a stream of the server: one for each client process, thus no stream of an earlier run reaches it
+const room = randomUUID();
+const socket = manager.socket("/", { auth: { stream: room }, ...(retries === undefined ? {} : { retries, ackTimeout: requestTimeout }) });
 socket.on("disconnect", (reason: string) => emit("status", { status: "disconnected", reason }));
 socket.on("connect_error", (error: SocketError) => emit("status", { status: "error", message: error?.message ?? null }));
+// each event of a stream of the target. With recovery, the server adds the offset as the last argument
+socket.on("event", (input: { n: number }) => emit("got", { n: input.n }));
 await new Promise<void>((resolve) => {
+  // each connection: `recovered` is undefined where the server has no recovery, thus the line gives a boolean
   socket.on("connect", () => {
-    emit("status", { status: "connected" });
+    emit("status", { status: "connected", recovered: socket.recovered === true });
     resolve();
   });
 });
@@ -208,12 +237,24 @@ await new Promise<void>((resolve) => {
 try {
   emit("sent");
   const reply: unknown = await socket.timeout(requestTimeout).emitWithAck("echo", {});
-  // the next ping of the server is the last data before the fault
+  // a stream of the target starts before the fault, because the black hole comes before the signal
+  if (stream?.sender === "target") await socket.timeout(requestTimeout).emitWithAck("stream", { count: stream.count, interval: stream.interval });
+  // the client writes its pong to the next ping of the server, and starts its ping timer there
   await new Promise<void>((resolve) => manager.once("ping", () => resolve()));
   emit("ready", { reply: JSON.stringify(reply ?? null) });
 } catch (error) {
   emit("fail", { why: (error as SocketError)?.message ?? String(error) });
   process.exit(1);
+}
+
+if (stream !== null) {
+  await waitFor(go);
+  emit("sent");
+  if (stream.sender === "client")
+    every(stream.count, stream.interval, (n) => {
+      emit("emitted", { n });
+      socket.emit("event", { n });
+    });
 }
 
 if (mode === "inflight") {

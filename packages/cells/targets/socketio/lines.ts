@@ -80,6 +80,26 @@ export const commandLine = (usage: string, positional = 0): CommandLine => {
   return { args, flag, required, number, toggle, fail };
 };
 
+/**
+ * This function does `act` `count` times, one time each `interval` milliseconds, with the numbers 1
+ * to `count`. Each act has its time from the start (start + (n − 1) × interval), not from the act
+ * before it. Thus the lateness of a timer does not add up over the stream.
+ */
+export const every = (count: number, interval: number, act: (n: number) => void): void => {
+  const start = now();
+  const next = (n: number): void => {
+    const due = start + BigInt(Math.round((n - 1) * interval * 1e6));
+    setTimeout(
+      () => {
+        act(n);
+        if (n < count) next(n + 1);
+      },
+      Math.max(0, Number(due - now()) / 1e6),
+    );
+  };
+  next(1);
+};
+
 /** This function waits until the file at `path` exists. It looks each 2 ms, as the other clients of the harness do. */
 export const waitFor = (path: string): Promise<void> =>
   new Promise((resolve) => {

@@ -3133,7 +3133,7 @@ Socket.IO is a target on E1, and it needs no new layer. Its documents give a pin
 The work has two slices:
 
 - **Slice 1: detection and the reconnect.** The documents `socketio-client` and `socketio-server` of the machines package, from the tarballs of socket.io 4.8.4, socket.io-client 4.8.4, engine.io 6.6.11, engine.io-client 6.6.7 and ws 8.21.3. The subject image of `packages/cells/targets/socketio`. The 5 cells `SIO` of `packages/cells/src/socketio.ts`: a black hole (idle, and with a call in flight), a frozen server, a FIN, and the ping timeout of the server. The FIN cell has three tries of the reconnect. A dispatch of `^SIO` in CI holds each band.
-- **Slice 2: recovery and delivery.** The connection state recovery of the server and of each adapter. The delivery of each mode: at most once, and at least once with an acknowledgement and a retry. This slice stays.
+- **Slice 2: recovery and delivery.** The connection state recovery of the server, and the delivery of each mode. The modes are at most once, and at least once with an acknowledgement and a retry. The harness counts the lost and the repeated events (#475). The 6 cells `SIO D1` to `SIO U3` cross a stall of 5.6 s, and `deliveryOf` derives their bands from the documents (`docs/S7.md`). A dispatch of `^SIO [DU]` in CI holds each band. D3 and the repeats of a stall in one direction stay for later.
 
 ### SYS-88 · Loro: a merge after a long partition
 
@@ -3187,7 +3187,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
-| Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+| Timer | 230 | The cells of kind, and the 6 delivery cells `SIO` of SYS-87, each send started by a timer | No send waits for a reply. The record keeps no planned time. A delivery cell gives counts of events, not times. |
 | Open loop | 10 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band. The 2 cells `SB` of SYS-69 are in the same row. Each cell gives a distribution with a band, on one side of the border of a stable system.
