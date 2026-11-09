@@ -35,15 +35,21 @@ describe("the exact law of the search for a port", () => {
 
 describe("the cells of the port range", () => {
   it("joins the catalog, four counted runs and one cell at a time", () => {
-    expect(PORT_RANGE_CELLS).toHaveLength(7);
+    expect(PORT_RANGE_CELLS).toHaveLength(8);
     for (const cell of PORT_RANGE_CELLS) {
       expect(ALL.some((each) => each.name === cell.name)).toBe(true);
       expect(cell.name).toMatch(/^PR[.]\d /);
       expect(cell.runs).toBe(4);
       expect(cell.concurrency).toBe(1);
-      expect(cell.fault).toBe("none");
       expect(cell.sysctls).toHaveProperty("net.ipv4.ip_local_port_range");
     }
+    // only PR.8 has a fault, and its client starts its rounds after the fault
+    expect(PORT_RANGE_CELLS.filter((cell) => cell.fault !== "none").map((cell) => cell.name.slice(0, 4))).toEqual(["PR.8"]);
+  });
+
+  it("gives the client the flag of a timed reclaim only when the target closes first and a port has a band", () => {
+    const reclaims = PORT_RANGE_CELLS.filter((cell) => cell.client?.command?.includes("--reclaim"));
+    expect(reclaims.map((cell) => cell.name.slice(0, 4))).toEqual(["PR.8"]);
   });
 
   it("sets a range of the size of its law", () => {
@@ -82,5 +88,18 @@ describe("the cells of the port range", () => {
 
   it("holds no port and sends no SYN again if the target closes first", () => {
     expect(lawOf("PR.7")).toMatchObject({ counts: [4], retransmissions: 0 });
+  });
+
+  it("holds each port in LAST_ACK for one RTO when the first ACK of its FIN drops", () => {
+    const cell = PORT_RANGE_CELLS.find((each) => each.name.startsWith("PR.8"));
+    expect(cell).toMatchObject({ fault: "fin-ack", faultAt: "client", probe: { mode: "inflight" } });
+    const law = lawOf("PR.8");
+    expect(law).toMatchObject({ counts: [4], rounds: 1, retransmissions: 4 });
+    if (law.freed === undefined) throw new Error("no band");
+    // the RTO floor is tcp_rto_min, 200 ms: the band starts below it and ends well before a second RTO
+    expect(valueIn(law.freed.low, "s")).toBeLessThanOrEqual(0.2);
+    expect(valueIn(law.freed.low, "s")).toBeGreaterThan(0.15);
+    expect(valueIn(law.freed.high, "s")).toBeGreaterThan(0.2);
+    expect(valueIn(law.freed.high, "s")).toBeLessThan(0.4);
   });
 });

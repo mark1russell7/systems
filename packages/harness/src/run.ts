@@ -501,6 +501,9 @@ const once = async (
             return netemOn(cell.netem);
           case "rst":
             return lab.fault("rst", faultAt);
+          // the ACK of a FIN of the client drops where it arrives: the namespace of the client
+          case "fin-ack":
+            return lab.fault("fin-ack", cell.faultAt ?? "client");
           // the router or the proxy of the topology is the fault, or a calibration has none, or the
           // server holds the reply by itself: nothing to inject
           case "middlebox-forget":
@@ -574,6 +577,8 @@ const once = async (
             return undefined;
           case "rst":
             return lab.lift("rst", faultAt);
+          case "fin-ack":
+            return lab.lift("fin-ack", cell.faultAt ?? "client");
           case "toxic":
             await lab.toxic(null);
             return undefined;

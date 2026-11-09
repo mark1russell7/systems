@@ -267,6 +267,7 @@ These cells (`src/port-range.ts`, SYS-64) give the law of `ip_local_port_range` 
 - **The unit of the count.** `PR.4` connects to two ports of one target. The search refuses a 4-tuple, not a port, thus the count is for each destination.
 - **TIME_WAIT.** `PR.5` closes the client first. Each port stays held for 60 s from the FIN of the target, plus the timer wheel. `PR.6` sets `tcp_tw_reuse` to 1, and each port comes back 1000 ms after that FIN. The default of 2 is for loopback only.
 - **The other ways to close.** A reset holds nothing, thus each round of `PR.1` to `PR.4` starts with each port free. `PR.7` closes the target first. The client holds no port, and each new SYN passes the TIME_WAIT of the target.
+- **LAST_ACK.** `PR.8` closes the target first, and the fault `fin-ack` drops the first ACK of each FIN of the client. Each port stays held in `LAST_ACK` until its FIN goes again, at the RTO at the latest.
 
 ## The cells of the retry count
 

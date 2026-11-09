@@ -2664,14 +2664,22 @@ The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of th
 
 ### SYS-102 · The port that LAST_ACK holds
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-64
-- **Started:**
+- **Started:** 2026-11-09
 - **Shipped:**
 - **Links:** [the result of SYS-64](#sys-64--the-port-range-its-count-and-its-error)
 
 The side that closes second holds its port in `LAST_ACK` until its FIN has an ACK. One run of `PR.7` showed this hold, and the law of `PR.7` has no term for it. This item writes that term into the law, with the bound of the retransmission timeout. A new cell then drops the ACK on purpose, thus each run shows the hold. A new prediction comes before its dispatch, and `PR.7` keeps its old record.
+
+**The term.** The socket in `LAST_ACK` [is done at the ACK of its FIN](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L7377-L7383). If that ACK drops, the FIN goes again when [the loss probe](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_output.c#L3128-L3146) or the retransmission timer fires, at the RTO at the latest. The peer in TIME_WAIT [answers the second FIN with an ACK](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L272-L283).
+
+**The cell.** `PR.8` has a range of 4 and one round, and the target closes first.
+
+- The new fault `fin-ack` operates in the namespace of the client. The mark of each connection in conntrack counts the FINs of the client. A pure ACK from the target drops at mark 1, thus only the ACK of the first FIN drops.
+- The client starts its round after the fault (`--mode inflight`). After each FIN of the target, it writes `closing`, closes each connection, and connects again each 10 ms (`--reclaim`).
+- The law: 4 ports, 4 retransmissions, and each port comes back in the band of the RTO from the `closing` line. At HZ 250 the band is 0.196 s to 0.264 s.
 
 ### SYS-65 · A pool at its limit
 
@@ -3170,14 +3178,14 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 347 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 348 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
-| Open loop | 8 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
+| Open loop | 10 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
 
-The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band.
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band. The 2 cells `SB` of SYS-69 are in the same row. Each cell gives a distribution with a band, on one side of the border of a stable system.
 
 The 13 cells of reply times on the stream client of the harness (`T01`, `CAL`, `E3.F1` and `OL`) also give an estimate of the open loop. The client waits its interval after each reply. Thus `closedLoopPlan` of `rigor-chaos` puts back each send that a stall hid, with that interval as the pause of the driver. The verdict gives the hidden sends, the pauses of the client and the spread of the estimate. The estimate is not a measure: the open-loop twin of SYS-68 stays the better measure. The 5 cells `K2.pause` have their own verdict of a pause.
 
