@@ -22,12 +22,10 @@
 // no digest, and one with a checkout with changes. It exits with 0 only if the clean read passes, each
 // cell turns red under the fault, and each other read exits with 1.
 
-import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Manifest } from "../../harness/src/index.ts";
 import { recordProblems } from "../../harness/src/index.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellRecordV1 } from "../../kind/src/record.ts";
 import { FORMAT, FORMAT_V1, upgrade } from "../../kind/src/record.ts";
@@ -37,6 +35,8 @@ import { catalogs, SCHEDULED_CELLS, selectedOf } from "../../cells/src/all.ts";
 import type { Decided } from "../../cells/src/held.ts";
 import { FAULT_FACTOR, faultedVerdict, heldRead, slowdownSeen } from "../../cells/src/held.ts";
 import { KIND_CATALOG } from "../../cells/src/kinds.ts";
+import type { Named } from "./flip.ts";
+import { byTag, changed, dirty, exitOf as runScript, withoutOne } from "./flip.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
 import { readFolders } from "./records.ts";
@@ -64,12 +64,6 @@ const [shard, of] = shardText.split("/").map(Number) as [number, number];
 const folders = args;
 if (folders.length === 0) throw new Error("the script needs the folder of each shard");
 
-/** A raw record that the copies of the flip change: a record of the cells or of kind. */
-interface Changeable {
-  readonly cell: { readonly name: string };
-  readonly code?: { readonly commit: string; readonly dirty: boolean } | undefined;
-}
-
 /**
  * A source is what the read needs from the records of one workflow:
  * - the expected cells,
@@ -88,7 +82,7 @@ interface Source {
   /** These factors are the slowdowns that turn each timed cell red. */
   readonly seen: readonly number[];
   readonly fault: string;
-  readonly byTag: (record: Changeable) => Changeable;
+  readonly byTag: (record: Named) => Named;
 }
 
 /** This function gives the source of the folders of the workflow Cells. */
@@ -110,17 +104,7 @@ const cellsSource = (name: string): Source => {
       return power === null ? [] : [power];
     }),
     fault: `a fault of ${FAULT_FACTOR} x the top of each band`,
-    // the target of each manifest gets the tag, with no digest and no build record
-    byTag: (record) => {
-      const cells = record as CellRecord;
-      return {
-        ...cells,
-        manifests: cells.manifests.map((manifest: Manifest) => {
-          const { build: _build, ...target } = manifest.target;
-          return { ...manifest, target: { ...target, image: "redis:7.4" } };
-        }),
-      } as Changeable;
-    },
+    byTag: (record) => byTag(record as CellRecord),
   };
 };
 
@@ -199,7 +183,7 @@ const kindSource = (pattern: string): Source => {
           const { redis: _redis, ...builds } = manifest.builds ?? {};
           return { ...manifest, images: { ...manifest.images, redis: "redis:7.4" }, ...(manifest.builds === undefined ? {} : { builds }) };
         }),
-      } as Changeable;
+      } as Named;
     },
   };
 };
@@ -207,42 +191,8 @@ const kindSource = (pattern: string): Source => {
 const source = kindOnly === undefined ? cellsSource(selection!) : kindSource(kindOnly);
 
 /** This function starts this script on the folders that it gets, and it gives its exit code. */
-const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null => {
-  const script = fileURLToPath(import.meta.url);
-  const done = spawnSync(process.execPath, [...process.execArgv, script, ...source.select, "--shard", shardText, ...flags, ...given], { stdio: "ignore" });
-  return done.status;
-};
-
-/** This function copies a folder into a new folder of a name, and it gives the copy and the file of its first record. */
-const copyOf = (folder: string, into: string, name: string): { readonly copy: string; readonly file: string } => {
-  const copy = join(into, name);
-  cpSync(folder, copy, { recursive: true });
-  const file = readdirSync(copy).filter((each) => each.endsWith(".json")).sort()[0];
-  if (file === undefined) throw new Error(`${folder} has no record`);
-  return { copy, file: join(copy, file) };
-};
-
-/** This function copies a folder without its first record and the line of that record, and it gives the copy. */
-const withoutOne = (folder: string, into: string): string => {
-  const { copy, file } = copyOf(folder, into, "gone");
-  const { cell } = JSON.parse(readFileSync(file, "utf8")) as Changeable;
-  rmSync(file);
-  const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
-    .split("\n")
-    .filter((line) => line.trim() !== "" && (JSON.parse(line) as { readonly name: string }).name !== cell.name);
-  writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
-  return copy;
-};
-
-/** This function copies a folder with a change to its first record, and it gives the copy. */
-const changed = (folder: string, into: string, name: string, change: (record: Changeable) => Changeable): string => {
-  const { copy, file } = copyOf(folder, into, name);
-  writeFileSync(file, JSON.stringify(change(JSON.parse(readFileSync(file, "utf8")) as Changeable)));
-  return copy;
-};
-
-/** This change marks the checkout of the record as one with changes to tracked files. */
-const dirty = (record: Changeable): Changeable => ({ ...record, code: { commit: record.code?.commit ?? "0".repeat(40), dirty: true } });
+const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null =>
+  runScript(fileURLToPath(import.meta.url), [...source.select, "--shard", shardText, ...flags, ...given]);
 
 if (flip) {
   // the flip needs one folder for its copy: each shard of the schedule gives one folder

@@ -1,10 +1,42 @@
 import { describe, expect, it } from "vitest";
-import type { Prediction } from "./cell.ts";
+import type { Cell, Prediction } from "./cell.ts";
+import { environmentProblems } from "./cell.ts";
 import { countFinding } from "./driver.ts";
 import type { Measured } from "./observe.ts";
 import { hzOf } from "./lab.ts";
-import { spread } from "./run.ts";
-import { NOISE, delayVoids, medianInterval, noiseOf, verdictOf } from "./verdict.ts";
+import { environmentCounts, spread } from "./run.ts";
+import { NOISE, commitVoid, delayVoids, medianInterval, noiseOf, verdictOf } from "./verdict.ts";
+
+describe("the commit of a fault (SYS-99)", () => {
+  const sec = (value: number) => ({ value, unit: "s" as const });
+  const band = (at: number) => ({ at: sec(at), low: sec(0.996), high: sec(180.004) });
+  const words = (ms: number) => `the commit of the fault took ${ms} ms, longer than the noise of the pipeline: its start is not known`;
+
+  it("keeps each run with a commit in the noise", () => {
+    expect(commitVoid(sec(0.004), [])).toBeNull();
+    expect(commitVoid(sec(0.001), [band(0.997)])).toBeNull();
+  });
+
+  it("keeps a run with a long commit when each time stays on its side of each edge", () => {
+    // the restore of RD.100 on 2026-11-08: 16.4 s in a band of 180 s, with a commit of 8.4 ms
+    expect(commitVoid(sec(0.0084), [band(16.391799)])).toBeNull();
+    // a time above the band stays above it
+    expect(commitVoid(sec(0.0084), [band(200)])).toBeNull();
+    // a time below the band stays below it
+    expect(commitVoid(sec(0.0084), [band(0.5)])).toBeNull();
+  });
+
+  it("voids a run when a start in the commit can move a time across an edge", () => {
+    expect(commitVoid(sec(0.0084), [band(1)])).toBe(words(8.4));
+    expect(commitVoid(sec(0.0084), [band(180.01)])).toBe(words(8.4));
+    // one time of several is enough
+    expect(commitVoid(sec(0.0084), [band(16), band(1)])).toBe(words(8.4));
+  });
+
+  it("voids a run with a long commit and no time", () => {
+    expect(commitVoid(sec(0.0133), [])).toBe(words(13.3));
+  });
+});
 
 describe("the environment of a cell (0.9.0)", () => {
   const ms = (value: number) => ({ value, unit: "ms" });
@@ -162,5 +194,26 @@ describe("a cell's verdict", () => {
     expect(spread(11, 2)).toEqual([6, 5]);
     expect(spread(11, 3)).toEqual([4, 4, 3]);
     expect(spread(1, 2)).toEqual([1]);
+  });
+
+  // only the fields these two functions read: the rest of a cell does not change them
+  const cellWith = (fields: Partial<Cell>): Cell => ({ name: "C1", environments: 2, ...fields }) as Cell;
+  const pair = { synchronous: true, writers: 1, interval: { value: 10, unit: "ms" }, cuts: "standby" } as const;
+
+  it("gives a pair cell one environment for each run, because its run promotes the standby", () => {
+    expect(environmentCounts(cellWith({ pair }), 11)).toEqual(Array.from({ length: 11 }, () => 1));
+    expect(environmentCounts(cellWith({ pair, concurrency: 4 }), 3)).toEqual([1, 1, 1]);
+    expect(environmentCounts(cellWith({}), 11)).toEqual([6, 5]);
+    expect(environmentCounts(cellWith({ concurrency: 4 }), 11)).toEqual([3, 3, 3, 2]);
+  });
+
+  it("refuses sysctls of the host in environments at the same time, because a lab reads the value of another as its value before", () => {
+    const host = [{ name: "net.netfilter.nf_conntrack_max", value: "64" }];
+    expect(environmentProblems(cellWith({ hostSysctls: host, concurrency: 2 }))).toEqual([
+      "C1: a cell with sysctls of the host operates one environment at a time, not 2",
+    ]);
+    expect(environmentProblems(cellWith({ hostSysctls: host }))).toEqual([]);
+    expect(environmentProblems(cellWith({ hostSysctls: host, concurrency: 1 }))).toEqual([]);
+    expect(environmentProblems(cellWith({ concurrency: 8 }))).toEqual([]);
   });
 });

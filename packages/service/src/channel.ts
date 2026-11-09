@@ -362,3 +362,64 @@ export const workerPool = <T, R>(jobs: Channel<T>, worker: (job: T) => Promise<R
   void Promise.all(workers).then(() => results.close());
   return results;
 };
+
+/**
+ * This error is the reason of a task that a `preemptivePool` stopped: a newer task took its place,
+ * or `stop` stopped it. A caller tells it from a failure of the task with `instanceof`.
+ */
+export class PreemptedError extends Error {
+  override readonly name = "PreemptedError";
+}
+
+/** A pool that runs at most `max` tasks at a time, and stops the oldest task for a new task. */
+export interface PreemptivePool {
+  /**
+   * This method starts `task` with a signal. When the pool is full, it first stops the oldest task.
+   * The promise of a stopped task rejects at once with the reason of its signal, and the signal
+   * tells the task to stop its work.
+   */
+  run<R>(task: (signal: AbortSignal) => Promise<R>): Promise<R>;
+  /** This method stops each task that runs. The reason is `reason`, or a `PreemptedError`. */
+  stop(reason?: unknown): void;
+  /** This count is the number of tasks that run. */
+  readonly size: number;
+}
+
+/**
+ * This function makes a pool of at most `max` tasks. The newest task always operates: a new task in a
+ * full pool stops the oldest task. This is the policy for work whose old results nobody reads, for
+ * example the load of a page that the user left. `workerPool` keeps each job in a queue instead.
+ *
+ * @throws RangeError when `max` is not an integer of 1 or more.
+ */
+export const preemptivePool = (max: number): PreemptivePool => {
+  if (!(Number.isInteger(max) && max >= 1)) throw new RangeError(`preemptivePool: max is an integer of 1 or more, not ${max}.`);
+  // The controller of each task that runs, from the oldest. A Set keeps the order of the adds.
+  const running = new Set<AbortController>();
+  const preempt = (controller: AbortController, reason: unknown): void => {
+    running.delete(controller);
+    controller.abort(reason);
+  };
+  return {
+    run<R>(task: (signal: AbortSignal) => Promise<R>): Promise<R> {
+      for (const oldest of running) {
+        if (running.size < max) break;
+        preempt(oldest, new PreemptedError("A newer task took the place of this task."));
+      }
+      const controller = new AbortController();
+      running.add(controller);
+      const stopped = new Promise<never>((_resolve, reject) => {
+        controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
+      });
+      // A task that throws at once rejects as a task that fails later does
+      const done = Promise.resolve().then(() => task(controller.signal));
+      return Promise.race([done, stopped]).finally(() => running.delete(controller));
+    },
+    stop(reason?: unknown): void {
+      for (const controller of [...running]) preempt(controller, reason ?? new PreemptedError("The pool stopped this task."));
+    },
+    get size(): number {
+      return running.size;
+    },
+  };
+};

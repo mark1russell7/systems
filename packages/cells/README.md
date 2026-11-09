@@ -255,6 +255,7 @@ These cells (`src/accept-queue.ts`, SYS-63) give the law of an accept queue on t
 - **The recovery.** `AQ.7` accepts 3 connections at 2.5 s. The SYN-ACK at 3 s brings a challenge ACK, which is a new final ACK. No connection fails, and the target accepts all 8.
 - **The counters.** `ListenOverflows`, `EmbryonicRsts` and `TCPReqQFullDoCookies` are the changes in the run, from `/proc/net/netstat` of the namespace of the target. The law has no SYN cookie, thus one cookie is a finding.
 - **The time.** `TCPTimeouts` counts each firing of a SYN-ACK timer, thus its 12th change dates the expiry of two requests in `AQ.5`.
+- **A declared backlog.** `AQ.8` to `AQ.10` (SYS-103) give the laws of `AQ.1` to `AQ.3` to a server of service 0.7.3 (`targets/service-backlog/`). `httpTransport` gives the knob `server_listen_backlog` to Node, and Node gives it to listen(2). The main thread of the target blocks, thus Node accepts nothing. A worker serves the protocol of `queue`, and it reads the limit with `ss`. Node gives listen(2) 511 for a backlog of 0, thus `AQ.10` holds 512.
 
 ## The cells of the port range
 

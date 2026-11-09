@@ -1,7 +1,7 @@
 # The gates of each change. release.yml calls this workflow before it packs a release.
 #
 #   checks  The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md): the
-#           typecheck, the tests, the build of each published package and the writing rules.
+#           typecheck, the tests, the build of each published package, the API reports and the writing rules.
 #   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
 #           (reusable-release-build.yml of the template, with the release scripts of the template).
 #   site    The conventions check (check:conventions), and the site, as pages.yml builds it for GitHub Pages.
@@ -15,6 +15,8 @@ on:
     branches: [main]
   pull_request:
   workflow_call:
+  # A person starts a run on a branch with no pull request: gh workflow run ci.yml --ref <branch>
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,14 +27,20 @@ concurrency:
 
 jobs:
   checks:
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+    # This pin is later than the other pins of the template: it has the coverage of each push to main
+    # (template#263). The release build keeps the pin of release.yml.
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@600ff4b757d17c8681961d19aea7b5224ab4fa80 # main
     permissions:
       contents: read
     with:
       # typecheck and test: each package of the workspace.
       # build: the build that npm gets, for each package that the repository publishes.
+      # check:api: the report of the API of each public package (test/api/public-api.txt), against the build.
       # lint:ste: the writing rules (ASD-STE100) of the README files and the doc comments.
-      scripts: typecheck test build lint:ste
+      scripts: typecheck test build check:api lint:ste
+      # The coverage of each package, on each pull request and each push to main. The Vitest config of a package
+      # reads its floors from coverage-floors.json (SYS-109), thus a package under a floor fails the run.
+      coverage: true
 
   # The tarballs of a release, tested in an empty project as release.yml tests them. The commit of a
   # pull request is not on main, so the job does not do the check of main (require-main).
@@ -40,7 +48,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
     permissions:
       contents: read
     with:

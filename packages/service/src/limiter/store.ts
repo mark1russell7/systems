@@ -2,7 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { convertExact, rationals as r } from "@mark1russell7/quantity";
 import type { Clock } from "../clock.ts";
 import type { Decision, KeyState, LimiterSpec, LimitRule } from "./policy.ts";
-import { decide, freeAt, limitRule, limiterProblems, longestRetryAfter } from "./policy.ts";
+import { decide, freeAt, limitRule, limiterProblems, longestRetryAfter, overCapacity, unitsOf } from "./policy.ts";
 
 /** A take request is one take of one key, with the rule and the cap of its limiter in numbers. */
 export interface TakeRequest {
@@ -12,6 +12,12 @@ export interface TakeRequest {
   readonly rule: LimitRule;
   /** This count is the most keys that the store holds for the limiter. */
   readonly maxKeys: number;
+  /**
+   * This count is the units of the take: 1 when it is absent. A store takes all of them in its one
+   * atomic step, or none. `keyedLimiter` always gives it, and it refuses a take over the capacity
+   * before the store. A store also refuses such a take with the cause `capacity`.
+   */
+  readonly units?: number | undefined;
 }
 
 /**
@@ -24,9 +30,9 @@ export interface LimiterStore {
   /** This kind tells where the counts are: in the memory of this replica, or in a store that the replicas share. */
   readonly kind: "local" | "shared";
   /**
-   * This method decides one take. It removes a key only when its state is equal to the state of a
-   * new key. It holds at most `maxKeys` keys for each limiter. A failure of a shared store rejects
-   * the take, and the limiter then applies the `onStoreFailure` of its spec.
+   * This method decides one take of `units` units. It removes a key only when its state is equal to
+   * the state of a new key. It holds at most `maxKeys` keys for each limiter. A failure of a shared
+   * store rejects the take, and the limiter then applies the `onStoreFailure` of its spec.
    */
   take(request: TakeRequest): Decision | Promise<Decision>;
 }
@@ -74,7 +80,11 @@ export const memoryStore = (clock: Clock): MemoryStore => {
   };
   return {
     kind: "local",
-    take({ limiter, key, rule, maxKeys }) {
+    take({ limiter, key, rule, maxKeys, units }) {
+      const n = unitsOf(units);
+      // a take over the capacity is refused at each time: it reads no state, and it adds no key
+      const over = overCapacity(rule, n);
+      if (over !== undefined) return over;
       const now = clock.now();
       let table = tables.get(limiter);
       if (table === undefined) {
@@ -91,7 +101,7 @@ export const memoryStore = (clock: Clock): MemoryStore => {
         if (table.next <= now) sweep(table, rule, now);
         if (table.states.size >= maxKeys) return { allowed: false, retryAfter: ms(table.next - now), cause: "cap" };
       }
-      const step = decide(rule, state, now);
+      const step = decide(rule, state, now, n);
       if (state === undefined) {
         // a new key is never refused by its policy: a full bucket, or an empty window
         table.states.set(key, step.state);
@@ -114,20 +124,23 @@ export interface KeyedLimiter {
   /** This count is the most keys that the store holds for the limiter. */
   readonly maxKeys: number;
   /**
-   * This method takes one unit for a key, and gives the decision of the store. When a shared store
-   * fails, it gives the decision of `onStoreFailure`, with the failure as text.
+   * This method takes `units` units for a key (1 when absent), and gives the decision of the store.
+   * When a shared store fails, it gives the decision of `onStoreFailure`, with the failure as text.
+   * A take over the capacity of the policy is refused with the cause `capacity`, before the store.
+   * It rejects units that are not a whole number of 1 or more.
    */
-  take(key: string): Promise<Decision>;
+  take(key: string, units?: number): Promise<Decision>;
   /**
-   * This method takes one unit for a key, and gives the decision at once, with no promise. Only a
-   * local store whose take gives its decision at once permits it, for example `memoryStore`. A shared store throws.
+   * This method takes `units` units for a key (1 when absent), and gives the decision at once, with
+   * no promise. Only a local store whose take gives its decision at once permits it, for example
+   * `memoryStore`. A shared store throws.
    */
-  tryTakeSync?(key: string): Decision;
+  tryTakeSync?(key: string, units?: number): Decision;
 }
 
 /** A local limiter is a keyed limiter on a memory store: its take can give the decision at once. */
 export interface LocalLimiter extends KeyedLimiter {
-  tryTakeSync(key: string): Decision;
+  tryTakeSync(key: string, units?: number): Decision;
 }
 
 /** This function gives the text of a failure. */
@@ -141,6 +154,8 @@ const failureOf = (error: unknown): string => (error instanceof Error ? error.me
  *   permitted with `remaining` 0. With `closed`, it is refused with the cause `store`.
  * - The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy.
  * - A failure of a local store rejects the take, because a local store has no `onStoreFailure`.
+ * - A take over the capacity of the policy is refused with the cause `capacity`, before the store.
+ *   Thus a store of your own that does not read `units` cannot let it in.
  * - `tryTakeSync` gives the decision at once. A shared store throws, and so does a local store that gives a promise.
  */
 export function keyedLimiter(name: string, spec: LimiterSpec, store: MemoryStore): LocalLimiter;
@@ -154,8 +169,11 @@ export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStor
   const maxKeys = r.toNumber(convertExact(r.fromNumber(spec.evict.maxKeys.value), spec.evict.maxKeys.unit, "count"));
   const onStoreFailure = spec.store.kind === "shared" ? spec.store.onStoreFailure : undefined;
   const closedAfter = longestRetryAfter(spec.policy);
-  const take = async (key: string): Promise<Decision> => {
-    const request: TakeRequest = { limiter: name, key, rule, maxKeys };
+  const take = async (key: string, units?: number): Promise<Decision> => {
+    const n = unitsOf(units);
+    const over = overCapacity(rule, n);
+    if (over !== undefined) return over;
+    const request: TakeRequest = { limiter: name, key, rule, maxKeys, units: n };
     if (onStoreFailure === undefined) return store.take(request);
     try {
       return await store.take(request);
@@ -165,10 +183,13 @@ export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStor
       return { allowed: false, retryAfter: { ...closedAfter }, cause: "store", failure };
     }
   };
-  const tryTakeSync = (key: string): Decision => {
+  const tryTakeSync = (key: string, units?: number): Decision => {
     if (store.kind === "shared")
       throw new Error(`limiter ${name} has a shared store, which decides in a promise: tryTakeSync needs a memory store, thus use take()`);
-    const decision = store.take({ limiter: name, key, rule, maxKeys });
+    const n = unitsOf(units);
+    const over = overCapacity(rule, n);
+    if (over !== undefined) return over;
+    const decision = store.take({ limiter: name, key, rule, maxKeys, units: n });
     if (isPromise(decision)) {
       // the take of the store happened: its promise has the decision, and its rejection is not left unhandled
       decision.then(undefined, () => {});

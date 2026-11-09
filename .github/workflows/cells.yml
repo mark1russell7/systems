@@ -18,14 +18,21 @@
 #           and makes its lockfile. The count of shards must divide the count of selected limiter
 #           specs. Then each cell of a spec operates on the same runner, and paired.ndjson gets
 #           the PairedTime records of rigor-bench.
-#           With E3 in `only`, the job installs the pinned containerlab for the routers of a fabric.
+#           A shard with a cell on a fabric (E3) installs the pinned containerlab for its routers.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
 # Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
-# The step of the locked rungs fails that run when a rung is not within its budgets.
+# The step of the locked rungs fails that run when a rung is not within its budgets. The Sunday run
+# does not hold the drill of 8 GB (SYS-97) until a run of '^RD[.]' on one shard measures its time.
+# Each Wednesday, the schedule runs one round of the refresh of the studies of the site (SYS-101).
+# There are 4 rounds, thus each study operates again each 28 days, inside its age limit of 30 days.
+# The file packages/cells/src/refresh.ts gives the studies of each round. Then the job export writes
+# the new copy of each study of the round, and it uploads the copies as the artifact refresh.
+# Start a round by hand with this command.
+#   gh workflow run cells.yml -R mark1russell7/systems -f selection=refresh-2 -f shards=8
 name: Cells
 
 on:
@@ -46,9 +53,13 @@ on:
       pair:
         description: Two versions of @mark1russell7/service, the control and the candidate, for example 0.5.6,0.6.0 (empty for the catalogs)
         default: ""
+      selection:
+        description: A scheduled selection by its name, for example refresh-2, in place of only (empty for only)
+        default: ""
   schedule:
     - cron: "30 3 * * *"
     - cron: "30 9 * * 0"
+    - cron: "30 12 * * 3"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
@@ -60,6 +71,9 @@ env:
   # the commit of mark1russell7/client whose procedures subject the WS and WST cells run:
   # @procedures/client 0.22.0 and two PATCHes after it (packages/cells/src/subjects.ts holds the same)
   CLIENT_REF: 2408cea460d84dc7577b69c4ae68a559f2dc2bdd
+  # the first day of round 0 of the refresh, and the shards of each round (packages/cells/src/refresh.ts holds the same)
+  REFRESH_EPOCH: 2026-11-11
+  REFRESH_SHARDS: 8
 
 # The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch and each
 # schedule has a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a
@@ -84,7 +98,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+        uses: mark1russell7/template/.github/actions/changes@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -168,6 +182,9 @@ jobs:
     timeout-minutes: 5
     outputs:
       shards: ${{ steps.shards.outputs.list }}
+      count: ${{ steps.shards.outputs.count }}
+      only: ${{ steps.shards.outputs.only }}
+      selection: ${{ steps.shards.outputs.selection }}
       # each shard makes the lockfiles of a pair from the npm registry as it was at this time
       at: ${{ steps.at.outputs.at }}
     steps:
@@ -175,15 +192,46 @@ jobs:
         run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - id: shards
         env:
-          SHARDS: ${{ inputs.shards || (github.event.schedule == '30 9 * * 0' && '1' || '4') }}
+          SCHEDULE: ${{ github.event.schedule }}
+          ONLY: ${{ inputs.only }}
+          SHARDS: ${{ inputs.shards }}
+          SELECTION: ${{ inputs.selection }}
         run: |
+          # a schedule has no inputs: the night runs the WS cells on 4 shards, and the Sunday runs the RD
+          # cells on 1. The Wednesday runs the round of this week: the count of whole weeks after the
+          # first day of round 0, modulo the 4 rounds (roundAt in packages/cells/src/refresh.ts).
+          case "$SCHEDULE" in
+            "30 3 * * *") ONLY='^WS'; SHARDS=4; SELECTION='' ;;
+            "30 9 * * 0") ONLY='^RD[.](?!8000[.])'; SHARDS=1; SELECTION='' ;;
+            "30 12 * * 3")
+              days=$(( ($(date -u +%s) - $(date -u -d "$REFRESH_EPOCH" +%s)) / 86400 ))
+              if [ "$days" -lt 0 ]; then echo "::error::no round operates before $REFRESH_EPOCH"; exit 1; fi
+              ONLY='.'; SHARDS="$REFRESH_SHARDS"; SELECTION="refresh-$(( days / 7 % 4 ))" ;;
+          esac
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
           esac
           if [ "$SHARDS" -lt 1 ] || [ "$SHARDS" -gt 20 ]; then
             echo "::error::shards must be 1 to 20"; exit 1
           fi
-          echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')" >> "$GITHUB_OUTPUT"
+          case "$ONLY$SELECTION" in
+            *$'\n'*|*$'\r'*) echo "::error::only and selection are one line each"; exit 1 ;;
+          esac
+          # SCHEDULED_CELLS in packages/cells/src/all.ts has the same names
+          case "$SELECTION" in
+            ''|night|drills|refresh-[0-3]) ;;
+            *) echo "::error::no scheduled selection has the name $SELECTION"; exit 1 ;;
+          esac
+          if [ -n "$SELECTION" ] && [ "${ONLY:-.}" != "." ]; then
+            echo "::error::a selection names its cells, thus it takes no only"; exit 1
+          fi
+          {
+            echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')"
+            echo "count=$SHARDS"
+            echo "only=${ONLY:-.}"
+            echo "selection=$SELECTION"
+          } >> "$GITHUB_OUTPUT"
+          echo "the cells: ${SELECTION:-$ONLY} on $SHARDS shards"
 
   cells:
     needs: [changes, probe, plan]
@@ -288,9 +336,38 @@ jobs:
             (cd "$dir" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund --before "$AT" && mv package-lock.json npm-lock.json)
             echo "pair $version: $(jq -c '[.packages | to_entries[] | select(.key != "") | {key: (.key | sub("^node_modules/"; "")), value: .value.version}] | from_entries' "$dir/npm-lock.json")" | tee -a "$RUNNER_TEMP/cells/runner.txt"
           done
-      # the routers of layer E3 come from containerlab: only a run that asks for its cells pays for it
+      # The routers of layer E3 come from containerlab: only a shard that holds a cell on a fabric pays
+      # for it. The step reads the selection of the shard as the runner does, thus '.' and a refresh
+      # round count too (needs.ts).
+      - name: The needs of the shard
+        id: needs
+        env:
+          CELLS_ONLY: ${{ needs.plan.outputs.only }}
+          CELLS_SELECTION: ${{ needs.plan.outputs.selection }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
+          CELLS_FILE_AT: ${{ inputs.file }}
+          CELLS_PAIR: ${{ inputs.pair }}
+        run: |
+          if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
+          pnpm exec tsx packages/cells/src/needs-cli.ts | tee -a "$RUNNER_TEMP/cells/runner.txt"
+      # A drill of a large store needs disk for the data on each member, the dump and the oplogs
+      # (SYS-97). The needs give the most disk that a drill of the shard can need. When the runner has
+      # less, the tools of the image that no cell uses go. The drill reads its disk again before its
+      # seed, and a drill with no room is void.
+      - name: Room on the disk for the drills
+        if: steps.needs.outputs.disk != '0'
+        env:
+          NEED: ${{ steps.needs.outputs.disk }}
+        run: |
+          root="$(docker info -f '{{.DockerRootDir}}')"
+          free() { df -B1 --output=avail "$root" | tail -n 1 | tr -d ' '; }
+          before="$(free)"
+          if [ "$before" -lt "$NEED" ]; then
+            sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          fi
+          echo "disk: $before B free, then $(free) B, for the drills that need $NEED B at most" | tee -a "$RUNNER_TEMP/cells/runner.txt"
       - name: The pinned containerlab
-        if: contains(inputs.only, 'E3')
+        if: steps.needs.outputs.containerlab == 'true'
         run: |
           deb=containerlab_0.82.0_linux_amd64.deb
           curl -fsSL -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
@@ -300,9 +377,10 @@ jobs:
       - name: The cells
         env:
           CELLS: "1"
-          # a schedule has no inputs: the night runs the WS cells, and the Sunday runs the RD cells
-          CELLS_ONLY: ${{ inputs.only || (github.event.schedule == '30 9 * * 0' && '^RD[.]' || '^WS') }}
-          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || (github.event.schedule == '30 9 * * 0' && '1' || '4') }}
+          # the job plan gives the cells of a schedule, which has no inputs
+          CELLS_ONLY: ${{ needs.plan.outputs.only }}
+          CELLS_SELECTION: ${{ needs.plan.outputs.selection }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
           CELLS_PAIR: ${{ inputs.pair }}
@@ -326,10 +404,12 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
       # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
-      # when a rung is not within its budgets, or when a drill has no record.
+      # when a rung is not within its budgets, when a drill has no record, or when a record has no pin.
+      # Its flip (SYS-99): a fault of 1.5 x the limit of each budget turns each rung beyond, and the copies
+      # with a record gone, a tag with no digest or a checkout with changes each exit with 1.
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
-        run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+        run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()
@@ -350,15 +430,49 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  # A round of the refresh writes the new copy of each of its studies with the exporter of the site. The
+  # copies go to the artifact refresh, and a pull request moves each page to its new copy. A failing cell
+  # is a finding, and not a failure of this job. An exporter stops only when it cannot read a record again.
+  export:
+    needs: [plan, cells]
+    if: ${{ !cancelled() && startsWith(needs.plan.outputs.selection, 'refresh-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: cells-*
+          path: ${{ runner.temp }}/records
+      - name: The copies of the round
+        env:
+          SELECTION: ${{ needs.plan.outputs.selection }}
+        run: pnpm exec tsx packages/site/scripts/refresh.ts "$SELECTION" "$RUNNER_TEMP/copies" "$RUNNER_TEMP"/records/cells-*
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: refresh
+          path: ${{ runner.temp }}/copies/
+          if-no-files-found: warn
+          retention-days: 30
+
   cells-ok:
     name: Cells OK
-    if: always()
-    needs: [changes, probe, plan, cells]
+    if: ${{ !cancelled() }}
+    needs: [changes, probe, plan, cells, export]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
         with:
           needs: ${{ toJSON(needs) }}
-          allow-skip: plan cells
+          allow-skip: plan cells export

@@ -62,6 +62,35 @@ describe("the store on MongoDB", () => {
     return { client, sent };
   };
 
+  it("gives a whole page of 1,000 documents across the batches of the server", async () => {
+    // the rules of mongod: a first batch of 101 with no batchSize, and a batch ends at its size cap (here 300 documents)
+    const ids = Array.from({ length: 1_200 }, (_, n) => `a/${String(n).padStart(4, "0")}`);
+    const CAP = 300;
+    let cursor: { at: number; end: number } | undefined;
+    const batch = (size: number) => {
+      const rows = ids.slice(cursor!.at, Math.min(cursor!.at + size, cursor!.end)).map((_id) => ({ _id, body: {}, version: 1 }));
+      cursor!.at += rows.length;
+      return { rows, id: cursor!.at < cursor!.end ? 7n : 0n };
+    };
+    const { client, sent } = fake((operation, document) => {
+      if (operation === "doc.list") {
+        cursor = { at: 0, end: Number(document["limit"]) };
+        const { rows, id } = batch(Math.min(Number(document["batchSize"] ?? 101), CAP));
+        return { cursor: { id: document["singleBatch"] === true ? 0n : id, firstBatch: rows }, ok: 1 };
+      }
+      expect(document["getMore"]).toBe(7n);
+      const { rows, id } = batch(Math.min(Number(document["batchSize"]), CAP));
+      return { cursor: { id, nextBatch: rows }, ok: 1 };
+    });
+    const page = await mongoStore(client).list("a", { limit: 1_000 });
+    expect(page.map((doc) => doc.id)).toEqual(ids.slice(0, 1_000).map((id) => id.slice(2)));
+    expect(sent.map(([operation]) => operation)).toEqual(["doc.list", "doc.list.more", "doc.list.more", "doc.list.more"]);
+    // a short page asks no getMore: the server closed the cursor at the limit
+    sent.length = 0;
+    expect(await mongoStore(client).list("a", { limit: 5 })).toHaveLength(5);
+    expect(sent.map(([operation]) => operation)).toEqual(["doc.list"]);
+  });
+
   it("keys each document by its tenant, and bounds a list to the ids of the tenant", async () => {
     const { client, sent } = fake((operation) =>
       operation === "doc.put"

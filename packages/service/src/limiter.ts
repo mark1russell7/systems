@@ -6,6 +6,7 @@
 
 export type {
   Allowed,
+  CapacityRefused,
   Decision,
   KeyState,
   LimitPolicy,
@@ -20,8 +21,21 @@ export type {
   StoreFailure,
   TakeStep,
   TokenBucket,
+  WaitCause,
+  WaitRefused,
 } from "./limiter/policy.ts";
-export { decide, freeAt, idleSpan, limitRule, limiterProblems, longestRetryAfter, retryAfterSeconds } from "./limiter/policy.ts";
+export {
+  capacityOf,
+  decide,
+  freeAt,
+  idleSpan,
+  limitRule,
+  limiterProblems,
+  longestRetryAfter,
+  overCapacity,
+  retryAfterSeconds,
+  unitsOf,
+} from "./limiter/policy.ts";
 export type { KeyedLimiter, LimiterStore, LocalLimiter, MemoryStore, TakeRequest } from "./limiter/store.ts";
 export { keyedLimiter, memoryStore } from "./limiter/store.ts";
 // the machine of a key is a document: only its type comes from the algebra, thus the entry loads no more

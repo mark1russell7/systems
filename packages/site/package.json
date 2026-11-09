@@ -14,10 +14,11 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7",
-    "@mark1russell7/site-pages": "^0.3.5",
+    "@mark1russell7/site-pages": "^0.4.1",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.3",
     "vitest": "^5.0.3"
