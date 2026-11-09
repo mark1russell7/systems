@@ -2808,14 +2808,23 @@ The first freeze did not stop the server. The stock Redis image starts the serve
 
 ### SYS-69 · The border of a stable system
 
-- **Status:** later
+- **Status:** active
 - **Area:** catalogs
 - **Depends on:** SYS-68
-- **Started:**
+- **Started:** 2026-11-09
 - **Shipped:**
-- **Links:**
+- **Links:** [the cells](../packages/cells/src/stability.ts)
 
 A system is stable if and only if `L < C / (wL · wC)` (Huang and others, OSDI 2022). A target of fixed capacity gives exact terms, and a cell stands on each side of the border.
+
+Each request of the cells `SB.` is `DEBUG SLEEP 0.01`. Redis runs one command at a time, thus each request holds the server for 10 ms, and C is 100 requests each second. The client of SYS-68 does not retry, thus wL is 1. The service time does not change with the queue, thus wC is 1.
+
+| Cell | Load | The p50 | The p99 |
+| --- | --- | --- | --- |
+| `SB.under` | 80 each second, 0.8 of C | 10 ms to 20.6 ms | 10 ms to 20.6 ms |
+| `SB.over` | 120 each second, 1.2 of C | 2.008 s to 2.738 s | 3.968 s to 5.404 s |
+
+Under the border, each arrival finds the server idle. Over the border, the queue grows by 20 requests each second. Thus arrival k waits `k · (10 ms − 1/120 s)` more than arrival 0. The low end of each band is the model at a service time of 10 ms. The high end is the model at 10.6 ms, plus 10 ms.
 
 ### SYS-70 · A metastable failure on MongoDB
 

@@ -20,7 +20,7 @@ describe("the pacing of each cell", () => {
       "closed loop, reply times": 18,
       "closed loop, first write": 73,
       timer: 224,
-      "open loop": 8,
+      "open loop": 10,
     });
   });
 

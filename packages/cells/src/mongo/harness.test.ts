@@ -24,6 +24,7 @@ import { CONFIRM_CELLS } from "../rabbit/confirms.ts";
 import { T11_RABBIT } from "../rabbit/t11.ts";
 import { LADDER_CELLS } from "../ladder.ts";
 import { OPEN_LOOP_CELLS } from "../open-loop.ts";
+import { BORDER_CELLS } from "../stability.ts";
 import { RECOVERY_CELLS, RECOVERY_SIZE_CELLS } from "../recovery.ts";
 import { MONGO_CELLS, MONGO_ONE, MEMBER_STAMPS, SET_DEFAULTS, longestWait } from "./harness.ts";
 
@@ -37,7 +38,7 @@ describe("the MongoDB cells, for the harness", () => {
   it("gives each cell of the three catalogs once, with a name of its own, before the PostgreSQL and RabbitMQ cells at the end of the catalogs", () => {
     expect(MONGO_CELLS).toHaveLength(58);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
-    const after = [...T01_PG, ...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI, ...T10_PG, ...COMMIT_CELLS, ...T01_AMQP, ...T11_RABBIT, ...CONFIRM_CELLS, ...T01_GRPC, ...T03_GRPC, ...T02_GRPC, ...LIMITER_CELLS, ...POOL_CELLS, ...ACCEPT_QUEUE_CELLS, ...SERVICE_QUEUE_CELLS, ...PORT_RANGE_CELLS, ...CONNTRACK_CELLS, ...FABRIC_CELLS, ...COUNT_CELLS, ...WATCH_CELLS, ...LEASE_CELLS, ...RECOVERY_CELLS, ...RECOVERY_SIZE_CELLS, ...OPEN_LOOP_CELLS, ...LADDER_CELLS];
+    const after = [...T01_PG, ...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI, ...T10_PG, ...COMMIT_CELLS, ...T01_AMQP, ...T11_RABBIT, ...CONFIRM_CELLS, ...T01_GRPC, ...T03_GRPC, ...T02_GRPC, ...LIMITER_CELLS, ...POOL_CELLS, ...ACCEPT_QUEUE_CELLS, ...SERVICE_QUEUE_CELLS, ...PORT_RANGE_CELLS, ...CONNTRACK_CELLS, ...FABRIC_CELLS, ...COUNT_CELLS, ...WATCH_CELLS, ...LEASE_CELLS, ...RECOVERY_CELLS, ...RECOVERY_SIZE_CELLS, ...OPEN_LOOP_CELLS, ...BORDER_CELLS, ...LADDER_CELLS];
     expect(ALL.slice(-(MONGO_CELLS.length + after.length), -after.length)).toEqual(MONGO_CELLS);
     expect(ALL.slice(-after.length)).toEqual(after);
   });
