@@ -4,7 +4,8 @@ import type { Cell, ClusterStage, KernelRecord, ProbeEvent, ReplicaSetStage, Run
 import { socketsOf } from "./driver.ts";
 import type { RecoveryMeasured } from "./recovery.ts";
 import { recoveryFindings, recoveryOf, roomVoidOf } from "./recovery.ts";
-import { INJECT, noiseOf } from "./verdict.ts";
+import type { TimeFromFault } from "./verdict.ts";
+import { INJECT, commitVoid, noiseOf } from "./verdict.ts";
 
 /**
  * This module measures a run of a group cell. It gives the first write that a primary accepted
@@ -450,8 +451,29 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   const rtt = first?.tcp?.srtt === undefined ? null : valueIn(first.tcp.srtt, "us") / 1000;
   if (voided === null && assumed !== undefined && rtt !== null && rtt > valueIn(assumed.high, "ms"))
     voided = `rtt-over-assumption: its first round trip was ${rtt} ms, above the ${valueIn(assumed.high, "ms")} ms that the prediction assumes`;
-  if (voided === null && prediction.detects === true && prediction.from === "fault" && (run.fault.t1 - run.fault.t0) / 1e6 > valueIn(INJECT, "ms"))
-    voided = `the commit of the fault took ${Math.round((run.fault.t1 - run.fault.t0) / 1e5) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+  // the commit of the fault leaves its start unknown: this function voids the run when that changes the read of a band
+  const commit = quantity((run.fault.t1 - run.fault.t0) / 1e9, "s");
+  const noise = valueIn(noiseOf(cell), "s");
+  const stamps = prediction.group?.stamps === undefined ? 0 : valueIn(prediction.group.stamps, "s");
+  const commitOf = (elapsed: Quantity | null): string | null => {
+    if (prediction.detects !== true || prediction.from !== "fault") return null;
+    const widened = (at: Quantity, low: Quantity, high: Quantity, extra = 0): TimeFromFault => ({
+      at,
+      low: quantity(valueIn(low, "s") - noise, "s"),
+      high: quantity(valueIn(high, "s") + extra + noise, "s"),
+    });
+    const stageTimes = (prediction.group?.stages ?? []).flatMap((band) => {
+      const at = stages[band.stage];
+      return at === undefined ? [] : [widened(at, band.low, band.high, stamps)];
+    });
+    const errorTimes = (expected?.errors ?? []).flatMap((error) => {
+      const met = group.errors.find((each) => each.name === error.name);
+      return met === undefined ? [] : [widened(met.first, error.low, error.high)];
+    });
+    // a run with no time of its own has nothing to keep: the commit voids it
+    if (elapsed === null) return commitVoid(commit, []);
+    return commitVoid(commit, [widened(elapsed, prediction.low, prediction.high), ...stageTimes, ...errorTimes]);
+  };
 
   // the reference: the fault, or for a stall the first write into it
   let reference = t0;
@@ -519,7 +541,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   if (accepted === undefined) {
     if (prediction.detects !== null || kafka)
       findings.push(lands === "new" ? "the client never wrote to a new primary in the window" : "the client never wrote again in the window");
-    return { ...silent, void: voided, finding: findings[0] ?? null, group };
+    return { ...silent, void: voided ?? commitOf(null), finding: findings[0] ?? null, group };
   }
   // the kernel's time of the acceptance: the last segment with data from that primary at the
   // client's stamp or before it. The monitor and the pinger of a driver have their own sockets to
@@ -539,12 +561,13 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     )
     .at(-1);
   const at = segment?.mono ?? accepted.t;
+  const elapsed = between(reference, at);
   return {
     outcome: { kind: "answered" },
-    elapsed: between(reference, at),
+    elapsed,
     socket: between(reference, accepted.t),
     noticed: segment === undefined ? null : between(segment.mono, accepted.t),
-    void: voided,
+    void: voided ?? commitOf(elapsed),
     finding: findings[0] ?? null,
     group,
   };

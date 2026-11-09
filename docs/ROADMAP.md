@@ -3448,13 +3448,15 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
 - **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
 - **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
 - **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
-- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **The Sunday run.** After the run of 2026-11-08, the rungs of recovery get the same flip. That run is the proof of the lock of SYS-94. The step `recovery.ts --flip` puts a fault into each measure in turn. The fault is 1.5 x the limit of the budget, or 1 above a limit of 0. That budget of each locked rung must be `beyond`. The clean copy exits with 0. The copies with a record gone, a tag with no digest, or a checkout with changes each exit with 1.
+- **The run of 2026-11-08.** The run 42467630024 failed, and no rung was beyond. Each restore drill of three members had one void run of 4: the commit of the fault took 8.4 ms and 6.6 ms. Thus the rungs 100 and 1000 had 3 drills and needed 4, and they could not decide.
+- **The void of a slow commit.** A fault starts in its commit, thus a time from the start of the commit is too long by the commit or less. Before this change, a commit longer than the noise of 4 ms voided each run. The harness voids a run only when that shift can move a time across an edge of its band. A restore of 16 s in a band of 180 s keeps its run. A toxic of 2 s in a band of 1 ms with a commit of 13.3 ms stays void. With this rule, the records of 2026-11-08 hold each of the 3 rungs, and the flip passes on them.
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
