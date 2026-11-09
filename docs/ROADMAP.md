@@ -3623,6 +3623,10 @@ The order of the work:
 
 - The runner hours come from the seconds of each cell in the original runs (`refresh-cost.json`). A test simulates each shard of each round with these seconds, and each shard stays below 300 minutes.
 - The job `export` starts the exporter of each study of the round on the records of all its shards. It uploads the new data files as the artifact `refresh`. A pull request then moves each page to its new copy.
+- **The move of the pages.** A token of a workflow cannot open a pull request that starts the checks. Thus a session downloads the artifact `refresh` and starts `packages/site/scripts/adopt.ts` on it. The script puts each copy into `src/data`, and each source of a page then names the new copy. The old file and its tests stay.
+  - The first sentence of the page of the study gets the day of the copy. The report of the script lists each other line with the old day, for the body of the pull request.
+  - A copy that no page shows stops the script. A test reads the page of each study of the plan, and the name that its exporter writes.
+  - A key of a GitHub App lets the job open the pull request itself. The repository has no such key, and a key is a choice for Mark.
 - The page `results/refresh` gives the limit and the rounds in public text. A test compares its table with the plan.
 - Seven pages with a limit have no round yet: `results/r3`, `results/kind`, `results/mesh`, `results/calibration`, `results/timers`, `lab/detection` and the home page. `refresh.ts` gives what each one needs first. A test of the site fails for a page with a limit that has no round and no such entry.
 
