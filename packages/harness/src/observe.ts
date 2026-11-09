@@ -12,6 +12,7 @@ import {
   leftAfter,
   jitterOfLines,
   pingsOf,
+  pongsOf,
   programLines,
   reconnectFinding,
   reconnectOf,
@@ -225,7 +226,7 @@ const socketVantage = (
   request: ProbeEvent,
 ): Quantity | null => {
   const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
-  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent" || from === "last-data" || from === "last-reply") return null;
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "pong-sent" || from === "first-sent" || from === "last-data" || from === "last-reply") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     from === "last-received"
@@ -711,6 +712,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     if (from === "fault") return run.fault?.t0;
     if (from === "client-start") return (events.find((event) => event.ev === "connecting") ?? events[0])?.t;
     if (from === "ping-sent") return firstUnanswered(pings, socket, ended)?.at;
+    // the last pong before the fault starts the wait of the program for the next ping
+    if (from === "pong-sent") return pongsOf(lines, socket, named, paired).filter((pong) => pong.at <= before).at(-1)?.at;
     const record: KernelRecord | undefined =
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)

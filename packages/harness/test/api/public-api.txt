@@ -361,6 +361,7 @@ pgClientImage: build/index.d.ts#pgClientImage
 pingsOf: build/index.d.ts#pingsOf
 plainOf: build/index.d.ts#plainOf
 planOf: build/index.d.ts#planOf
+pongsOf: build/index.d.ts#pongsOf
 poolOf: build/index.d.ts#poolOf
 programLines: build/index.d.ts#programLines
 programOf: build/index.d.ts#programOf
@@ -1084,7 +1085,7 @@ interface Recovers {
 }
 
 ### build/cell.chunk.d.ts#Reference
-type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "first-sent" | "syn-sent";
+type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "pong-sent" | "first-sent" | "syn-sent";
 
 ### build/cell.chunk.d.ts#ReplicaSet
 interface ReplicaSet {
@@ -2945,6 +2946,9 @@ export declare const plainOf: (text: string) => string;
 
 ### build/index.d.ts#planOf
 export declare const planOf: (source: string | ImageSource) => ImagePlan;
+
+### build/index.d.ts#pongsOf
+export declare const pongsOf: (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown, delta?: Quantity) => ProgramEvent[];
 
 ### build/index.d.ts#poolOf
 export declare const poolOf: (measures: readonly RunLoad[]) => RunLoad & {
