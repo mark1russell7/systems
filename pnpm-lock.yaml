@@ -238,13 +238,13 @@ importers:
         version: link:../quantity
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.10
-        version: 0.2.33(esbuild@0.28.2)
+        version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-chaos':
         specifier: ^0.1.3
         version: 0.1.3
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.11
-        version: 0.1.26
+        version: 0.1.27
       '@mark1russell7/service':
         specifier: workspace:*
         version: link:../service
@@ -296,13 +296,13 @@ importers:
         version: link:../quantity
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.10
-        version: 0.2.33(esbuild@0.28.2)
+        version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-chaos':
         specifier: ^0.1.3
         version: 0.1.3
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.11
-        version: 0.1.26
+        version: 0.1.27
       testcontainers:
         specifier: 12.2.0
         version: 12.2.0
@@ -339,7 +339,7 @@ importers:
         version: link:../quantity
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.3
-        version: 0.1.26
+        version: 0.1.27
       '@mark1russell7/service':
         specifier: workspace:*
         version: link:../service
@@ -439,7 +439,7 @@ importers:
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.8
-        version: 0.1.8
+        version: 0.1.14
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
@@ -506,7 +506,7 @@ importers:
         version: link:../quantity
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.0
-        version: 0.1.8
+        version: 0.1.14
       '@mark1russell7/text':
         specifier: ^0.0.2
         version: 0.0.2
@@ -612,10 +612,10 @@ importers:
         version: link:../quantity
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.3
-        version: 0.2.33(esbuild@0.28.2)
+        version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.3
-        version: 0.1.26
+        version: 0.1.27
       astro:
         specifier: ^7.3.8
         version: 7.3.8(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
@@ -1465,8 +1465,8 @@ packages:
     resolution: {integrity: sha512-hn2C5jjOFCGKJqFQPHt57C/Cn1l9Lb9MltVNtL71KSu+nRrfPOmg8ujYB5n3oDFFWNdNA4bE/8LLT4tG3lmrGA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-bench@0.2.33':
-    resolution: {integrity: sha512-Z905E0XTaT2LNskOwoUURnFXYczru17TLC8TrcEOEUz2ufRCJfZHAjfhCeVbiB5uDHZX9UTf2cgzqQRk6hU8Aw==}
+  '@mark1russell7/rigor-bench@0.2.34':
+    resolution: {integrity: sha512-1oFx5Q6a8bTffut1HA/7zbahTPva9rnhqm1w7INJ5Yj8PAVfSBoRWXAFnz8ju75H5FR/393WSYOFNKOr2GzPTQ==}
     engines: {node: '>=22'}
     hasBin: true
     peerDependencies:
@@ -1479,6 +1479,10 @@ packages:
     resolution: {integrity: sha512-PHY5gk3RLjM1uIDDt9DczYSZKU8vp31GNvJsAUuHFxoC8N60TGFiEI+v5tpec3/e4DSeUr1207v8xo9xvyd6vg==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-generators@0.1.14':
+    resolution: {integrity: sha512-wSSv2qWetdgWMhhr7VdujBKgdF0kYB8PsckImdGC3yibgpI79fwos0U61dKZaPF7DebhE29F9AXWk7Ke//ASPQ==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-generators@0.1.6':
     resolution: {integrity: sha512-eSuVS6nNd2H63dMrfleop+ffBtNd8Ua0/JrcUWUMxf2jHWw432fSwJ+aSa4ecAYq1Pa2ReCfwpqFUP4MII5+GA==}
     engines: {node: '>=22'}
@@ -1489,6 +1493,10 @@ packages:
 
   '@mark1russell7/rigor-statistics@0.1.26':
     resolution: {integrity: sha512-JhwMAsYFg9FLFGVHRt6U7TWYmRblA/f+zS08H+DVzRlP4ypAqwmX6+QXNY+jNbwkyFPJqaLQJq/1PSC8QoKIWQ==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.27':
+    resolution: {integrity: sha512-UnBEZVSVSytwFH5pJ5ezlOCEs/19Ur0/REQ+Tq5BYs8uYWSNoP/hZNGx2tdqLN2Rn0u+A41GwieBnuM6DuWS4g==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-testkit@0.1.2':
@@ -5100,17 +5108,20 @@ snapshots:
 
   '@mark1russell7/rational@0.1.2': {}
 
-  '@mark1russell7/rigor-bench@0.2.33(esbuild@0.28.2)':
+  '@mark1russell7/rigor-bench@0.2.34(esbuild@0.28.2)':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.8
-      '@mark1russell7/rigor-statistics': 0.1.26
+      '@mark1russell7/rigor-generators': 0.1.14
+      '@mark1russell7/rigor-statistics': 0.1.27
+      '@mark1russell7/text': 0.0.2
     optionalDependencies:
       esbuild: 0.28.2
 
   '@mark1russell7/rigor-chaos@0.1.3':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.6
-      '@mark1russell7/rigor-statistics': 0.1.26
+      '@mark1russell7/rigor-statistics': 0.1.27
+
+  '@mark1russell7/rigor-generators@0.1.14': {}
 
   '@mark1russell7/rigor-generators@0.1.6': {}
 
@@ -5119,6 +5130,10 @@ snapshots:
   '@mark1russell7/rigor-statistics@0.1.26':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.8
+
+  '@mark1russell7/rigor-statistics@0.1.27':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.14
 
   '@mark1russell7/rigor-testkit@0.1.2(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
     optionalDependencies:
@@ -5130,7 +5145,7 @@ snapshots:
 
   '@mark1russell7/site-pages@0.4.2':
     dependencies:
-      '@mark1russell7/rigor-statistics': 0.1.26
+      '@mark1russell7/rigor-statistics': 0.1.27
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
     dependencies:
