@@ -492,6 +492,9 @@ importers:
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.0
         version: 0.1.8
+      '@mark1russell7/text':
+        specifier: ^0.0.2
+        version: 0.0.2
       amqplib:
         specifier: ^2.2.0
         version: 2.2.0
@@ -1491,6 +1494,10 @@ packages:
     resolution: {integrity: sha512-Wy4xa6OgNXyMunSyXOArxmrspLSCuyw1pf1P5X45Uiwe1aWHzn0LJptUYVGUSwT3GTp9FGVDhFMeOnKlapD3Xw==}
     engines: {node: '>=22.12'}
     hasBin: true
+
+  '@mark1russell7/text@0.0.2':
+    resolution: {integrity: sha512-m1aIB8X+PDekktzr1fYOp1/7gvlh9iL/2M7ktj/GnmPmVrWin0rTADgTm00dKFdWFRzXraCUYkjyCl3jQZHEVg==}
+    engines: {node: '>=22.12'}
 
   '@mongodb-js/saslprep@1.6.1':
     resolution: {integrity: sha512-D4CQtk9IwjCLAvCf1xvHEod3960q8XMUzfmdRU9qjUNlHnesGuTOvJcOTaPm9koZ1caUKA2aTbszZiAkcmSgmg==}
@@ -5182,6 +5189,8 @@ snapshots:
   '@mark1russell7/template-cli@0.1.7':
     dependencies:
       '@clack/prompts': 1.8.1
+
+  '@mark1russell7/text@0.0.2': {}
 
   '@mongodb-js/saslprep@1.6.1':
     dependencies:

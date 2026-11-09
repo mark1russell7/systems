@@ -422,9 +422,9 @@ describe("the rules entry: the drain rules as data, without kind and its Testcon
 });
 
 describe("the host entry: Node only, and its effects go through ports (SYS-36)", () => {
-  it("loads only node: built-ins and quantity, and no fakes of its tests", () => {
+  it("loads only node: built-ins, quantity, the clock and the escape of text, and no fakes of its tests", () => {
     const { files, packages } = reach("host.ts");
-    expect(packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
+    expect(packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity", "@mark1russell7/text", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
     expect(files.filter((file) => file.includes("fake"))).toEqual([]);
   });
 
