@@ -703,6 +703,8 @@ realClock: @mark1russell7/algebra/clock#realClock (external)
 Channel: build/channel.d.ts#Channel
 ErrorHandler: build/channel.d.ts#ErrorHandler
 FlowOptions: build/channel.d.ts#FlowOptions
+PreemptedError: build/channel.d.ts#PreemptedError
+PreemptivePool: build/channel.d.ts#PreemptivePool
 SelectCase: build/channel.d.ts#SelectCase
 Ticker: build/channel.d.ts#Ticker
 Wait: build/channel.d.ts#Wait
@@ -713,6 +715,7 @@ fanIn: build/channel.d.ts#fanIn
 fanOut: build/channel.d.ts#fanOut
 merge: build/channel.d.ts#merge
 pipeline: build/channel.d.ts#pipeline
+preemptivePool: build/channel.d.ts#preemptivePool
 select: build/channel.d.ts#select
 ticker: build/channel.d.ts#ticker
 timeout: build/channel.d.ts#timeout
@@ -1086,6 +1089,18 @@ export interface FlowOptions {
   readonly onError?: ErrorHandler | undefined;
 }
 
+### build/channel.d.ts#PreemptedError
+export declare class PreemptedError extends Error {
+  override readonly name = "PreemptedError";
+}
+
+### build/channel.d.ts#PreemptivePool
+export interface PreemptivePool {
+  run<R>(task: (signal: AbortSignal) => Promise<R>): Promise<R>;
+  stop(reason?: unknown): void;
+  readonly size: number;
+}
+
 ### build/channel.d.ts#SelectCase
 export interface SelectCase<R> {
   readonly handler: (value: unknown) => R;
@@ -1124,6 +1139,9 @@ export declare const merge: <T>(inputs: readonly Channel<T>[]) => Channel<T>;
 
 ### build/channel.d.ts#pipeline
 export declare const pipeline: <T, U>(input: Channel<T>, transform: (value: T) => U | Promise<U>, options?: FlowOptions) => Channel<U>;
+
+### build/channel.d.ts#preemptivePool
+export declare const preemptivePool: (max: number) => PreemptivePool;
 
 ### build/channel.d.ts#select
 export declare const select: <R>(...cases: readonly SelectCase<R>[]) => Promise<R>;
