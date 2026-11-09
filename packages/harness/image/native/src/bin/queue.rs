@@ -30,6 +30,7 @@
 //! 6. It writes the state of each connection, drains the queue with `--drain`, and writes the
 //!    counters and `done`.
 
+use harness_native::{emit, emit_at};
 use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
 use std::error::Error;
@@ -44,18 +45,6 @@ const BURST: [&str; 3] = ["in", "busy", "quiet"];
 const HANDSHAKE_NS: u64 = 300_000_000;
 /// the longest count that a drain asks for
 const DRAIN: i32 = 1024;
-
-fn emit(event: &str, fields: Value) {
-    emit_at(event, monotonic_ns(), fields);
-}
-
-fn emit_at(event: &str, t: u64, fields: Value) {
-    let mut line = json!({ "ev": event, "t": t });
-    if let (Some(line), Value::Object(fields)) = (line.as_object_mut(), fields) {
-        line.extend(fields);
-    }
-    println!("{line}");
-}
 
 fn set_int(fd: i32, level: i32, name: i32, value: i32) -> std::io::Result<()> {
     // SAFETY: the option value is an int on this stack, passed with its exact size

@@ -11,7 +11,7 @@ import { CILIUM_IMAGES, CILIUM_VERSION, installCilium } from "./cilium.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
-import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, dnsCommands, faultSpan, middleboxCommands, placementOf, planOf, sysctlCommand } from "./faults.ts";
+import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, dnsCommands, faultSpan, middleboxCommands, middleboxRemoval, placementOf, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
@@ -558,14 +558,21 @@ const middleboxServers = async (ctx: Context, idle: Quantity | null, port: numbe
     .filter((pod) => pod.labels["app"] === CLIENT && !pod.del && pod.ip !== null)
     .map((pod) => pod.ip!)
     .sort();
-  const commands = middleboxCommands(peers, idle, port);
+  // the removal comes from the table of each namespace, not from the peers at the time of the removal (middleboxRemoval)
+  const commands = idle === null ? null : middleboxCommands(peers, idle, port);
   const t0 = await ctx.lab.now();
   const each = await namespacesOf(ctx, "servers", replicas);
   await Promise.all(
     each.map(async ({ node, pid }) => {
-      if (idle === null) await ctx.lab.tables(node, pid, "filter");
-      await ctx.lab.netns(node, pid, commands);
-      if (idle !== null) await ctx.lab.tables(node, pid, "filter");
+      if (commands !== null) {
+        await ctx.lab.netns(node, pid, commands);
+        await ctx.lab.tables(node, pid, "filter");
+        return;
+      }
+      const removal = middleboxRemoval(await ctx.lab.tables(node, pid, "filter"));
+      if (removal.length > 0) await ctx.lab.netns(node, pid, removal);
+      const left = middleboxRemoval(await ctx.lab.tables(node, pid, "filter"));
+      if (left.length > 0) throw new Error(`the middlebox on ${node} (PID ${pid}) has ${left.length} parts after its removal`);
     }),
   );
   return { t0, t1: await ctx.lab.now() };

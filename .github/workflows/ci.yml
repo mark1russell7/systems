@@ -1,11 +1,12 @@
 # The gates of each change. release.yml calls this workflow before it packs a release.
 #
 #   checks  The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md): the
-#           typecheck, the tests, the build of each published package and the writing rules.
+#           typecheck, the tests, the build of each published package, the API reports and the writing rules.
 #   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
 #           (reusable-release-build.yml of the template, with the release scripts of the template).
 #   site    The conventions check (check:conventions), and the site, as pages.yml builds it for GitHub Pages.
 #   checker The format, the vet and the tests of the checker of linearizability, in Go.
+#   native  The build and the tests of the native programs of the harness, in Rust.
 #   ci      The required check of main. It fails when a different job of this file fails.
 name: CI
 
@@ -14,6 +15,8 @@ on:
     branches: [main]
   pull_request:
   workflow_call:
+  # A person starts a run on a branch with no pull request: gh workflow run ci.yml --ref <branch>
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,14 +27,20 @@ concurrency:
 
 jobs:
   checks:
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+    # This pin is later than the other pins of the template: it has the coverage of each push to main
+    # (template#263). The release build keeps the pin of release.yml.
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@600ff4b757d17c8681961d19aea7b5224ab4fa80 # main
     permissions:
       contents: read
     with:
       # typecheck and test: each package of the workspace.
       # build: the build that npm gets, for each package that the repository publishes.
+      # check:api: the report of the API of each public package (test/api/public-api.txt), against the build.
       # lint:ste: the writing rules (ASD-STE100) of the README files and the doc comments.
-      scripts: typecheck test build lint:ste
+      scripts: typecheck test build check:api lint:ste
+      # The coverage of each package, on each pull request and each push to main. The Vitest config of a package
+      # reads its floors from coverage-floors.json (SYS-109), thus a package under a floor fails the run.
+      coverage: true
 
   # The tarballs of a release, tested in an empty project as release.yml tests them. The commit of a
   # pull request is not on main, so the job does not do the check of main (require-main).
@@ -39,7 +48,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
     permissions:
       contents: read
     with:
@@ -91,11 +100,30 @@ jobs:
           golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
           sh -c 'test -z "$(gofmt -l .)" || { gofmt -d .; exit 1; }; go vet ./... && go test -count=1 ./...'
 
+  # The tests of the native programs of the harness. The Rust is that of the harness image: the
+  # same Alpine, pinned by digest, with its packages rust and cargo. The image build of the cells
+  # runs these tests too, but a pull request starts no image build. The prober's library builds
+  # without its collector, thus without libbpf.
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and tests
+        run: >-
+          docker run --rm -v "$PWD/packages:/src" -w /src/harness/image/native
+          alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
+          sh -c 'apk add --no-cache rust cargo > /dev/null && cargo test --locked'
+
   # The required check of main (the ruleset ci-required). Its name stays "ci". It fails when a job
   # fails or stops. The job pack can be skipped only in a release run.
   ci:
     if: always()
-    needs: [checks, pack, site, checker]
+    needs: [checks, pack, site, checker, native]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
@@ -106,10 +134,12 @@ jobs:
           PACK: ${{ needs.pack.result }}
           SITE: ${{ needs.site.result }}
           CHECKER: ${{ needs.checker.result }}
+          NATIVE: ${{ needs.native.result }}
           WORKFLOW: ${{ github.workflow }}
         run: |
-          echo "checks: $CHECKS, pack: $PACK, site: $SITE, checker: $CHECKER"
+          echo "checks: $CHECKS, pack: $PACK, site: $SITE, checker: $CHECKER, native: $NATIVE"
           test "$CHECKS" = success
           test "$SITE" = success
           test "$CHECKER" = success
+          test "$NATIVE" = success
           if [ "$WORKFLOW" = CI ]; then test "$PACK" = success; else test "$PACK" = skipped; fi

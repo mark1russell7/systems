@@ -42,7 +42,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+        uses: mark1russell7/template/.github/actions/changes@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
         with:
           paths: |
             .github/workflows/process.yml
@@ -96,12 +96,12 @@ jobs:
 
   process-ok:
     name: Process OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, process]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
         with:
           needs: ${{ toJSON(needs) }}

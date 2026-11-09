@@ -5,9 +5,11 @@
 // A cell in a later folder replaces the same cell of an earlier folder, thus the folder of a re-run
 // goes last. These functions read the folders, and they round each time for the copy of the site.
 
-import { cpSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { median } from "@mark1russell7/rigor-statistics";
+import type { RecordCode } from "../../harness/src/index.ts";
+import { commitProblems, DEBUG, DIRTY } from "../../harness/src/index.ts";
 import { duration } from "../src/lib/format.ts";
 
 /** A found cell is the raw record of a cell, its line of summary.ndjson, and the decision of a run that a re-run replaced. */
@@ -60,21 +62,6 @@ export const readFolders = <R extends { readonly cell: { readonly name: string }
 };
 
 /** This function gives the one value that each folder gives, or it stops. */
-/** This function copies a folder into another folder without its first record and the line of that record, and it gives the copy. The flip tests read this copy. */
-export const withoutOne = (folder: string, into: string): string => {
-  const copy = join(into, "gone");
-  cpSync(folder, copy, { recursive: true });
-  const file = readdirSync(copy).filter((name) => name.endsWith(".json")).sort()[0];
-  if (file === undefined) throw new Error(`${folder} has no record`);
-  const { cell } = JSON.parse(readFileSync(join(copy, file), "utf8")) as { readonly cell: { readonly name: string } };
-  rmSync(join(copy, file));
-  const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
-    .split("\n")
-    .filter((line) => line.trim() !== "" && (JSON.parse(line) as { readonly name: string }).name !== cell.name);
-  writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
-  return copy;
-};
-
 export const only = (what: string, values: readonly string[]): string => {
   const set = [...new Set(values)];
   if (set.length !== 1) throw new Error(`the records disagree on ${what}: ${set.join(", ")}`);
@@ -185,27 +172,88 @@ export const stringify = (copy: unknown): string => `${JSON.stringify(copy, null
 /** This function gives the date of a copy: the day that the last of its records ended. */
 export const dateOf = (ended: readonly string[]): string => ended.map((each) => each.slice(0, 10)).sort().at(-1)!;
 
+/** These are the parts of a record that give the commit of its code. A record of the old form has none of them. */
+interface CodeOf {
+  readonly code?: RecordCode | undefined;
+  readonly debug?: boolean | undefined;
+}
+
+/**
+ * This function gives the commit of the code that operated for the records of a copy, as its field `commit`. The stamp
+ * of the page reads it (SYS-101). The records of the old form have no commit, thus their copy gets no field.
+ * It stops at a local debug run, at a checkout with changes, at a mix of the two forms, and at two commits.
+ */
+export const commitOf = (records: readonly object[]): { readonly commit?: string } => {
+  const codes = records as readonly CodeOf[];
+  if (codes.every((record) => record.code === undefined && record.debug === undefined)) return {};
+  const problems = [
+    ...new Set(
+      codes.flatMap((record) => [...commitProblems(record.code?.commit), ...(record.code?.dirty === true ? [DIRTY] : []), ...(record.debug === true ? [DEBUG] : [])]),
+    ),
+  ];
+  if (problems.length > 0) throw new Error(`the copy cannot name the commit of its code: ${problems.join(", ")}`);
+  return { commit: only("the commit of the code", codes.map((record) => record.code!.commit)) };
+};
+
 /** This function gives the median of a set of numbers, or null for none. */
 export const middle = (values: readonly number[]): number | null => (values.length === 0 ? null : median(values));
 
 /** This form is the reason of a void run whose timer the VM delayed. */
 const DELAYED = /^its (retransmit|keepalive) timer ran (\d+) jiffies behind its wheel slot: the VM delayed it, not the kernel$/;
 
+/** This form finds each number of a reason that stands alone: 13.3 and 2, but not the 6 of ip6tables. */
+const STANDALONE = /(?<![\w.])-?\d+(?:\.\d+)?(?![\w.])/g;
+
+/** This function gives the range of some numbers as a text: "8.4", or "8.4 to 13.3". */
+const rangeOf = (values: readonly string[]): string => {
+  const sorted = [...values].sort((a, b) => Number(a) - Number(b));
+  return sorted[0] === sorted.at(-1) ? sorted[0]! : `${sorted[0]} to ${sorted.at(-1)}`;
+};
+
+/** This function tells the void runs whose reason is a timer that the VM delayed: the timers and the range of their delays. */
+const delayedOf = (matches: readonly RegExpExecArray[]): string => {
+  const timers = [...new Set(matches.map((match) => match[1]!))].sort().join(" or the ");
+  const jiffies = `${rangeOf(matches.map((match) => match[2]!))} jiffies`;
+  return matches.length === 1
+    ? `One run is void: its ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed it, not the kernel.`
+    : `${matches.length} runs are void: in each, the ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed them, not the kernel.`;
+};
+
 /**
- * This function tells each void run of a cell in one text, or gives null for none. In these copies,
- * the reason of each void run is a timer that the VM delayed. Thus the text gives the timers and the
- * range of their delays. It stops at another reason.
+ * This function tells the void runs that have one shape of reason. The shape is the reason with no numbers.
+ * The text gives the reason, with the range of each number over the runs.
+ */
+const shapedOf = (reasons: readonly string[]): string => {
+  const numbers = reasons.map((reason) => reason.match(STANDALONE) ?? []);
+  // the reasons of one shape have the same count of numbers: the range at each place is over all of them
+  let place = 0;
+  const text = reasons[0]!.replace(STANDALONE, () => {
+    const at = place++;
+    return rangeOf(numbers.map((each) => each[at]!));
+  });
+  return reasons.length === 1 ? `One run is void: ${text}.` : `${reasons.length} runs are void: in each, ${text}.`;
+};
+
+/**
+ * This function tells each void run of a cell in one text, or gives null for none. It groups the runs by
+ * the shape of their reason, in the order of the first run of each shape. A timer that the VM delayed has
+ * its own text. Each other reason is a clause of the harness, and the text gives the range of its numbers.
  */
 export const voidsOf = (reasons: readonly string[]): string | null => {
   if (reasons.length === 0) return null;
-  const delays = reasons.map((reason) => DELAYED.exec(reason));
-  const other = reasons.find((_, n) => delays[n] === null);
-  if (other !== undefined) throw new Error(`the void reason "${other}" has no text for the page`);
-  const timers = [...new Set(delays.map((match) => match![1]!))].sort().join(" or the ");
-  const behind = delays.map((match) => Number(match![2]));
-  const [low, high] = [Math.min(...behind), Math.max(...behind)];
-  const jiffies = low === high ? `${low} jiffies` : `${low} to ${high} jiffies`;
-  return reasons.length === 1
-    ? `One run is void: its ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed it, not the kernel.`
-    : `${reasons.length} runs are void: in each, the ${timers} timer was ${jiffies} behind its wheel slot. Thus the VM delayed them, not the kernel.`;
+  const delayed = reasons.map((reason) => DELAYED.exec(reason)).filter((match) => match !== null);
+  const shapes = new Map<string, string[]>();
+  for (const reason of reasons.filter((each) => !DELAYED.test(each))) {
+    const shape = reason.replace(STANDALONE, "#");
+    shapes.set(shape, [...(shapes.get(shape) ?? []), reason]);
+  }
+  const first = (text: string): number => reasons.findIndex((reason) => reason === text);
+  const parts = [
+    ...(delayed.length === 0 ? [] : [{ at: first(delayed[0]![0]), text: delayedOf(delayed) }]),
+    ...[...shapes.values()].map((group) => ({ at: first(group[0]!), text: shapedOf(group) })),
+  ];
+  return parts
+    .sort((a, b) => a.at - b.at)
+    .map((part) => part.text)
+    .join(" ");
 };

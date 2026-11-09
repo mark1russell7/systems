@@ -11,6 +11,7 @@ export type {
   BuildImage,
   Cell,
   Client,
+  ClientCapability,
   ClientImage,
   Cluster,
   Kafka,
@@ -50,8 +51,11 @@ export type {
   PinnedImage,
   KernelRecord,
   Prediction,
+  ConntrackPrediction,
+  HostSysctl,
   LoadBand,
   LoadPlan,
+  LoadStream,
   LoadPrediction,
   PortsPrediction,
   ProbeEvent,
@@ -74,10 +78,12 @@ export type {
   Run,
   RunBackup,
   RunDrill,
+  DrillRoom,
   RunGroup,
   RunPart,
   RunFabric,
   RunRoute,
+  RunStream,
   RunTopology,
   SentinelEvent,
   SentinelStage,
@@ -91,7 +97,7 @@ export type {
   Toxic,
   WsProbe,
 } from "./cell.ts";
-export { isHopPlace, latestEndOf } from "./cell.ts";
+export { CLIENT_CAPABILITIES, environmentProblems, isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
   DROP_HANDLING,
@@ -108,10 +114,12 @@ export {
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
-export type { LoadJudgement, LoadSpread, LoadVerdict } from "./load.ts";
-export { SCHEDULE_PATH, loadOf, loadVerdict } from "./load.ts";
+export type { EstimateVerdict, LoadJudgement, LoadSpread, LoadVerdict, RunEstimate, RunLoad } from "./load.ts";
+export { CLOSED_TOLERANCE, LOAD_FORMAT, LOAD_PATH, SCHEDULE_PATH, estimateOf, estimateVerdict, loadOf, loadPlanOf, loadVerdict, poolOf, streamsLoadOf } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { ConntrackReading, StallReading } from "./conntrack.ts";
+export { measureConntrack } from "./conntrack.ts";
 export type { PortsReading } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
@@ -133,12 +141,13 @@ export {
   stagesOf,
   writesOf,
 } from "./timeline.ts";
-export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
+export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, TimeFromFault, Verdict } from "./verdict.ts";
 export {
   INJECT,
   NOISE,
   RELATIVE,
   STEPS,
+  commitVoid,
   delayVoids,
   groupVerdictOf,
   medianInterval,
@@ -150,7 +159,7 @@ export {
   spreadOf,
   verdictOf,
 } from "./verdict.ts";
-export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
+export type { Agent, FaultSide, HostSetting, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
 export { INSERT, RESTART, STANDBY_READY, cancelsOf, numbersOf, openStandby, pairArgs, pairOnce, standbyCommand } from "./standby.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
@@ -171,7 +180,7 @@ export {
   topologyOf,
 } from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
-export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export { AWS_FROM, CLOUDS, LAYERS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
@@ -233,9 +242,12 @@ export {
   drillSpan,
   hashOf,
   highestHeld,
+  memAvailableOf,
   readOplog,
   recoveryFindings,
   recoveryOf,
+  roomNeeded,
+  roomVoidOf,
   seedScript,
   sliceQuery,
   standaloneCommand,
@@ -297,4 +309,4 @@ export {
 export type { PauseCommit, PauseReading } from "./pause.ts";
 export { isFenceLine, logTimeOf, measurePause, namesGroup, pauseReady } from "./pause.ts";
 export type { CellResult } from "./run.ts";
-export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";
+export { LINGER_MS, QUIET_MS, environmentCounts, judge, runCell, spread } from "./run.ts";

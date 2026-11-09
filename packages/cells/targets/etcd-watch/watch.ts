@@ -92,6 +92,16 @@ const write = async (value: Buffer): Promise<void> => {
   await ctl(["put", "k"], value);
 };
 
+/** This function parses a line of JSON. A line that is not JSON is a failed line, not a stop of the target. */
+const parsed = <Value>(line: string): Value | undefined => {
+  try {
+    return JSON.parse(line) as Value;
+  } catch {
+    emit("failed", { message: `not JSON: ${line.slice(0, 200)}` });
+    return undefined;
+  }
+};
+
 /** This function starts a watcher of the key at a revision, or at the head. */
 const watch = (from: number | null, marks: Marks): Watcher => {
   const child = spawn("etcdctl", ["watch", "k", "-w", "json", ...(from === null ? [] : [`--rev=${from}`])], { stdio: ["ignore", "pipe", "pipe"] });
@@ -105,7 +115,8 @@ const watch = (from: number | null, marks: Marks): Watcher => {
   });
   const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
   lines.on("line", (line) => {
-    const printed = JSON.parse(line) as Printed;
+    const printed = parsed<Printed>(line);
+    if (printed === undefined) return;
     for (const event of printed.Events ?? []) {
       last = event.kv.mod_revision;
       if (last > marks.base) emit("event", { rev: last - marks.base });

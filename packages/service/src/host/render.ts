@@ -1,5 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { convertible, isQuantity, valueIn } from "@mark1russell7/quantity";
+import { escapeAttribute as xmlText } from "@mark1russell7/text";
 
 /**
  * A service start tells when the system starts the program.
@@ -118,10 +119,6 @@ export const systemdArg = (arg: string): string => {
   if (escaped !== "" && !/[\s"'\\;]/.test(escaped)) return escaped;
   return `"${escaped.replace(/\\/g, () => "\\\\").replace(/"/g, () => '\\"')}"`;
 };
-
-/** This function escapes a text for the content or an attribute of an XML element. */
-export const xmlText = (text: string): string =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 
 /** This function gives a time as an ISO 8601 duration of Task Scheduler in whole seconds, for example `PT90S`. */
 const isoSeconds = (time: Quantity): string => `PT${Math.max(1, Math.ceil(valueIn(time, "s")))}S`;

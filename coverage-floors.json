@@ -1,0 +1,181 @@
+{
+  "formula": "floor = rounddown(worst - (best - worst), 0.1), over the runs; the percent of each measure, from coverage-summary.json",
+  "runs": [
+    {
+      "id": "42558826949",
+      "commit": "e662b5e51d613aac677267cc81677ea22a8ce4a7"
+    },
+    {
+      "id": "42561558394",
+      "commit": "02250ac8b67d42593e9ee049f1125175f92cca0c"
+    },
+    {
+      "id": "42562850313",
+      "commit": "175a7bcaf0c9ff467eeaeaca5632ca7080cbea29"
+    },
+    {
+      "id": "42565946464",
+      "commit": "5225c00caecdfc0d464d9f7d27f5574a8209cb33"
+    },
+    {
+      "id": "42568135335",
+      "commit": "7f4f118293a63c8b006b24d90d54e45a561abde2"
+    }
+  ],
+  "floors": {
+    "algebra": {
+      "lines": 96.1,
+      "functions": 94.7,
+      "branches": 90.2
+    },
+    "cells": {
+      "lines": 98.9,
+      "functions": 99.5,
+      "branches": 87.6
+    },
+    "harness": {
+      "lines": 53,
+      "functions": 58.1,
+      "branches": 59.1
+    },
+    "kind": {
+      "lines": 62,
+      "functions": 63.1,
+      "branches": 60.4
+    },
+    "machines": {
+      "lines": 100,
+      "functions": 80,
+      "branches": 91.6
+    },
+    "prober": {
+      "lines": 100,
+      "functions": 100,
+      "branches": 50
+    },
+    "quantity": {
+      "lines": 96.8,
+      "functions": 94.2,
+      "branches": 87.1
+    },
+    "reference": {
+      "lines": 100,
+      "functions": 100,
+      "branches": 82.3
+    },
+    "service": {
+      "lines": 96,
+      "functions": 93,
+      "branches": 86.1
+    },
+    "site": {
+      "lines": 79.9,
+      "functions": 66.4,
+      "branches": 61.8
+    }
+  },
+  "worst": {
+    "algebra": {
+      "lines": 96.19,
+      "functions": 94.77,
+      "branches": 90.27
+    },
+    "cells": {
+      "lines": 98.92,
+      "functions": 99.5,
+      "branches": 87.62
+    },
+    "harness": {
+      "lines": 53,
+      "functions": 58.19,
+      "branches": 59.13
+    },
+    "kind": {
+      "lines": 62.01,
+      "functions": 63.18,
+      "branches": 60.45
+    },
+    "machines": {
+      "lines": 100,
+      "functions": 80,
+      "branches": 91.66
+    },
+    "prober": {
+      "lines": 100,
+      "functions": 100,
+      "branches": 50
+    },
+    "quantity": {
+      "lines": 96.86,
+      "functions": 94.28,
+      "branches": 87.11
+    },
+    "reference": {
+      "lines": 100,
+      "functions": 100,
+      "branches": 82.35
+    },
+    "service": {
+      "lines": 96.02,
+      "functions": 93.03,
+      "branches": 86.17
+    },
+    "site": {
+      "lines": 80.21,
+      "functions": 67.05,
+      "branches": 62.12
+    }
+  },
+  "spread": {
+    "algebra": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "cells": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "harness": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "kind": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "machines": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "prober": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "quantity": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "reference": {
+      "lines": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "service": {
+      "lines": 0.01,
+      "functions": 0.03,
+      "branches": 0.02
+    },
+    "site": {
+      "lines": 0.31,
+      "functions": 0.58,
+      "branches": 0.23
+    }
+  }
+}

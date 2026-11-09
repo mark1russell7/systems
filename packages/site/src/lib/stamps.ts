@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_STAMP_SCHEMA, renderDataStamp } from "@mark1russell7/site-pages";
-import type { DataRun, DataStamps, PageStamp } from "@mark1russell7/site-pages";
+import type { DataLimit, DataRun, DataStamps, NoAgeLimit, PageStamp } from "@mark1russell7/site-pages";
 
 const DATA_URL = "https://github.com/mark1russell7/systems/blob/main/packages/site/src/data";
 
@@ -14,7 +14,7 @@ const LAB_KERNEL = "6.6";
 const LAB_TARGET = "7.4";
 
 /** One data file of a page. */
-interface Source {
+export interface Source {
   readonly file: string;
   /** The words that the page shows in place of `run`. */
   readonly method: string;
@@ -29,23 +29,61 @@ const lab = (name: string, target?: string): Source => ({
   engines: { kernel: LAB_KERNEL, ...(target === undefined ? {} : { redis: target }) },
 });
 
+/** The public ruling of the age limit of 30 days (SYS-101). A limit over 14 days needs it. */
+export const LIMIT_RULING = "https://github.com/mark1russell7/systems/issues/368";
+
+/**
+ * The age rule and the commit rule of each limit start on this day, the last start that the package accepts. The
+ * scheduled refresh of each study comes before it, and a page with no fresh read on this day fails the gate.
+ */
+export const LIMIT_START = "2026-12-07T00:00:00Z";
+
+/** The workflow with the schedule of the lab. Its schedule meets the limit of 30 days. */
+export const LIMIT_WORKFLOW = ".github/workflows/cells.yml";
+
+const limit = (reason: string): DataLimit => ({ days: 30, reason, workflow: LIMIT_WORKFLOW, ruling: LIMIT_RULING, startsAt: LIMIT_START });
+
+/** The reasons of the limits, from the first read of the 17 pages in SYS-101. */
+const OWN_CODE = limit("The subject is code of this repository, thus a change of the code can change the numbers.");
+const PINNED = limit("The engine has a pinned version, but the driver, the prober and the bands are code of this repository.");
+const CALIBRATION = limit("Stage 0 of the calibration occurs again after each change of the harness.");
+const TIMERS = limit("The rule for a void run is in the current harness.");
+const BAND = limit("The band comes from the current algebra at each build.");
+
+/** The pages of the lab machine. Their Q cells are not in the catalog, thus no run of the current code can reproduce them. */
+const HISTORY: NoAgeLimit = {
+  reproduce: "These runs operated on one lab machine on kernel 6.6 at HZ 250. Their cells are not in the catalog, thus no current run can reproduce them.",
+  today: "The page is a record of history and claims nothing about the current code. The page of faults has the current findings.",
+};
+
+/** The age of one page: its limit, or the reason that it has none. */
+type Age = { readonly limit: DataLimit } | { readonly noLimit: NoAgeLimit };
+
+/** One page with a fixed study: its data files and its age. */
+interface Study {
+  readonly sources: readonly Source[];
+  readonly age: Age;
+}
+
+const study = (age: DataLimit | NoAgeLimit, ...sources: Source[]): Study => ({ sources, age: "days" in age ? { limit: age } : { noLimit: age } });
+
 /** The data files of each page with a fixed study, by the id of the page. */
-const STUDIES: Readonly<Record<string, readonly Source[]>> = {
-  "lab/detection": [lab("harness-2026-10-08.json")],
-  "results/harness": [lab("harness-2026-10-08.json")],
-  "results/calibration": [lab("harness-2026-10-13.json", LAB_TARGET)],
-  "results/cells": [lab("harness-2026-10-13.json", LAB_TARGET)],
-  "results/timers": [lab("harness-2026-10-13.json", LAB_TARGET)],
-  "results/faults": [file("faults-2026-10-17.json")],
-  "results/topologies": [file("topologies-2026-10-17.json")],
-  "results/sentinel": [file("sentinel-2026-10-17.json")],
-  "results/http": [file("http-2026-10-17.json")],
-  "results/r3": [file("r3-2026-10-17.json")],
-  "results/mongodb": [file("mongodb-2026-10-18.json")],
-  "results/pg": [file("pg-2026-10-19.json")],
-  "results/rabbitmq": [file("rabbitmq-2026-10-19.json")],
-  "results/grpc": [file("grpc-2026-10-20.json")],
-  "results/mesh": [file("t15-2026-10-25.json")],
+const STUDIES: Readonly<Record<string, Study>> = {
+  "lab/detection": study(BAND, lab("harness-2026-10-08.json")),
+  "results/harness": study(HISTORY, lab("harness-2026-10-08.json")),
+  "results/calibration": study(CALIBRATION, lab("harness-2026-10-13.json", LAB_TARGET)),
+  "results/cells": study(HISTORY, lab("harness-2026-10-13.json", LAB_TARGET)),
+  "results/timers": study(TIMERS, lab("harness-2026-10-13.json", LAB_TARGET)),
+  "results/faults": study(OWN_CODE, file("faults-2026-10-17.json")),
+  "results/topologies": study(OWN_CODE, file("topologies-2026-10-17.json")),
+  "results/sentinel": study(PINNED, file("sentinel-2026-10-17.json")),
+  "results/http": study(PINNED, file("http-2026-10-17.json")),
+  "results/r3": study(OWN_CODE, file("r3-2026-10-17.json")),
+  "results/mongodb": study(PINNED, file("mongodb-2026-10-18.json")),
+  "results/pg": study(PINNED, file("pg-2026-10-19.json")),
+  "results/rabbitmq": study(PINNED, file("rabbitmq-2026-10-19.json")),
+  "results/grpc": study(PINNED, file("grpc-2026-10-20.json")),
+  "results/mesh": study(PINNED, file("t15-2026-10-25.json")),
 };
 
 /**
@@ -62,6 +100,7 @@ const KIND_FIRST = "kind-2026-10-18.json";
 export const NOT_STAMPED: Readonly<Record<string, string>> = {
   "results/recovery": "A scheduled run replaces its data each Sunday, and its first scheduled run is on 2026-11-08. The limit of this page follows that run.",
   "results/ci": "The ledger counts the runs of the workflows, and it names no engine. The page says the period of its runs.",
+  "results/refresh": "The page gives the schedule of the refresh of the studies, and it names no engine.",
 };
 
 /** This function gives each name with its version in a text, for example `redis:7.4` or `grpc-go v1.84.0`. */
@@ -84,6 +123,8 @@ interface StudyData {
   readonly kernel?: string;
   readonly kubernetes?: string;
   readonly kind?: string;
+  /** The commit of the code that operated. An export writes it from the records, and a copy of old records has none. */
+  readonly commit?: string;
 }
 
 /**
@@ -115,8 +156,8 @@ export function dateInName(name: string): string {
 
 const read = (folder: string, name: string): StudyData => JSON.parse(readFileSync(join(folder, name), "utf8")) as StudyData;
 
-/** This function gives the run of one data file. */
-function runOf(folder: string, source: Source): DataRun {
+/** This function gives the run of one data file, with the commit of its code if the file names it. */
+export function runOf(folder: string, source: Source): DataRun {
   const data = read(folder, source.file);
   return {
     id: source.file,
@@ -124,6 +165,7 @@ function runOf(folder: string, source: Source): DataRun {
     date: data.ranAt ?? data.date ?? dateInName(source.file),
     engines: { ...enginesOf(data), ...source.engines },
     method: source.method,
+    ...(data.commit === undefined ? {} : { commit: data.commit }),
   };
 }
 
@@ -135,7 +177,7 @@ export function newestSeriesFile(names: readonly string[]): string {
   return newest;
 }
 
-const stamp = (id: string, runs: readonly DataRun[]): PageStamp => ({ page: `${id}/index.html`, runs, study: true });
+const stamp = (id: string, runs: readonly DataRun[], age: Age): PageStamp => ({ page: `${id}/index.html`, runs, study: true, ...age });
 
 /** This function gives the stamps of the site from the data files in `folder`. A missing file stops the build. */
 export function siteDataStamps(folder: string): DataStamps {
@@ -146,26 +188,32 @@ export function siteDataStamps(folder: string): DataStamps {
   ];
   return {
     schema: DATA_STAMP_SCHEMA,
-    pages: [homeStamp(folder), ...Object.entries(STUDIES).map(([id, sources]) => stamp(id, sources.map((source) => runOf(folder, source)))), stamp(KIND_PAGE, kind)],
+    pages: [homeStamp(folder), ...Object.entries(STUDIES).map(([id, { sources, age }]) => stamp(id, sources.map((source) => runOf(folder, source)), age)), stamp(KIND_PAGE, kind, { limit: OWN_CODE })],
   };
 }
 
 /** This function gives the stamp of the home page. A page with a hero does not show the title of the other pages. */
 export function homeStamp(folder: string): PageStamp {
-  return { page: "index.html", runs: [runOf(folder, lab(HOME_LAB_FILE))], study: true };
+  return { page: "index.html", runs: [runOf(folder, lab(HOME_LAB_FILE))], study: true, limit: BAND };
 }
 
-/** The words of the package for a page where one study gives all the numbers. The home page is not such a page. */
-const WHOLE_PAGE_WORDS = "The measured numbers of this page are";
+/** The words of the package for a page where one study gives all the numbers, each with the words of the home page. */
+const WHOLE_PAGE_WORDS: ReadonlyArray<readonly [string, string]> = [
+  ["The measured numbers of this page are", "The runs of this lab are"],
+  ["The oldest data of this page is", "The oldest data of this lab is"],
+];
 
 /**
  * This function gives the line of the stamp of the home page. The home page also shows the results of other studies,
  * so the line names only the lab. New words in the package stop the build, because the line then has no true words.
  */
 export function homeStampHtml(folder: string): string {
-  const html = renderDataStamp(homeStamp(folder));
-  if (!html.includes(WHOLE_PAGE_WORDS)) throw new Error(`The stamp of the home page does not have the words "${WHOLE_PAGE_WORDS}".`);
-  return html.replace(WHOLE_PAGE_WORDS, "The runs of this lab are");
+  let html = renderDataStamp(homeStamp(folder));
+  for (const [page, home] of WHOLE_PAGE_WORDS) {
+    if (!html.includes(page)) throw new Error(`The stamp of the home page does not have the words "${page}".`);
+    html = html.replace(page, home);
+  }
+  return html;
 }
 
 /** This function gives the stamp of the page `id`, or undefined for a page with no measured data. */

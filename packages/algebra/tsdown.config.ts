@@ -6,8 +6,8 @@ import { defineConfig } from "tsdown";
  * contain `src/`, thus the build makes no declaration maps.
  */
 export default defineConfig({
-  // the root and the replay of a trace, both without zod, and the schema with zod
-  entry: ["src/index.ts", "src/replay.ts", "src/schema.ts"],
+  // the root, the clock and the replay of a trace, all without zod, and the schema with zod
+  entry: ["src/index.ts", "src/clock.ts", "src/replay.ts", "src/schema.ts"],
   outDir: "build",
   format: "esm",
   platform: "neutral",

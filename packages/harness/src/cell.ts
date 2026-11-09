@@ -896,6 +896,11 @@ export type Prediction =
        * when a held port comes back. A value outside it is a finding of its run.
        */
       readonly ports?: PortsPrediction;
+      /**
+       * This record is the law of a conntrack table: its flows, a connect that finds no entry, and the
+       * return of a slot. A value outside it is a finding of its run.
+       */
+      readonly conntrack?: ConntrackPrediction;
       /** This record is the law of a paused consumer (`Kafka.pause`). A run outside it is a finding of its run. */
       readonly pause?: PausePrediction;
       /** These are the limits of an open-loop cell (`Cell.probe.plan`). Without them, its load is a measurement. */
@@ -992,10 +997,71 @@ export interface PortsPrediction {
   readonly retransmissions?: number;
 }
 
+/**
+ * This prediction is the law of a conntrack table. It reads the lines of the ctfull client. The client
+ * holds flows on its loopback until the count of its namespace reads the limit, then it does its plan.
+ */
+export interface ConntrackPrediction {
+  /** This count is the limit of the table: the flows that the client holds, and the count that it reads then. */
+  readonly max: number;
+  /** This count is what the namespace of the target reads while the client holds its flows. */
+  readonly neighbor?: number;
+  /** This record is the law of a connect that finds no entry: its end, and the rise of the two counters of the kernel. */
+  readonly refused?: {
+    readonly within: QueueBand;
+    readonly errno: string;
+    readonly drops: number;
+    readonly retransFail: number;
+  };
+  /** This band is the time from the `closing` line to the first fall of the count, and to its zero. */
+  readonly drained?: QueueBand;
+  /**
+   * This record is the law of a scan under pressure. It has the lowest count, the count after the
+   * connect, and the times of that connect. With `highest`, the lowest count is a band from `lowest` to
+   * `highest`. Then the count after the connect is one more than the lowest count of the run.
+   */
+  readonly pressure?: {
+    readonly lowest: number;
+    readonly highest?: number;
+    readonly after: number;
+    readonly points: readonly QueueBand[];
+  };
+}
+
+/**
+ * This setting is one sysctl of the namespace of the host, for the time of an environment. The harness
+ * reads the value before it, reads the value that it set, and restores the first value at the end.
+ */
+export interface HostSysctl {
+  readonly name: string;
+  readonly value: string;
+  /** The harness does not set the value when this sysctl of the host reads above `atMost`. The cell is then void. */
+  readonly guard?: { readonly name: string; readonly atMost: number };
+}
+
 /** A load plan is the schedule of an open-loop client as data: the rate over time, and how the arrivals fall. */
 export interface LoadPlan {
   readonly profile: Profile;
   readonly options: ScheduleOptions;
+}
+
+/**
+ * A load stream is one connection of the client `load`: its key, its schedule and its requests.
+ * Arrival i sends request i modulo the count of requests. Each stream has its own connection, thus
+ * a slow stream does not delay the arrivals of another stream.
+ */
+export interface LoadStream {
+  /** This text names the stream in each line of the client (`k`). Two streams of a cell do not have the same key. */
+  readonly key: string;
+  readonly plan: LoadPlan;
+  /** These texts are whole HTTP/1.1 requests, each with its head and its body. */
+  readonly requests: readonly string[];
+}
+
+/** A run stream is the schedule that one stream of the client `load` had in a run. */
+export interface RunStream {
+  readonly key: string;
+  readonly schedule: Schedule;
 }
 
 /** A load band is a limit on one quantile of the latency of an open-loop cell, over the arrivals of its counted runs. */
@@ -1011,6 +1077,12 @@ export interface LoadPrediction {
   /** This time is the largest lag of a send behind its planned time. A later send is a finding of its run. */
   readonly lag: Quantity;
   readonly bands: readonly LoadBand[];
+  /**
+   * This share is the limit on the failed arrivals of the counted runs, from 0 to 1. An arrival fails
+   * when the client did not send it, when it has no reply, or when its reply has the status of a
+   * failure. The verdict reads the Wilson interval at 0.95, thus a limit of 0.01 needs 381 arrivals.
+   */
+  readonly failures?: number;
 }
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -1148,7 +1220,7 @@ export interface Subject {
  * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, and HikariCP over pgjdbc is `hikari`.
  * The client of amqplib is `amqp`, and the client of grpc-js is `grpc`. The WebSocket client of `@procedures/client` is a program of its subject (`ClientImage`).
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc" | "load";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
@@ -1215,7 +1287,16 @@ export interface ClientImage {
   /** This image is a stock image by its name, pinned by digest, or the source of the image of a subject. */
   readonly image: string | ImageSource;
   readonly command: readonly string[];
+  /**
+   * These capabilities are added to the default set of the container of the client. A read of the
+   * statistics of conntrack over netlink needs NET_ADMIN in the namespace of the client.
+   */
+  readonly capabilities?: readonly ClientCapability[] | undefined;
 }
+
+/** These are the capabilities that a client image can get. */
+export const CLIENT_CAPABILITIES = ["NET_ADMIN"] as const;
+export type ClientCapability = (typeof CLIENT_CAPABILITIES)[number];
 
 /**
  * An observer is the side whose detection a cell measures. The client is one observer. The
@@ -1247,6 +1328,8 @@ export interface Cell {
     readonly mode: "idle" | "inflight" | "stream" | "gap" | "schedule";
     /** This plan is the schedule of the requests in the mode `schedule`. */
     readonly plan?: LoadPlan;
+    /** These streams are the plan of the client `load` in the mode `schedule`, in place of `plan`. */
+    readonly streams?: readonly LoadStream[];
     /** This count is the number of requests of a stream. */
     readonly count?: number;
     /** This time is the pause after each reply of a stream, before the next request. */
@@ -1322,6 +1405,14 @@ export interface Cell {
   readonly latency?: Quantity;
   /** These commands run in the target before a client connects, each as argv: for example, a large value to read. */
   readonly targetSetup?: readonly (readonly string[])[];
+  /** These commands run in the namespaces of the client and the target, each as argv, after the first connection of the environment. */
+  readonly namespaceSetup?: readonly (readonly string[])[];
+  /**
+   * These are sysctls of the host, which a cell needs because only the host can write them. The value
+   * applies to each container of the host, thus a shard runs them on its own runner. A host that does
+   * not have one makes the cell void (rule 8 of the environments).
+   */
+  readonly hostSysctls?: readonly HostSysctl[];
   readonly prediction: Prediction;
   /** This side is the side whose detection the cell measures. Without it, the side is the client. */
   readonly observer?: Observer;
@@ -1446,6 +1537,17 @@ export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
   typeof place === "object" && "hop" in place;
 
 /**
+ * This function gives each problem of the environments of a cell. An empty list means that the
+ * environments of the cell can operate. A value of the host is the same for each environment of the
+ * host. Thus a cell with sysctls of the host operates one environment at a time. Otherwise, a lab
+ * reads the value of a different lab as its value before, and the restore does not give back the host.
+ */
+export const environmentProblems = (cell: Cell): string[] =>
+  (cell.hostSysctls?.length ?? 0) > 0 && (cell.concurrency ?? 1) > 1
+    ? [`${cell.name}: a cell with sysctls of the host operates one environment at a time, not ${cell.concurrency}`]
+    : [];
+
+/**
  * This function tells if the request of a client goes before the fault of its cell. That is so for a
  * hop event that comes while the request is in flight (`HopEvent.inFlight`). Then a request after the fault is void.
  */
@@ -1536,12 +1638,16 @@ export interface Run {
   readonly group?: RunGroup;
   /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
   readonly server?: readonly ProbeEvent[];
+  /** This text tells what the environment of the run could not do for its cell. The run is void. */
+  readonly missing?: string;
   /** This record is the other member and the broker logs of a run of a paused consumer. */
   readonly pause?: RunPause;
   /** This record is the fabric of a cell with `Topology.fabric`. */
   readonly fabric?: RunFabric;
   /** This schedule is the one that the client of an open-loop cell had: each planned time stays with its record. */
   readonly schedule?: Schedule;
+  /** These schedules are the ones that the streams of the client `load` had. */
+  readonly streams?: readonly RunStream[];
 }
 
 /** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */
@@ -1637,6 +1743,21 @@ export interface RunDrill {
   readonly restored: { readonly started: number; readonly ended: number } | null;
   /** This number is the first sequence number of the second client, or null with one client. */
   readonly second: number | null;
+  /** This record is the room of the runner before the seed. A record from before SYS-97 has none. */
+  readonly room?: DrillRoom;
+}
+
+/**
+ * A drill room is what the runner had before the seed of a drill, and what the drill needs. When the
+ * free disk is under the need, the drill does no seed and its run is void (`roomVoidOf`).
+ */
+export interface DrillRoom {
+  /** This size is the free disk of the backup host. Each container of the lab writes to the same disk of the runner. */
+  readonly disk: Quantity;
+  /** This size is MemAvailable of the runner. The cache of each member has a fixed size, thus it is a record and not a limit. */
+  readonly memory: Quantity;
+  /** This size is the most disk that the drill needs (`roomNeeded`). */
+  readonly need: Quantity;
 }
 
 /**

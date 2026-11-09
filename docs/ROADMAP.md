@@ -93,6 +93,8 @@ Histories of operations and their checkers, load, exhaustion, retry storms and m
 
 S1 already records a history of writes for each group cell, thus S3 starts from a law for those counts. [SYS-58](#sys-58--valkey-the-accepted-writes-that-a-failover-loses) is the first cell. Its law predicts the writes that a Valkey failover loses, with `min-replicas-to-write` set. [The items of S3](#the-items-of-s3) give the order of the rest.
 
+The schedules of faults, of latency and of load come from `@mark1russell7/rigor-chaos`, the item R8 of the rigor repository. S3 keeps the laws, the cells and the checkers of histories. When a cell needs a schedule that the package does not have, the change goes to rigor.
+
 ### S4 · The host, the NIC and the cloud
 
 - **Status:** later
@@ -110,13 +112,15 @@ The VM tier starts in S7, as [SYS-81](#sys-81--the-vm-tier-qemu-on-a-runner-and-
 
 ### HW-1 · The lab for the NIC and the cloud parts of S4
 
-- **Status:** waiting
+- **Status:** later
 - **Area:** program
 - **Depends on:**
-- **Waiting on:** Mark, with no hurry, because S4 has not started. Pick one: (1) an SR-IOV NIC in a box of yours, (2) a cloud account with VMs, or (3) the two. If you want, Claude first researches which used cards fit.
+- **Waiting on:**
 - **Started:**
 - **Shipped:**
 - **Links:**
+
+Later, until S4 starts. Then the research of the cards comes first, and a hub ask gives Mark three options. Option 1 is an SR-IOV NIC in a box of Mark's. Option 2 is a cloud account with VMs. Option 3 is the two. The choice costs money, thus Mark makes it.
 
 The NIC part of S4 tests the virtual functions of SR-IOV, their failover, and a firmware upgrade of the card. The hosted runners of GitHub cannot test these. Their VM has no physical NIC, thus it cannot make virtual functions, fail them over or change firmware.
 
@@ -2355,6 +2359,7 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 - **Status:** in progress
 - **Area:** site
 - **Depends on:**
+- **Waiting on:** Mark: choose the next page of the item (the first page, the path of one request, shipped 2026-11-02)
 - **Started:** 2026-11-02
 - **Shipped:**
 - **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
@@ -2599,16 +2604,22 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-103 · A declared listen backlog
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** SYS-63
-- **Started:**
+- **Started:** 2026-11-08
 - **Shipped:**
 - **Links:** [the result of SYS-63](#sys-63--the-accept-queue-its-count-and-what-a-client-sees), [the cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
 
 The HTTP transport of the service calls `server.listen` with the options of the caller, and it sets no backlog. The host of procedures gives only a port and a host. Thus each server gets the default of Node, 511, and `somaxconn` clamps it.
 
 SYS-63 gives the law of a full queue. A new client waits 131 s for `ETIMEDOUT`, or it gets a reset with `tcp_abort_on_overflow` 1. This item adds a declared backlog to the listener of the service. Its default keeps the old behavior. The cells `AQ.1` to `AQ.7` are its test: a server of the service with a declared backlog gives the count of the law.
+
+The first part is the knob. `httpTransport` reads the optional knob `server_listen_backlog`, a whole count of 0 or more, and gives it to listen(2). Without the knob, the transport gives no backlog, as before. The transport refuses the knob without its own listen options, and it refuses a second backlog in those options. The declaration of the server gets the knob with the other knobs.
+
+The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of the native image, not a server of the service. Thus a new target (`packages/cells/targets/service-backlog/`) operates `httpTransport` of service 0.7.3 from npm with the knob. The cells `AQ.8` to `AQ.10` give it the backlogs of `AQ.1` to `AQ.3`. The main thread of the target blocks, thus Node accepts nothing. A worker serves the protocol of the native target, thus the client is the same. The host of procedures is in the client repository: a backlog option there is a request to that repository.
+
+**A finding of the design.** Node calls listen(2) with `backlog || 511` ([`lib/net.js` of Node 24.21.0, line 2325](https://github.com/nodejs/node/blob/v24.21.0/lib/net.js#L2325)). Thus the knob 0 of service 0.7.3 gives the kernel 511, not 0. `AQ.10` measures this limit, and [#437](https://github.com/mark1russell7/systems/pull/437) refuses the knob 0.
 
 ### SYS-64 · The port range: its count and its error
 
@@ -2721,14 +2732,31 @@ The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells ho
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-63
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-07
+- **Links:** [#381](https://github.com/mark1russell7/systems/pull/381), [the cells](../packages/cells/src/conntrack.ts), [the first run](https://github.com/mark1russell7/systems/actions/runs/42385278058), [the last run](https://github.com/mark1russell7/systems/actions/runs/42405337117)
 
-New flows drop at `nf_conntrack_max`. The table is global, not for each network namespace. Thus the cell sets the value on its own runner, and it restores the value.
+New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
+
+The first run (42385278058, 2026-11-07): CT.3 holds with 4 counted runs. CT.1, CT.2, CT.4 and CT.5 have only void runs. The kernel of the runners has no `CONFIG_NF_CONNTRACK_PROCFS`, thus it has no `/proc/net/stat/nf_conntrack`. The client read the field `drop` there before connect M + 1. The read failed, and the client stopped before its end. CT.3 does not read the counters.
+
+The fix: the client reads the field `drop` over ctnetlink, with a dump of the statistics of each CPU. That message needs NET_ADMIN, thus a client image can add that capability. A client that stops writes its error, and the void names it. The four void cells get one more dispatch, alone, by the rule of the prediction.
+
+The second run (42397236518) read the counters, and it showed two errors in the laws. First, the SYN gives up at the time test of `tcp_write_timeout`, after 2 retries, not at the count of retries. Second, the floor at a cap of M 1024 is a band. A scan also removes the expired entries of other namespaces, thus the count can stop above 959. Only 6 of the 19 claims of the first prediction are true, with a Brier score of 0.2820.
+
+The last run (42405337117, 2026-11-07, at 1256d6b): each of CT.1, CT.2, CT.4 and CT.5 holds with 4 counted runs and 0 void. With CT.3 of the first run, the 5 cells hold.
+
+- `CT.1` and `CT.2`: connect M + 1 ends with `ETIMEDOUT` after 7.147 s to 7.198 s. The field `drop` rises by 6, and `TCPRetransFail` rises by 5.
+- `CT.1`: the prober gives 5 retransmissions of the SYN that does not leave, at intervals of 1.024 s.
+- `CT.2`: a neighbor at M takes no slot of the client.
+- `CT.4`: the lowest count is 961 to 963, inside the band [959, 973]. The count after the connect is one more.
+- `CT.5`: the lowest count is 949 in each run, and 950 after the connect.
+- `CT.4` and `CT.5`: the stalled connect succeeds after 68.215 s to 68.278 s, on the tenth point of the SYN schedule.
+
+The second prediction hit 10 of its 10 claims, with a Brier score of 0.0515. The constant of 14 expired entries in the band has no source yet.
 
 ### SYS-67 · Retry amplification: an exact count
 
@@ -2753,27 +2781,50 @@ The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cel
 
 ### SYS-68 · An open-loop load schedule
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-05
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-07
+- **Links:** [#362](https://github.com/mark1russell7/systems/pull/362), [the A/A run](https://github.com/mark1russell7/systems/actions/runs/42395390993), [the freeze run](https://github.com/mark1russell7/systems/actions/runs/42402610483)
 
 Each arrival keeps its scheduled time, with no coordinated omission. A/A cells with no fault check that. The schedule and its measure come from `@mark1russell7/rigor-chaos`, and the verdict of a quantile comes from `@mark1russell7/rigor-bench`. The drivers stay in the images of the harness.
 
 The native client has the mode `schedule`. A send does not wait for a reply, and each latency counts from the planned time. Cells `OL.` have three A/A cells and a closed-loop twin. The freeze of 1 s on both clients is the positive control of the A/A gate. It also shows the omission: the same stall moves the p99 of the open loop, and only one reply of the closed loop. The HTTP driver of the reference service comes with SYS-93.
 
+The result (runs 42395390993 and 42402610483, 2026-11-07): each cell has 11 counted runs and no void run. Each arrival of a schedule has its send and its reply.
+
+| Cell | Decision | p99 | Slowest |
+| --- | --- | --- | --- |
+| `OL.aa.uniform.100` | holds | 0.406 ms | 3.034 ms |
+| `OL.aa.poisson.100` | holds | 0.338 ms | 3.728 ms |
+| `OL.aa.uniform.1000` | holds | 0.905 ms | 3.466 ms |
+| `OL.freeze.open` | holds | 761.507 ms | 961.598 ms |
+| `OL.freeze.closed` | measured | 0.432 ms | 966.616 ms |
+
+The same stall of 1 s gives a p99 of 761.507 ms on the schedule and 0.432 ms on the closed loop. That ratio of 1763 is the coordinated omission of this fault. The latest send of the frozen schedule is 4.183 ms late, thus the freeze does not hold back the client.
+
+The first freeze did not stop the server. The stock Redis image starts the server as the first process of its PID namespace, and the kernel drops a STOP to that process. The freeze cells use `REDIS_HELD`, and `inject` refuses `SIGSTOP` and `SIGKILL` to pid 1.
+
 ### SYS-69 · The border of a stable system
 
-- **Status:** later
+- **Status:** active
 - **Area:** catalogs
 - **Depends on:** SYS-68
-- **Started:**
+- **Started:** 2026-11-09
 - **Shipped:**
-- **Links:**
+- **Links:** [the cells](../packages/cells/src/stability.ts)
 
 A system is stable if and only if `L < C / (wL · wC)` (Huang and others, OSDI 2022). A target of fixed capacity gives exact terms, and a cell stands on each side of the border.
+
+Each request of the cells `SB.` is `DEBUG SLEEP 0.01`. Redis runs one command at a time, thus each request holds the server for 10 ms, and C is 100 requests each second. The client of SYS-68 does not retry, thus wL is 1. The service time does not change with the queue, thus wC is 1.
+
+| Cell | Load | The p50 | The p99 |
+| --- | --- | --- | --- |
+| `SB.under` | 80 each second, 0.8 of C | 10 ms to 20.6 ms | 10 ms to 20.6 ms |
+| `SB.over` | 120 each second, 1.2 of C | 2.008 s to 2.738 s | 3.968 s to 5.404 s |
+
+Under the border, each arrival finds the server idle. Over the border, the queue grows by 20 requests each second. Thus arrival k waits `k · (10 ms − 1/120 s)` more than arrival 0. The low end of each band is the model at a service time of 10 ms. The high end is the model at 10.6 ms, plus 10 ms.
 
 ### SYS-70 · A metastable failure on MongoDB
 
@@ -3106,12 +3157,12 @@ vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults w
 
 ### SYS-91 · The cells that time a closed-loop client
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** harness
 - **Depends on:** 
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
+- **Shipped:** 2026-11-08
+- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355), [#398](https://github.com/mark1russell7/systems/pull/398), [harness 0.15.1](https://www.npmjs.com/package/@mark1russell7/harness/v/0.15.1)
 
 A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. SYS-68 gives the load generator, and a family moves to it when its cells change.
 
@@ -3119,14 +3170,16 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 339 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 347 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 72 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
-| Open loop | 4 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
+| Open loop | 8 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
 
-The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band.
+
+The 13 cells of reply times on the stream client of the harness (`T01`, `CAL`, `E3.F1` and `OL`) also give an estimate of the open loop. The client waits its interval after each reply. Thus `closedLoopPlan` of `rigor-chaos` puts back each send that a stall hid, with that interval as the pause of the driver. The verdict gives the hidden sends, the pauses of the client and the spread of the estimate. The estimate is not a measure: the open-loop twin of SYS-68 stays the better measure. The 5 cells `K2.pause` have their own verdict of a pause.
 
 The closed-loop families:
 
@@ -3152,6 +3205,7 @@ The closed-loop families:
 | RD.1 | 1 | First write |
 | RD.100 | 2 | First write |
 | RD.1000 | 2 | First write |
+| RD.8000 | 1 | First write |
 | RD.control | 1 | First write |
 
 What the audit found:
@@ -3166,7 +3220,7 @@ What the audit found:
 
 The maximum is in the record: a verdict of a distribution has `slowest`, the slowest reply of the cell.
 
-The intended send time is not in the record yet. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `measureLoad` in `rigor-chaos` does this with a fixed plan, and a local copy breaks the map of homes. That package is not on npm, thus this part waits and this item stays in progress. Each stored record has its `sent` lines and its interval, thus this part can read the old records too.
+The intended send time comes from the record. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `closedLoopPlan` of `rigor-chaos` 0.1.3 does this, and `estimateOf` of the harness calls it (#398, harness 0.15.1). Its input is the `sent` and `done` time of each request and the interval. Each stored record has these lines, thus the estimate also reads the old records.
 
 ### SYS-92 · A topology as a graph
 
@@ -3203,14 +3257,14 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
-- **Started:**
+- **Started:** 2026-11-07
 - **Shipped:**
 - **Links:**
 
-This item waits for SYS-68. The HTTP driver on a schedule is part of this item.
+SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
 A public multi-tenant service runs on the stack of this repository: `@mark1russell7/service`, `@procedures/peer` and a MongoDB replica set. It holds documents for each tenant and it sends each change over a socket. It has no product code. A gap in the stack goes to its home, and the service keeps no local copy.
 
@@ -3225,18 +3279,124 @@ A ladder as data names the rungs 1, 10, 100 and 1,000 tenants. Ten percent of th
 
 The request counts are the Wilson bound at 95 %. The availability claim has two parts: the calculation from measured failure rates and the RTO of SYS-94, and a run under a chaos schedule. The first measure sets the budgets of a read, a write, a first load, a server start and the noise of a heavy tenant. Each later run holds or improves them. A scheduled workflow and a release check call `ladderVerdict`, and they fail if a locked rung is lost.
 
-The format of a ladder has budgets on a median, a rate and a worst value. The times at p95 and p99 need a new budget kind, in `rigor-bench`.
+The format of a ladder has budgets on a median, a quantile, a rate and a worst value. The `quantile` budget of `rigor-bench` holds the times at p95 and p99. It also reads each arrival with no reply as a censored value. Thus no new budget kind is necessary.
 
-**The prediction.**
+**The plan.** The item has four slices, in this order.
+
+1. **The service.** A private package of this repository, `packages/reference`, declares the procedures `doc.put`, `doc.get` and `doc.list`. Each write publishes the event `doc.<tenant>`, and a caller gets only the events of its own tenant. `createProcedureHost` of `@procedures/peer` hosts HTTP and WebSocket on one port. One `service()` runs the process. The store is a MongoDB replica set behind a port, thus the tests use a store in memory.
+2. **The driver.** The client of the harness image gets the protocol HTTP/1.1 in its mode `schedule`, with a parser of replies that reads `Content-Length`. Each active tenant gets its own connection. One shared connection gives each request the queue of the requests before it. Then a heavy tenant moves each other tenant, and the measure of the noise has no meaning.
+3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction is in the table below.
+4. **The gates.** A scheduled workflow and a release check call `ladderVerdict`. A run under a chaos schedule measures the availability.
+
+**A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.6.0` as a plain dependency. In this workspace the service is a workspace link, thus pnpm gives the peer its own copy from npm. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The general fix is in the client repository: the service becomes a peer dependency of each client package that passes values of the service (`CLI-117`). Until that release, an override at the root of this workspace sets the service to `workspace:*`. A comment on it names `CLI-117`, and an item of this roadmap removes it.
+
+**The prediction of the first dispatch, from the base rates.** The dispatch of the 4 cells `LADDER` comes from `base-rates.ts`. The systems role has no scored prediction yet. Thus each claim takes the rate of its family over the other roles.
 
 | Claim | Probability |
 | --- | --- |
-| The first dispatch gives a record for each rung, with no fix after it | 0.40 |
-| No request fails at any rung | 0.75 |
-| One runner carries at least 2,000 requests each second | 0.60 |
-| Near capacity, the p99 of an open loop is at least twice that of a closed loop | 0.85 |
-| A heavy tenant at 10 times its share moves the median of the others by less than 50 % | 0.55 |
-| The naive claim: an open and a closed loop agree on the p99 near capacity | 0.08 |
+| The first dispatch gives a decision for each of the 4 rungs, with no fix after it | 0.788 |
+| No arrival fails at any rung, thus each rung holds its limit | 0.788 |
+| No send is more than 50 ms later than its planned time | 0.788 |
+
+The claims of the capacity, the gap of the open loop and the noise are of later slices. Each gets its prediction from `base-rates.ts` before its dispatch. The first table of this item had probabilities that were not from the base rates, and this table replaces it.
+
+### SYS-104 · Remove the override of the service when the client release ships
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** SYS-93, `CLI-117` in the client repository
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`. Without it, `@procedures/peer` gets a second copy of the service. `CLI-117` makes the service a peer dependency of the client packages, in a MINOR release. This item takes that release and removes the override. The test: `pnpm why @mark1russell7/service` shows one copy, and the tests of the reference service pass.
+
+### SYS-105 · A report of the API for each public package
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-09
+- **Shipped:** 2026-11-09
+- **Links:** [#393](https://github.com/mark1russell7/systems/pull/393), [#371](https://github.com/mark1russell7/systems/pull/371), [#455](https://github.com/mark1russell7/systems/pull/455)
+
+#455 adds the reports of the other 6 public packages: algebra, kind, machines, prober, quantity and service. The checks job of CI runs `check:api` after the build. Thus a change of an export fails CI until its pull request has the new report.
+
+#393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. An earlier version of the release train PR #371 added the reports of all 7 public packages. The release train wrote #371 again before it merged on 2026-11-08, and the merged PR changes only dependency ranges. Thus the field `apiReport` still names `harness` only. This item adds the other public packages to the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
+
+### SYS-109 · A floor of the coverage for each package
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-09
+- **Shipped:** 2026-11-09
+- **Links:** [#442](https://github.com/mark1russell7/systems/pull/442), [#457](https://github.com/mark1russell7/systems/pull/457), [#462](https://github.com/mark1russell7/systems/pull/462), [the floors](../coverage-floors.json)
+
+Each push to main gives the artifact `coverage` for the ten packages with Vitest (#442, #457). The floor is 0, thus a drop of the coverage fails nothing.
+
+- **The floor.** Each package gets a floor for its lines, functions and branches. The floor is the worst of 5 or more CI runs on main, less their spread, rounded down to 0.1. The tests are deterministic, thus the spread is near 0. No run starts only for this item: the runs come from the merges to main.
+- **The record.** The file `coverage-floors.json` at the root gives each floor, the id of each run and the formula. The Vitest config of each package reads its floors from that file.
+- **The gate.** CI starts the coverage on each pull request too, and a package under its floor fails its run. A pull request that lowers a floor gives the reason, as for the other limits. A pull request that raises the coverage can raise the floor.
+
+**The floors of 2026-11-09.** The runs are [42558826949](https://github.com/mark1russell7/systems/actions/runs/42558826949), [42561558394](https://github.com/mark1russell7/systems/actions/runs/42561558394), [42562850313](https://github.com/mark1russell7/systems/actions/runs/42562850313), [42565946464](https://github.com/mark1russell7/systems/actions/runs/42565946464) and [42568135335](https://github.com/mark1russell7/systems/actions/runs/42568135335). They are on five commits of main. The spread is 0 in eight packages. In service and site, the code changed between the commits (#461, #462). The spread is 0.03 or less in service, and 0.58 or less in site.
+
+| Package | Lines | Functions | Branches |
+| --- | --- | --- | --- |
+| algebra | 96.1 | 94.7 | 90.2 |
+| cells | 98.9 | 99.5 | 87.6 |
+| harness | 53 | 58.1 | 59.1 |
+| kind | 62 | 63.1 | 60.4 |
+| machines | 100 | 80 | 91.6 |
+| prober | 100 | 100 | 50 |
+| quantity | 96.8 | 94.2 | 87.1 |
+| reference | 100 | 100 | 82.3 |
+| service | 96 | 93 | 86.1 |
+| site | 79.9 | 66.4 | 61.8 |
+
+### SYS-110 · The coverage of the labs of harness and kind
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-109
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The unit tests do not start the labs of harness and kind. The containers and the kind clusters run only in the workflows Cells and Kind. Thus these two packages have the lowest coverage of main, 53 % and 62 % of their lines. This item merges the coverage of the lab code from those runs with the unit report. It starts only when a lab run already uploads its raw coverage, and the work is in CI only. It blocks no item.
+
+### SYS-106 · The units of a take in the keyed limiter
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:** SYS-28
+- **Started:** 2026-11-08
+- **Shipped:** 2026-11-08
+- **Links:** [#408](https://github.com/mark1russell7/systems/pull/408), [#408 merged (da0db58)](https://github.com/mark1russell7/systems/commit/da0db58), [service 0.7.0 #411](https://github.com/mark1russell7/systems/pull/411), [service 0.7.0 release run](https://github.com/mark1russell7/systems/actions/runs/42460247618), [roadmap #418](https://github.com/mark1russell7/systems/pull/418)
+
+A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`. Service `0.7.0` is on npm, with provenance.
+
+### SYS-107 · Quantity moves to the math repository
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** the first PATCH of `@mark1russell7/quantity` from the math repository, planned for 2026-11-21
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Mark decided on 2026-11-09 that one math repository holds the math packages. `@mark1russell7/quantity` moves there with its history and the same npm name, thus a user of quantity changes nothing. When that repository publishes the next PATCH of quantity, this item removes `packages/quantity` from systems. Eight packages use it with `workspace:^`: algebra, cells, harness, kind, machines, prober, service and site. Each takes the npm release with a caret range. The release of systems no longer packs quantity. The test: `pnpm why @mark1russell7/quantity` shows one copy from npm, and CI passes on main.
+
+### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** the first publish and the trust of `@mark1russell7/automata`, in the npm sitting of 2026-11-21
+- **Started:** 2026-11-09
+- **Shipped:**
+- **Links:** [#453](https://github.com/mark1russell7/systems/pull/453)
+
+The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The strategist agreed on the new name `@mark1russell7/automata` on 2026-11-09. The draft #453 has the rename. It merges after the npm sitting. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The strategist does the publish and the trust. Cells, machines, service and site import the package. Other repositories use it too, for example client and collections. Each changes its imports after the release. If the declarations of a public package name its types, that package also gets a MINOR. The test: only the history and the registry entries of the locks name the old package. The API report of each public package shows only the new name.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
@@ -3297,14 +3457,18 @@ A hash of the data comes before the service starts, because a service writes. Th
 
 ### SYS-97 · A third size of a restore
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-94
-- **Started:**
+- **Started:** 2026-11-08
 - **Shipped:**
 - **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
 
 The restores of 100 MB and 1 GB differ by a ratio of 1.44, and the forecast was 3 to 12. A fixed part is large at these sizes. Two sizes give no law for a far larger store. Thus no claim on the page goes past 1 GB until a third size has a record.
+
+The prediction came before the first run. A linear fit of the two sizes of three members gives 14.5 s + 7.09 s/GB, thus 74 s at 8 GB. A fit of all three sizes gives 7.9 s + 13.9 s/GB, thus 125 s. The band is 60 to 180 s, a ratio of 2.7 to 8.2 to the 1 GB restore.
+
+The first part is in the catalog. The cell `RD.8000.restore` reads the free disk and the memory of the runner before its seed. When the disk is less than the need, the run is void and its record gives the two sizes. The step "Room on the disk for the drills" of the workflow removes unused tools of the runner image when a shard needs more disk. The Sunday run does not hold the cell until one dispatch of `^RD[.]` measures the time of the job.
 
 The work:
 
@@ -3334,17 +3498,17 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
 - **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
 - **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
 - **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
-- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94. The second PR adds two steps to the Sunday job:
-  - **The flip of the lock.** For each rung and each of its 6 budgets, one measure goes past its limit. It goes to 1.5 x the limit, or to 1 for a limit of 0. Each of the 18 faults must turn its rung to `beyond`. The check must also fail with each budget past its limit. It must also fail with the record of one drill gone.
-  - **The drills of the Sunday hold.** The band of a restore is a tenth of its budget. Thus the cell fault of 1.5 x the top of a band is 0.15 x the RTO. Thus a drill can leave its band while its rung holds. This step gives the drills the read and the flip of the night, with the pins of SYS-101.
-  - **A red read names its cause.** A crash also exits with 1. Thus each red read of a flip must name each rung, the lost record or the refused pin, or the flip fails. The night gets the same rule.
-  - **A local read.** On the records of run 41896338150, the flip of the lock exits with 0, with 18 of 18 faults red. Those records come before the pins, thus the read of the drills is red there, and it decides nothing.
+- **The Sunday run.** After the run of 2026-11-08, the rungs of recovery get the same flip. That run is the proof of the lock of SYS-94. The step `recovery.ts --flip` puts a fault into each measure in turn. The fault is 1.5 x the limit of the budget, or 1 above a limit of 0. That budget of each locked rung must be `beyond`. The clean copy exits with 0. The copies with a record gone, a tag with no digest, or a checkout with changes each exit with 1.
+- **The run of 2026-11-08.** The run 42467630024 failed, and no rung was beyond. Each restore drill of three members had one void run of 4: the commit of the fault took 8.4 ms and 6.6 ms. Thus the rungs 100 and 1000 had 3 drills and needed 4, and they could not decide.
+- **The void of a slow commit.** A fault starts in its commit, thus a time from the start of the commit is too long by the commit or less. Before this change, a commit longer than the noise of 4 ms voided each run. The harness voids a run only when that shift can move a time across an edge of its band. A restore of 16 s in a band of 180 s keeps its run. A toxic of 2 s in a band of 1 ms with a commit of 13.3 ms stays void. With this rule, the records of 2026-11-08 hold each of the 3 rungs, and the flip passes on them.
+- **The drills of the Sunday hold.** The band of a restore is a tenth of its budget. Thus the cell fault of 1.5 x the top of a band is 0.15 x the RTO, and a drill can leave its band while its rung holds. The step `held.ts --flip --cells drills` gives the drills the read and the flip of the night, with the pins of SYS-101. A run by hand takes the selection `drills` on one shard, because a run of `^RD[.]` also starts the drill of 8 GB.
+- **A red read names its cause.** A crash also exits with 1. Thus each red read of a flip must name its cause in its output, or the flip fails. The cause is the line `not held` of the night and of the drills, or the refused pin or the lost record of the rungs. The function `rightFor` of `packages/site/scripts/flip.ts` gives this rule to each flip.
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
@@ -3442,7 +3606,7 @@ This is the first read of the 17 pages, from their text, their data files and th
 
 These commits came after 2026-10-17: 55 in the machines, 33 in the image of the harness and 9 in the algebra. The verdict has 5 and the prober has 4. The kernel of the runner also changed from 6.17 to 7.0. Thus the first refresh can fail some cells. Each failure is a finding, and no band gets wider to hide it. A prediction comes before the first dispatch.
 
-The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2. Four weekly rounds at 3 jobs take approximately 12 hours each.
+The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2.
 
 The order of the work:
 
@@ -3450,7 +3614,29 @@ The order of the work:
 2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
 3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
 
+**The schedule (step 1).** The workflow `cells.yml` operates one round each Wednesday at 12:30 UTC, on 8 shards. There are 4 rounds, thus each study operates again each 28 days. Round 0 operates first on 2026-11-11. The file `packages/cells/src/refresh.ts` gives the studies of each round. The selection `refresh-<round>` takes the cells of those studies by their whole names.
+
+| Round | Studies | Runner hours |
+| --- | --- | --- |
+| 0 | `results/mongodb`, `results/faults` | 15 |
+| 1 | `results/rabbitmq`, `results/sentinel`, `results/topologies`, `results/http` | 13 |
+| 2 | `results/pg` | 17 |
+| 3 | `results/grpc` | 19 |
+
+- The runner hours come from the seconds of each cell in the original runs (`refresh-cost.json`). A test simulates each shard of each round with these seconds, and each shard stays below 300 minutes.
+- The job `export` starts the exporter of each study of the round on the records of all its shards. It uploads the new data files as the artifact `refresh`. A pull request then moves each page to its new copy.
+- The page `results/refresh` gives the limit and the rounds in public text. A test compares its table with the plan.
+- Seven pages with a limit have no round yet: `results/r3`, `results/kind`, `results/mesh`, `results/calibration`, `results/timers`, `lab/detection` and the home page. `refresh.ts` gives what each one needs first. A test of the site fails for a page with a limit that has no round and no such entry.
+
 The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
+
+**The first stamps of the limits.** `@mark1russell7/site-pages` 0.3.5 refuses a study with no `limit` and no `noLimit`. Thus the site gives each page its age from the table above:
+
+- 15 pages get a limit of 30 days from 2026-12-07, with the issue of the limit as its ruling.
+- `results/harness` and `results/cells` get `noLimit`, with its two statements.
+- Each limit names `cells.yml`, the scheduled workflow of the lab. The refresh jobs of step 1 go into its schedule. A study that moves to `kind.yml` changes its field `workflow` when `kind.yml` has a schedule.
+
+The gate of the Pages workflow passes these stamps today. Its failing cases show that each limited page fails after 2026-12-07 with no fresh run.
 
 A study needs records that pin their programs, because a refresh must operate the same programs. A record needs the commit of the harness, the digest of each image and the version of each client library. Without them, it is not a record. A commit with changes to tracked files is not a pin.
 

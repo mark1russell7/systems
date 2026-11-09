@@ -182,6 +182,33 @@ export const RECOVERY_CELLS: readonly Cell[] = [
   }),
 ];
 
+/**
+ * These are the drills of the size of a restore (SYS-97). The restores of 100 MB and 1 GB differ by a
+ * ratio of 1.44, thus a fixed part is large at these sizes. A third size gives the law of the time
+ * for a far larger store. No rung holds these drills, thus the lock of the rungs does not read them.
+ *
+ * The prediction came before the first run. The linear fit of the two sizes of three members gives
+ * 14.5 s + 7.09 s/GB, thus 74 s at 8 GB. The fit of all three sizes, with the one node of RD.1,
+ * gives 7.9 s + 13.9 s/GB, thus 125 s. The band is 60 to 180 s: a ratio of 2.7 to 8.2 to the 1 GB
+ * restore. At 8 GB the data is 32 times the cache of a member. The page cache of the runner cannot
+ * hold four copies, thus the band is wider above the fits.
+ *
+ * Three members, the dump and the oplogs need 44 to 59 GB. A runner with less disk does no
+ * seed, and each run is void with the room of the runner (`roomVoidOf` of the harness).
+ */
+export const RECOVERY_SIZE_CELLS: readonly Cell[] = [
+  drillCell({
+    name: "RD.8000.restore three members, each disk lost, 8 GB, a dump and slices of the oplog: the third size of the time of a restore",
+    members: THREE_MEMBERS,
+    drill: { tenants: 8_000, perTenant: TENANT, slices: 3, sliceEvery: AGE_OF_A_SLICE, age: AGE_OF_A_SLICE, recovery: "restore" },
+    lands: "same",
+    failover: false,
+    lost: { low: 1, high: writesIn(AGE_OF_A_SLICE) },
+    band: { low: s(60), high: s(180) },
+    what: WHOLE_RESTORE,
+  }),
+];
+
 /** This name is the measure of the data that a rung loses: the interval of its schedule plus the excess that a drill measured. */
 export const RPO = "rpo";
 /** This name is the measure of the time to service. */
@@ -227,44 +254,47 @@ export const RECOVERY_LADDER: Ladder = {
 /** This function gives the verdict of the ladder of recovery, with `now` as the time of the verdict in ISO 8601. */
 export const recoveryVerdict = (records: readonly RungRecord[], now: string): LadderVerdict => ladderVerdict(RECOVERY_LADDER, records, { now });
 
-/**
- * This function gives a copy of a rung record with one measure past its budget (SYS-99). Each value
- * of that measure becomes `FAULT_FACTOR` times the limit, or 1 for a limit of 0. This is the injected
- * fault of the flip test of the lock. The other measures stay as the drills gave them.
- */
-export const breached = (record: RungRecord, measure: string): RungRecord => {
-  const budget = RECOVERY_LADDER.rungs.find((rung) => rung.name === record.rung)?.budgets.find((each) => each.measure === measure);
-  if (budget === undefined) throw new Error(`the rung ${record.rung} has no budget of ${measure}`);
-  const past = budget.limit === 0 ? 1 : budget.limit * FAULT_FACTOR;
-  // each budget of this ladder is a worst case: a median budget has rounds, and this fault does not apply to it
-  if (budget.kind !== "worst") throw new Error(`the budget of ${measure} is not a worst case`);
-  return { ...record, evidence: record.evidence.map((each) => (each.measure === measure && each.kind === "worst" ? { ...each, values: each.values.map(() => past) } : each)) };
-};
+/** These are the measures of the budgets of the ladder, each one time. */
+export const RECOVERY_MEASURES: readonly string[] = [...new Set(RECOVERY_LADDER.rungs.flatMap((rung) => rung.budgets.map((budget) => budget.measure)))];
 
-/** The read of one injected fault is the rung, the measure past its budget, and the outcome of that rung. */
-export interface BudgetFlip {
-  readonly rung: string;
+/** This function gives the value of the injected fault of a budget: `FAULT_FACTOR` times its limit, or 1 above a limit of 0. */
+const faultOf = (limit: number): number => (limit === 0 ? 1 : limit * FAULT_FACTOR);
+
+/**
+ * This function injects the fault of the flip test (SYS-99) in the records of the rungs. Each
+ * value of the measure reads `FAULT_FACTOR` times the limit of its budget, or 1 above a limit of 0.
+ * The values of the other measures stay as they are.
+ */
+export const faultedRecords = (records: readonly RungRecord[], measure: string): RungRecord[] =>
+  records.map((record) => {
+    const budget = RECOVERY_LADDER.rungs.find((rung) => rung.name === record.rung)?.budgets.find((each) => each.measure === measure);
+    if (budget === undefined) return record;
+    const over = faultOf(budget.limit);
+    return {
+      ...record,
+      evidence: record.evidence.map((each) => (each.measure === measure && each.kind === "worst" ? { ...each, values: each.values.map(() => over) } : each)),
+    };
+  });
+
+/** The flip of one measure names each locked rung whose budget of that measure is not `beyond` under its fault. */
+export interface RungFlip {
   readonly measure: string;
-  readonly outcome: string;
-  readonly red: boolean;
+  readonly stayed: readonly string[];
 }
 
 /**
- * This function is the flip test of the lock. For each rung and each of its budgets, it puts that one
- * measure past its budget (`breached`) and reads the verdict again. The fault is red only when that
- * rung reads `beyond` and the verdict fails. Thus a budget that cannot fail its rung shows here.
+ * This function gives the flip of each measure of the ladder of recovery (SYS-99). Under the fault
+ * of a measure, the budget of that measure of each locked rung must be `beyond`. A rung with fewer
+ * drills than its budget needs stays `cannot decide`, thus the flip names it.
  */
-export const budgetFlip = (records: readonly RungRecord[], now: string): BudgetFlip[] =>
-  records.flatMap((record) =>
-    (RECOVERY_LADDER.rungs.find((rung) => rung.name === record.rung)?.budgets ?? []).map((budget) => {
-      const verdict = recoveryVerdict(
-        records.map((each) => (each === record ? breached(each, budget.measure) : each)),
-        now,
-      );
-      const outcome = verdict.rungs.find((rung) => rung.rung === record.rung)?.outcome ?? "no read";
-      return { rung: record.rung, measure: budget.measure, outcome, red: outcome === "beyond" && verdict.failed };
-    }),
-  );
+export const recoveryFlip = (records: readonly RungRecord[], now: string): RungFlip[] =>
+  RECOVERY_MEASURES.map((measure) => {
+    const verdict = recoveryVerdict(faultedRecords(records, measure), now);
+    const stayed = verdict.rungs
+      .filter((rung) => rung.locked && rung.budgets.find((budget) => budget.measure === measure)?.outcome !== "beyond")
+      .map((rung) => rung.rung);
+    return { measure, stayed };
+  });
 
 /** This list states what a drill does not do. A rung shows it beside its verdict. */
 const SYNTHETIC: readonly string[] = [

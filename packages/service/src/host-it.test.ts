@@ -359,6 +359,12 @@ describe.skipIf(!RUN)("the host entry on the real ports of Node (SYS-47)", () =>
         expect(found.kind, JSON.stringify(found)).toBe("running");
         if (found.kind === "running") expect(found.record).toMatchObject({ pid: firstA, port, url });
         expect((await inspectInstanceLock(join(stateDir, "a.lock"), host)).kind).toBe("held");
+        // b has no ready probe, thus it is ready at its spawn, before its request to a. Wait for its
+        // start line, or the stop of a below can come before that request.
+        const bLogPath = join(stateDir, "logs", "b.log");
+        const bStarted = async () => (await readFile(bLogPath, "utf8").catch(() => "")).includes(`b start ${firstB} `);
+        await waitFor(bStarted, async () => `the start line of b (${JSON.stringify(await readFile(bLogPath, "utf8").catch(() => ""))})`);
+        expect(await readFile(bLogPath, "utf8")).toContain(`b start ${firstB} a=200 greeting=hello`);
 
         expect(host.processes.signal(firstA, "SIGKILL")).toBe(true);
         await waitFor(

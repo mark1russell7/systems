@@ -19,6 +19,7 @@ Amounts in typed units, with exact arithmetic. A `Quantity` is `{ value, unit }`
 - **Canonical spellings.** `unitSchema` and `quantitySchema` refuse an alias, and they give the spelling to write ("write h, not hr"). `canonicalUnit` reads the spellings of other systems, for example `kcal/hr·kg`, `mi/hr` and `dBASPL`.
 - **No limit, and unknown.** A value with no limit is `{ "value": "infinite", "unit": "s" }` (`extentSchema`). A value that nobody can give has its reason (`unknownSchema`). A sound level averages by its energy (`mean`).
 - **One way to print.** `format` and `formatDuration` print each amount: `$1,234.56`, `72°F`, `8 mph`, `12 reps`, `1 h 30 min`.
+- **Scales.** `formatOnScale` prints an amount in the unit of a scale that fits it: `1.5 KiB`, `3.5 ms`, `2 min 5 s`. A scale is data. `BYTES_1024`, `BYTES_1000` and `DURATION_MS` are three scales. The text shows the symbol of each unit, so 1024 bytes print as `KiB`, and `KB` is 1000 bytes.
 
 `isQuantitySchema` tells if a schema is the schema of a quantity. A generator of SQL can then give the value and the unit a column each.
 

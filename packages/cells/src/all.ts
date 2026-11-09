@@ -1,7 +1,8 @@
 import type { Cell, Subject } from "@mark1russell7/harness";
-import { ACCEPT_QUEUE_CELLS } from "./accept-queue.ts";
+import { ACCEPT_QUEUE_CELLS, SERVICE_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
+import { CONNTRACK_CELLS } from "./conntrack.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
@@ -21,9 +22,12 @@ import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { CONFIRM_CELLS } from "./rabbit/confirms.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
+import { LADDER_CELLS } from "./ladder.ts";
 import { OPEN_LOOP_CELLS } from "./open-loop.ts";
+import { BORDER_CELLS } from "./stability.ts";
 import { RESEND_CELLS } from "./resend.ts";
-import { RECOVERY_CELLS } from "./recovery.ts";
+import { RECOVERY_CELLS, RECOVERY_SIZE_CELLS } from "./recovery.ts";
+import { REFRESH_CELLS } from "./refresh.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { PORT_RANGE_CELLS } from "./port-range.ts";
@@ -58,8 +62,8 @@ export interface Subjects {
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
- * range and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills follow, and the open-loop cells are last.
+ * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
+ * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder is last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -96,13 +100,18 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...LIMITER_CELLS,
     ...POOL_CELLS,
     ...ACCEPT_QUEUE_CELLS,
+    ...SERVICE_QUEUE_CELLS,
     ...PORT_RANGE_CELLS,
+    ...CONNTRACK_CELLS,
     ...FABRIC_CELLS,
     ...COUNT_CELLS,
     ...WATCH_CELLS,
     ...LEASE_CELLS,
     ...RECOVERY_CELLS,
+    ...RECOVERY_SIZE_CELLS,
     ...OPEN_LOOP_CELLS,
+    ...BORDER_CELLS,
+    ...LADDER_CELLS,
   ];
 };
 
@@ -112,9 +121,28 @@ export const ALL: readonly Cell[] = catalogs();
 /**
  * These are the selections of the scheduled runs of the workflow Cells, by name. The read of the
  * records takes a name and not a regular expression. The name `night` selects the nightly run. The
- * name `drills` selects the Sunday run.
+ * name `drills` selects the Sunday run. The names `refresh-0` to `refresh-3` select the rounds of the
+ * refresh of the studies, each Wednesday (refresh.ts).
+ *
+ * The Sunday run does not hold the drill of 8 GB (SYS-97) yet. First, a run of `^RD[.]` on one
+ * shard measures the time of the job with it. The job has a limit of 340 minutes.
  */
-export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/ };
+export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.](?!8000[.])/, ...REFRESH_CELLS };
+
+/**
+ * This function gives the selection of a run: a scheduled selection by its name, or the regular
+ * expression `only`. A selection names its cells, thus it takes no `only`.
+ */
+export const selectionOf = (selection: string | undefined, only: string | undefined): RegExp => {
+  if (selection === undefined) return new RegExp(only ?? ".");
+  const scheduled = SCHEDULED_CELLS[selection];
+  if (scheduled === undefined) throw new Error(`no scheduled selection has the name ${selection}: ${Object.keys(SCHEDULED_CELLS).join(", ")}`);
+  if ((only ?? ".") !== ".") throw new Error("CELLS_SELECTION takes no CELLS_ONLY: the selection names its cells");
+  return scheduled;
+};
+
+/** This function tells if a cell needs containerlab: a cell of a fabric, on layer E3, needs its routers. */
+export const needsContainerlab = (cell: Cell): boolean => cell.topology?.fabric !== undefined;
 
 /**
  * This function gives the cells of one shard: the cells whose names match `only`, then each `of`-th

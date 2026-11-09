@@ -1,6 +1,6 @@
 // The export of the recovery drills for the site: src/data/recovery-<date>.json.
 //
-//   pnpm exec tsx packages/site/scripts/recovery.ts [--check [--fault] | --flip] --run <id> --commit <sha> <folder>...
+//   pnpm exec tsx packages/site/scripts/recovery.ts [--check | --flip] --run <id> --commit <sha> <folder>...
 //
 // Each folder is the output of one shard of the workflow Cells (SYS-94). The script reads each record
 // again with the code of the harness, and it stops when that verdict disagrees with summary.ndjson,
@@ -9,28 +9,30 @@
 //
 // With --check the script writes no file. It prints each rung, and it exits with 1 when a locked rung
 // is not within its budgets. This is the lock of the rungs: the workflow Cells does not fail on a
-// failing cell, thus this step fails for it.
+// failing cell, thus this step fails for it. A record that does not pin the programs of its runs is
+// not a record (SYS-101), thus it fails the check too.
 //
-// --fault puts each measure of each rung past its budget (breached), thus the check exits with 1.
-//
-// --flip is the flip test of the lock (SYS-99). It runs the check on the clean folders, with --fault,
-// and on a copy with the record of one drill gone. For each rung and each budget, it also puts that
-// one measure past its budget, and that rung must read beyond. It exits with 0 only if the clean
-// check passes, each other check exits with 1 and names its cause, and each budget alone turns its
-// rung red. A crash also exits with 1, thus a red read that does not name its cause does not pass.
+// --flip is the flip test of the check (SYS-99), on the folder of one shard. A fault of 1.5 x the
+// limit of a budget (or 1 above a limit of 0) goes into each measure in turn, and that budget of each
+// locked rung must be beyond. The check runs again on the clean folder and on three copies: one with
+// a record gone, one with a target by the tag redis:7.4 and no digest, and one with a checkout with
+// changes. It exits with 0 only if the clean check passes, each fault turns each rung red, and each
+// copy exits with 1 and names its cause. A crash also exits with 1, thus a red read that names no
+// cause fails the flip.
 
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Quantity } from "@mark1russell7/quantity";
-import { measureGroup } from "../../harness/src/index.ts";
+import { measureGroup, recordProblems } from "../../harness/src/index.ts";
 import { FAULT_FACTOR } from "../../cells/src/held.ts";
-import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, breached, budgetFlip, recoveryRecord, recoveryVerdict } from "../../cells/src/recovery.ts";
+import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, recoveryFlip, recoveryRecord, recoveryVerdict } from "../../cells/src/recovery.ts";
+import type { Read } from "./flip.ts";
+import { byTag, changed, dirty, readOf, rightFor, withoutOne } from "./flip.ts";
 import type { CellRecord, Summary } from "./judged.ts";
 import { read, resultOf } from "./judged.ts";
-import { dateOf, readFolders, runnerOf, stringify, withoutOne } from "./records.ts";
+import { dateOf, readFolders, runnerOf, stringify } from "./records.ts";
 
 const args = process.argv.slice(2);
 const option = (name: string): string => {
@@ -47,13 +49,10 @@ const flag = (name: string): boolean => {
   return at >= 0;
 };
 const check = flag("--check");
-const fault = flag("--fault");
 const flip = flag("--flip");
 const runText = option("--run");
 const run = Number(runText);
 const commit = option("--commit");
-// a fault in an export would write a false copy for the page
-if (fault && !check) throw new Error("--fault needs --check");
 const folders = args;
 if (folders.length === 0) throw new Error("the script needs the folder of each shard");
 
@@ -75,42 +74,42 @@ const drillOf = (prefix: string) => {
 
 const date = dateOf(entries.map((entry) => entry.record.at.ended));
 const at = entries.map((entry) => entry.record.at.ended).sort().at(-1)!;
-const clean = RECOVERY_RUNGS.map((rung) => recoveryRecord(rung, { [rung.drill]: drillOf(rung.drill), [rung.kept]: drillOf(rung.kept) }, commit, at));
-const budgetsOf = (name: string) => RECOVERY_LADDER.rungs.find((rung) => rung.name === name)?.budgets ?? [];
-const records = fault ? clean.map((record) => budgetsOf(record.rung).reduce((each, budget) => breached(each, budget.measure), record)) : clean;
+const records = RECOVERY_RUNGS.map((rung) => recoveryRecord(rung, { [rung.drill]: drillOf(rung.drill), [rung.kept]: drillOf(rung.kept) }, commit, at));
 // the age of a record decides nothing at the time of its export
 const verdict = recoveryVerdict(records, at);
 
-/** This function starts the check of this script on the folders that it gets, and it gives its exit code and its output. */
-const checkOf = (given: readonly string[], ...flags: readonly string[]) =>
-  spawnSync(process.execPath, [...process.execArgv, fileURLToPath(import.meta.url), "--check", ...flags, "--run", runText, "--commit", commit, ...given], { encoding: "utf8" });
+// the problems of the pins of each record, from the raw record and not from summary.ndjson
+const unpinned = entries.flatMap((entry) => {
+  const problems = recordProblems(entry.record);
+  return problems.length === 0 ? [] : [`not a record: ${entry.record.cell.name}: ${problems.join("; ")}`];
+});
+
+if (check || flip) {
+  for (const rung of verdict.rungs) process.stdout.write(`rung ${rung.rung}: ${rung.outcome}${rung.reason === undefined ? "" : `, ${rung.reason}`}\n`);
+  for (const line of unpinned) process.stdout.write(`${line}\n`);
+  process.stdout.write(`held ${verdict.held ?? "none"}, failed ${verdict.failed}: ${verdict.reason}\n`);
+}
+if (check) process.exit(verdict.failed || unpinned.length > 0 ? 1 : 0);
 
 if (flip) {
-  // the Sunday runs the drills on one shard, thus one folder holds each record
+  // the flip needs one folder for its copies: the Sunday run has one shard
   if (folders.length !== 1) throw new Error("--flip needs the folder of one shard");
   const scratch = mkdtempSync(join(tmpdir(), "recovery-"));
-  const pass = checkOf(folders);
-  const faulted = checkOf(folders, "--fault");
-  const gone = checkOf([withoutOne(folders[0]!, scratch)]);
-  rmSync(scratch, { recursive: true, force: true });
-  // a crash also exits with 1: each red read names each rung or the lost record, thus a crash does not pass as red
-  const results: ReadonlyArray<readonly [string, number | null, boolean]> = [
-    ["the clean check", pass.status, pass.status === 0],
-    [`each budget of each rung past its limit, ${FAULT_FACTOR} x or 1 for a limit of 0`, faulted.status, faulted.status === 1 && RECOVERY_RUNGS.every((rung) => faulted.stdout.includes(`rung ${rung.name}: beyond`))],
-    ["a copy with the record of one drill gone", gone.status, gone.status === 1 && gone.stderr.includes("the folders have no record of")],
+  const again = (given: string): Read => readOf(fileURLToPath(import.meta.url), ["--check", "--run", runText, "--commit", commit, given]);
+  // each red read names its cause, thus a crash does not pass as red
+  const reads: ReadonlyArray<readonly [string, Read, string | null]> = [
+    ["the clean copy", again(folders[0]!), null],
+    ["a copy with one record gone", again(withoutOne(folders[0]!, scratch)), "the folders have no record of"],
+    ["a copy with a target by the tag redis:7.4 and no digest", again(changed(folders[0]!, scratch, "tag", byTag)), "not a record: "],
+    ["a copy from a checkout with changes", again(changed(folders[0]!, scratch, "dirty", dirty)), "not a record: "],
   ];
-  const flips = budgetFlip(clean, at);
-  const green = flips.filter((each) => !each.red);
-  for (const [what, exit, right] of results) process.stdout.write(`${right ? "right" : "WRONG"}: ${what}: exit ${exit}\n`);
-  process.stdout.write(`${flips.length - green.length} of ${flips.length} budgets turn their rung red alone\n`);
-  for (const each of green) process.stdout.write(`this budget left rung ${each.rung} ${each.outcome}: ${each.measure}\n`);
-  process.exit(results.every(([, , right]) => right) && green.length === 0 && flips.length > 0 ? 0 : 1);
-}
-
-if (check) {
-  for (const rung of verdict.rungs) process.stdout.write(`rung ${rung.rung}: ${rung.outcome}${rung.reason === undefined ? "" : `, ${rung.reason}`}\n`);
-  process.stdout.write(`held ${verdict.held ?? "none"}, failed ${verdict.failed}: ${verdict.reason}\n`);
-  process.exit(verdict.failed ? 1 : 0);
+  rmSync(scratch, { recursive: true, force: true });
+  const results = reads.map(([what, done, cause]) => ({ what, exit: done.status, cause, right: rightFor(done, cause) }));
+  const flips = recoveryFlip(records, at);
+  for (const each of results) process.stdout.write(`${each.right ? "right" : "WRONG"}: ${each.what}: exit ${each.exit}${each.cause === null ? "" : `, cause "${each.cause}"`}\n`);
+  for (const each of flips)
+    process.stdout.write(`a fault of ${FAULT_FACTOR} x the limit of "${each.measure}": ${each.stayed.length === 0 ? "each rung is beyond" : `the fault left these rungs green: ${each.stayed.join(", ")}`}\n`);
+  process.exit(results.every((each) => each.right) && flips.every((each) => each.stayed.length === 0) ? 0 : 1);
 }
 
 // the facts of each run of a drill for the page, from the records and from what the backups wrote

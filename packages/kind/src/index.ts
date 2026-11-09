@@ -34,6 +34,7 @@ export {
   dnsCommands,
   faultSpan,
   middleboxCommands,
+  middleboxRemoval,
   placementOf,
   planOf,
   policyObject,
