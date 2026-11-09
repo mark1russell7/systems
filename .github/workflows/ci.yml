@@ -38,6 +38,9 @@ jobs:
       # check:api: the report of the API of each public package (test/api/public-api.txt), against the build.
       # lint:ste: the writing rules (ASD-STE100) of the README files and the doc comments.
       scripts: typecheck test build check:api lint:ste
+      # The coverage of each package, on each pull request and each push to main. The Vitest config of a package
+      # reads its floors from coverage-floors.json (SYS-109), thus a package under a floor fails the run.
+      coverage: true
 
   # The tarballs of a release, tested in an empty project as release.yml tests them. The commit of a
   # pull request is not on main, so the job does not do the check of main (require-main).
