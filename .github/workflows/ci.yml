@@ -122,7 +122,7 @@ jobs:
   # The required check of main (the ruleset ci-required). Its name stays "ci". It fails when a job
   # fails or stops. The job pack can be skipped only in a release run.
   ci:
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [checks, pack, site, checker, native]
     runs-on: ubuntu-latest
     timeout-minutes: 2
