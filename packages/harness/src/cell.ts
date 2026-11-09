@@ -647,6 +647,26 @@ export interface CountBand {
 }
 
 /**
+ * A delivery prediction is the law of a stream of numbered events between the client and the
+ * target: `Cell.probe.count` events, one each `Cell.probe.interval`, from `Cell.probe.sender`.
+ * Events count from 1. The sender writes the line `emitted` with the number `n` of each event
+ * before it sends that event. The receiver writes the line `got` with `n` for each event that it
+ * reads, a repeat too.
+ * - `lost` is the band of the count of emitted events that the receiver did not get.
+ * - `duplicates` is the band of the count of the extra copies that the receiver got.
+ * - `recovered` is the field `recovered` of the line `status` of the second connection of the
+ *   client. A client of Socket.IO writes `socket.recovered` there.
+ *
+ * Each run must show each event of the stream emitted, and the last event received. A run without
+ * them, or with an event that the sender did not emit, is a finding.
+ */
+export interface DeliveryPrediction {
+  readonly lost: CountBand;
+  readonly duplicates: CountBand;
+  readonly recovered?: boolean;
+}
+
+/**
  * These are the bands of the sets of a pair. A commit with no reply is in one set, by the two final reads:
  * - `kept`: the new primary holds it.
  * - `stranded`: only the old primary holds it, after its crash recovery.
@@ -850,6 +870,8 @@ export type Prediction =
        * socket at that end is not a close by the program, thus `left` stays null for it (`exited`).
        */
       readonly exits?: true;
+      /** This record is the law of the events of a stream that crosses the fault (`Cell.probe.sender`). */
+      readonly delivery?: DeliveryPrediction;
     }
   | {
       readonly detects: false;
@@ -1256,6 +1278,12 @@ export interface WsProbe {
   readonly connectionTimeout: Quantity;
   /** This time is how long the server holds the reply to the call in flight. Without it, the server replies at once. */
   readonly hold?: Quantity;
+  /**
+   * This count is the tries again of each event of a stream that the client sends. Each try waits
+   * `requestTimeout` for its acknowledgement. Without it, the client sends each event one time,
+   * with no acknowledgement.
+   */
+  readonly retries?: number;
 }
 
 /**
@@ -1334,6 +1362,11 @@ export interface Cell {
     readonly count?: number;
     /** This time is the pause after each reply of a stream, before the next request. */
     readonly interval?: Quantity;
+    /**
+     * This name is the program that sends the events of a stream of a WebSocket client: the client
+     * (the default), or the target. A target sends one event each `interval`, `count` events in all.
+     */
+    readonly sender?: "client" | "target";
     /** This flag sets SO_KEEPALIVE without overrides for the socket: the keepalive sysctls of the namespace apply. */
     readonly keepalive: boolean;
     /** This time sets TCP_USER_TIMEOUT. Without it, the default of the kernel (off) applies. */

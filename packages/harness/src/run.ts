@@ -2,6 +2,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
 import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
 import { environmentProblems, isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
+import { streamEnded, streamOf } from "./delivery.ts";
 import { drillOnce } from "./drill.ts";
 import { countOf, longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
@@ -53,6 +54,17 @@ const droppedSoFar = (records: readonly KernelRecord[]): number => {
   return 0;
 };
 
+/**
+ * This function gives the length in seconds of the stream of a WebSocket client: `count` events,
+ * one each `interval`. It throws for a stream without them.
+ */
+const streamLength = (cell: Cell): number => {
+  const { count, interval } = cell.probe;
+  if (count === undefined || interval === undefined)
+    throw new RangeError(`${cell.name}: a stream of a WebSocket client needs probe.count and probe.interval`);
+  return count * valueIn(interval, "s");
+};
+
 /** This function gives the argv of the client for a cell, with a deadline far after all that it waits for. */
 const probeArgs = (cell: Cell, lab: Lab): string[] => {
   const { prediction, probe } = cell;
@@ -96,7 +108,19 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     args.push("--request-timeout-ms", String(valueIn(ws.requestTimeout, "ms")));
     args.push("--connection-timeout-ms", String(valueIn(ws.connectionTimeout, "ms")));
     if (ws.hold !== undefined) args.push("--hold-ms", String(valueIn(ws.hold, "ms")));
-    args.push("--max-s", String(Math.ceil((longest + waits) * 2 + 10)));
+    if (ws.retries !== undefined) args.push("--retries", String(ws.retries));
+    // a stream of a WebSocket client sends `count` events, one each `interval`, from its sender
+    const stream = probe.mode === "stream" ? streamLength(cell) : 0;
+    if (probe.mode === "stream")
+      args.push(
+        "--count",
+        String(probe.count),
+        "--interval-ms",
+        String(valueIn(probe.interval!, "ms")),
+        "--sender",
+        probe.sender ?? "client",
+      );
+    args.push("--max-s", String(Math.ceil((longest + waits + stream) * 2 + 10)));
     return args;
   }
   if (probe.http !== undefined) {
@@ -662,6 +686,18 @@ const once = async (
       if (expected !== undefined) {
         const waits = expected.waits.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
         await dials(probe, 1 + expected.waits.length, waits * 2_000 + 5_000);
+      }
+      // a stream crosses the fault: the run ends when the receiver gets the last event, or when the
+      // client stops. A lost last event is a finding of the run, not a reason to wait more
+      const delivery = cell.prediction.detects === true ? cell.prediction.delivery : undefined;
+      if (delivery !== undefined) {
+        const stream = streamOf(cell);
+        const within = streamLength(cell) * 2_000 + 10_000;
+        const started = Date.now();
+        const stopped = () => probe.events.some((event) => event.ev === "deadline" || event.ev === "fail");
+        const current = (): Run => ({ ...partial(), server: lab.server.slice(serverFrom) });
+        while (!streamEnded(current(), stream) && !stopped() && Date.now() - started < within) await sleep(20);
+        await sleep(TAIL_MS);
       }
     }
   } finally {

@@ -47,6 +47,7 @@ export type {
   Outcomes,
   Pair,
   CountBand,
+  DeliveryPrediction,
   Fault,
   PinnedImage,
   KernelRecord,
@@ -114,6 +115,8 @@ export {
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
+export type { DeliveryReading, DeliveryStream } from "./delivery.ts";
+export { deliveryFinding, deliveryOf, streamEnded, streamOf } from "./delivery.ts";
 export type { EstimateVerdict, LoadJudgement, LoadSpread, LoadVerdict, RunEstimate, RunLoad } from "./load.ts";
 export { CLOSED_TOLERANCE, LOAD_FORMAT, LOAD_PATH, SCHEDULE_PATH, estimateOf, estimateVerdict, loadOf, loadPlanOf, loadVerdict, poolOf, streamsLoadOf } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";

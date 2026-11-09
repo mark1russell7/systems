@@ -18,6 +18,8 @@ import {
 } from "./application.ts";
 import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import { requestFirst } from "./cell.ts";
+import type { DeliveryReading } from "./delivery.ts";
+import { deliveryFinding, deliveryOf, streamOf } from "./delivery.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { ConntrackReading } from "./conntrack.ts";
@@ -126,6 +128,8 @@ export interface Measured {
   readonly reconnect?: ReconnectReading;
   /** This record is what the call in flight of a WebSocket client met. */
   readonly call?: CallReading;
+  /** This record is what a stream that crossed the fault delivered, for a prediction with a delivery law. */
+  readonly delivery?: DeliveryReading;
   /**
    * This time is from the drop line of the program to the close of its socket by its own side: a
    * FIN or an abort. A prediction that says how the program drops (`drop`) gets it. It is null
@@ -1010,7 +1014,14 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       ? { left: closed, exited: undefined }
       : closeOrExit(drop.line, closed, exitOf(run, cookie), noiseOf(cell));
   const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, paired, exited);
-  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how].filter((each) => each !== null);
+  // the stream that crossed the fault, against its law: the events lost, the copies and `recovered`
+  const stream = prediction.delivery === undefined ? undefined : streamOf(cell);
+  const delivery = stream === undefined ? undefined : deliveryOf(run, stream);
+  const delivered =
+    prediction.delivery === undefined || stream === undefined || delivery === undefined
+      ? null
+      : deliveryFinding(prediction.delivery, stream, delivery);
+  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how, delivered].filter((each) => each !== null);
   const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
   // timers of its socket do not drive the measurement
@@ -1073,6 +1084,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     noticed,
     steps,
     ...(reconnect === undefined ? {} : { reconnect }),
+    ...(delivery === undefined ? {} : { delivery }),
     ...(left === undefined ? {} : { left }),
     ...(exited === undefined ? {} : { exited }),
     ...(cell.probe.ws !== undefined && inflight ? { call: callOf(events, request, ended) } : {}),
