@@ -3,6 +3,7 @@
 //   node scripts/smoke.mjs <folder>
 //
 // 1. Each tarball holds the files that its package reads at run time, other than build/.
+//    Each source map that a file of the tarball names is in the tarball.
 // 2. An empty project installs all the tarballs from disk, with their other dependencies from npm.
 //    Each @mark1russell7 package resolves to its tarball, because npm does not have a new version yet.
 // 3. Each package imports from the built JavaScript, and a few functions give their known results.
@@ -11,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { gunzipSync } from "node:zlib";
@@ -108,26 +109,41 @@ const NEEDS = {
     "src/client-lines.ts",
   ],
 };
-/** the paths in a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
+/** the entries of a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
 const entries = (tarball) => {
   const tar = gunzipSync(readFileSync(tarball));
-  const paths = [];
+  const found = [];
   for (let at = 0; at + 512 <= tar.length; ) {
     const header = tar.subarray(at, at + 512);
     if (header.every((byte) => byte === 0)) break;
     const text = (from, to) => header.subarray(from, to).toString("utf8").replace(/\0.*$/s, "");
     const prefix = text(345, 500);
-    paths.push(prefix === "" ? text(0, 100) : `${prefix}/${text(0, 100)}`);
     const size = parseInt(text(124, 136).trim() || "0", 8);
+    const path = prefix === "" ? text(0, 100) : `${prefix}/${text(0, 100)}`;
+    found.push({ path: path.replace(/^package\//, ""), body: tar.subarray(at + 512, at + 512 + size) });
     at += 512 + Math.ceil(size / 512) * 512;
   }
-  return paths;
+  return found;
+};
+/** the file that the last `sourceMappingURL` comment of a JavaScript or declaration file names, or null */
+const mapOf = (path, body) => {
+  if (!/\.(c|m)?js$|\.d\.(c|m)?ts$/.test(path)) return null;
+  const named = [...body.toString("utf8").matchAll(/^\/\/# sourceMappingURL=(\S+)\s*$/gm)].at(-1)?.[1];
+  if (named === undefined || named.startsWith("data:")) return null;
+  return posix.join(posix.dirname(path), named);
 };
 for (const { name, tarball } of releases) {
-  const listed = new Set(entries(tarball).map((path) => path.replace(/^package\//, "")));
+  const packed = entries(tarball);
+  const listed = new Set(packed.map(({ path }) => path));
   for (const file of ["package.json", "README.md", "LICENSE", "build/index.js", "build/index.d.ts"])
     check(listed.has(file), `${name} holds ${file}`);
   for (const file of NEEDS[name] ?? []) check(listed.has(file), `${name} holds ${file}`);
+  // a source map comment that names no file makes a debugger or an editor read a 404
+  const dangling = packed
+    .map(({ path, body }) => [path, mapOf(path, body)])
+    .filter(([, map]) => map !== null && !listed.has(map))
+    .map(([path]) => path);
+  check(dangling.length === 0, `${name} holds the map of each sourceMappingURL${dangling.length === 0 ? "" : `: not for ${dangling.join(", ")}`}`);
 }
 
 // 2. an empty project installs the tarballs
