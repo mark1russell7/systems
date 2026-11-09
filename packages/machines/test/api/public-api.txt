@@ -48,6 +48,8 @@ RABBITMQ_CONNECTION: build/index.d.ts#RABBITMQ_CONNECTION
 RA_MEMBER: build/index.d.ts#RA_MEMBER
 REDIS_CLIENT: build/index.d.ts#REDIS_CLIENT
 SENTINEL: build/index.d.ts#SENTINEL
+SOCKETIO_CLIENT: build/index.d.ts#SOCKETIO_CLIENT
+SOCKETIO_SERVER: build/index.d.ts#SOCKETIO_SERVER
 SUPAVISOR_CLIENT: build/index.d.ts#SUPAVISOR_CLIENT
 SUPAVISOR_SERVER: build/index.d.ts#SUPAVISOR_SERVER
 type SidecarSide: build/index.d.ts#SidecarSide
@@ -193,6 +195,12 @@ export declare const REDIS_CLIENT: Machine;
 
 ### build/index.d.ts#SENTINEL
 export declare const SENTINEL: Machine;
+
+### build/index.d.ts#SOCKETIO_CLIENT
+export declare const SOCKETIO_CLIENT: Machine;
+
+### build/index.d.ts#SOCKETIO_SERVER
+export declare const SOCKETIO_SERVER: Machine;
 
 ### build/index.d.ts#SUPAVISOR_CLIENT
 export declare const SUPAVISOR_CLIENT: Machine;

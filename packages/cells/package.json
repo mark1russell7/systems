@@ -25,9 +25,14 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@types/node": "^26.6.4",
+    "@types/ws": "8.18.2",
     "@vitest/coverage-v8": "^5.0.3",
+    "engine.io-client": "6.6.7",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4",
     "typescript": "^7.0.2",
     "undici": "^8.12.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "ws": "8.21.3"
   }
 }

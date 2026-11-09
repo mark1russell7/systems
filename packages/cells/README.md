@@ -407,6 +407,21 @@ The CI dispatches 39070231927 and 39073727730 did each cell of WS and WST 11 tim
   - The second dispatch waits for the latest ping (`startsBy`), and each of its 11 runs detected it. In each one, a beat refreshed the flow first.
 - **Void runs.** In the second dispatch, 5 of 11 runs of `reset-next` are void. The retransmit timer of the ping was 2 to 7 jiffies behind its slot. That ping stays in flight for 12 s, thus its timer fires more times than in a cell of the client.
 
+## The Socket.IO catalog
+
+The Socket.IO catalog has the client and the server of Socket.IO 4.8.4 on a direct pair, with the WebSocket transport only (`src/socketio.ts`, SYS-87). The names of its cells start with `SIO`, thus the nightly selection of the WS catalog does not take them.
+
+- **The subject.** The image of `targets/socketio` holds the two programs. One lockfile pins socket.io 4.8.4, socket.io-client 4.8.4, engine.io-client 6.6.7, engine.io 6.6.11 and ws 8.21.3. The lines of the programs are the lines of the procedures subject, thus the judge of the harness reads both.
+- **The documents** (`SOCKETIO_CLIENT` and `SOCKETIO_SERVER` of `@mark1russell7/machines`) cite the files of each tarball at its version.
+- **The heartbeat.** The server writes a ping each `pingInterval`, and it gives `pingInterval` and `pingTimeout` to the client in its handshake. Thus the settings of the server set the timers of both sides:
+  - The client waits `pingInterval + pingTimeout` for each ping, from the last ping that it read. At the end of that wait, close() of ws writes a close frame.
+  - The server waits `pingTimeout` for the pong of each ping. At the end of that wait, it writes a close frame.
+- **The cells.** Each cell has a ping each 2 s and a wait of 1 s for its pong:
+  - A black hole, idle or with a call in flight, and a frozen server. The client drops the connection 3 s after the pong of its last ping. The band counts from that pong (`last-data`).
+  - A FIN. The client reads the end of the file at once, and the reconnect waits 0.5 s, 1 s and 2 s.
+  - The server, with a black hole. The server drops the connection 1 s after its first ping without an answer.
+- **What stays for slice 2.** The recovery of the state of a connection, and the delivery modes of a message.
+
 ## The calibration of the proxies
 
 The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAProxy as T02 has it, and Toxiproxy with no toxic. Stage 0 measures δ_abs in the same way, on a path with no timer.
