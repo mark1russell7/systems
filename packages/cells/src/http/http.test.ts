@@ -1,6 +1,6 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
-import { algebraProblems, evaluate, machineProblems, overValues, timerOf } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import type { KnobValues, Machine } from "@mark1russell7/automata";
+import { algebraProblems, evaluate, machineProblems, overValues, timerOf } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 import {
   GO_TRANSPORT,
   LINUX_TCP,

@@ -102,14 +102,14 @@ const packagesOf = (entry: string): string[] => {
   return [...packages].sort();
 };
 
-describe("the entry @mark1russell7/algebra/replay", () => {
+describe("the entry @mark1russell7/automata/replay", () => {
   it("loads no other package: no zod, no quantity", () => {
     expect(packagesOf("replay.ts")).toEqual([]);
   });
 });
 
 describe("the entries of the package", () => {
-  it("load zod only from the entry @mark1russell7/algebra/schema", () => {
+  it("load zod only from the entry @mark1russell7/automata/schema", () => {
     expect(packagesOf("index.ts")).toEqual(["@mark1russell7/quantity"]);
     expect(packagesOf("schema.ts")).toEqual(["@mark1russell7/quantity/schema", "zod"]);
   });

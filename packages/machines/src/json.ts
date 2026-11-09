@@ -1,5 +1,5 @@
-import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import type { Machine } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 import { z } from "zod";
 import ioredisStatus from "./ioredis-status.json" with { type: "json" };
 import linuxTcp from "./linux-tcp.json" with { type: "json" };

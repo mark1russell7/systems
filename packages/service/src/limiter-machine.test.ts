@@ -1,6 +1,6 @@
-import type { Machine, Transition } from "@mark1russell7/algebra";
-import { algebraProblems, machineProblems, timerOf } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import type { Machine, Transition } from "@mark1russell7/automata";
+import { algebraProblems, machineProblems, timerOf } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { Decision, KeyState, LimiterSpec, LimiterStore, LimitRule } from "./index.ts";

@@ -4,7 +4,7 @@
  * Kubernetes and the NIC. The reader sets the knobs of each layer and selects the fault.
  *
  * The times come from the model `../model/request.ts`, which runs the algebra of
- * `@mark1russell7/algebra` over the machine documents of `@mark1russell7/machines`. Each amount
+ * `@mark1russell7/automata` over the machine documents of `@mark1russell7/machines`. Each amount
  * prints through the quantity package. The timeline plays the story: a cursor moves through the
  * time, and each layer lights when it finds the fault.
  */

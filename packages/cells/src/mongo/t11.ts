@@ -1,4 +1,4 @@
-import { timerOf } from "@mark1russell7/algebra";
+import { timerOf } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
 import { RTT_MS, count, given, predict, seconds } from "../catalog.ts";

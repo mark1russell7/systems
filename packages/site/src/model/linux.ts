@@ -1,10 +1,10 @@
 /**
  * The model of the detection lab: the Linux TCP timers that tell a client that its peer is gone, at
- * v6.6. The times come from the algebra (`@mark1russell7/algebra`) over the document `LINUX_TCP` of
+ * v6.6. The times come from the algebra (`@mark1russell7/automata`) over the document `LINUX_TCP` of
  * `@mark1russell7/machines`. This module only turns the knobs of the lab into the values of that
  * document, and the bounds of the algebra into milliseconds.
  */
-import { firings, probeTrain, timerOf, type KnobValues, type TimerBounds } from "@mark1russell7/algebra";
+import { firings, probeTrain, timerOf, type KnobValues, type TimerBounds } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { isUnbounded, quantity, valueIn, type Extent, type Quantity, type Unknown } from "@mark1russell7/quantity";
 

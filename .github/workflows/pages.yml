@@ -49,7 +49,7 @@ jobs:
       # The Status page shows the items of docs/ROADMAP.md, and the open pull requests and issues.
       site-pages: true
       roadmap: docs/ROADMAP.md
-      packages: "@mark1russell7/algebra,@mark1russell7/harness,@mark1russell7/kind,@mark1russell7/machines,@mark1russell7/prober,@mark1russell7/quantity,@mark1russell7/service"
+      packages: "@mark1russell7/automata,@mark1russell7/harness,@mark1russell7/kind,@mark1russell7/machines,@mark1russell7/prober,@mark1russell7/quantity,@mark1russell7/service"
       site-name: systems
       # The site check: a browser opens each page at 360, 400 and 1280 px, in light and dark, before the deploy.
       # A failure stops the deploy.

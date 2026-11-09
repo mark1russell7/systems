@@ -1,5 +1,5 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
-import { timerOf } from "@mark1russell7/algebra";
+import type { KnobValues, Machine } from "@mark1russell7/automata";
+import { timerOf } from "@mark1russell7/automata";
 import type { Cell, Fault, Group, GroupPlace, GroupPrediction, Prediction, StageBand, Target } from "@mark1russell7/harness";
 import { IOREDIS_SENTINEL, SENTINEL } from "@mark1russell7/machines";
 import type { Extent, Quantity } from "@mark1russell7/quantity";

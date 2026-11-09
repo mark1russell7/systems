@@ -191,7 +191,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/algebra:
+  packages/automata:
     dependencies:
       '@mark1russell7/quantity':
         specifier: workspace:^
@@ -218,9 +218,9 @@ importers:
 
   packages/cells:
     dependencies:
-      '@mark1russell7/algebra':
+      '@mark1russell7/automata':
         specifier: workspace:^
-        version: link:../algebra
+        version: link:../automata
       '@mark1russell7/harness':
         specifier: workspace:^
         version: link:../harness
@@ -344,9 +344,9 @@ importers:
 
   packages/machines:
     dependencies:
-      '@mark1russell7/algebra':
+      '@mark1russell7/automata':
         specifier: workspace:^
-        version: link:../algebra
+        version: link:../automata
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
@@ -456,9 +456,9 @@ importers:
 
   packages/service:
     dependencies:
-      '@mark1russell7/algebra':
+      '@mark1russell7/automata':
         specifier: workspace:^
-        version: link:../algebra
+        version: link:../automata
       '@mark1russell7/collections':
         specifier: ^0.10.0
         version: 0.10.0(zod@4.6.7)
@@ -556,9 +556,9 @@ importers:
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@mark1russell7/algebra':
+      '@mark1russell7/automata':
         specifier: workspace:^
-        version: link:../algebra
+        version: link:../automata
       '@mark1russell7/machines':
         specifier: workspace:^
         version: link:../machines

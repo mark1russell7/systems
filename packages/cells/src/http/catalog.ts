@@ -1,5 +1,5 @@
-import type { KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import type { KnobValues, Machine, Manifestation } from "@mark1russell7/automata";
+import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/automata";
 import type { Fault, MiddleboxForm, Prediction, Reference } from "@mark1russell7/harness";
 import { GO_TRANSPORT, LINUX_TCP, NF_CONNTRACK_TCP, NODE_HTTP_AGENT, NODE_HTTP_SERVER, UNDICI_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

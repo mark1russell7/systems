@@ -1,4 +1,4 @@
-import { conntrackFloor, synGiveUpSends, timerOf } from "@mark1russell7/algebra";
+import { conntrackFloor, synGiveUpSends, timerOf } from "@mark1russell7/automata";
 import type { Cell, ConntrackPrediction, HostSysctl, QueueBand, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { count, given, HZ, LINUX_66, s, seconds } from "./catalog.ts";

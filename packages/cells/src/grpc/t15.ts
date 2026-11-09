@@ -1,4 +1,4 @@
-import { timerOf, timerUnder } from "@mark1russell7/algebra";
+import { timerOf, timerUnder } from "@mark1russell7/automata";
 import type { KindCell, Mesh, Prediction, Propagation } from "@mark1russell7/kind";
 import { CHANNEL_USE, EDS_EVERY, LAST_SLACK } from "@mark1russell7/kind";
 import { ENVOY_HTTP2, GRPC_JS, GRPC_GO_SERVER, LINUX_TCP, ZTUNNEL_HBONE } from "@mark1russell7/machines";

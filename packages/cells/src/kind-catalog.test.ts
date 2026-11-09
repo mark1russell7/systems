@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { timerOf } from "@mark1russell7/algebra";
+import { timerOf } from "@mark1russell7/automata";
 import type { KindCell } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import {

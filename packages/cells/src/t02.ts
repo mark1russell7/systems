@@ -1,5 +1,5 @@
-import type { KnobValues } from "@mark1russell7/algebra";
-import { detection, overValues, stackedDetection, timerUnder } from "@mark1russell7/algebra";
+import type { KnobValues } from "@mark1russell7/automata";
+import { detection, overValues, stackedDetection, timerUnder } from "@mark1russell7/automata";
 import type { Cell, FaultPlace, Observer, Prediction } from "@mark1russell7/harness";
 import { LINUX_TCP, REDIS_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

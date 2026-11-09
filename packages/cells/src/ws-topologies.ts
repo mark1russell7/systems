@@ -1,5 +1,5 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
-import { overValues, timerOf, transitionOn } from "@mark1russell7/algebra";
+import type { KnobValues, Machine } from "@mark1russell7/automata";
+import { overValues, timerOf, transitionOn } from "@mark1russell7/automata";
 import type { Cell, MiddleboxForm, Prediction, Subject } from "@mark1russell7/harness";
 import { subjectClient } from "@mark1russell7/harness";
 import { HAPROXY_TCP, LINUX_TCP, NF_CONNTRACK_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";

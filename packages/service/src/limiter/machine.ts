@@ -1,4 +1,4 @@
-import type { Machine, TransitionDef } from "@mark1russell7/algebra";
+import type { Machine, TransitionDef } from "@mark1russell7/automata";
 import type { KeyState, LimitPolicy, LimitRule } from "./policy.ts";
 import { decide, freeAt } from "./policy.ts";
 

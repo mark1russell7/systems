@@ -1,6 +1,6 @@
 # @mark1russell7/machines
 
-The machine documents of the systems program, in one place. Each document is a state machine as data, in the format `mark1russell7.machine/1` of [`@mark1russell7/algebra`](https://www.npmjs.com/package/@mark1russell7/algebra). Each document describes one system at one version, from the source of that version.
+The machine documents of the systems program, in one place. Each document is a state machine as data, in the format `mark1russell7.machine/1` of [`@mark1russell7/automata`](https://www.npmjs.com/package/@mark1russell7/automata). Each document describes one system at one version, from the source of that version.
 
 ## The machine document
 
@@ -90,7 +90,7 @@ The package also gives these parts:
 Import a document by its name, or find it in `MACHINES` by its identifier. The schema of the algebra examined each document at load, thus a program does not parse it again.
 
 ```ts
-import { detection, timerOf } from "@mark1russell7/algebra";
+import { detection, timerOf } from "@mark1russell7/automata";
 import { LINUX_TCP, MACHINES, MANIFESTATIONS } from "@mark1russell7/machines";
 
 const values = (name: string) =>
@@ -214,7 +214,7 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 
 ### 0.3.9
 
-- **The SYN give-up of Linux TCP has its lateness.** Each wait of the SYN is a timer of the wheel, which rounds it up at its level. At the defaults and HZ 1000, the wait of 64 s can be 4.096 s late. Thus the give-up is 131 s to 137.08 s. At HZ 250 it is up to 5.056 s late. The lateness needs `@mark1russell7/algebra` 0.7.2.
+- **The SYN give-up of Linux TCP has its lateness.** Each wait of the SYN is a timer of the wheel, which rounds it up at its level. At the defaults and HZ 1000, the wait of 64 s can be 4.096 s late. Thus the give-up is 131 s to 137.08 s. At HZ 250 it is up to 5.056 s late. The lateness needs `@mark1russell7/automata` 0.7.2.
 
 ### 0.3.8
 
@@ -284,10 +284,10 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 ## Installation
 
 ```sh
-pnpm add @mark1russell7/machines @mark1russell7/algebra zod
+pnpm add @mark1russell7/machines @mark1russell7/automata zod
 ```
 
-The package uses `@mark1russell7/algebra` for the type `Machine`, and its entry `@mark1russell7/algebra/schema` for the schema `machineSchema`. The algebra does not use this package. This package reads each document with the schema, thus it needs `zod` as a peer dependency. For the algebra, `zod` is an optional peer dependency.
+The package uses `@mark1russell7/automata` for the type `Machine`, and its entry `@mark1russell7/automata/schema` for the schema `machineSchema`. The algebra does not use this package. This package reads each document with the schema, thus it needs `zod` as a peer dependency. For the algebra, `zod` is an optional peer dependency.
 
 ## Tests
 

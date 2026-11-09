@@ -16,7 +16,7 @@ Each cell gives each knob that its prediction reads. The namespace of the observ
 
 ## The predictions
 
-`predict` asks `@mark1russell7/algebra` for each cell. The machine documents come from `@mark1russell7/machines`, and the snapshot `src/__snapshots__/predictions.json` holds the prediction of each cell of each catalog. A change that moves a prediction changes its line of the snapshot.
+`predict` asks `@mark1russell7/automata` for each cell. The machine documents come from `@mark1russell7/machines`, and the snapshot `src/__snapshots__/predictions.json` holds the prediction of each cell of each catalog. A change that moves a prediction changes its line of the snapshot.
 
 - **A detection by a timer.** The first live timer of Linux TCP, or of Redis over Linux TCP for the server. The band is its duration, less how early it can fire, to its duration plus how late it can fire.
 - **A soft error.** Linux keeps an ICMP error on an established socket as a soft error. Thus the give-up of the retransmissions gives the errno of the ICMP (EHOSTUNREACH, ENETUNREACH, ECONNREFUSED), not ETIMEDOUT. Keepalive gives ETIMEDOUT: its probe has the sequence number before `snd_una`, thus its ICMP is out of the window, and the kernel ignores it.
@@ -318,7 +318,7 @@ The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0
 - **The documents** (`PROCEDURES_WS_CLIENT` and `PROCEDURES_WS_SERVER` of `@mark1russell7/machines`) are the client and the server of 0.3.0, from the files of the release and of `@mark1russell7/service` 0.4.0. Each fact has its file and its line.
   - The states and the events come from the document of the client repository at commit 1f50f47 (`WEBSOCKET_CONNECTION_MACHINE`). The timers come from the code of 0.3.0.
   - The heartbeat of the client is `heartbeat()` of the service. It sends a ping only when no pong is awaited, and `misses` misses in sequence drop the connection. With one miss, the drop comes one timeout after the ping that got no answer.
-  - The reconnect waits min(initialDelay × multiplier^(n − 1), maxDelay) before try n, less its jitter. The cells set the jitter to 0. The algebra reads the wait with `pow` (`@mark1russell7/algebra` 0.6.0).
+  - The reconnect waits min(initialDelay × multiplier^(n − 1), maxDelay) before try n, less its jitter. The cells set the jitter to 0. The algebra reads the wait with `pow` (`@mark1russell7/automata` 0.6.0).
   - A drop of a socket of the global `WebSocket` writes a close frame and destroys nothing. Thus the kernel stamps the drop as a write, and the socket stays ESTABLISHED below. A socket of the `WebSocket` of ws ends at once with `terminate()`.
   - undici turns keepalive on with 60 s, and libuv adds 1 s and 10 probes. The ws package turns no keepalive on. Thus the keepalive sysctls of the namespace do not reach the socket of the client.
   - The heartbeat of the server pings each connection at each beat of a `setInterval`. It ends a connection after `misses` beats without a pong: `misses` beats after its first ping without an answer.
