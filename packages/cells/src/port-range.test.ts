@@ -48,7 +48,7 @@ describe("the cells of the port range", () => {
   });
 
   it("gives the client the flag of a timed reclaim only when the target closes first and a port has a band", () => {
-    const reclaims = PORT_RANGE_CELLS.filter((cell) => cell.client?.command?.includes("--reclaim"));
+    const reclaims = PORT_RANGE_CELLS.filter((cell) => typeof cell.client === "object" && cell.client.command.includes("--reclaim"));
     expect(reclaims.map((cell) => cell.name.slice(0, 4))).toEqual(["PR.8"]);
   });
 
