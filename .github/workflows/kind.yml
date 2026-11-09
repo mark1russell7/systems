@@ -348,7 +348,7 @@ jobs:
 
   kind-ok:
     name: Kind OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, plan, kind, capture]
     runs-on: ubuntu-latest
     timeout-minutes: 2
