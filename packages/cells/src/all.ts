@@ -34,6 +34,7 @@ import { PORT_RANGE_CELLS } from "./port-range.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { LEASE_CELLS } from "./etcd-lease.ts";
+import { READ_CELLS } from "./etcd-reads.ts";
 import { WATCH_CELLS } from "./etcd-watch.ts";
 import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
@@ -62,8 +63,9 @@ export interface Subjects {
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
- * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder is last.
+ * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The watch,
+ * lease and read cells of etcd come next. The recovery drills follow, then the open-loop cells and the cells
+ * of the border of a stable system. The ladder is last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -107,6 +109,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...COUNT_CELLS,
     ...WATCH_CELLS,
     ...LEASE_CELLS,
+    ...READ_CELLS,
     ...RECOVERY_CELLS,
     ...RECOVERY_SIZE_CELLS,
     ...OPEN_LOOP_CELLS,

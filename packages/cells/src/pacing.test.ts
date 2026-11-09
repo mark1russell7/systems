@@ -19,6 +19,7 @@ describe("the pacing of each cell", () => {
       "one gap": 64,
       "closed loop, reply times": 18,
       "closed loop, first write": 73,
+      "closed loop, history": 4,
       timer: 224,
       "open loop": 10,
     });
@@ -29,6 +30,10 @@ describe("the pacing of each cell", () => {
       "CAL: closed loop, first write": 1,
       "CAL: closed loop, reply times": 2,
       "E3.F1: closed loop, reply times": 1,
+      "LR.1: closed loop, history": 1,
+      "LR.2: closed loop, history": 1,
+      "LR.3: closed loop, history": 1,
+      "LR.4: closed loop, history": 1,
       "OL.aa: closed loop, reply times": 1,
       "OL.freeze: closed loop, reply times": 1,
       "RD.1: closed loop, first write": 1,

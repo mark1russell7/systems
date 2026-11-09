@@ -20,6 +20,8 @@ import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./c
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
+import type { HistoryMeasured } from "./history.ts";
+import { measureEtcd } from "./history.ts";
 import type { ConntrackReading } from "./conntrack.ts";
 import { measureConntrack } from "./conntrack.ts";
 import { estimateOf, loadOf, streamsLoadOf } from "./load.ts";
@@ -112,6 +114,8 @@ export interface Measured {
   readonly crossings?: Crossings;
   /** This record is what a run of a group cell measured: the stages of its timeline, and what became of each write. */
   readonly group?: GroupMeasured;
+  /** This record is what a run of an etcd cluster measured: the verdict of the checker on its history, and the counts of its operations. */
+  readonly history?: HistoryMeasured;
   /** This record is what a run of a queue cell measured: the count of the queue, its counters, and each connection. */
   readonly queue?: QueueReading;
   /** This record is what a run of a port cell measured: the count of each search, and when each port came back. */
@@ -501,6 +505,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       void: `the environment cannot do this cell: ${run.missing}`,
       finding: null,
     };
+  // a cluster of etcd: the checker judges the history, and no socket
+  if (cell.etcd !== undefined) return measureEtcd(cell, run);
   if (cell.prediction.detects === null && cell.prediction.pause !== undefined) return measurePause(run, cell.prediction.pause);
   if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined || cell.pair !== undefined || cell.kafka !== undefined) {
     const read = measureGroup(cell, run);

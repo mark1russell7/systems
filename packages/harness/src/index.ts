@@ -3,7 +3,8 @@
 // environments that code builds (Testcontainers), measures on the one monotonic clock of the VM,
 // and gives each cell a verdict. A topology is a chain of hops, a replicated group under its
 // Sentinels, a replica set whose members elect their own primary, or a cluster of RabbitMQ whose
-// quorum queue elects its leader. A program with its own
+// quorum queue elects its leader, or a cluster of etcd whose history a checker of linearizability
+// judges. A program with its own
 // detector, a WebSocket heartbeat, writes lines that the kernel stamps. The subject of a cell is
 // data: an image pinned by digest, a build context, or an image that the harness ships.
 
@@ -23,6 +24,7 @@ export type {
   ClusterStage,
   DriverBand,
   DriverStep,
+  EtcdCluster,
   FaultPlace,
   Group,
   GroupPlace,
@@ -34,10 +36,12 @@ export type {
   HopEvent,
   HopPlace,
   HopSignal,
+  HistoryVerdict,
   HopWrite,
   HttpProbe,
   Jitter,
   ImageSource,
+  KvProbe,
   LineCount,
   LineMatch,
   MiddleboxEvent,
@@ -290,6 +294,22 @@ export {
   restamped,
   toolJsonOf,
 } from "./cluster.ts";
+export type { EtcdLab, EtcdLine, StatusRow as EtcdStatusRow } from "./etcd.ts";
+export {
+  CHECK_TIMEOUT,
+  etcdArgs,
+  etcdCommand,
+  etcdLineOf,
+  etcdOnMonotonic,
+  etcdOnce,
+  etcdViewOf,
+  observeMsOf,
+  openEtcdLab,
+  quoteLongIntegers,
+  realOf,
+} from "./etcd.ts";
+export type { HistoryLine, HistoryMeasured, OpCounts } from "./history.ts";
+export { historyOf, historyText, measureEtcd, verdictOfText } from "./history.ts";
 export type { KafkaLab, KafkaMember, PartitionView } from "./kafka.ts";
 export {
   KAFKA_TAIL_MS,

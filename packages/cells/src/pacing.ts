@@ -16,16 +16,27 @@ import type { KindCell } from "@mark1russell7/kind";
  *   count, not a time under load.
  * - `closed loop, reply times`: a stream that gives a distribution of reply times.
  * - `closed loop, first write`: a stream that gives a time to the first accepted write after a fault, or a drill.
+ * - `closed loop, history`: a stream whose cell gives the verdict of the checker of linearizability on
+ *   its history. A slow reply delays the next operation, thus the history has fewer operations in the
+ *   cut. The verdict reads no time.
  * - `timer`: a timer starts each request and does not wait for an answer. A slow reply delays no send.
  * - `open loop`: a schedule fixes the time of each send, and each latency counts from that planned time (SYS-68).
  */
-export type Pacing = "one request" | "one gap" | "closed loop, reply times" | "closed loop, first write" | "timer" | "open loop";
+export type Pacing =
+  | "one request"
+  | "one gap"
+  | "closed loop, reply times"
+  | "closed loop, first write"
+  | "closed loop, history"
+  | "timer"
+  | "open loop";
 
 /** This function gives the pacing of a cell of the harness. */
 export const pacingOf = (cell: Cell): Pacing => {
   if (cell.probe.mode === "schedule") return "open loop";
   if (cell.probe.mode === "idle" || cell.probe.mode === "inflight") return "one request";
   if (cell.probe.mode === "gap") return "one gap";
+  if (cell.prediction.detects === null && cell.prediction.history !== undefined) return "closed loop, history";
   return "group" in cell.prediction ? "closed loop, first write" : "closed loop, reply times";
 };
 
@@ -40,6 +51,7 @@ export const pacingCounts = (cells: readonly Cell[], kind: readonly KindCell[]):
     "one gap": count("one gap"),
     "closed loop, reply times": count("closed loop, reply times"),
     "closed loop, first write": count("closed loop, first write"),
+    "closed loop, history": count("closed loop, history"),
     timer: kind.length,
     "open loop": count("open loop"),
   };

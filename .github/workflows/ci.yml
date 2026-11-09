@@ -5,7 +5,8 @@
 #   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
 #           (reusable-release-build.yml of the template, with the release scripts of the template).
 #   site    The conventions check (check:conventions), and the site, as pages.yml builds it for GitHub Pages.
-#   checker The format, the vet and the tests of the checker of linearizability, in Go.
+#   checker The format, the vet and the tests of the checker of linearizability, in Go, and the build
+#           of the client of the etcd read cells: etcd-kv, with the checker and etcdctl.
 #   native  The build and the tests of the native programs of the harness, in Rust.
 #   ci      The required check of main. It fails when a different job of this file fails.
 name: CI
@@ -86,7 +87,7 @@ jobs:
   # checks it against go.sum.
   checker:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -99,6 +100,12 @@ jobs:
           -v "$PWD/packages/cells/checkers/linearizability:/src" -w /src
           golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
           sh -c 'test -z "$(gofmt -l .)" || { gofmt -d .; exit 1; }; go vet ./... && go test -count=1 ./...'
+      # The build of the client runs the format and the vet of etcd-kv, from its go.mod and go.sum.
+      # The harness builds the same context for the cells LR (packages/cells/src/etcd-reads.ts).
+      - name: The image of etcd-kv, with the checker and etcdctl
+        run: |
+          docker build -t etcd-kv:ci -f packages/cells/clients/etcd-kv/Dockerfile packages/cells
+          docker run --rm etcd-kv:ci sh -c 'command -v etcd-kv linearizability etcdctl'
 
   # The tests of the native programs of the harness. The Rust is that of the harness image: the
   # same Alpine, pinned by digest, with its packages rust and cargo. The image build of the cells
