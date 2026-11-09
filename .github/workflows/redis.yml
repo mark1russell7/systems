@@ -91,7 +91,7 @@ jobs:
 
   redis-ok:
     name: Redis OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, it, f6]
     runs-on: ubuntu-latest
     timeout-minutes: 2

@@ -6,6 +6,11 @@ name: Pages
 on:
   push:
     branches: [main]
+  # After a release, so that the Releases page has the new version
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
   # A pull request builds the site and runs the site check, with no deploy.
   pull_request:
   # Every 3 hours, so that the Status page shows the open pull requests and issues of the day
