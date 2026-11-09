@@ -27,7 +27,8 @@
 # Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
 # The step of the locked rungs fails that run when a rung is not within its budgets. A drill that does
 # not hold fails the run too. The Sunday run does not hold the drill of 8 GB (SYS-97) until a run of
-# '^RD[.]' on one shard measures its time.
+# '^RD[.]' on one shard measures its time. Start the run of the Sunday by hand with this command.
+#   gh workflow run cells.yml -R mark1russell7/systems -f selection=drills -f shards=1
 # Each Wednesday, the schedule runs one round of the refresh of the studies of the site (SYS-101).
 # There are 4 rounds, thus each study operates again each 28 days, inside its age limit of 30 days.
 # The file packages/cells/src/refresh.ts gives the studies of each round. Then the job export writes
@@ -406,10 +407,11 @@ jobs:
         run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
       # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
       # when a rung is not within its budgets, when a drill has no record, or when a record has no pin.
-      # Its flip (SYS-99): a fault of 1.5 x the limit of each budget turns each rung beyond, and the copies
-      # with a record gone, a tag with no digest or a checkout with changes each exit with 1.
+      # Its flip (SYS-99): a fault of 1.5 x the limit of each budget turns each rung beyond. The copies with
+      # a record gone, a tag with no digest or a checkout with changes each exit with 1. A manual run
+      # of the selection drills on one shard starts the two steps of the Sunday, as the schedule does.
       - name: The locked rungs of recovery
-        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.selection == 'drills' && inputs.shards == '1') || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # The Sunday claims that its drills hold, as the night claims for its cells. This step judges each
       # record again, with the same flip test, and it fails on a record that does not pin its programs.
