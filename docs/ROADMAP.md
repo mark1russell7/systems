@@ -3121,14 +3121,19 @@ A cell that holds on the two distributions tests a law. A cell that holds on one
 
 ### SYS-87 · Socket.IO: detection, reconnect and recovery
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** 
-- **Started:**
+- **Started:** 2026-11-09
 - **Shipped:**
 - **Links:**
 
 Socket.IO is a target on E1, and it needs no new layer. Its documents give a ping each 25 s, a timeout of 20 s and a reconnect delay of 1 to 5 s. The cells test these under the faults of T01. They also test the delivery of each mode, and the connection state recovery of each adapter.
+
+The work has two slices:
+
+- **Slice 1: detection and the reconnect.** The documents `socketio-client` and `socketio-server` of the machines package, from the tarballs of socket.io 4.8.4, socket.io-client 4.8.4, engine.io 6.6.11, engine.io-client 6.6.7 and ws 8.21.3. The subject image of `packages/cells/targets/socketio`. The 5 cells `SIO` of `packages/cells/src/socketio.ts`: a black hole (idle, and with a call in flight), a frozen server, a FIN, and the ping timeout of the server. The FIN cell has three tries of the reconnect. A dispatch of `^SIO` in CI holds each band.
+- **Slice 2: recovery and delivery.** The connection state recovery of the server and of each adapter. The delivery of each mode: at most once, and at least once with an acknowledgement and a retry. This slice stays.
 
 ### SYS-88 · Loro: a merge after a long partition
 
@@ -3178,7 +3183,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 348 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 353 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
@@ -3631,6 +3636,10 @@ The order of the work:
 
 - The runner hours come from the seconds of each cell in the original runs (`refresh-cost.json`). A test simulates each shard of each round with these seconds, and each shard stays below 300 minutes.
 - The job `export` starts the exporter of each study of the round on the records of all its shards. It uploads the new data files as the artifact `refresh`. A pull request then moves each page to its new copy.
+- **The move of the pages.** A token of a workflow cannot open a pull request that starts the checks. Thus a session downloads the artifact `refresh` and starts `packages/site/scripts/adopt.ts` on it. The script puts each copy into `src/data`, and each source of a page then names the new copy. The old file and its tests stay.
+  - The first sentence of the page of the study gets the day of the copy. The report of the script lists each other line with the old day, for the body of the pull request.
+  - A copy that no page shows stops the script. A test reads the page of each study of the plan, and the name that its exporter writes.
+  - A key of a GitHub App lets the job open the pull request itself. The repository has no such key, and a key is a choice for Mark.
 - The page `results/refresh` gives the limit and the rounds in public text. A test compares its table with the plan.
 - Seven pages with a limit have no round yet: `results/r3`, `results/kind`, `results/mesh`, `results/calibration`, `results/timers`, `lab/detection` and the home page. `refresh.ts` gives what each one needs first. A test of the site fails for a page with a limit that has no round and no such entry.
 

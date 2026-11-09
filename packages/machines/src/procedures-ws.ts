@@ -1,6 +1,6 @@
-import type { Expr, Machine } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/algebra";
 import { machineSchema } from "@mark1russell7/algebra/schema";
-import { NODE_TIMER_EARLY, nodeTimerLateness } from "./http/timers.ts";
+import { NODE_EARLY_MS as EARLY, NODE_TIMER_EARLY, nodeLateMs as late, nodeTimerLateness } from "./http/timers.ts";
 
 /**
  * This module holds the machine documents of the WebSocket transport of `@procedures/client` at
@@ -23,19 +23,8 @@ const ST = `${AT}/server/transport.ts`;
 /** This text is the source of the version of the service that the lock of the client gives (pnpm-lock.yaml:443-454). */
 const SERVICE = "@mark1russell7/service 0.5.8 (systems 571e9e5) packages/service/src";
 
-/** This function gives the arithmetic of a duration in ms. */
-const arithmetic = (duration: Expr): string => {
-  if (!("expr" in duration) || duration.unit !== "ms") throw new Error("not arithmetic in ms");
-  return duration.expr;
-};
-
 /** This text is the backoff of try n + 1 of the reconnect, in ms: `fired` is n. It reads the arithmetic of `backoffDelay`. */
 const RECONNECT_WAIT = "min(reconnect_initial_delay * pow(reconnect_backoff_multiplier, fired), reconnect_max_delay)";
-
-/** This text is the late bound of one Node timer, in ms, for a time in ms. */
-const late = (ms: string): string => arithmetic(nodeTimerLateness(ms));
-/** This text is the early bound of one Node timer, in ms. */
-const EARLY = arithmetic(NODE_TIMER_EARLY);
 
 /**
  * This document is the connection of the WebSocket client of `@procedures/client` 0.22.0 at

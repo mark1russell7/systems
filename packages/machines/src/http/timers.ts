@@ -51,13 +51,19 @@ const COARSE_MS = "min(floor(hz / 1000), 1) * 1000 / hz";
  * of its sleep, 1 ms for the truncation of the loop clock, and the step of the coarse clock. The
  * arithmetic reads `ms` in milliseconds, and the knob `hz` in Hz.
  */
-export const nodeTimerLateness = (ms: string): Expr => ({ expr: `${slackMs(ms)} + 1 + ${COARSE_MS}`, unit: "ms" });
+export const nodeTimerLateness = (ms: string): Expr => ({ expr: nodeLateMs(ms), unit: "ms" });
+
+/** This function gives the arithmetic of `nodeTimerLateness`, in ms, for a document that adds it to other terms. */
+export const nodeLateMs = (ms: string): string => `${slackMs(ms)} + 1 + ${COARSE_MS}`;
+
+/** This text is the arithmetic of `NODE_TIMER_EARLY`, in ms, for a document that adds it to other terms. */
+export const NODE_EARLY_MS: string = `1 + ${COARSE_MS}`;
 
 /**
  * This expression is how early a Node timer can fire. It is 1 ms for the truncation of the loop
  * clock that stamps its start, and the step of the coarse clock.
  */
-export const NODE_TIMER_EARLY: Expr = { expr: `1 + ${COARSE_MS}`, unit: "ms" };
+export const NODE_TIMER_EARLY: Expr = { expr: NODE_EARLY_MS, unit: "ms" };
 
 /** This function gives the lateness of a Go timer of `s` seconds: the slack of its sleep and 1 ms. The arithmetic reads `s` in seconds. */
 export const goTimerLateness = (s: string): Expr => ({

@@ -1,14 +1,10 @@
 import { appendFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { trace, type ProxyTracerProvider } from "@opentelemetry/api";
-import { logs } from "@opentelemetry/api-logs";
 import { contextValue, defineContextKeys, withContext, withInternalCall } from "@mark1russell7/otel-ts/context";
 import { startNodeTelemetry } from "@mark1russell7/otel-ts/node";
+import { captureTelemetry } from "@mark1russell7/rigor-testkit/otel";
 import { formatPropagationReport, localTransport, propagationGate, type PropagationTransport } from "@mark1russell7/rigor-testkit/propagation";
-import { InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
-import { MetricReader } from "@opentelemetry/sdk-metrics";
-import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GRPC_CLIENT_STARTING_KNOBS, grpcClient, grpcOperations, nodeGrpc } from "./grpc.ts";
 import { HTTP_CLIENT_STARTING_KNOBS, httpClient } from "./http-client.ts";
@@ -22,44 +18,8 @@ import { detachedLifecycle } from "./testing.ts";
 
 const KEY = "request.id";
 
-/** A metric reader that collects only when the test asks */
-class PullReader extends MetricReader {
-  protected override async onForceFlush(): Promise<void> {}
-  protected override async onShutdown(): Promise<void> {}
-}
-
-const spans = new InMemorySpanExporter();
-const logRecords = new InMemoryLogRecordExporter();
-const reader = new PullReader();
-
-/** This function flushes a provider of the global API. A proxy gives its delegate. */
-const flush = async (provider: object): Promise<void> => {
-  const real = "getDelegate" in provider ? (provider as ProxyTracerProvider).getDelegate() : provider;
-  await (real as { forceFlush?: () => Promise<void> }).forceFlush?.();
-};
-
-const capture = {
-  spans: async () => {
-    await flush(trace.getTracerProvider());
-    return spans.getFinishedSpans();
-  },
-  logRecords: async () => {
-    await flush(logs.getLoggerProvider());
-    return logRecords.getFinishedLogRecords();
-  },
-  metricPoints: async () => {
-    const { resourceMetrics } = await reader.collect();
-    return resourceMetrics.scopeMetrics.flatMap((scope) =>
-      scope.metrics.flatMap((metric) => metric.dataPoints.map((point) => ({ name: metric.descriptor.name, attributes: point.attributes }))),
-    );
-  },
-  reset: async () => {
-    await flush(trace.getTracerProvider());
-    await flush(logs.getLoggerProvider());
-    spans.reset();
-    logRecords.reset();
-  },
-};
+/** The capture of rigor-testkit. The SDK of otel-ts exports to it, as in a service. */
+const capture = captureTelemetry({ sdk: "external" });
 
 let telemetry: ReturnType<typeof startNodeTelemetry> | undefined;
 const server = createServer();
@@ -86,7 +46,7 @@ let grpcPort = 0;
 
 beforeAll(async () => {
   defineContextKeys({ [KEY]: { cardinality: "high", propagate: "internal" } });
-  telemetry = startNodeTelemetry({ enabled: true, stopOnSignals: false, env: {}, traceExporter: spans, logExporter: logRecords, metricReaders: [reader] });
+  telemetry = startNodeTelemetry({ enabled: true, stopOnSignals: false, env: {}, traceExporter: capture.spanExporter, logExporter: capture.logExporter, metricReaders: [capture.metricReader] });
   const transport = httpTransport(
     server,
     { server_idle_close: { value: 5, unit: "s" }, server_idle_sweep_interval: { value: 200, unit: "ms" }, server_retry_after: { value: 1, unit: "s" } },

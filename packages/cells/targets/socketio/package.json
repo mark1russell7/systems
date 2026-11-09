@@ -1,0 +1,11 @@
+{
+  "name": "loom-cells-socketio",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "engine.io-client": "6.6.7",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4",
+    "ws": "8.21.3"
+  }
+}
