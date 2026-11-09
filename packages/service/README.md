@@ -400,6 +400,7 @@ const response = await retry(
 | `timeout(ms, clock)` | It makes a channel that gets one value after `ms`, on the clock. |
 | `ticker(ms, clock)` | It makes a channel of ticks. Tick k comes due at the start plus (k + 1) periods, so the ticks do not drift. |
 | `pipeline`, `fanOut`, `fanIn`, `merge`, `workerPool` | They start work between channels. Each failure goes to `onError`, and the output closes. |
+| `preemptivePool(max)` | It operates at most `max` tasks at a time. A new task stops the oldest task with a `PreemptedError`, and `stop` stops each task. |
 
 - **The clock.** `timeout` and `ticker` take a clock. The default is `realClock`. A test gives `fakeClock()` of `./testing`, and the time of each channel is then exact.
 - **The timer of a timeout.** `timeout` gives no cancel, as `time.After` of Go. Its timer stays until it comes due, also after `select` takes another case.

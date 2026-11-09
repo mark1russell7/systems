@@ -328,12 +328,14 @@ describe("the channel entry: a client in a browser can import it (collections C2
   it("gives the channels, and the root does not give them", () => {
     expect(Object.keys(channelEntry).sort()).toEqual([
       "Channel",
+      "PreemptedError",
       "buffered",
       "channel",
       "fanIn",
       "fanOut",
       "merge",
       "pipeline",
+      "preemptivePool",
       "select",
       "ticker",
       "timeout",
