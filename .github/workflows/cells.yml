@@ -464,7 +464,7 @@ jobs:
 
   cells-ok:
     name: Cells OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, probe, plan, cells, export]
     runs-on: ubuntu-latest
     timeout-minutes: 2

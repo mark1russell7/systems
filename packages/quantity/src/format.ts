@@ -47,8 +47,20 @@ const showComponent = (component: Component, many: boolean): string => {
 /** People know these compounds by another name: a wind speed reads "mph", not "mi/h". */
 const SAID: Readonly<Record<string, string>> = { "mi/h": "mph" };
 
+/** The text of each unit that was shown, keyed by its count (1 or many) and its spelling. */
+const unitTexts = new Map<string, string>();
+
 /** This function gives how a unit reads next to an amount: "kcal/(h·kg)", "sets/wk", "% of 1RM", "mph". */
 export const formatUnit = (unit: string, many = true): string => {
+  const key = `${many ? "n" : "1"}${unit}`;
+  const hit = unitTexts.get(key);
+  if (hit !== undefined) return hit;
+  const text = unitText(unit, many);
+  unitTexts.set(key, text);
+  return text;
+};
+
+const unitText = (unit: string, many: boolean): string => {
   const parsed = parseUnit(unit);
   const said = SAID[parsed.symbol];
   if (said !== undefined) return said;
@@ -193,8 +205,219 @@ const compoundText = (magnitude: Quantity, compound: ScaleCompound): string => {
 /**
  * This function prints an amount on a scale: "512 B", "1.5 KiB", "3.5 ms", "1.25 s", "2 min 5 s". It rounds the
  * amount in a step before it compares the amount with the next step. Thus 1,048,575 B gives "1 MiB", not "1,024 KiB".
+ *
+ * The text is the text of the exact rational work. A fast path with doubles gives most texts, and the exact work runs
+ * only when the doubles cannot decide a rounding or a comparison.
  */
-export const formatOnScale = (amount: Quantity, scale: Scale): string => {
+export const formatOnScale = (amount: Quantity, scale: Scale): string =>
+  formatOnScaleFast(amount, scale) ?? formatOnScaleExact(amount, scale);
+
+/** The largest double below which each integer is exact. */
+const SAFE = 2 ** 53;
+
+/**
+ * This number is the relative distance from a half, or from a size, below which the fast path does not decide. The
+ * error of the doubles is at most 6 units in the last place (6 × 2^-53). 2^-48 is 32 units, thus each decision that
+ * passes this filter is the decision of the exact value.
+ */
+const TIE = 2 ** -48;
+
+/** An amount in one unit for the fast path: `n / d` with safe integers when it is exact, else only the double `x`. */
+interface Near {
+  readonly x: number;
+  readonly n?: number;
+  readonly d?: number;
+}
+
+/** The plan of a step for amounts in one unit. */
+interface StepPlan {
+  readonly step: ScaleStep;
+  /** One unit of the amount is `p / q` of the step unit. */
+  readonly p: number;
+  readonly q: number;
+  /** The size of one unit of the next step in the step unit, or undefined when no step is above. */
+  readonly next: Rational | undefined;
+}
+
+/** The plan of a compound for amounts in one unit. */
+interface CompoundPlan {
+  readonly units: readonly string[];
+  /** The size of each unit in the smallest unit: integers. */
+  readonly sizes: readonly number[];
+  readonly parts: number;
+  /** One unit of the amount is `p / q` of the smallest unit. */
+  readonly p: number;
+  readonly q: number;
+}
+
+interface Plan {
+  readonly steps: readonly StepPlan[];
+  readonly compound: CompoundPlan | undefined;
+}
+
+/** The plans of each scale, keyed by the unit of the amount. A plan of null tells that only the exact path applies. */
+const plans = new WeakMap<Scale, Map<string, Plan | null>>();
+
+/** This function gives `p / q` with safe integers for the size of one `from` in `to`, or undefined. */
+const ratioOf = (from: string, to: string): readonly [number, number] | undefined => {
+  const unitFrom = parseUnit(from);
+  const unitTo = parseUnit(to);
+  if (unitFrom.log || unitTo.log || unitFrom.offset !== undefined || unitTo.offset !== undefined) return undefined;
+  const size = convertExact(q.ONE, from, to);
+  return size.n <= 0n || size.n > BigInt(SAFE) || size.d > BigInt(SAFE) ? undefined : [Number(size.n), Number(size.d)];
+};
+
+const planOf = (unit: string, scale: Scale): Plan | null => {
+  const { steps, compound } = scale;
+  const stepPlans: StepPlan[] = [];
+  for (let index = 0; index < steps.length; index++) {
+    const step = steps[index] as ScaleStep;
+    const ratio = ratioOf(unit, step.unit);
+    if (ratio === undefined) return null;
+    const next =
+      steps[index + 1]?.unit ??
+      [...(compound?.units ?? [])].reverse().find((u) => q.compare(sizeIn(u, step.unit), q.ONE) > 0);
+    stepPlans.push({ step, p: ratio[0], q: ratio[1], next: next === undefined ? undefined : sizeIn(next, step.unit) });
+  }
+  if (compound === undefined) return { steps: stepPlans, compound: undefined };
+  const smallestUnit = compound.units.at(-1);
+  if (smallestUnit === undefined) return null;
+  const sizes: number[] = [];
+  for (const u of compound.units) {
+    const size = sizeIn(u, smallestUnit);
+    if (size.d !== 1n || size.n <= 0n || size.n > BigInt(SAFE)) return null;
+    sizes.push(Number(size.n));
+  }
+  const ratio = ratioOf(unit, smallestUnit);
+  if (ratio === undefined) return null;
+  const parts = compound.parts ?? sizes.length;
+  return { steps: stepPlans, compound: { units: compound.units, sizes, parts, p: ratio[0], q: ratio[1] } };
+};
+
+const planFor = (amount: Quantity, scale: Scale): Plan | null => {
+  let byUnit = plans.get(scale);
+  if (byUnit === undefined) {
+    byUnit = new Map();
+    plans.set(scale, byUnit);
+  }
+  let plan = byUnit.get(amount.unit);
+  if (plan === undefined) {
+    checkUnits(amount, [...scale.steps.map((step) => step.unit), ...(scale.compound?.units ?? [])]);
+    plan = planOf(amount.unit, scale);
+    byUnit.set(amount.unit, plan);
+  }
+  return plan;
+};
+
+/** This function gives a magnitude `v` of 0 or more times `p / q`. */
+const nearOf = (v: number, p: number, q: number): Near => {
+  const x = (v * p) / q;
+  return Number.isInteger(v) && v * p <= SAFE ? { x, n: v * p, d: q } : { x };
+};
+
+/** This function gives an integer `a / b` rounded down, for safe integers of 0 or more. */
+const quotient = (a: number, b: number): number => (a - (a % b)) / b;
+
+/** This function gives the amount times 10^places, rounded with a half going up, or undefined when it cannot decide. */
+const roundNear = (near: Near, places: number): number | undefined => {
+  if (places > 15) return undefined;
+  const ten = 10 ** places;
+  if (near.n !== undefined && near.d !== undefined) {
+    const twice = 2 * near.n * ten + near.d;
+    return twice <= SAFE ? quotient(twice, 2 * near.d) : undefined;
+  }
+  const scaled = near.x * ten;
+  if (!(scaled < 2 ** 50)) return undefined;
+  const t = scaled + 0.5;
+  const whole = Math.floor(t);
+  const tolerance = (scaled + 1) * TIE;
+  return t - whole <= tolerance || whole + 1 - t <= tolerance ? undefined : whole;
+};
+
+/** This function tells if the amount is `size` or more, or gives undefined when it cannot decide. */
+const atLeast = (near: Near, size: number): boolean | undefined => {
+  if (near.n !== undefined && near.d !== undefined) {
+    const right = size * near.d;
+    return right <= SAFE ? near.n >= right : undefined;
+  }
+  return Math.abs(near.x - size) <= (near.x + size) * TIE ? undefined : near.x >= size;
+};
+
+/** The decimal places of a step, or undefined when a double near a power of 10 cannot decide them. */
+const placesNear = (step: ScaleStep, near: Near): number | undefined => {
+  const exact = near.n !== undefined;
+  if (step.significant === undefined || near.x === 0 || exact) return placesOf(step, near.x);
+  const low = 10 ** Math.floor(Math.log10(near.x));
+  const margin = near.x * 2 ** -40;
+  return Math.abs(near.x - low) <= margin || Math.abs(10 * low - near.x) <= margin ? undefined : placesOf(step, near.x);
+};
+
+/** The powers of 10 as bigints, for the comparison of a rounded amount with the next step. */
+const TENS = Array.from({ length: 16 }, (_, k) => 10n ** BigInt(k));
+
+/** The text of a compound by the fast path, or undefined. It is `compoundText` with integers of the smallest unit. */
+const compoundNear = (magnitude: number, plan: CompoundPlan): string | undefined => {
+  const value = nearOf(magnitude, plan.p, plan.q);
+  const startOf = (near: Near): number | undefined => {
+    for (let index = 0; index < plan.sizes.length; index++) {
+      const hit = atLeast(near, plan.sizes[index] as number);
+      if (hit === undefined) return undefined;
+      if (hit) return index;
+    }
+    return 0;
+  };
+  const start = startOf(value);
+  if (start === undefined) return undefined;
+  const smallest = plan.sizes[Math.min(start + plan.parts, plan.sizes.length) - 1] ?? 1;
+  const count = roundNear(
+    value.n !== undefined && value.d !== undefined ? { x: value.x / smallest, n: value.n, d: value.d * smallest } : { x: value.x / smallest },
+    0,
+  );
+  if (count === undefined || count * smallest > SAFE) return undefined;
+  let rest = count * smallest;
+  const from = startOf({ x: rest, n: rest, d: 1 }) as number;
+  const named: string[] = [];
+  for (let index = from; index < Math.min(from + plan.parts, plan.sizes.length); index++) {
+    const size = plan.sizes[index] as number;
+    const whole = quotient(rest, size);
+    rest -= whole * size;
+    if (whole > 0) named.push(wholeText(whole, plan.units[index] as string));
+  }
+  return named.length === 0 ? wholeText(0, plan.units.at(-1) as string) : named.join(" ");
+};
+
+/**
+ * This function is the fast path of `formatOnScale`. It gives undefined when the doubles cannot decide a rounding or a
+ * comparison. It also gives undefined for a scale with a unit with an offset, a level or a large factor. The entry
+ * does not export it.
+ */
+export const formatOnScaleFast = (amount: Quantity, scale: Scale): string | undefined => {
+  if (!Number.isFinite(amount.value)) return undefined;
+  if (scale.steps.length === 0 && scale.compound === undefined) return undefined;
+  const plan = planFor(amount, scale);
+  if (plan === null) return undefined;
+  const sign = amount.value < 0 ? "-" : "";
+  const magnitude = Math.abs(amount.value);
+  for (const stepPlan of plan.steps) {
+    const near = nearOf(magnitude, stepPlan.p, stepPlan.q);
+    const places = placesNear(stepPlan.step, near);
+    if (places === undefined) return undefined;
+    const rounded = roundNear(near, places);
+    if (rounded === undefined) return undefined;
+    const next = stepPlan.next;
+    if (next === undefined || BigInt(rounded) * next.d < next.n * (TENS[places] as bigint)) {
+      const shown = rounded / 10 ** places;
+      const text = `${number(shown, places, stepPlan.step.fixed === true)} ${formatUnit(stepPlan.step.unit, shown !== 1)}`;
+      return `${shown === 0 ? "" : sign}${text}`;
+    }
+  }
+  if (plan.compound === undefined) return undefined;
+  const text = compoundNear(magnitude, plan.compound);
+  return text === undefined ? undefined : `${sign}${text}`;
+};
+
+/** This function is `formatOnScale` with exact rational work only. The entry does not export it. */
+export const formatOnScaleExact = (amount: Quantity, scale: Scale): string => {
   if (!Number.isFinite(amount.value)) throw new RangeError(`not a finite amount: ${String(amount.value)} ${amount.unit}`);
   const { steps, compound } = scale;
   if (steps.length === 0 && compound === undefined) throw new RangeError("a scale needs a step or a compound");

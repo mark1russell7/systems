@@ -15,6 +15,7 @@ import * as httpEntry from "./http.ts";
 import * as httpClientEntry from "./http-client.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
+import * as otelEntry from "./otel.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
 import * as rulesEntry from "./rules.ts";
@@ -89,10 +90,12 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
+    // only the entry of the trace ids loads the API of OpenTelemetry
+    expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
     // the negative control: the schema entry of quantity loads zod, and the search finds it
     const schema = sourceOf("@mark1russell7/quantity/schema");
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
@@ -103,9 +106,10 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "@opentelemetry/api", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
       "@grpc/grpc-js": { optional: true },
+      "@opentelemetry/api": { optional: true },
       amqplib: { optional: true },
       ioredis: { optional: true },
       mongodb: { optional: true },
@@ -470,6 +474,28 @@ describe("the host entry: Node only, and its effects go through ports (SYS-36)",
     };
     expect(manifest.exports["./host"]).toBe("./src/host.ts");
     expect(manifest.publishConfig.exports["./host"]).toEqual({ types: "./build/host.d.ts", default: "./build/host.js" });
+  });
+});
+
+describe("the otel entry: the only entry that loads the API of OpenTelemetry, an optional peer (C11)", () => {
+  it("loads only @opentelemetry/api, and no node: module", () => {
+    expect(reach("otel.ts")).toEqual({ files: ["otel.ts"], packages: ["@opentelemetry/api"] });
+    expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
+  });
+
+  it("gives the source of the trace ids and the call context, and the root gives neither", () => {
+    expect(Object.keys(otelEntry)).toEqual(["traceIds", "callContext"]);
+    expect(root).not.toHaveProperty("traceIds");
+    expect(root).not.toHaveProperty("callContext");
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./otel"]).toBe("./src/otel.ts");
+    expect(manifest.publishConfig.exports["./otel"]).toEqual({ types: "./build/otel.d.ts", default: "./build/otel.js" });
   });
 });
 
