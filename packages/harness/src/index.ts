@@ -111,6 +111,7 @@ export {
   jitterOfLines,
   leftAfter,
   pingsOf,
+  pongsOf,
   programLines,
   reconnectFinding,
   reconnectOf,

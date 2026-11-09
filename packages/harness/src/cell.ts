@@ -489,6 +489,11 @@ export interface Toxic {
  * program writes a `ping` line before each ping, and the kernel stamps the write (`tx`). No
  * segment with data reaches the socket after that write, up to the detection.
  *
+ * A heartbeat that the peer starts counts from the last pong of the program before the fault
+ * (`pong-sent`). The program starts its wait for the next ping when it writes that pong. It writes
+ * a `write` line with the type `pong` before the pong, and the kernel stamps the write (`tx`). Thus
+ * the events of a stream before the fault do not move the reference, as they move `last-data`.
+ *
  * A check of a pool on an idle connection counts from the first segment with data that the socket
  * sends after the fault (`first-sent`). The keepalive of HikariCP comes at a phase from the
  * creation of its connection, thus no line of the client gives its time. The kernel stamps it.
@@ -511,6 +516,7 @@ export type Reference =
   | "fault"
   | "client-start"
   | "ping-sent"
+  | "pong-sent"
   | "first-sent"
   | "syn-sent";
 
