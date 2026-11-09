@@ -3448,7 +3448,7 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
 - **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637)
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
