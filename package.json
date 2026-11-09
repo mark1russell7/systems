@@ -28,7 +28,13 @@
   },
   "apiReport": {
     "packages": [
-      "packages/harness"
+      "packages/algebra",
+      "packages/harness",
+      "packages/kind",
+      "packages/machines",
+      "packages/prober",
+      "packages/quantity",
+      "packages/service"
     ]
   },
   "conventions": {

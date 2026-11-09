@@ -1,0 +1,4528 @@
+# The public API of @mark1russell7/service
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): names
+
+type Allowed: build/policy.chunk.d.ts#Allowed
+BOUND_RULES: build/index.d.ts#BOUND_RULES
+type Backoff: build/backoff.chunk.d.ts#Backoff
+type Binding: build/rules.chunk.d.ts#Binding
+type Bound: build/rules.chunk.d.ts#Bound
+CLOSE_BOUND_RULE: build/index.d.ts#CLOSE_BOUND_RULE
+type CallContext: build/call-context.chunk.d.ts#CallContext
+type Cancel: @mark1russell7/algebra/clock#Cancel (external)
+type CapacityRefused: build/policy.chunk.d.ts#CapacityRefused
+type Change: build/rules.chunk.d.ts#Change
+type Check: build/logger.chunk.d.ts#Check
+type CheckFn: build/lifecycle.chunk.d.ts#CheckFn
+type CheckMetrics: build/lifecycle.chunk.d.ts#CheckMetrics
+type CheckVerdict: build/lifecycle.chunk.d.ts#CheckVerdict
+type Claim: build/index.d.ts#Claim
+type Clock: @mark1russell7/algebra/clock#Clock (external)
+type Compressed: build/rules.chunk.d.ts#Compressed
+type Compression: build/rules.chunk.d.ts#Compression
+type ConsoleLoggerOptions: build/logger.chunk.d.ts#ConsoleLoggerOptions
+type ConsoleTarget: build/logger.chunk.d.ts#ConsoleTarget
+type Controller: build/logger.chunk.d.ts#Controller
+type ControllerBuilder: build/builder.chunk.d.ts#ControllerBuilder
+type CooperativeFloor: build/logger.chunk.d.ts#CooperativeFloor
+type Coupling: build/logger.chunk.d.ts#Coupling
+DECLARATION_RULE: build/index.d.ts#DECLARATION_RULE
+DRAIN_RULES: build/rules.chunk.d.ts#DRAIN_RULES
+DRAIN_RULE_IDS: build/index.d.ts#DRAIN_RULE_IDS
+DURATION_FRACTIONS: build/lifecycle.chunk.d.ts#DURATION_FRACTIONS
+type Decision: build/policy.chunk.d.ts#Decision
+type DelayBand: build/backoff.chunk.d.ts#DelayBand
+type Dependency: build/logger.chunk.d.ts#Dependency
+type DependencyHandle: build/lifecycle.chunk.d.ts#DependencyHandle
+type DurationHistogram: build/lifecycle.chunk.d.ts#DurationHistogram
+EPISODES_KEPT: build/lifecycle.chunk.d.ts#EPISODES_KEPT
+EXIT_MACHINE: build/index.d.ts#EXIT_MACHINE
+EXIT_SIGNALS: build/logger.chunk.d.ts#EXIT_SIGNALS
+type EmbeddedProcess: build/logger.chunk.d.ts#EmbeddedProcess
+type Episode: build/lifecycle.chunk.d.ts#Episode
+type Epochs: build/index.d.ts#Epochs
+type Evaluated: build/rules.chunk.d.ts#Evaluated
+type ExitCodes: build/logger.chunk.d.ts#ExitCodes
+type ExitSignal: build/logger.chunk.d.ts#ExitSignal
+type ExitTrigger: build/logger.chunk.d.ts#ExitTrigger
+FORMAT: build/logger.chunk.d.ts#FORMAT
+type FailsBy: build/logger.chunk.d.ts#FailsBy
+type Finding: build/index.d.ts#Finding
+GATE_MACHINE: build/index.d.ts#GATE_MACHINE
+type Gate: build/logger.chunk.d.ts#Gate
+type Health: build/lifecycle.chunk.d.ts#Health
+type HealthMetrics: build/lifecycle.chunk.d.ts#HealthMetrics
+type HealthServer: build/lifecycle.chunk.d.ts#HealthServer
+type HealthVerdict: build/lifecycle.chunk.d.ts#HealthVerdict
+type Heartbeat: build/heartbeat.d.ts#Heartbeat
+type HeartbeatOptions: build/heartbeat.d.ts#HeartbeatOptions
+type HostStream: build/logger.chunk.d.ts#HostStream
+IDENTITY_TYPES: build/index.d.ts#IDENTITY_TYPES
+type Idempotency: build/logger.chunk.d.ts#Idempotency
+type IdentityType: build/index.d.ts#IdentityType
+type IncomingHeaders: build/call-context.chunk.d.ts#IncomingHeaders
+type Inequality: build/rules.chunk.d.ts#Inequality
+type IterationContext: build/index.d.ts#IterationContext
+type Jitter: build/backoff.chunk.d.ts#Jitter
+type JobAction: build/queue.chunk.d.ts#JobAction
+type JobContext: build/queue.chunk.d.ts#JobContext
+type JobFailure: build/queue.chunk.d.ts#JobFailure
+type JobSettle: build/queue.chunk.d.ts#JobSettle
+type JobSource: build/queue.chunk.d.ts#JobSource
+type KeyState: build/policy.chunk.d.ts#KeyState
+type KeyedLimiter: build/store.chunk.d.ts#KeyedLimiter
+LATCH_MACHINE: build/index.d.ts#LATCH_MACHINE
+LAW_STATISTIC: build/index.d.ts#LAW_STATISTIC
+LIMITER_RULES: build/index.d.ts#LIMITER_RULES
+LOG_LEVELS: build/logger.chunk.d.ts#LOG_LEVELS
+type Lifecycle: build/lifecycle.chunk.d.ts#Lifecycle
+type LifecycleEvent: build/logger.chunk.d.ts#LifecycleEvent
+type LifecycleState: build/lifecycle.chunk.d.ts#LifecycleState
+type LimitPolicy: build/policy.chunk.d.ts#LimitPolicy
+type LimitRule: build/policy.chunk.d.ts#LimitRule
+type Limiter: build/policy.chunk.d.ts#Limiter
+type LimiterEviction: build/policy.chunk.d.ts#LimiterEviction
+type LimiterSpec: build/policy.chunk.d.ts#LimiterSpec
+type LimiterState: build/limiter.chunk.d.ts#LimiterState
+type LimiterStore: build/store.chunk.d.ts#LimiterStore
+type LimiterStoreSpec: build/policy.chunk.d.ts#LimiterStoreSpec
+type LocalLimiter: build/store.chunk.d.ts#LocalLimiter
+type LogEntry: build/logger.chunk.d.ts#LogEntry
+type LogFields: build/logger.chunk.d.ts#LogFields
+type LogFormat: build/logger.chunk.d.ts#LogFormat
+type LogLevel: build/logger.chunk.d.ts#LogLevel
+type Logger: build/logger.chunk.d.ts#Logger
+MACHINES: build/index.d.ts#MACHINES
+type MachineName: build/logger.chunk.d.ts#MachineName
+type MemoryStore: build/store.chunk.d.ts#MemoryStore
+type MessageShape: build/logger.chunk.d.ts#MessageShape
+type MessageTrigger: build/logger.chunk.d.ts#MessageTrigger
+NAME_RULE: build/index.d.ts#NAME_RULE
+O04: build/rules.chunk.d.ts#O04
+O09: build/rules.chunk.d.ts#O09
+O10: build/rules.chunk.d.ts#O10
+O16: build/rules.chunk.d.ts#O16
+type Operation: build/logger.chunk.d.ts#Operation
+type OperationOf: build/logger.chunk.d.ts#OperationOf
+type Outcome: build/lifecycle.chunk.d.ts#Outcome
+PLATFORM_MARKS: build/index.d.ts#PLATFORM_MARKS
+POLLER_MACHINE: build/index.d.ts#POLLER_MACHINE
+PROCESS_TRIGGERS: build/logger.chunk.d.ts#PROCESS_TRIGGERS
+PROGRESS_RULE: build/index.d.ts#PROGRESS_RULE
+type Phase: build/logger.chunk.d.ts#Phase
+type PhaseContext: build/lifecycle.chunk.d.ts#PhaseContext
+type PhaseWork: build/lifecycle.chunk.d.ts#PhaseWork
+type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
+type PodTiming: build/builder.chunk.d.ts#PodTiming
+type Poll: build/logger.chunk.d.ts#Poll
+type ProbeAnswer: build/lifecycle.chunk.d.ts#ProbeAnswer
+type ProbeKind: build/lifecycle.chunk.d.ts#ProbeKind
+type ProcessHost: build/logger.chunk.d.ts#ProcessHost
+type ProcessPort: build/logger.chunk.d.ts#ProcessPort
+type ProcessTrigger: build/logger.chunk.d.ts#ProcessTrigger
+type Profile: build/builder.chunk.d.ts#Profile
+type ProgressMarks: build/logger.chunk.d.ts#ProgressMarks
+type QueueDrain: build/queue.chunk.d.ts#QueueDrain
+type QueueDrainOptions: build/queue.chunk.d.ts#QueueDrainOptions
+type QueueKnobs: build/queue.chunk.d.ts#QueueKnobs
+type Recorder: build/logger.chunk.d.ts#Recorder
+type RedeliveryPolicy: build/queue.chunk.d.ts#RedeliveryPolicy
+type RefusalCause: build/policy.chunk.d.ts#RefusalCause
+type Refused: build/policy.chunk.d.ts#Refused
+type RepeatSignal: build/logger.chunk.d.ts#RepeatSignal
+type RequestEnd: build/lifecycle.chunk.d.ts#RequestEnd
+type RequestEvent: build/lifecycle.chunk.d.ts#RequestEvent
+type RequestFn: build/lifecycle.chunk.d.ts#RequestFn
+type RequestOptions: build/lifecycle.chunk.d.ts#RequestOptions
+type RequestStream: build/lifecycle.chunk.d.ts#RequestStream
+type RequestWork: build/lifecycle.chunk.d.ts#RequestWork
+type RequeueCause: build/queue.chunk.d.ts#RequeueCause
+type Result: build/lifecycle.chunk.d.ts#Result
+type Retrier: build/index.d.ts#Retrier
+type RetrierOptions: build/index.d.ts#RetrierOptions
+type RetryOptions: build/index.d.ts#RetryOptions
+type RoutePattern: build/logger.chunk.d.ts#RoutePattern
+type RouteRequest: build/logger.chunk.d.ts#RouteRequest
+type Rule: build/rules.chunk.d.ts#Rule
+type RunOptions: build/lifecycle.chunk.d.ts#RunOptions
+SERVICE_RULES: build/index.d.ts#SERVICE_RULES
+SLIDING_WINDOW_MACHINE: build/limiter.chunk.d.ts#SLIDING_WINDOW_MACHINE
+STAGES: build/lifecycle.chunk.d.ts#STAGES
+STOPS: build/index.d.ts#STOPS
+STOP_RULE: build/index.d.ts#STOP_RULE
+type Scenario: build/index.d.ts#Scenario
+type ScenarioValue: build/index.d.ts#ScenarioValue
+type ScopedChange: build/index.d.ts#ScopedChange
+type ServiceBuilder: build/builder.chunk.d.ts#ServiceBuilder
+type ServiceDescription: build/logger.chunk.d.ts#ServiceDescription
+type ShutdownOptions: build/lifecycle.chunk.d.ts#ShutdownOptions
+type Side: build/rules.chunk.d.ts#Side
+type SlidingWindow: build/policy.chunk.d.ts#SlidingWindow
+type Span: build/logger.chunk.d.ts#Span
+type Stage: build/lifecycle.chunk.d.ts#Stage
+type StartOptions: build/lifecycle.chunk.d.ts#StartOptions
+type Statistic: build/index.d.ts#Statistic
+type Step: build/logger.chunk.d.ts#Step
+type Stop: build/index.d.ts#Stop
+type StopWay: build/index.d.ts#StopWay
+type StoreFailure: build/policy.chunk.d.ts#StoreFailure
+TOKEN_BUCKET_MACHINE: build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
+type TakeRequest: build/store.chunk.d.ts#TakeRequest
+type TakeStep: build/policy.chunk.d.ts#TakeStep
+type Term: build/rules.chunk.d.ts#Term
+type TimerMark: build/rules.chunk.d.ts#TimerMark
+type TimerMarks: build/rules.chunk.d.ts#TimerMarks
+type Timing: build/logger.chunk.d.ts#Timing
+type TokenBucket: build/policy.chunk.d.ts#TokenBucket
+type TraceIds: build/logger.chunk.d.ts#TraceIds
+type TraceIdsSource: build/logger.chunk.d.ts#TraceIdsSource
+type Transport: build/logger.chunk.d.ts#Transport
+type TransportImpl: build/lifecycle.chunk.d.ts#TransportImpl
+UNCAUGHT_ORIGINS: build/logger.chunk.d.ts#UNCAUGHT_ORIGINS
+UNIT_BOUND_RULE: build/index.d.ts#UNIT_BOUND_RULE
+type UncaughtOptions: build/lifecycle.chunk.d.ts#UncaughtOptions
+type UncaughtOrigin: build/logger.chunk.d.ts#UncaughtOrigin
+type UnitRequest: build/queue.chunk.d.ts#UnitRequest
+type Verdict: build/rules.chunk.d.ts#Verdict
+WATCHDOG_MACHINE: build/index.d.ts#WATCHDOG_MACHINE
+WINDOW_MACHINE: build/index.d.ts#WINDOW_MACHINE
+type WaitCause: build/policy.chunk.d.ts#WaitCause
+type WaitRefused: build/policy.chunk.d.ts#WaitRefused
+type Watchdog: build/builder.chunk.d.ts#Watchdog
+type WatchdogSpec: build/builder.chunk.d.ts#WatchdogSpec
+type WorkerKnobs: build/index.d.ts#WorkerKnobs
+type WorkerLoop: build/index.d.ts#WorkerLoop
+type WorkerLoopOptions: build/index.d.ts#WorkerLoopOptions
+asDebounce: build/logger.chunk.d.ts#asDebounce
+asWindow: build/logger.chunk.d.ts#asWindow
+atLeast: build/logger.chunk.d.ts#atLeast
+backoffBand: build/backoff.chunk.d.ts#backoffBand
+backoffDelay: build/backoff.chunk.d.ts#backoffDelay
+backoffProblems: build/backoff.chunk.d.ts#backoffProblems
+capKnob: build/index.d.ts#capKnob
+capacityOf: build/policy.chunk.d.ts#capacityOf
+compress: build/rules.chunk.d.ts#compress
+compression: build/rules.chunk.d.ts#compression
+compressionOf: build/index.d.ts#compressionOf
+consoleLogger: build/logger.chunk.d.ts#consoleLogger
+cooperativeAbortAt: build/lifecycle.chunk.d.ts#cooperativeAbortAt
+daemon: build/builder.chunk.d.ts#daemon
+decide: build/policy.chunk.d.ts#decide
+detectionTime: build/heartbeat.d.ts#detectionTime
+drainMachine: build/index.d.ts#drainMachine
+embeddedProcess: build/logger.chunk.d.ts#embeddedProcess
+ephemeral: build/builder.chunk.d.ts#ephemeral
+evaluate: build/rules.chunk.d.ts#evaluate
+failSpan: build/logger.chunk.d.ts#failSpan
+freeAt: build/policy.chunk.d.ts#freeAt
+heartbeat: build/heartbeat.d.ts#heartbeat
+heartbeatDetection: build/logger.chunk.d.ts#heartbeatDetection
+idleSpan: build/policy.chunk.d.ts#idleSpan
+inequalities: build/rules.chunk.d.ts#inequalities
+isExitCode: build/logger.chunk.d.ts#isExitCode
+isExitSignal: build/logger.chunk.d.ts#isExitSignal
+isMessageShape: build/logger.chunk.d.ts#isMessageShape
+keyedLimiter: build/store.chunk.d.ts#keyedLimiter
+kubernetes: build/builder.chunk.d.ts#kubernetes
+limitRule: build/policy.chunk.d.ts#limitRule
+limiterMachine: build/limiter.chunk.d.ts#limiterMachine
+limiterProblems: build/policy.chunk.d.ts#limiterProblems
+limiterStateOf: build/limiter.chunk.d.ts#limiterStateOf
+lint: build/index.d.ts#lint
+lintStop: build/index.d.ts#lintStop
+localDev: build/builder.chunk.d.ts#localDev
+logEvents: build/logger.chunk.d.ts#logEvents
+longestRetryAfter: build/policy.chunk.d.ts#longestRetryAfter
+matchesMessage: build/logger.chunk.d.ts#matchesMessage
+mayReissue: build/logger.chunk.d.ts#mayReissue
+memoryStore: build/store.chunk.d.ts#memoryStore
+nodeProcess: build/logger.chunk.d.ts#nodeProcess
+overCapacity: build/policy.chunk.d.ts#overCapacity
+platformClock: @mark1russell7/algebra/clock#platformClock (external)
+processPortOf: build/logger.chunk.d.ts#processPortOf
+queueDrain: build/queue.chunk.d.ts#queueDrain
+realClock: @mark1russell7/algebra/clock#realClock (external)
+recoverSpan: build/logger.chunk.d.ts#recoverSpan
+redact: build/lifecycle.chunk.d.ts#redact
+redeliverOnce: build/queue.chunk.d.ts#redeliverOnce
+replay: @mark1russell7/algebra/replay#replay (external)
+retrier: build/index.d.ts#retrier
+retry: build/index.d.ts#retry
+retryAfterDelay: build/index.d.ts#retryAfterDelay
+retryAfterSeconds: build/policy.chunk.d.ts#retryAfterSeconds
+service: build/builder.chunk.d.ts#service
+serviceBindings: build/index.d.ts#serviceBindings
+stageRank: build/lifecycle.chunk.d.ts#stageRank
+symbolsOf: build/rules.chunk.d.ts#symbolsOf
+unitsOf: build/policy.chunk.d.ts#unitsOf
+verdictOf: build/rules.chunk.d.ts#verdictOf
+watchdog: build/builder.chunk.d.ts#watchdog
+workerLoop: build/index.d.ts#workerLoop
+
+## ./testing (build/testing.d.ts): names
+
+Behavior: build/testing.d.ts#Behavior
+type CallerView: build/testing.d.ts#CallerView
+type ConformanceOptions: build/testing.d.ts#ConformanceOptions
+type ConformanceRecord: build/testing.d.ts#ConformanceRecord
+type ContractCase: build/testing.d.ts#ContractCase
+type ContractOptions: build/testing.d.ts#ContractOptions
+type FakeChild: build/testing.d.ts#FakeChild
+type FakeClock: @mark1russell7/algebra/clock#FakeClock (external)
+type FakeHost: build/testing.d.ts#FakeHost
+type FakeHostOptions: build/testing.d.ts#FakeHostOptions
+type FakeProcess: build/testing.d.ts#FakeProcess
+type FakeProcessOptions: build/testing.d.ts#FakeProcessOptions
+type HeldWork: build/testing.d.ts#HeldWork
+QuietServer: build/testing.d.ts#QuietServer
+type RecordedCommand: build/testing.d.ts#RecordedCommand
+type RecordedSignal: build/testing.d.ts#RecordedSignal
+ScriptedCheck: build/testing.d.ts#ScriptedCheck
+type SeenEnd: build/testing.d.ts#SeenEnd
+type StreamCall: build/testing.d.ts#StreamCall
+type SubjectFactory: build/testing.d.ts#SubjectFactory
+TestLogger: build/testing.d.ts#TestLogger
+type TransportSubject: build/testing.d.ts#TransportSubject
+contractCases: build/testing.d.ts#contractCases
+detachedLifecycle: build/testing.d.ts#detachedLifecycle
+fakeClock: @mark1russell7/algebra/clock#fakeClock (external)
+fakeHost: build/testing.d.ts#fakeHost
+fakeProcess: build/testing.d.ts#fakeProcess
+quietServer: build/testing.d.ts#quietServer
+scriptedCheck: build/testing.d.ts#scriptedCheck
+seeded: build/testing.d.ts#seeded
+testLogger: build/testing.d.ts#testLogger
+transportConformance: build/testing.d.ts#transportConformance
+
+## ./redis (build/redis.d.ts): names
+
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type ConnectionFactory: build/redis.d.ts#ConnectionFactory
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+type Join: build/redis.d.ts#Join
+LIMITER_SCRIPT: build/redis.d.ts#LIMITER_SCRIPT
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+REDIS_CLIENT_MACHINE: build/redis.d.ts#REDIS_CLIENT_MACHINE
+REDIS_OPERATIONS: build/redis.d.ts#REDIS_OPERATIONS
+type RedisClient: build/redis.d.ts#RedisClient
+type RedisClientOptions: build/redis.d.ts#RedisClientOptions
+type RedisClientSpec: build/redis.d.ts#RedisClientSpec
+type RedisConnection: build/redis.d.ts#RedisConnection
+type RedisConnectionOptions: build/redis.d.ts#RedisConnectionOptions
+type RedisKnobs: build/redis.d.ts#RedisKnobs
+type RedisLimiterOptions: build/redis.d.ts#RedisLimiterOptions
+type RedisSender: build/redis.d.ts#RedisSender
+type RedisSocket: build/redis.d.ts#RedisSocket
+type Sent: build/core.chunk.d.ts#Sent
+type Situation: build/core.chunk.d.ts#Situation
+commandName: build/redis.d.ts#commandName
+firstDetector: build/core.chunk.d.ts#firstDetector
+heartbeatDetection: build/logger.chunk.d.ts#heartbeatDetection
+ioredis: build/redis.d.ts#ioredis
+meetings: build/redis.d.ts#meetings
+redisClient: build/redis.d.ts#redisClient
+redisLimiterStore: build/redis.d.ts#redisLimiterStore
+retryBackoff: build/core.chunk.d.ts#retryBackoff
+specProblems: build/redis.d.ts#specProblems
+tcpDial: build/redis.d.ts#tcpDial
+unwatched: build/core.chunk.d.ts#unwatched
+
+## ./pg (build/pg.d.ts): names
+
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+PG_CLIENT_MACHINE: build/pg.d.ts#PG_CLIENT_MACHINE
+PG_STARTING_KNOBS: build/pg.d.ts#PG_STARTING_KNOBS
+PG_STARTING_POLL: build/pg.d.ts#PG_STARTING_POLL
+type PgClient: build/pg.d.ts#PgClient
+type PgClientOptions: build/pg.d.ts#PgClientOptions
+type PgClientSpec: build/pg.d.ts#PgClientSpec
+type PgJoin: build/pg.d.ts#PgJoin
+type PgKnobs: build/pg.d.ts#PgKnobs
+type PgPool: build/pg.d.ts#PgPool
+type PgPoolClient: build/pg.d.ts#PgPoolClient
+type PgPoolOptions: build/pg.d.ts#PgPoolOptions
+type PgResult: build/pg.d.ts#PgResult
+type PgSocket: build/pg.d.ts#PgSocket
+type PgStep: build/pg.d.ts#PgStep
+type PoolFactory: build/pg.d.ts#PoolFactory
+STARTING_POLL: build/core.chunk.d.ts#STARTING_POLL
+type SendOptions: build/core.chunk.d.ts#SendOptions
+type Sent: build/core.chunk.d.ts#Sent
+type Situation: build/core.chunk.d.ts#Situation
+firstDetector: build/core.chunk.d.ts#firstDetector
+nodePostgres: build/pg.d.ts#nodePostgres
+pgClient: build/pg.d.ts#pgClient
+pgMeetings: build/pg.d.ts#pgMeetings
+poolOptions: build/pg.d.ts#poolOptions
+specProblems: build/pg.d.ts#specProblems
+sslRequestDial: build/pg.d.ts#sslRequestDial
+unwatched: build/core.chunk.d.ts#unwatched
+
+## ./mongodb (build/mongodb.d.ts): names
+
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+HELLO: build/mongodb.d.ts#HELLO
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+MONGO_CLIENT_MACHINE: build/mongodb.d.ts#MONGO_CLIENT_MACHINE
+MONGO_STARTING_KNOBS: build/mongodb.d.ts#MONGO_STARTING_KNOBS
+MONGO_STARTING_POLL: build/mongodb.d.ts#MONGO_STARTING_POLL
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+type MongoClient: build/mongodb.d.ts#MongoClient
+type MongoClientOptions: build/mongodb.d.ts#MongoClientOptions
+type MongoClientSpec: build/mongodb.d.ts#MongoClientSpec
+type MongoConnectOptions: build/mongodb.d.ts#MongoConnectOptions
+type MongoDb: build/mongodb.d.ts#MongoDb
+type MongoDocument: build/mongodb.d.ts#MongoDocument
+type MongoDriverClient: build/mongodb.d.ts#MongoDriverClient
+type MongoDriverOptions: build/mongodb.d.ts#MongoDriverOptions
+type MongoEventName: build/mongodb.d.ts#MongoEventName
+type MongoEvents: build/mongodb.d.ts#MongoEvents
+type MongoFactory: build/mongodb.d.ts#MongoFactory
+type MongoJoin: build/mongodb.d.ts#MongoJoin
+type MongoKnobs: build/mongodb.d.ts#MongoKnobs
+type MongoSeed: build/mongodb.d.ts#MongoSeed
+type MongoServer: build/mongodb.d.ts#MongoServer
+type MongoStep: build/mongodb.d.ts#MongoStep
+STARTING_POLL: build/core.chunk.d.ts#STARTING_POLL
+type SendOptions: build/core.chunk.d.ts#SendOptions
+type Sent: build/core.chunk.d.ts#Sent
+type Situation: build/core.chunk.d.ts#Situation
+failureOutcome: build/mongodb.d.ts#failureOutcome
+firstDetector: build/core.chunk.d.ts#firstDetector
+helloCommandDial: build/mongodb.d.ts#helloCommandDial
+helloJudge: build/mongodb.d.ts#helloJudge
+mongoClient: build/mongodb.d.ts#mongoClient
+mongoMeetings: build/mongodb.d.ts#mongoMeetings
+mongoOptions: build/mongodb.d.ts#mongoOptions
+nodeMongo: build/mongodb.d.ts#nodeMongo
+specProblems: build/mongodb.d.ts#specProblems
+unwatched: build/core.chunk.d.ts#unwatched
+
+## ./rabbitmq (build/rabbitmq.d.ts): names
+
+AMQP_HEADER: build/rabbitmq.d.ts#AMQP_HEADER
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+RABBIT_CLIENT_MACHINE: build/rabbitmq.d.ts#RABBIT_CLIENT_MACHINE
+RABBIT_STARTING_KNOBS: build/rabbitmq.d.ts#RABBIT_STARTING_KNOBS
+RABBIT_STARTING_POLL: build/rabbitmq.d.ts#RABBIT_STARTING_POLL
+type RabbitChannel: build/rabbitmq.d.ts#RabbitChannel
+type RabbitChannelEvent: build/rabbitmq.d.ts#RabbitChannelEvent
+type RabbitClient: build/rabbitmq.d.ts#RabbitClient
+type RabbitClientOptions: build/rabbitmq.d.ts#RabbitClientOptions
+type RabbitClientSpec: build/rabbitmq.d.ts#RabbitClientSpec
+type RabbitConnectOptions: build/rabbitmq.d.ts#RabbitConnectOptions
+type RabbitConnection: build/rabbitmq.d.ts#RabbitConnection
+type RabbitConnectionEvent: build/rabbitmq.d.ts#RabbitConnectionEvent
+type RabbitDelivery: build/rabbitmq.d.ts#RabbitDelivery
+type RabbitFactory: build/rabbitmq.d.ts#RabbitFactory
+type RabbitJobs: build/rabbitmq.d.ts#RabbitJobs
+type RabbitJoin: build/rabbitmq.d.ts#RabbitJoin
+type RabbitKnobs: build/rabbitmq.d.ts#RabbitKnobs
+type RabbitMessage: build/rabbitmq.d.ts#RabbitMessage
+type RabbitPublish: build/rabbitmq.d.ts#RabbitPublish
+type RabbitPublishOptions: build/rabbitmq.d.ts#RabbitPublishOptions
+type RabbitSeed: build/rabbitmq.d.ts#RabbitSeed
+type RabbitSocketOptions: build/rabbitmq.d.ts#RabbitSocketOptions
+type ReadyWait: build/core.chunk.d.ts#ReadyWait
+type RetryKnobs: build/core.chunk.d.ts#RetryKnobs
+STARTING_POLL: build/core.chunk.d.ts#STARTING_POLL
+type SendOptions: build/core.chunk.d.ts#SendOptions
+type Sent: build/core.chunk.d.ts#Sent
+type Situation: build/core.chunk.d.ts#Situation
+amqpDial: build/rabbitmq.d.ts#amqpDial
+deliveryCount: build/rabbitmq.d.ts#deliveryCount
+failureOutcome: build/rabbitmq.d.ts#failureOutcome
+firstDetector: build/core.chunk.d.ts#firstDetector
+nodeAmqp: build/rabbitmq.d.ts#nodeAmqp
+rabbitClient: build/rabbitmq.d.ts#rabbitClient
+rabbitMeetings: build/rabbitmq.d.ts#rabbitMeetings
+rabbitOptions: build/rabbitmq.d.ts#rabbitOptions
+readyWait: build/core.chunk.d.ts#readyWait
+retryBackoff: build/core.chunk.d.ts#retryBackoff
+retryProblems: build/core.chunk.d.ts#retryProblems
+specProblems: build/rabbitmq.d.ts#specProblems
+startJudge: build/rabbitmq.d.ts#startJudge
+unwatched: build/core.chunk.d.ts#unwatched
+
+## ./http-client (build/http-client.d.ts): names
+
+type AgentEvents: build/http-client.d.ts#AgentEvents
+type AgentExchange: build/http-client.d.ts#AgentExchange
+type AgentFactory: build/http-client.d.ts#AgentFactory
+type AgentRequest: build/http-client.d.ts#AgentRequest
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type CheckRequest: build/http-client.d.ts#CheckRequest
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+type H2Session: build/http-client.d.ts#H2Session
+HTTP_CLIENT_MACHINE: build/http-client.d.ts#HTTP_CLIENT_MACHINE
+HTTP_CLIENT_STARTING_KNOBS: build/http-client.d.ts#HTTP_CLIENT_STARTING_KNOBS
+HTTP_CLIENT_STARTING_POLL: build/http-client.d.ts#HTTP_CLIENT_STARTING_POLL
+HTTP_OPERATIONS: build/http-client.d.ts#HTTP_OPERATIONS
+type HttpAgent: build/http-client.d.ts#HttpAgent
+type HttpAgentOptions: build/http-client.d.ts#HttpAgentOptions
+type HttpCall: build/http-client.d.ts#HttpCall
+type HttpClient: build/http-client.d.ts#HttpClient
+type HttpClientKnobs: build/http-client.d.ts#HttpClientKnobs
+type HttpClientOptions: build/http-client.d.ts#HttpClientOptions
+type HttpClientSpec: build/http-client.d.ts#HttpClientSpec
+type HttpResponse: build/http-client.d.ts#HttpResponse
+type HttpSocket: build/http-client.d.ts#HttpSocket
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+OPTIONS_STAR: build/http-client.d.ts#OPTIONS_STAR
+SESSION_CHECK_CLOSE: build/http-client.d.ts#SESSION_CHECK_CLOSE
+STARTING_POLL: build/core.chunk.d.ts#STARTING_POLL
+type SendOptions: build/core.chunk.d.ts#SendOptions
+type Sent: build/core.chunk.d.ts#Sent
+type SessionCheck: build/http-client.d.ts#SessionCheck
+type SessionCheckKnobs: build/http-client.d.ts#SessionCheckKnobs
+type SessionCheckOptions: build/http-client.d.ts#SessionCheckOptions
+type SessionClose: build/http-client.d.ts#SessionClose
+type Situation: build/core.chunk.d.ts#Situation
+agentOptions: build/http-client.d.ts#agentOptions
+firstDetector: build/core.chunk.d.ts#firstDetector
+httpClient: build/http-client.d.ts#httpClient
+httpClientMeetings: build/http-client.d.ts#httpClientMeetings
+httpDial: build/http-client.d.ts#httpDial
+nodeAgent: build/http-client.d.ts#nodeAgent
+optionsRequest: build/http-client.d.ts#optionsRequest
+sessionCheck: build/http-client.d.ts#sessionCheck
+sessionCheckDetection: build/http-client.d.ts#sessionCheckDetection
+sessionCheckProblems: build/http-client.d.ts#sessionCheckProblems
+specProblems: build/http-client.d.ts#specProblems
+statusJudge: build/http-client.d.ts#statusJudge
+unwatched: build/core.chunk.d.ts#unwatched
+
+## ./websocket (build/websocket.d.ts): names
+
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+type Judge: build/dial.chunk.d.ts#Judge
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+type ReadyWait: build/core.chunk.d.ts#ReadyWait
+type RetryKnobs: build/core.chunk.d.ts#RetryKnobs
+type RetrySchedule: build/core.chunk.d.ts#RetrySchedule
+STARTING_POLL: build/core.chunk.d.ts#STARTING_POLL
+type SendOptions: build/core.chunk.d.ts#SendOptions
+type Sent: build/core.chunk.d.ts#Sent
+type Situation: build/core.chunk.d.ts#Situation
+WS_CLIENT_MACHINE: build/websocket.d.ts#WS_CLIENT_MACHINE
+WS_CLIENT_STARTING_KNOBS: build/websocket.d.ts#WS_CLIENT_STARTING_KNOBS
+WS_CLIENT_STARTING_MISSES: build/websocket.d.ts#WS_CLIENT_STARTING_MISSES
+WS_CLIENT_STARTING_POLL: build/websocket.d.ts#WS_CLIENT_STARTING_POLL
+WS_OPERATIONS: build/websocket.d.ts#WS_OPERATIONS
+type WsClient: build/websocket.d.ts#WsClient
+type WsClientOptions: build/websocket.d.ts#WsClientOptions
+type WsClientSpec: build/websocket.d.ts#WsClientSpec
+type WsConnectOptions: build/websocket.d.ts#WsConnectOptions
+type WsConnection: build/websocket.d.ts#WsConnection
+type WsDriverOptions: build/websocket.d.ts#WsDriverOptions
+type WsFactory: build/websocket.d.ts#WsFactory
+type WsJoin: build/websocket.d.ts#WsJoin
+type WsKnobs: build/websocket.d.ts#WsKnobs
+type WsListeners: build/websocket.d.ts#WsListeners
+type WsMessageListener: build/websocket.d.ts#WsMessageListener
+type WsReplies: build/websocket.d.ts#WsReplies
+type WsReply: build/websocket.d.ts#WsReply
+type WsRequest: build/websocket.d.ts#WsRequest
+type WsResponse: build/websocket.d.ts#WsResponse
+adaptWs: build/websocket.d.ts#adaptWs
+firstDetector: build/core.chunk.d.ts#firstDetector
+nodeWs: build/websocket.d.ts#nodeWs
+readyWait: build/core.chunk.d.ts#readyWait
+retryBackoff: build/core.chunk.d.ts#retryBackoff
+retryProblems: build/core.chunk.d.ts#retryProblems
+retrySchedule: build/core.chunk.d.ts#retrySchedule
+specProblems: build/websocket.d.ts#specProblems
+statusLineJudge: build/dial.chunk.d.ts#statusLineJudge
+unwatched: build/core.chunk.d.ts#unwatched
+upgradeJudge: build/websocket.d.ts#upgradeJudge
+upgradeRequest: build/websocket.d.ts#upgradeRequest
+wsClient: build/websocket.d.ts#wsClient
+wsDial: build/websocket.d.ts#wsDial
+wsMeetings: build/websocket.d.ts#wsMeetings
+wsOptions: build/websocket.d.ts#wsOptions
+wsUrl: build/websocket.d.ts#wsUrl
+
+## ./grpc (build/grpc.d.ts): names
+
+type Attempt: build/core.chunk.d.ts#Attempt
+type CheckOptions: build/core.chunk.d.ts#CheckOptions
+type Client: build/core.chunk.d.ts#Client
+type ClientJoin: build/core.chunk.d.ts#ClientJoin
+type ClientKnobs: build/core.chunk.d.ts#ClientKnobs
+type ClientOptions: build/core.chunk.d.ts#ClientOptions
+type ClientSocket: build/core.chunk.d.ts#ClientSocket
+type ClientSpec: build/core.chunk.d.ts#ClientSpec
+type ClientStep: build/core.chunk.d.ts#ClientStep
+type Detector: build/core.chunk.d.ts#Detector
+type DialFn: build/core.chunk.d.ts#DialFn
+type Factory: build/core.chunk.d.ts#Factory
+GRPC_CLIENT_MACHINE: build/grpc.d.ts#GRPC_CLIENT_MACHINE
+GRPC_CLIENT_STARTING_KNOBS: build/grpc.d.ts#GRPC_CLIENT_STARTING_KNOBS
+GRPC_CLIENT_STARTING_POLL: build/grpc.d.ts#GRPC_CLIENT_STARTING_POLL
+GRPC_CLIENT_STARTING_WITHOUT_CALLS: build/grpc.d.ts#GRPC_CLIENT_STARTING_WITHOUT_CALLS
+GRPC_CODES: build/grpc.d.ts#GRPC_CODES
+GRPC_OPERATIONS: build/grpc.d.ts#GRPC_OPERATIONS
+GRPC_STATES: build/grpc.d.ts#GRPC_STATES
+type GrpcCallHandle: build/grpc.d.ts#GrpcCallHandle
+type GrpcCallOptions: build/grpc.d.ts#GrpcCallOptions
+type GrpcChannel: build/grpc.d.ts#GrpcChannel
+type GrpcChannelOptions: build/grpc.d.ts#GrpcChannelOptions
+type GrpcClient: build/grpc.d.ts#GrpcClient
+type GrpcClientOptions: build/grpc.d.ts#GrpcClientOptions
+type GrpcClientSpec: build/grpc.d.ts#GrpcClientSpec
+type GrpcConnectOptions: build/grpc.d.ts#GrpcConnectOptions
+type GrpcFactory: build/grpc.d.ts#GrpcFactory
+type GrpcIdempotencyLevel: build/grpc.d.ts#GrpcIdempotencyLevel
+type GrpcJoin: build/grpc.d.ts#GrpcJoin
+type GrpcKnobs: build/grpc.d.ts#GrpcKnobs
+type GrpcServingStatus: build/grpc.d.ts#GrpcServingStatus
+type GrpcState: build/grpc.d.ts#GrpcState
+type GrpcStatus: build/grpc.d.ts#GrpcStatus
+HEALTH_CHECK: build/grpc.d.ts#HEALTH_CHECK
+HTTP2_PREFACE: build/grpc.d.ts#HTTP2_PREFACE
+type Judge: build/dial.chunk.d.ts#Judge
+MANIFESTATIONS: build/core.chunk.d.ts#MANIFESTATIONS
+type Manifestation: build/core.chunk.d.ts#Manifestation
+type Meeting: build/core.chunk.d.ts#Meeting
+type ReadyWait: build/core.chunk.d.ts#ReadyWait
+type RetryKnobs: build/core.chunk.d.ts#RetryKnobs
+STARTING_POLL: build/core.chunk.d.ts#STARTING_POLL
+type SendOptions: build/core.chunk.d.ts#SendOptions
+type Sent: build/core.chunk.d.ts#Sent
+type Situation: build/core.chunk.d.ts#Situation
+adaptGrpc: build/grpc.d.ts#adaptGrpc
+codeName: build/grpc.d.ts#codeName
+firstDetector: build/core.chunk.d.ts#firstDetector
+grpcClient: build/grpc.d.ts#grpcClient
+grpcDial: build/grpc.d.ts#grpcDial
+grpcMeetings: build/grpc.d.ts#grpcMeetings
+grpcOperations: build/grpc.d.ts#grpcOperations
+grpcOptions: build/grpc.d.ts#grpcOptions
+grpcOutcome: build/grpc.d.ts#grpcOutcome
+grpcTarget: build/grpc.d.ts#grpcTarget
+healthRequest: build/grpc.d.ts#healthRequest
+healthStatus: build/grpc.d.ts#healthStatus
+nodeGrpc: build/grpc.d.ts#nodeGrpc
+readyWait: build/core.chunk.d.ts#readyWait
+retryProblems: build/core.chunk.d.ts#retryProblems
+settingsJudge: build/grpc.d.ts#settingsJudge
+specProblems: build/grpc.d.ts#specProblems
+unwatched: build/core.chunk.d.ts#unwatched
+
+## ./clock (build/clock.d.ts): names
+
+type Cancel: @mark1russell7/algebra/clock#Cancel (external)
+type Clock: @mark1russell7/algebra/clock#Clock (external)
+type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
+platformClock: @mark1russell7/algebra/clock#platformClock (external)
+realClock: @mark1russell7/algebra/clock#realClock (external)
+
+## ./channel (build/channel.d.ts): names
+
+Channel: build/channel.d.ts#Channel
+ErrorHandler: build/channel.d.ts#ErrorHandler
+FlowOptions: build/channel.d.ts#FlowOptions
+SelectCase: build/channel.d.ts#SelectCase
+Ticker: build/channel.d.ts#Ticker
+Wait: build/channel.d.ts#Wait
+WorkerPoolOptions: build/channel.d.ts#WorkerPoolOptions
+buffered: build/channel.d.ts#buffered
+channel: build/channel.d.ts#channel
+fanIn: build/channel.d.ts#fanIn
+fanOut: build/channel.d.ts#fanOut
+merge: build/channel.d.ts#merge
+pipeline: build/channel.d.ts#pipeline
+select: build/channel.d.ts#select
+ticker: build/channel.d.ts#ticker
+timeout: build/channel.d.ts#timeout
+unbuffered: build/channel.d.ts#unbuffered
+workerPool: build/channel.d.ts#workerPool
+
+## ./heartbeat (build/heartbeat.d.ts): names
+
+Heartbeat: build/heartbeat.d.ts#Heartbeat
+HeartbeatOptions: build/heartbeat.d.ts#HeartbeatOptions
+detectionTime: build/heartbeat.d.ts#detectionTime
+heartbeat: build/heartbeat.d.ts#heartbeat
+
+## ./backoff (build/backoff.d.ts): names
+
+Backoff: build/backoff.chunk.d.ts#Backoff
+DelayBand: build/backoff.chunk.d.ts#DelayBand
+Jitter: build/backoff.chunk.d.ts#Jitter
+backoffBand: build/backoff.chunk.d.ts#backoffBand
+backoffDelay: build/backoff.chunk.d.ts#backoffDelay
+backoffProblems: build/backoff.chunk.d.ts#backoffProblems
+
+## ./http (build/http.d.ts): names
+
+type EdgeServer: build/http.d.ts#EdgeServer
+type HandleOptions: build/http.d.ts#HandleOptions
+type HandledRoute: build/http.d.ts#HandledRoute
+type HandledWork: build/http.d.ts#HandledWork
+type HealthSource: build/http.d.ts#HealthSource
+type HttpKnobs: build/http.d.ts#HttpKnobs
+type HttpTransport: build/http.d.ts#HttpTransport
+type HttpTransportKnobs: build/http.d.ts#HttpTransportKnobs
+type HttpTransportOptions: build/http.d.ts#HttpTransportOptions
+type MountContext: build/http.d.ts#MountContext
+type MountOptions: build/http.d.ts#MountOptions
+type MountStage: build/http.d.ts#MountStage
+type OutcomeOptions: build/http.d.ts#OutcomeOptions
+type OutcomeResponse: build/http.d.ts#OutcomeResponse
+PROBE_KINDS: build/http.d.ts#PROBE_KINDS
+type ProbeHandlerOptions: build/http.d.ts#ProbeHandlerOptions
+type ProbeKind: build/lifecycle.chunk.d.ts#ProbeKind
+type ProbePaths: build/http.d.ts#ProbePaths
+type ProbeResponse: build/http.d.ts#ProbeResponse
+type ProbeServer: build/http.d.ts#ProbeServer
+type ProbeServerOptions: build/http.d.ts#ProbeServerOptions
+type RequestHandler: build/http.d.ts#RequestHandler
+type ResponsePart: build/http.d.ts#ResponsePart
+type StreamFormat: build/http.d.ts#StreamFormat
+type UpgradeHandler: build/http.d.ts#UpgradeHandler
+type UpgradeMatch: build/http.d.ts#UpgradeMatch
+type UpgradeSocket: build/http.d.ts#UpgradeSocket
+endRecord: build/http.d.ts#endRecord
+handle: build/http.d.ts#handle
+httpTransport: build/http.d.ts#httpTransport
+limitedResponse: build/http.d.ts#limitedResponse
+ndjson: build/http.d.ts#ndjson
+outcomeResponse: build/http.d.ts#outcomeResponse
+pathOf: build/http.d.ts#pathOf
+probeHandler: build/http.d.ts#probeHandler
+probeResponse: build/http.d.ts#probeResponse
+probeServer: build/http.d.ts#probeServer
+sse: build/http.d.ts#sse
+writeOutcome: build/http.d.ts#writeOutcome
+
+## ./limiter (build/limiter.d.ts): names
+
+type Allowed: build/policy.chunk.d.ts#Allowed
+type CapacityRefused: build/policy.chunk.d.ts#CapacityRefused
+type Decision: build/policy.chunk.d.ts#Decision
+type KeyState: build/policy.chunk.d.ts#KeyState
+type KeyedLimiter: build/store.chunk.d.ts#KeyedLimiter
+type LimitPolicy: build/policy.chunk.d.ts#LimitPolicy
+type LimitRule: build/policy.chunk.d.ts#LimitRule
+type Limiter: build/policy.chunk.d.ts#Limiter
+type LimiterEviction: build/policy.chunk.d.ts#LimiterEviction
+type LimiterSpec: build/policy.chunk.d.ts#LimiterSpec
+type LimiterState: build/limiter.chunk.d.ts#LimiterState
+type LimiterStore: build/store.chunk.d.ts#LimiterStore
+type LimiterStoreSpec: build/policy.chunk.d.ts#LimiterStoreSpec
+type LocalLimiter: build/store.chunk.d.ts#LocalLimiter
+type MemoryStore: build/store.chunk.d.ts#MemoryStore
+type RefusalCause: build/policy.chunk.d.ts#RefusalCause
+type Refused: build/policy.chunk.d.ts#Refused
+SLIDING_WINDOW_MACHINE: build/limiter.chunk.d.ts#SLIDING_WINDOW_MACHINE
+type SlidingWindow: build/policy.chunk.d.ts#SlidingWindow
+type StoreFailure: build/policy.chunk.d.ts#StoreFailure
+TOKEN_BUCKET_MACHINE: build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
+type TakeRequest: build/store.chunk.d.ts#TakeRequest
+type TakeStep: build/policy.chunk.d.ts#TakeStep
+type TokenBucket: build/policy.chunk.d.ts#TokenBucket
+type WaitCause: build/policy.chunk.d.ts#WaitCause
+type WaitRefused: build/policy.chunk.d.ts#WaitRefused
+capacityOf: build/policy.chunk.d.ts#capacityOf
+decide: build/policy.chunk.d.ts#decide
+freeAt: build/policy.chunk.d.ts#freeAt
+idleSpan: build/policy.chunk.d.ts#idleSpan
+keyedLimiter: build/store.chunk.d.ts#keyedLimiter
+limitRule: build/policy.chunk.d.ts#limitRule
+limiterMachine: build/limiter.chunk.d.ts#limiterMachine
+limiterProblems: build/policy.chunk.d.ts#limiterProblems
+limiterStateOf: build/limiter.chunk.d.ts#limiterStateOf
+longestRetryAfter: build/policy.chunk.d.ts#longestRetryAfter
+memoryStore: build/store.chunk.d.ts#memoryStore
+overCapacity: build/policy.chunk.d.ts#overCapacity
+retryAfterSeconds: build/policy.chunk.d.ts#retryAfterSeconds
+unitsOf: build/policy.chunk.d.ts#unitsOf
+
+## ./rules (build/rules.d.ts): names
+
+DRAIN_RULES: build/rules.chunk.d.ts#DRAIN_RULES
+O04: build/rules.chunk.d.ts#O04
+O09: build/rules.chunk.d.ts#O09
+O10: build/rules.chunk.d.ts#O10
+O16: build/rules.chunk.d.ts#O16
+type Rule: build/rules.chunk.d.ts#Rule
+
+## ./host (build/host.d.ts): names
+
+type ChildHandle: build/ports.chunk.d.ts#ChildHandle
+type CommandOptions: build/ports.chunk.d.ts#CommandOptions
+type CommandPort: build/ports.chunk.d.ts#CommandPort
+type CommandRecord: build/host.d.ts#CommandRecord
+type CommandResult: build/ports.chunk.d.ts#CommandResult
+DEFAULT_RESTART: build/host.d.ts#DEFAULT_RESTART
+type Discovery: build/host.d.ts#Discovery
+type DiscoveryFields: build/host.d.ts#DiscoveryFields
+type DiscoveryRead: build/host.d.ts#DiscoveryRead
+type EnvFile: build/host.d.ts#EnvFile
+type FilePort: build/ports.chunk.d.ts#FilePort
+type GroupOptions: build/host.d.ts#GroupOptions
+type GroupSpec: build/host.d.ts#GroupSpec
+type GroupSupervisor: build/host.d.ts#GroupSupervisor
+type HostPorts: build/ports.chunk.d.ts#HostPorts
+type InstallOptions: build/host.d.ts#InstallOptions
+type InstanceLock: build/host.d.ts#InstanceLock
+type InstanceOptions: build/host.d.ts#InstanceOptions
+type LockOptions: build/host.d.ts#LockOptions
+type LockOwner: build/host.d.ts#LockOwner
+type LockResult: build/host.d.ts#LockResult
+type LockState: build/host.d.ts#LockState
+type LogSpec: build/host.d.ts#LogSpec
+type NetPort: build/ports.chunk.d.ts#NetPort
+type NodeHostOptions: build/host.d.ts#NodeHostOptions
+type ProbeResult: build/host.d.ts#ProbeResult
+type ProcessMark: build/ports.chunk.d.ts#ProcessMark
+type ProcessesPort: build/ports.chunk.d.ts#ProcessesPort
+type ProgramPhase: build/host.d.ts#ProgramPhase
+type ProgramRestart: build/host.d.ts#ProgramRestart
+type ProgramSpec: build/host.d.ts#ProgramSpec
+type ProgramState: build/host.d.ts#ProgramState
+type ReadDiscoveryOptions: build/host.d.ts#ReadDiscoveryOptions
+type ReadyProbe: build/host.d.ts#ReadyProbe
+type ReadySpec: build/host.d.ts#ReadySpec
+type RestartPolicy: build/host.d.ts#RestartPolicy
+type RotatingLog: build/host.d.ts#RotatingLog
+START_MARGIN_MS: build/host.d.ts#START_MARGIN_MS
+type ServiceOutcome: build/host.d.ts#ServiceOutcome
+type ServicePaths: build/host.d.ts#ServicePaths
+type ServiceSpec: build/host.d.ts#ServiceSpec
+type ServiceStart: build/host.d.ts#ServiceStart
+type ServiceStatus: build/host.d.ts#ServiceStatus
+type SpawnRequest: build/ports.chunk.d.ts#SpawnRequest
+type StopSignal: build/ports.chunk.d.ts#StopSignal
+type StopSpec: build/host.d.ts#StopSpec
+type TaskContext: build/host.d.ts#TaskContext
+type TreeStopOutcome: build/host.d.ts#TreeStopOutcome
+acquireInstanceLock: build/host.d.ts#acquireInstanceLock
+discoveryOf: build/host.d.ts#discoveryOf
+groupProblems: build/host.d.ts#groupProblems
+inspectInstanceLock: build/host.d.ts#inspectInstanceLock
+installService: build/host.d.ts#installService
+joinPath: build/ports.chunk.d.ts#joinPath
+lockText: build/host.d.ts#lockText
+nodeHostPorts: build/host.d.ts#nodeHostPorts
+parseDiscovery: build/host.d.ts#parseDiscovery
+parseEnvFile: build/host.d.ts#parseEnvFile
+parseLockOwner: build/host.d.ts#parseLockOwner
+probeOnce: build/host.d.ts#probeOnce
+probeProblems: build/host.d.ts#probeProblems
+readDiscovery: build/host.d.ts#readDiscovery
+removeDiscovery: build/host.d.ts#removeDiscovery
+renderSystemdTimer: build/host.d.ts#renderSystemdTimer
+renderSystemdUnit: build/host.d.ts#renderSystemdUnit
+renderTaskXml: build/host.d.ts#renderTaskXml
+rotatingLog: build/host.d.ts#rotatingLog
+sameProcess: build/host.d.ts#sameProcess
+servicePaths: build/host.d.ts#servicePaths
+serviceProblems: build/host.d.ts#serviceProblems
+serviceStatus: build/host.d.ts#serviceStatus
+startOrder: build/host.d.ts#startOrder
+startService: build/host.d.ts#startService
+stopService: build/host.d.ts#stopService
+stopTree: build/host.d.ts#stopTree
+superviseGroup: build/host.d.ts#superviseGroup
+systemdArg: build/host.d.ts#systemdArg
+uninstallService: build/host.d.ts#uninstallService
+utf16le: build/host.d.ts#utf16le
+windowsArg: build/host.d.ts#windowsArg
+writeDiscovery: build/host.d.ts#writeDiscovery
+
+## ./otel (build/otel.d.ts): names
+
+type CallContext: build/call-context.chunk.d.ts#CallContext
+type IncomingHeaders: build/call-context.chunk.d.ts#IncomingHeaders
+type TraceIds: build/logger.chunk.d.ts#TraceIds
+type TraceIdsSource: build/logger.chunk.d.ts#TraceIdsSource
+callContext: build/otel.d.ts#callContext
+traceIds: build/otel.d.ts#traceIds
+
+## Declarations
+
+### build/backoff.chunk.d.ts#Backoff
+interface Backoff {
+  readonly base: number;
+  readonly factor?: number | undefined;
+  readonly cap?: number | undefined;
+  readonly jitter?: Jitter | undefined;
+}
+
+### build/backoff.chunk.d.ts#DelayBand
+interface DelayBand {
+  readonly low: number;
+  readonly high: number;
+}
+
+### build/backoff.chunk.d.ts#Jitter
+type Jitter = {
+  readonly kind: "none";
+} | {
+  readonly kind: "subtract";
+  readonly fraction: number;
+} | {
+  readonly kind: "add";
+  readonly amount: number;
+};
+
+### build/backoff.chunk.d.ts#backoffBand
+declare const backoffBand: (policy: Backoff, attempt?: number) => DelayBand;
+
+### build/backoff.chunk.d.ts#backoffDelay
+declare const backoffDelay: (policy: Backoff, attempt: number, random?: () => number) => number;
+
+### build/backoff.chunk.d.ts#backoffProblems
+declare const backoffProblems: (policy: Backoff) => string[];
+
+### build/builder.chunk.d.ts#ControllerBuilder
+interface ControllerBuilder {
+  requires(...dependencies: string[]): ControllerBuilder;
+  route(route: string, operation: Operation): ControllerBuilder;
+  pattern(pattern: string, operations: Readonly<Record<string, Operation>>, operationOf?: OperationOf): ControllerBuilder;
+}
+
+### build/builder.chunk.d.ts#PodTiming
+interface PodTiming {
+  readonly grace: Quantity;
+  readonly preStop: Quantity;
+}
+
+### build/builder.chunk.d.ts#Profile
+interface Profile {
+  readonly readiness?: Timing | undefined;
+  readonly liveness?: Timing | undefined;
+  readonly startup?: Quantity | undefined;
+  readonly couplings?: readonly Coupling[] | undefined;
+  readonly phases?: readonly Phase[] | undefined;
+  readonly cooperativeWindow?: Extent | undefined;
+  readonly cooperativeFloor?: CooperativeFloor | undefined;
+  readonly onRepeatSignal?: RepeatSignal | undefined;
+  readonly triggers?: readonly ProcessTrigger[] | undefined;
+  readonly messages?: readonly MessageTrigger[] | undefined;
+  readonly exitCodes?: ExitCodes | undefined;
+}
+
+### build/builder.chunk.d.ts#ServiceBuilder
+interface ServiceBuilder {
+  readonly name: string;
+  dependency(name: string, spec: Omit<Dependency, "name">, handle?: DependencyHandle): ServiceBuilder;
+  server(name: string, knobs: Readonly<Record<string, Extent>>, impl?: TransportImpl): ServiceBuilder;
+  consumer(name: string, knobs: Readonly<Record<string, Extent>>, impl?: TransportImpl): ServiceBuilder;
+  worker(name: string, knobs: Readonly<Record<string, Extent>>, impl?: TransportImpl): ServiceBuilder;
+  healthServer(server: HealthServer): ServiceBuilder;
+  onPhase(phase: string, work: PhaseWork): ServiceBuilder;
+  watchdog(spec: WatchdogSpec): ServiceBuilder;
+  controller(name: string): ControllerBuilder;
+  check(check: Check, run?: CheckFn): ServiceBuilder;
+  limiter(name: string, spec: LimiterSpec): ServiceBuilder;
+  readiness(timing: Timing): ServiceBuilder;
+  liveness(timing: Timing): ServiceBuilder;
+  startup(budget: Quantity): ServiceBuilder;
+  couple(coupling: Coupling): ServiceBuilder;
+  phase(name: string, cap: Quantity): ServiceBuilder;
+  cooperativeWindow(window: Extent): ServiceBuilder;
+  cooperativeFloor(floor: CooperativeFloor): ServiceBuilder;
+  onRepeatSignal(policy: RepeatSignal): ServiceBuilder;
+  trigger(...triggers: ProcessTrigger[]): ServiceBuilder;
+  trigger(trigger: "ipc-message", message: MessageTrigger): ServiceBuilder;
+  exitCode(trigger: ExitTrigger, code: number): ServiceBuilder;
+  profile(profile: Profile): ServiceBuilder;
+  describe(): ServiceDescription;
+  start(options?: StartOptions): Promise<Health>;
+  run(options?: RunOptions): Promise<Lifecycle>;
+  readonly health: Health | null;
+  readonly lifecycle: Lifecycle | null;
+}
+
+### build/builder.chunk.d.ts#Watchdog
+interface Watchdog {
+  readonly check: () => Outcome;
+  readonly worst: number;
+  readonly blocked: boolean;
+  stop(): void;
+}
+
+### build/builder.chunk.d.ts#WatchdogSpec
+interface WatchdogSpec {
+  readonly name: string;
+  readonly tick: Quantity;
+  readonly threshold: Quantity;
+  readonly gates: Gate | null;
+  readonly poll: Poll;
+}
+
+### build/builder.chunk.d.ts#daemon
+declare const daemon: Profile;
+
+### build/builder.chunk.d.ts#ephemeral
+declare const ephemeral: Profile;
+
+### build/builder.chunk.d.ts#kubernetes
+declare const kubernetes: (pod: PodTiming) => Profile;
+
+### build/builder.chunk.d.ts#localDev
+declare const localDev: Profile;
+
+### build/builder.chunk.d.ts#service
+declare const service: (name: string) => ServiceBuilder;
+
+### build/builder.chunk.d.ts#watchdog
+declare const watchdog: (clock: Clock, spec: WatchdogSpec, trace?: Trace) => Watchdog;
+
+### build/call-context.chunk.d.ts#CallContext
+interface CallContext {
+  run<T>(headers: IncomingHeaders, trusted: boolean, fn: () => T): T;
+  headers(): Record<string, string>;
+}
+
+### build/call-context.chunk.d.ts#IncomingHeaders
+type IncomingHeaders = Readonly<Record<string, string | readonly string[] | undefined>>;
+
+### build/channel.d.ts#Channel
+export declare class Channel<T> {
+  constructor(bufferSize?: number);
+  send(value: T): Promise<void>;
+  receive(): Promise<T>;
+  waitReceive(onValue: (value: T) => void, onClosed: (error: Error) => void): () => boolean;
+  trySend(value: T): boolean;
+  tryReceive(): T | undefined;
+  close(): void;
+  get isClosed(): boolean;
+  get size(): number;
+  case<R>(handler: (value: T) => R): SelectCase<R>;
+  [Symbol.asyncIterator](): AsyncIterator<T>;
+}
+
+### build/channel.d.ts#ErrorHandler
+export type ErrorHandler = (error: unknown) => void;
+
+### build/channel.d.ts#FlowOptions
+export interface FlowOptions {
+  readonly bufferSize?: number | undefined;
+  readonly onError?: ErrorHandler | undefined;
+}
+
+### build/channel.d.ts#SelectCase
+export interface SelectCase<R> {
+  readonly handler: (value: unknown) => R;
+  readonly wait: Wait;
+}
+
+### build/channel.d.ts#Ticker
+export type Ticker = Channel<number> & {
+  readonly stop: () => void;
+};
+
+### build/channel.d.ts#Wait
+export type Wait = (onValue: (value: unknown) => void, onClosed: (error: Error) => void) => () => boolean;
+
+### build/channel.d.ts#WorkerPoolOptions
+export interface WorkerPoolOptions<T> {
+  readonly workers?: number | undefined;
+  readonly bufferSize?: number | undefined;
+  readonly onError?: ((error: unknown, job: T) => void) | undefined;
+}
+
+### build/channel.d.ts#buffered
+export declare const buffered: <T>(capacity: number) => Channel<T>;
+
+### build/channel.d.ts#channel
+export declare const channel: <T>(bufferSize?: number) => Channel<T>;
+
+### build/channel.d.ts#fanIn
+export declare const fanIn: <T>(inputs: readonly Channel<T>[], options?: FlowOptions) => Channel<T>;
+
+### build/channel.d.ts#fanOut
+export declare const fanOut: <T>(input: Channel<T>, count: number, options?: FlowOptions) => Channel<T>[];
+
+### build/channel.d.ts#merge
+export declare const merge: <T>(inputs: readonly Channel<T>[]) => Channel<T>;
+
+### build/channel.d.ts#pipeline
+export declare const pipeline: <T, U>(input: Channel<T>, transform: (value: T) => U | Promise<U>, options?: FlowOptions) => Channel<U>;
+
+### build/channel.d.ts#select
+export declare const select: <R>(...cases: readonly SelectCase<R>[]) => Promise<R>;
+
+### build/channel.d.ts#ticker
+export declare const ticker: (ms: number, clock?: Clock) => Ticker;
+
+### build/channel.d.ts#timeout
+export declare const timeout: (ms: number, clock?: Clock) => Channel<void>;
+
+### build/channel.d.ts#unbuffered
+export declare const unbuffered: <T>() => Channel<T>;
+
+### build/channel.d.ts#workerPool
+export declare const workerPool: <T, R>(jobs: Channel<T>, worker: (job: T) => Promise<R>, options?: WorkerPoolOptions<T>) => Channel<R>;
+
+### build/core.chunk.d.ts#Attempt
+type Attempt<T = unknown> = {
+  readonly outcome: "ok";
+  readonly value: T;
+} | {
+  readonly outcome: "error";
+  readonly error: string;
+  readonly reply: boolean;
+} | {
+  readonly outcome: "indeterminate";
+  readonly error: string;
+};
+
+### build/core.chunk.d.ts#CheckOptions
+interface CheckOptions<S extends Step = ClientStep> {
+  readonly poll: Poll;
+  readonly steps: Partial<Record<S, Gate | null>>;
+  readonly catalog?: true | Poll | undefined;
+}
+
+### build/core.chunk.d.ts#Client
+interface Client<S extends Step = ClientStep, J extends ClientJoin = ClientJoin> {
+  readonly name: string;
+  readonly declaration: Omit<Dependency, "name">;
+  readonly handle: DependencyHandle;
+  readonly meets: readonly Meeting[];
+  readonly status: string;
+  readonly joins: readonly J[];
+  checks(options: CheckOptions<S>): ReadonlyArray<readonly [Check, CheckFn]>;
+  attach(svc: ServiceBuilder, options: CheckOptions<S>): ServiceBuilder;
+  problems(description: ServiceDescription): string[];
+}
+
+### build/core.chunk.d.ts#ClientJoin
+interface ClientJoin {
+  readonly generation: number;
+  readonly at: number;
+  readonly localAddress: string | null;
+  readonly localPort: number | null;
+  readonly remoteAddress: string | null;
+  readonly remotePort: number | null;
+}
+
+### build/core.chunk.d.ts#ClientKnobs
+interface ClientKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+  readonly retrans_giveup_time: Extent;
+}
+
+### build/core.chunk.d.ts#ClientOptions
+interface ClientOptions<F> {
+  readonly create?: F | undefined;
+  readonly clock?: Clock | undefined;
+  readonly record?: Recorder | undefined;
+  readonly dial?: DialFn | undefined;
+}
+
+### build/core.chunk.d.ts#ClientSocket
+interface ClientSocket {
+  readonly localAddress?: string | undefined;
+  readonly localPort?: number | undefined;
+  readonly remoteAddress?: string | undefined;
+  readonly remotePort?: number | undefined;
+  destroy?(): void;
+}
+
+### build/core.chunk.d.ts#ClientSpec
+interface ClientSpec<K extends ClientKnobs = ClientKnobs> {
+  readonly host: string;
+  readonly port: number;
+  readonly password?: string | undefined;
+  readonly system: string | null;
+  readonly knobs: K;
+  readonly operations?: Readonly<Record<string, Operation>> | undefined;
+}
+
+### build/core.chunk.d.ts#ClientStep
+type ClientStep = Extract<Step, "dial" | "round-trip" | "local-state">;
+
+### build/core.chunk.d.ts#Detector
+interface Detector {
+  readonly by: string;
+  readonly within: Extent;
+  readonly situation: Situation;
+  readonly effect: string;
+}
+
+### build/core.chunk.d.ts#DialFn
+type DialFn = (host: string, port: number, signal: AbortSignal) => Promise<void>;
+
+### build/core.chunk.d.ts#Factory
+type Factory<O, C> = (options: O) => C | Promise<C>;
+
+### build/core.chunk.d.ts#MANIFESTATIONS
+declare const MANIFESTATIONS: readonly ["rst", "fin", "blackhole", "freeze-host", "freeze-process", "app-stall"];
+
+### build/core.chunk.d.ts#Manifestation
+type Manifestation = (typeof MANIFESTATIONS)[number];
+
+### build/core.chunk.d.ts#Meeting
+interface Meeting {
+  readonly manifestation: string;
+  readonly what: string;
+  readonly detectors: readonly Detector[];
+}
+
+### build/core.chunk.d.ts#ReadyWait
+interface ReadyWait {
+  wait(within: number, signal?: AbortSignal): Promise<boolean>;
+  wake(): void;
+}
+
+### build/core.chunk.d.ts#RetryKnobs
+interface RetryKnobs {
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+}
+
+### build/core.chunk.d.ts#RetrySchedule
+interface RetrySchedule {
+  readonly tries: number;
+  schedule(due: () => void): void;
+  cancel(): void;
+  reset(): void;
+}
+
+### build/core.chunk.d.ts#STARTING_POLL
+declare const STARTING_POLL: Poll;
+
+### build/core.chunk.d.ts#SendOptions
+interface SendOptions {
+  readonly signal?: AbortSignal | undefined;
+  readonly reissue?: boolean | undefined;
+}
+
+### build/core.chunk.d.ts#Sent
+type Sent<T> = {
+  readonly outcome: "ok";
+  readonly value: T;
+  readonly attempts: number;
+} | {
+  readonly outcome: "error";
+  readonly error: string;
+  readonly reply: boolean;
+  readonly attempts: number;
+} | {
+  readonly outcome: "indeterminate";
+  readonly error: string;
+  readonly attempts: number;
+};
+
+### build/core.chunk.d.ts#Situation
+type Situation = "in flight" | "idle";
+
+### build/core.chunk.d.ts#firstDetector
+declare const firstDetector: (meeting: Meeting, situation: Situation) => Detector | null;
+
+### build/core.chunk.d.ts#readyWait
+declare const readyWait: (clock: Clock, ready: () => boolean) => ReadyWait;
+
+### build/core.chunk.d.ts#retryBackoff
+declare const retryBackoff: (knobs: RetryKnobs) => Backoff;
+
+### build/core.chunk.d.ts#retryProblems
+declare const retryProblems: (name: string, knobs: RetryKnobs) => string[];
+
+### build/core.chunk.d.ts#retrySchedule
+declare const retrySchedule: (clock: Clock, backoff: Backoff, random: () => number) => RetrySchedule;
+
+### build/core.chunk.d.ts#unwatched
+declare const unwatched: (meets: readonly Meeting[]) => Array<{
+  readonly manifestation: string;
+  readonly situation: Situation;
+}>;
+
+### build/dial.chunk.d.ts#Judge
+type Judge = (received: Buffer) => Error | null | "more";
+
+### build/dial.chunk.d.ts#statusLineJudge
+declare const statusLineJudge: (accept: (status: number, line: string) => Error | null) => Judge;
+
+### build/grpc.d.ts#GRPC_CLIENT_MACHINE
+export declare const GRPC_CLIENT_MACHINE: Machine;
+
+### build/grpc.d.ts#GRPC_CLIENT_STARTING_KNOBS
+export declare const GRPC_CLIENT_STARTING_KNOBS: GrpcKnobs;
+
+### build/grpc.d.ts#GRPC_CLIENT_STARTING_POLL
+export declare const GRPC_CLIENT_STARTING_POLL: Poll;
+
+### build/grpc.d.ts#GRPC_CLIENT_STARTING_WITHOUT_CALLS
+export declare const GRPC_CLIENT_STARTING_WITHOUT_CALLS: boolean;
+
+### build/grpc.d.ts#GRPC_CODES
+export declare const GRPC_CODES: readonly ["OK", "CANCELLED", "UNKNOWN", "INVALID_ARGUMENT", "DEADLINE_EXCEEDED", "NOT_FOUND", "ALREADY_EXISTS", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED", "FAILED_PRECONDITION", "ABORTED", "OUT_OF_RANGE", "UNIMPLEMENTED", "INTERNAL", "UNAVAILABLE", "DATA_LOSS", "UNAUTHENTICATED"];
+
+### build/grpc.d.ts#GRPC_OPERATIONS
+export declare const GRPC_OPERATIONS: Readonly<Record<string, Operation>>;
+
+### build/grpc.d.ts#GRPC_STATES
+export declare const GRPC_STATES: readonly GrpcState[];
+
+### build/grpc.d.ts#GrpcCallHandle
+interface GrpcCallHandle {
+  cancel(): void;
+}
+
+### build/grpc.d.ts#GrpcCallOptions
+interface GrpcCallOptions extends SendOptions {
+  readonly metadata?: Readonly<Record<string, string>> | undefined;
+}
+
+### build/grpc.d.ts#GrpcChannel
+interface GrpcChannel {
+  state(connect: boolean): GrpcState;
+  watch(current: GrpcState, changed: () => void): void;
+  unary(method: string, request: Buffer, metadata: Readonly<Record<string, string>>, timeout: number, done: (status: GrpcStatus, response: Buffer | undefined) => void): GrpcCallHandle;
+  close(): void;
+}
+
+### build/grpc.d.ts#GrpcChannelOptions
+interface GrpcChannelOptions {
+  readonly "grpc.enable_retries": 0;
+  readonly "grpc.service_config_disable_resolution": 1;
+  readonly "grpc.keepalive_time_ms"?: number | undefined;
+  readonly "grpc.keepalive_timeout_ms": number;
+  readonly "grpc.keepalive_permit_without_calls": 0 | 1;
+  readonly "grpc.client_idle_timeout_ms": number;
+  readonly "grpc.initial_reconnect_backoff_ms": number;
+  readonly "grpc.max_reconnect_backoff_ms": number;
+}
+
+### build/grpc.d.ts#GrpcClient
+interface GrpcClient extends Client<ClientStep, GrpcJoin> {
+  readonly status: string;
+  call(method: string, request: Buffer, options?: GrpcCallOptions): Promise<Sent<Buffer>>;
+  health(service?: string, options?: SendOptions): Promise<Sent<GrpcServingStatus>>;
+}
+
+### build/grpc.d.ts#GrpcClientOptions
+interface GrpcClientOptions extends ClientOptions<GrpcFactory> {
+  readonly callContext?: CallContext | undefined;
+}
+
+### build/grpc.d.ts#GrpcClientSpec
+interface GrpcClientSpec extends ClientSpec<GrpcKnobs> {
+  readonly keepaliveWithoutCalls: boolean;
+  readonly metadata?: Readonly<Record<string, string>> | undefined;
+  readonly healthService?: string | undefined;
+  readonly operations?: ClientSpec<GrpcKnobs>["operations"];
+}
+
+### build/grpc.d.ts#GrpcConnectOptions
+interface GrpcConnectOptions {
+  readonly target: string;
+  readonly options: GrpcChannelOptions;
+}
+
+### build/grpc.d.ts#GrpcFactory
+type GrpcFactory = Factory<GrpcConnectOptions, GrpcChannel>;
+
+### build/grpc.d.ts#GrpcIdempotencyLevel
+type GrpcIdempotencyLevel = "IDEMPOTENCY_UNKNOWN" | "NO_SIDE_EFFECTS" | "IDEMPOTENT";
+
+### build/grpc.d.ts#GrpcJoin
+interface GrpcJoin extends ClientJoin {
+  readonly target: string;
+}
+
+### build/grpc.d.ts#GrpcKnobs
+interface GrpcKnobs extends ClientKnobs, RetryKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly keepalive_time: Extent;
+  readonly keepalive_timeout: Quantity;
+  readonly client_idle_timeout: Quantity;
+  readonly server_keepalive_min_time: Quantity;
+  readonly server_idle_close: Extent;
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+}
+
+### build/grpc.d.ts#GrpcServingStatus
+type GrpcServingStatus = "UNKNOWN" | "SERVING" | "NOT_SERVING" | "SERVICE_UNKNOWN";
+
+### build/grpc.d.ts#GrpcState
+type GrpcState = "IDLE" | "CONNECTING" | "READY" | "TRANSIENT_FAILURE" | "SHUTDOWN";
+
+### build/grpc.d.ts#GrpcStatus
+interface GrpcStatus {
+  readonly code: number;
+  readonly details: string;
+}
+
+### build/grpc.d.ts#HEALTH_CHECK
+export declare const HEALTH_CHECK = "/grpc.health.v1.Health/Check";
+
+### build/grpc.d.ts#HTTP2_PREFACE
+export declare const HTTP2_PREFACE: Buffer;
+
+### build/grpc.d.ts#adaptGrpc
+export declare const adaptGrpc: (grpc: GrpcDriver, client: GrpcDriverClient) => GrpcChannel;
+
+### build/grpc.d.ts#codeName
+export declare const codeName: (code: number) => string;
+
+### build/grpc.d.ts#grpcClient
+export declare const grpcClient: (name: string, spec: GrpcClientSpec, options?: GrpcClientOptions) => GrpcClient;
+
+### build/grpc.d.ts#grpcDial
+export declare const grpcDial: DialFn;
+
+### build/grpc.d.ts#grpcMeetings
+export declare const grpcMeetings: (name: string, knobs: GrpcKnobs, withoutCalls: boolean) => Meeting[];
+
+### build/grpc.d.ts#grpcOperations
+export declare const grpcOperations: (levels: Readonly<Record<string, GrpcIdempotencyLevel>>) => Record<string, Operation>;
+
+### build/grpc.d.ts#grpcOptions
+export declare const grpcOptions: (spec: GrpcClientSpec) => GrpcConnectOptions;
+
+### build/grpc.d.ts#grpcOutcome
+export declare const grpcOutcome: (status: GrpcStatus, response: Buffer | undefined) => Attempt<Buffer>;
+
+### build/grpc.d.ts#grpcTarget
+export declare const grpcTarget: (spec: Pick<GrpcClientSpec, "host" | "port">) => string;
+
+### build/grpc.d.ts#healthRequest
+export declare const healthRequest: (service: string) => Buffer;
+
+### build/grpc.d.ts#healthStatus
+export declare const healthStatus: (bytes: Buffer) => GrpcServingStatus | null;
+
+### build/grpc.d.ts#nodeGrpc
+export declare const nodeGrpc: GrpcFactory;
+
+### build/grpc.d.ts#settingsJudge
+export declare const settingsJudge: Judge;
+
+### build/grpc.d.ts#specProblems
+export declare const specProblems: (name: string, spec: GrpcClientSpec) => string[];
+
+### build/heartbeat.d.ts#Heartbeat
+export interface Heartbeat {
+  answer(): void;
+  stop(): void;
+  readonly misses: number;
+  readonly waiting: number;
+  readonly stopped: boolean;
+}
+
+### build/heartbeat.d.ts#HeartbeatOptions
+export interface HeartbeatOptions {
+  readonly interval: number;
+  readonly timeout: number;
+  readonly misses: number;
+  readonly ping: (signal: AbortSignal) => Promise<boolean> | void;
+  readonly onDead: () => void;
+  readonly onMiss?: ((misses: number) => void) | undefined;
+  readonly due?: (() => boolean) | undefined;
+  readonly live?: (() => boolean) | undefined;
+  readonly overlap?: boolean | undefined;
+  readonly turn?: (() => Promise<void>) | undefined;
+  readonly clock?: Clock | undefined;
+}
+
+### build/heartbeat.d.ts#detectionTime
+export declare const detectionTime: (interval: number, timeout: number, misses: number) => number;
+
+### build/heartbeat.d.ts#heartbeat
+export declare const heartbeat: (options: HeartbeatOptions) => Heartbeat;
+
+### build/host.d.ts#CommandRecord
+interface CommandRecord {
+  readonly file: string;
+  readonly args: readonly string[];
+  readonly code: number;
+  readonly out: string;
+}
+
+### build/host.d.ts#DEFAULT_RESTART
+export declare const DEFAULT_RESTART: ProgramRestart;
+
+### build/host.d.ts#Discovery
+interface Discovery {
+  readonly pid: number;
+  readonly startedAt: string;
+  readonly port: number | null;
+  readonly url: string | null;
+  readonly extra?: Readonly<Record<string, unknown>> | undefined;
+}
+
+### build/host.d.ts#DiscoveryFields
+interface DiscoveryFields {
+  readonly port?: number | null | undefined;
+  readonly url?: string | null | undefined;
+  readonly extra?: Readonly<Record<string, unknown>> | undefined;
+}
+
+### build/host.d.ts#DiscoveryRead
+type DiscoveryRead = {
+  readonly kind: "running";
+  readonly record: Discovery;
+} | {
+  readonly kind: "absent";
+} | {
+  readonly kind: "stale";
+  readonly record: Discovery;
+  readonly why: string;
+} | {
+  readonly kind: "malformed";
+  readonly problem: string;
+};
+
+### build/host.d.ts#EnvFile
+interface EnvFile {
+  readonly env: Readonly<Record<string, string>>;
+  readonly problems: readonly string[];
+}
+
+### build/host.d.ts#GroupOptions
+interface GroupOptions {
+  readonly random?: (() => number) | undefined;
+}
+
+### build/host.d.ts#GroupSpec
+interface GroupSpec {
+  readonly name: string;
+  readonly stateDir: string;
+  readonly programs: readonly ProgramSpec[];
+}
+
+### build/host.d.ts#GroupSupervisor
+interface GroupSupervisor {
+  start(): void;
+  stop(): Promise<void>;
+  states(): readonly ProgramState[];
+}
+
+### build/host.d.ts#InstallOptions
+interface InstallOptions {
+  readonly start?: boolean | undefined;
+}
+
+### build/host.d.ts#InstanceLock
+interface InstanceLock {
+  readonly path: string;
+  readonly owner: LockOwner;
+  update(child: ProcessMark | null): Promise<void>;
+  release(): Promise<void>;
+}
+
+### build/host.d.ts#InstanceOptions
+interface InstanceOptions {
+  readonly discovery?: string | undefined;
+}
+
+### build/host.d.ts#LockOptions
+interface LockOptions {
+  readonly tries?: number | undefined;
+  readonly pause?: number | undefined;
+  readonly child?: ProcessMark | undefined;
+}
+
+### build/host.d.ts#LockOwner
+interface LockOwner extends ProcessMark {
+  readonly child?: ProcessMark | undefined;
+}
+
+### build/host.d.ts#LockResult
+type LockResult = {
+  readonly kind: "acquired";
+  readonly lock: InstanceLock;
+  readonly recovered: string | null;
+} | {
+  readonly kind: "held";
+  readonly owner: LockOwner;
+} | {
+  readonly kind: "failed";
+  readonly problem: string;
+};
+
+### build/host.d.ts#LockState
+type LockState = {
+  readonly kind: "free";
+} | {
+  readonly kind: "held";
+  readonly owner: LockOwner;
+} | {
+  readonly kind: "stale";
+  readonly owner: LockOwner;
+  readonly why: string;
+} | {
+  readonly kind: "malformed";
+  readonly problem: string;
+};
+
+### build/host.d.ts#LogSpec
+interface LogSpec {
+  readonly path: string;
+  readonly maxSize: Quantity;
+  readonly keep: number;
+}
+
+### build/host.d.ts#NodeHostOptions
+interface NodeHostOptions {
+  readonly logger?: Logger | undefined;
+  readonly clock?: Clock | undefined;
+}
+
+### build/host.d.ts#ProbeResult
+type ProbeResult = {
+  readonly ok: true;
+} | {
+  readonly ok: false;
+  readonly why: string;
+};
+
+### build/host.d.ts#ProgramPhase
+type ProgramPhase = "waiting" | "starting" | "ready" | "backoff" | "held" | "exited" | "stopping" | "stopped";
+
+### build/host.d.ts#ProgramRestart
+interface ProgramRestart {
+  readonly backoff: Backoff;
+  readonly resetAfter: Quantity;
+}
+
+### build/host.d.ts#ProgramSpec
+interface ProgramSpec {
+  readonly name: string;
+  readonly program: string;
+  readonly args?: readonly string[] | undefined;
+  readonly cwd?: string | undefined;
+  readonly env?: Readonly<Record<string, string>> | undefined;
+  readonly envFile?: string | undefined;
+  readonly after?: readonly string[] | undefined;
+  readonly ready?: ReadySpec | undefined;
+  readonly restart?: ProgramRestart | null | undefined;
+  readonly log?: LogSpec | null | undefined;
+  readonly ipc?: boolean | undefined;
+  readonly stop?: StopSpec | undefined;
+  readonly listen?: {
+    readonly port?: number | null | undefined;
+    readonly url?: string | null | undefined;
+  } | undefined;
+}
+
+### build/host.d.ts#ProgramState
+interface ProgramState {
+  readonly name: string;
+  readonly phase: ProgramPhase;
+  readonly pid: number | null;
+  readonly restarts: number;
+  readonly detail: string | null;
+}
+
+### build/host.d.ts#ReadDiscoveryOptions
+interface ReadDiscoveryOptions {
+  readonly clean?: boolean | undefined;
+}
+
+### build/host.d.ts#ReadyProbe
+type ReadyProbe = {
+  readonly kind: "http";
+  readonly url: string;
+  readonly status?: number | undefined;
+} | {
+  readonly kind: "tcp";
+  readonly port: number;
+  readonly host?: string | undefined;
+} | {
+  readonly kind: "command";
+  readonly program: string;
+  readonly args: readonly string[];
+  readonly cwd?: string | undefined;
+};
+
+### build/host.d.ts#ReadySpec
+interface ReadySpec {
+  readonly probe: ReadyProbe;
+  readonly interval: Quantity;
+  readonly timeout: Quantity;
+  readonly within: Quantity;
+}
+
+### build/host.d.ts#RestartPolicy
+interface RestartPolicy {
+  readonly after: Quantity;
+}
+
+### build/host.d.ts#RotatingLog
+interface RotatingLog {
+  write(chunk: string | Uint8Array): void;
+  flush(): Promise<void>;
+  readonly failures: number;
+}
+
+### build/host.d.ts#START_MARGIN_MS
+export declare const START_MARGIN_MS = 1e3;
+
+### build/host.d.ts#ServiceOutcome
+type ServiceOutcome = {
+  readonly kind: "done";
+  readonly commands: readonly CommandRecord[];
+  readonly files: readonly string[];
+} | {
+  readonly kind: "failed";
+  readonly commands: readonly CommandRecord[];
+  readonly problem: string;
+} | {
+  readonly kind: "refused";
+  readonly problems: readonly string[];
+} | {
+  readonly kind: "unsupported";
+  readonly platform: string;
+};
+
+### build/host.d.ts#ServicePaths
+interface ServicePaths {
+  readonly unit: string;
+  readonly timer: string | null;
+}
+
+### build/host.d.ts#ServiceSpec
+interface ServiceSpec {
+  readonly name: string;
+  readonly description: string;
+  readonly program: string;
+  readonly args: readonly string[];
+  readonly cwd?: string | undefined;
+  readonly start: ServiceStart;
+  readonly restart: RestartPolicy | null;
+  readonly stateDir: string;
+  readonly console?: "hidden" | "visible" | undefined;
+  readonly timeLimit?: Quantity | undefined;
+}
+
+### build/host.d.ts#ServiceStart
+type ServiceStart = "logon" | {
+  readonly daily: string;
+};
+
+### build/host.d.ts#ServiceStatus
+interface ServiceStatus {
+  readonly installed: boolean;
+  readonly state: string;
+  readonly instance: DiscoveryRead | null;
+  readonly commands: readonly CommandRecord[];
+}
+
+### build/host.d.ts#StopSpec
+interface StopSpec {
+  readonly grace: Quantity;
+  readonly message?: MessageShape | undefined;
+  readonly signal?: "SIGINT" | "SIGTERM" | undefined;
+}
+
+### build/host.d.ts#TaskContext
+interface TaskContext {
+  readonly user: string;
+  readonly conhost: string;
+}
+
+### build/host.d.ts#TreeStopOutcome
+type TreeStopOutcome = {
+  readonly kind: "stopped";
+} | {
+  readonly kind: "absent";
+} | {
+  readonly kind: "failed";
+  readonly problem: string;
+};
+
+### build/host.d.ts#acquireInstanceLock
+export declare const acquireInstanceLock: (path: string, ports: HostPorts, options?: LockOptions) => Promise<LockResult>;
+
+### build/host.d.ts#discoveryOf
+export declare const discoveryOf: (fields: DiscoveryFields, ports: HostPorts) => Discovery;
+
+### build/host.d.ts#groupProblems
+export declare const groupProblems: (spec: GroupSpec) => string[];
+
+### build/host.d.ts#inspectInstanceLock
+export declare const inspectInstanceLock: (path: string, ports: HostPorts) => Promise<LockState>;
+
+### build/host.d.ts#installService
+export declare const installService: (spec: ServiceSpec, ports: HostPorts, options?: InstallOptions) => Promise<ServiceOutcome>;
+
+### build/host.d.ts#lockText
+export declare const lockText: (owner: LockOwner) => string;
+
+### build/host.d.ts#nodeHostPorts
+export declare const nodeHostPorts: (options?: NodeHostOptions) => HostPorts;
+
+### build/host.d.ts#parseDiscovery
+export declare const parseDiscovery: (text: string) => Discovery | string;
+
+### build/host.d.ts#parseEnvFile
+export declare const parseEnvFile: (text: string) => EnvFile;
+
+### build/host.d.ts#parseLockOwner
+export declare const parseLockOwner: (text: string) => LockOwner | null;
+
+### build/host.d.ts#probeOnce
+export declare const probeOnce: (probe: ReadyProbe, timeout: number, ports: HostPorts) => Promise<ProbeResult>;
+
+### build/host.d.ts#probeProblems
+export declare const probeProblems: (probe: ReadyProbe) => string[];
+
+### build/host.d.ts#readDiscovery
+export declare const readDiscovery: (path: string, ports: HostPorts, options?: ReadDiscoveryOptions) => Promise<DiscoveryRead>;
+
+### build/host.d.ts#removeDiscovery
+export declare const removeDiscovery: (path: string, ports: HostPorts, pid?: number) => Promise<boolean>;
+
+### build/host.d.ts#renderSystemdTimer
+export declare const renderSystemdTimer: (spec: ServiceSpec) => string | null;
+
+### build/host.d.ts#renderSystemdUnit
+export declare const renderSystemdUnit: (spec: ServiceSpec) => string;
+
+### build/host.d.ts#renderTaskXml
+export declare const renderTaskXml: (spec: ServiceSpec, context: TaskContext) => string;
+
+### build/host.d.ts#rotatingLog
+export declare const rotatingLog: (spec: LogSpec, files: FilePort) => RotatingLog;
+
+### build/host.d.ts#sameProcess
+export declare const sameProcess: (mark: ProcessMark, ports: HostPorts) => Promise<boolean>;
+
+### build/host.d.ts#servicePaths
+export declare const servicePaths: (spec: ServiceSpec, ports: HostPorts) => ServicePaths;
+
+### build/host.d.ts#serviceProblems
+export declare const serviceProblems: (spec: ServiceSpec) => string[];
+
+### build/host.d.ts#serviceStatus
+export declare const serviceStatus: (spec: ServiceSpec, ports: HostPorts, options?: InstanceOptions) => Promise<ServiceStatus>;
+
+### build/host.d.ts#startOrder
+export declare const startOrder: (spec: GroupSpec) => string[][];
+
+### build/host.d.ts#startService
+export declare const startService: (spec: ServiceSpec, ports: HostPorts) => Promise<ServiceOutcome>;
+
+### build/host.d.ts#stopService
+export declare const stopService: (spec: ServiceSpec, ports: HostPorts, options?: InstanceOptions) => Promise<ServiceOutcome>;
+
+### build/host.d.ts#stopTree
+export declare const stopTree: (pid: number, ports: HostPorts) => Promise<TreeStopOutcome>;
+
+### build/host.d.ts#superviseGroup
+export declare const superviseGroup: (spec: GroupSpec, ports: HostPorts, options?: GroupOptions) => GroupSupervisor;
+
+### build/host.d.ts#systemdArg
+export declare const systemdArg: (arg: string) => string;
+
+### build/host.d.ts#uninstallService
+export declare const uninstallService: (spec: ServiceSpec, ports: HostPorts, options?: InstanceOptions) => Promise<ServiceOutcome>;
+
+### build/host.d.ts#utf16le
+export declare const utf16le: (text: string) => Uint8Array;
+
+### build/host.d.ts#windowsArg
+export declare const windowsArg: (arg: string) => string;
+
+### build/host.d.ts#writeDiscovery
+export declare const writeDiscovery: (path: string, record: Discovery, ports: HostPorts) => Promise<void>;
+
+### build/http-client.d.ts#AgentEvents
+interface AgentEvents {
+  socket(socket: HttpSocket, reused: boolean): void;
+  connect(): void;
+}
+
+### build/http-client.d.ts#AgentExchange
+interface AgentExchange {
+  readonly response: Promise<HttpResponse>;
+  abort(error: Error): void;
+}
+
+### build/http-client.d.ts#AgentFactory
+type AgentFactory = Factory<HttpAgentOptions, HttpAgent>;
+
+### build/http-client.d.ts#AgentRequest
+interface AgentRequest {
+  readonly host: string;
+  readonly port: number;
+  readonly method: string;
+  readonly path: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body?: Uint8Array | undefined;
+}
+
+### build/http-client.d.ts#CheckRequest
+interface CheckRequest {
+  readonly method: string;
+  readonly path: string;
+}
+
+### build/http-client.d.ts#H2Session
+interface H2Session {
+  readonly connecting: boolean;
+  ping(callback: (error: Error | null) => void): boolean;
+  destroy(error?: Error): void;
+}
+
+### build/http-client.d.ts#HTTP_CLIENT_MACHINE
+export declare const HTTP_CLIENT_MACHINE: Machine;
+
+### build/http-client.d.ts#HTTP_CLIENT_STARTING_KNOBS
+export declare const HTTP_CLIENT_STARTING_KNOBS: HttpClientKnobs;
+
+### build/http-client.d.ts#HTTP_CLIENT_STARTING_POLL
+export declare const HTTP_CLIENT_STARTING_POLL: Poll;
+
+### build/http-client.d.ts#HTTP_OPERATIONS
+export declare const HTTP_OPERATIONS: Readonly<Record<string, Operation>>;
+
+### build/http-client.d.ts#HttpAgent
+interface HttpAgent {
+  request(request: AgentRequest, events: AgentEvents): AgentExchange;
+  sockets(): readonly HttpSocket[];
+  destroy(): void;
+}
+
+### build/http-client.d.ts#HttpAgentOptions
+interface HttpAgentOptions {
+  readonly keepAlive: true;
+  readonly timeout: number;
+  readonly agentKeepAliveTimeoutBuffer: number;
+  readonly keepAliveMsecs: number;
+  readonly maxSockets: number;
+  readonly maxFreeSockets: number;
+  readonly scheduling: "lifo";
+}
+
+### build/http-client.d.ts#HttpCall
+interface HttpCall {
+  readonly method: string;
+  readonly path: string;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+  readonly body?: string | Uint8Array | undefined;
+  readonly operation?: string | undefined;
+}
+
+### build/http-client.d.ts#HttpClient
+interface HttpClient extends Client<ClientStep, ClientJoin> {
+  readonly status: string;
+  request(call: HttpCall, options?: SendOptions): Promise<Sent<HttpResponse>>;
+}
+
+### build/http-client.d.ts#HttpClientKnobs
+interface HttpClientKnobs extends ClientKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly pool_idle_expiry: Extent;
+  readonly hint_buffer: Quantity;
+  readonly server_idle_close: Extent;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+}
+
+### build/http-client.d.ts#HttpClientOptions
+interface HttpClientOptions extends ClientOptions<AgentFactory> {
+  readonly callContext?: CallContext | undefined;
+}
+
+### build/http-client.d.ts#HttpClientSpec
+interface HttpClientSpec extends ClientSpec<HttpClientKnobs> {
+  readonly pool: {
+    readonly max: number;
+  };
+  readonly check?: CheckRequest | undefined;
+  readonly operations?: Readonly<Record<string, Operation>> | undefined;
+}
+
+### build/http-client.d.ts#HttpResponse
+interface HttpResponse {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string | readonly string[] | undefined>>;
+  readonly body: Buffer;
+}
+
+### build/http-client.d.ts#HttpSocket
+type HttpSocket = ClientSocket;
+
+### build/http-client.d.ts#OPTIONS_STAR
+export declare const OPTIONS_STAR: CheckRequest;
+
+### build/http-client.d.ts#SESSION_CHECK_CLOSE
+export declare const SESSION_CHECK_CLOSE = "ERR_SESSION_CHECK";
+
+### build/http-client.d.ts#SessionCheck
+interface SessionCheck {
+  opened(): void;
+  ended(): void;
+  timedOut(): void;
+  heard(): void;
+  stop(): void;
+  readonly streams: number;
+  readonly closed: SessionClose | null;
+}
+
+### build/http-client.d.ts#SessionCheckKnobs
+interface SessionCheckKnobs {
+  readonly keepalive_time: Extent;
+  readonly keepalive_timeout: Quantity;
+}
+
+### build/http-client.d.ts#SessionCheckOptions
+interface SessionCheckOptions {
+  readonly knobs: SessionCheckKnobs;
+  readonly keepaliveWithoutCalls?: boolean | undefined;
+  readonly clock?: Clock | undefined;
+  readonly onClose?: ((cause: SessionClose) => void) | undefined;
+}
+
+### build/http-client.d.ts#SessionClose
+type SessionClose = "stream timeout" | "no PING answer";
+
+### build/http-client.d.ts#agentOptions
+export declare const agentOptions: (spec: HttpClientSpec) => HttpAgentOptions;
+
+### build/http-client.d.ts#httpClient
+export declare const httpClient: (name: string, spec: HttpClientSpec, options?: HttpClientOptions) => HttpClient;
+
+### build/http-client.d.ts#httpClientMeetings
+export declare const httpClientMeetings: (name: string, knobs: HttpClientKnobs) => Meeting[];
+
+### build/http-client.d.ts#httpDial
+export declare const httpDial: DialFn;
+
+### build/http-client.d.ts#nodeAgent
+export declare const nodeAgent: AgentFactory;
+
+### build/http-client.d.ts#optionsRequest
+export declare const optionsRequest: (host: string, port: number) => string;
+
+### build/http-client.d.ts#sessionCheck
+export declare const sessionCheck: (session: H2Session, options: SessionCheckOptions) => SessionCheck;
+
+### build/http-client.d.ts#sessionCheckDetection
+export declare const sessionCheckDetection: (knobs: SessionCheckKnobs) => Extent;
+
+### build/http-client.d.ts#sessionCheckProblems
+export declare const sessionCheckProblems: (name: string, knobs: SessionCheckKnobs) => string[];
+
+### build/http-client.d.ts#specProblems
+export declare const specProblems: (name: string, spec: HttpClientSpec) => string[];
+
+### build/http-client.d.ts#statusJudge
+export declare const statusJudge: Judge;
+
+### build/http.d.ts#EdgeServer
+type EdgeServer = Server | Http2Server;
+
+### build/http.d.ts#HandleOptions
+interface HandleOptions<T> extends Omit<OutcomeOptions<T>, "keepAlive" | "retryAfter"> {
+  readonly detail?: ((req: IncomingMessage) => unknown) | undefined;
+}
+
+### build/http.d.ts#HandledRoute
+type HandledRoute = string | ((req: IncomingMessage) => string | null);
+
+### build/http.d.ts#HandledWork
+type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal) => RequestWork<T>;
+
+### build/http.d.ts#HealthSource
+type HealthSource = Health | (() => Health | null | undefined);
+
+### build/http.d.ts#HttpKnobs
+interface HttpKnobs {
+  readonly server_idle_close: Extent;
+  readonly server_idle_sweep_interval: Extent;
+  readonly server_retry_after: Quantity;
+  readonly server_listen_backlog?: Quantity;
+  readonly [knob: string]: Extent;
+}
+
+### build/http.d.ts#HttpTransport
+interface HttpTransport<S extends EdgeServer = Server> extends TransportImpl {
+  readonly server: S;
+  readonly knobs: HttpTransportKnobs;
+  mount(handler: RequestHandler, options?: MountOptions): () => void;
+  upgrade(match: UpgradeMatch, handler: UpgradeHandler, options?: MountOptions): () => void;
+  readonly connections: number;
+  readonly intakeStopped: boolean;
+}
+
+### build/http.d.ts#HttpTransportKnobs
+interface HttpTransportKnobs extends HttpKnobs {
+  readonly server_idle_close_hint: Extent;
+  readonly server_idle_close_buffer: Quantity;
+}
+
+### build/http.d.ts#HttpTransportOptions
+interface HttpTransportOptions<S extends EdgeServer = Server> {
+  readonly listen?: ListenOptions | ((server: S) => Promise<void> | void) | undefined;
+  readonly clock?: Clock | undefined;
+  readonly keepAlive?: (() => boolean) | undefined;
+  readonly onError?: ((error: unknown, req: IncomingMessage) => void) | undefined;
+  readonly callContext?: CallContext | undefined;
+  readonly trustBaggage?: ((req: IncomingMessage) => boolean) | undefined;
+}
+
+### build/http.d.ts#MountContext
+interface MountContext {
+  readonly intake: AbortSignal;
+  readonly signal: AbortSignal;
+  readonly life: Lifecycle | null;
+  readonly retryAfter: Quantity;
+  readonly keepAlive?: (() => boolean) | undefined;
+}
+
+### build/http.d.ts#MountOptions
+interface MountOptions {
+  readonly until?: MountStage | undefined;
+}
+
+### build/http.d.ts#MountStage
+type MountStage = "stop intake" | "close transports";
+
+### build/http.d.ts#OutcomeOptions
+interface OutcomeOptions<T> {
+  readonly keepAlive: boolean | (() => boolean);
+  readonly retryAfter: Quantity;
+  readonly done?: ((value: T) => ResponsePart) | undefined;
+  readonly failed?: ((error: unknown) => ResponsePart) | undefined;
+  readonly stream?: StreamFormat<T> | undefined;
+}
+
+### build/http.d.ts#OutcomeResponse
+interface OutcomeResponse {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string | Uint8Array;
+}
+
+### build/http.d.ts#PROBE_KINDS
+export declare const PROBE_KINDS: readonly ProbeKind[];
+
+### build/http.d.ts#ProbeHandlerOptions
+interface ProbeHandlerOptions {
+  readonly prefix: string;
+  readonly kinds?: readonly ProbeKind[] | undefined;
+  readonly paths?: ProbePaths | undefined;
+}
+
+### build/http.d.ts#ProbePaths
+type ProbePaths = Partial<Readonly<Record<ProbeKind, readonly string[]>>>;
+
+### build/http.d.ts#ProbeResponse
+interface ProbeResponse {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
+### build/http.d.ts#ProbeServer
+interface ProbeServer extends HealthServer {
+  readonly server: Server;
+}
+
+### build/http.d.ts#ProbeServerOptions
+interface ProbeServerOptions extends ListenOptions {
+  readonly server_retry_after: Quantity;
+  readonly prefix?: string | undefined;
+  readonly server?: Server | undefined;
+  readonly kinds?: readonly ProbeKind[] | undefined;
+  readonly paths?: ProbePaths | undefined;
+}
+
+### build/http.d.ts#RequestHandler
+interface RequestHandler {
+  (req: IncomingMessage, res: ServerResponse, context: MountContext): boolean | Promise<boolean>;
+  readonly until?: MountStage | undefined;
+}
+
+### build/http.d.ts#ResponsePart
+interface ResponsePart {
+  readonly status?: number | undefined;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+  readonly body?: string | Uint8Array | undefined;
+}
+
+### build/http.d.ts#StreamFormat
+interface StreamFormat<T = unknown> {
+  readonly contentType: string;
+  item(value: T): string | Uint8Array;
+  end(end: RequestEnd): string | Uint8Array;
+}
+
+### build/http.d.ts#UpgradeHandler
+interface UpgradeHandler {
+  (req: IncomingMessage, socket: UpgradeSocket, head: UpgradeArgs[2], context: MountContext): void;
+  readonly until?: MountStage | undefined;
+}
+
+### build/http.d.ts#UpgradeMatch
+type UpgradeMatch = string | ((req: IncomingMessage) => boolean);
+
+### build/http.d.ts#UpgradeSocket
+type UpgradeSocket = UpgradeArgs[1];
+
+### build/http.d.ts#endRecord
+export declare const endRecord: (end: RequestEnd) => Readonly<Record<string, unknown>>;
+
+### build/http.d.ts#handle
+export declare const handle: <T>(controller: string, route: HandledRoute, work: HandledWork<T>, options?: HandleOptions<T>) => RequestHandler;
+
+### build/http.d.ts#httpTransport
+export declare const httpTransport: <S extends EdgeServer = Server>(edge: S, knobs: HttpKnobs, options?: HttpTransportOptions<S>) => HttpTransport<S>;
+
+### build/http.d.ts#limitedResponse
+export declare const limitedResponse: (refused: Refused) => OutcomeResponse;
+
+### build/http.d.ts#ndjson
+export declare const ndjson: StreamFormat;
+
+### build/http.d.ts#outcomeResponse
+export declare const outcomeResponse: <T>(items: readonly T[], end: RequestEnd, options: OutcomeOptions<T>) => OutcomeResponse;
+
+### build/http.d.ts#pathOf
+export declare const pathOf: (url: string | undefined) => string;
+
+### build/http.d.ts#probeHandler
+export declare const probeHandler: (health: HealthSource, options: ProbeHandlerOptions) => RequestHandler;
+
+### build/http.d.ts#probeResponse
+export declare const probeResponse: (health: Health | null | undefined, method: string | undefined, path: string, prefix?: string, kinds?: readonly ProbeKind[], aliases?: ReadonlyMap<string, ProbeKind>) => ProbeResponse | null;
+
+### build/http.d.ts#probeServer
+export declare const probeServer: (options: ProbeServerOptions) => ProbeServer;
+
+### build/http.d.ts#sse
+export declare const sse: StreamFormat;
+
+### build/http.d.ts#writeOutcome
+export declare const writeOutcome: <T>(res: ServerResponse, stream: RequestStream<T>, options: OutcomeOptions<T>) => Promise<RequestEnd | null>;
+
+### build/index.d.ts#BOUND_RULES
+export declare const BOUND_RULES: readonly Rule[];
+
+### build/index.d.ts#CLOSE_BOUND_RULE
+export declare const CLOSE_BOUND_RULE = "close-bound";
+
+### build/index.d.ts#Claim
+type Claim = {
+  readonly epoch: string;
+  readonly value: Extent;
+} | {
+  readonly epoch: string;
+  readonly distribution: Readonly<Partial<Record<Statistic, Quantity>>>;
+};
+
+### build/index.d.ts#DECLARATION_RULE
+export declare const DECLARATION_RULE = "declaration";
+
+### build/index.d.ts#DRAIN_RULE_IDS
+export declare const DRAIN_RULE_IDS: readonly string[];
+
+### build/index.d.ts#EXIT_MACHINE
+export declare const EXIT_MACHINE: Machine;
+
+### build/index.d.ts#Epochs
+type Epochs = Readonly<Record<string, string | null>>;
+
+### build/index.d.ts#Finding
+interface Finding {
+  readonly rule: string;
+  readonly scope: string;
+  readonly verdict: Verdict;
+  readonly statement: string;
+  readonly window?: string | undefined;
+  readonly evaluated: readonly Evaluated[];
+  readonly unbound: readonly string[];
+  readonly epochs?: Epochs | undefined;
+}
+
+### build/index.d.ts#GATE_MACHINE
+export declare const GATE_MACHINE: Machine;
+
+### build/index.d.ts#IDENTITY_TYPES
+export declare const IDENTITY_TYPES: readonly ["Client", "GrpcClient", "HttpClient", "HttpTransport", "IterationContext", "JobContext", "Lifecycle", "MongoClient", "MountContext", "PgClient", "QueueDrain", "QueueDrainOptions", "RabbitClient", "RedisClient", "RedisSender", "RequestHandler", "RequestStream", "ServiceBuilder", "SubjectFactory", "TransportImpl", "TransportSubject", "UpgradeHandler", "WorkerLoop", "WorkerLoopOptions", "WsClient"];
+
+### build/index.d.ts#IdentityType
+type IdentityType = (typeof IDENTITY_TYPES)[number];
+
+### build/index.d.ts#IterationContext
+interface IterationContext<S> {
+  readonly signal: AbortSignal;
+  readonly intake: AbortSignal;
+  readonly state: S;
+  readonly lane: number;
+  readonly failures: number;
+  readonly life: Lifecycle;
+}
+
+### build/index.d.ts#LATCH_MACHINE
+export declare const LATCH_MACHINE: Machine;
+
+### build/index.d.ts#LAW_STATISTIC
+export declare const LAW_STATISTIC: Statistic;
+
+### build/index.d.ts#LIMITER_RULES
+export declare const LIMITER_RULES: readonly Rule[];
+
+### build/index.d.ts#MACHINES
+export declare const MACHINES: Readonly<Record<Exclude<MachineName, "drain" | "client">, Machine>>;
+
+### build/index.d.ts#NAME_RULE
+export declare const NAME_RULE = "unique-names";
+
+### build/index.d.ts#PLATFORM_MARKS
+export declare const PLATFORM_MARKS: TimerMarks;
+
+### build/index.d.ts#POLLER_MACHINE
+export declare const POLLER_MACHINE: Machine;
+
+### build/index.d.ts#PROGRESS_RULE
+export declare const PROGRESS_RULE = "progress";
+
+### build/index.d.ts#Retrier
+interface Retrier {
+  readonly attempts: number;
+  readonly pending: boolean;
+  schedule(run: () => void): number | null;
+  reset(): void;
+  cancel(): void;
+}
+
+### build/index.d.ts#RetrierOptions
+interface RetrierOptions extends Backoff {
+  readonly clock?: Clock | undefined;
+  readonly random?: (() => number) | undefined;
+  readonly signal?: AbortSignal | undefined;
+}
+
+### build/index.d.ts#RetryOptions
+interface RetryOptions extends RetrierOptions {
+  readonly tries: number;
+  readonly retryable?: ((error: unknown) => boolean) | undefined;
+  readonly delayOf?: ((error: unknown, attempt: number) => number | null | undefined) | undefined;
+}
+
+### build/index.d.ts#SERVICE_RULES
+export declare const SERVICE_RULES: readonly string[];
+
+### build/index.d.ts#STOPS
+export declare const STOPS: Readonly<Record<StopWay, Stop>>;
+
+### build/index.d.ts#STOP_RULE
+export declare const STOP_RULE = "stop";
+
+### build/index.d.ts#Scenario
+interface Scenario {
+  readonly platform: Readonly<Record<string, ScenarioValue>>;
+  readonly probes: {
+    readonly readiness: Quantity;
+    readonly liveness: Quantity;
+  };
+  readonly dependencies?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
+  readonly transports?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
+  readonly limiters?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
+}
+
+### build/index.d.ts#ScenarioValue
+type ScenarioValue = Extent | Claim;
+
+### build/index.d.ts#ScopedChange
+interface ScopedChange extends Change {
+  readonly scope: string;
+}
+
+### build/index.d.ts#Statistic
+type Statistic = "p50" | "p90" | "p99" | "p999" | "max";
+
+### build/index.d.ts#Stop
+interface Stop {
+  readonly way: StopWay;
+  readonly signal: "SIGTERM" | "SIGKILL" | null;
+  readonly preStop: boolean;
+  readonly drain: boolean;
+  readonly leaves: "deletion" | "readiness" | "exit";
+  readonly rules: readonly string[];
+}
+
+### build/index.d.ts#StopWay
+type StopWay = "deletion" | "liveness-restart" | "crash" | "oom";
+
+### build/index.d.ts#UNIT_BOUND_RULE
+export declare const UNIT_BOUND_RULE = "unit-bound";
+
+### build/index.d.ts#WATCHDOG_MACHINE
+export declare const WATCHDOG_MACHINE: Machine;
+
+### build/index.d.ts#WINDOW_MACHINE
+export declare const WINDOW_MACHINE: Machine;
+
+### build/index.d.ts#WorkerKnobs
+interface WorkerKnobs {
+  readonly worker_sleep: Extent;
+  readonly unit_processing_time: Extent;
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+  readonly close_bound: Quantity;
+  readonly concurrency: Quantity;
+  readonly [knob: string]: Extent;
+}
+
+### build/index.d.ts#WorkerLoop
+interface WorkerLoop extends TransportImpl {
+  readonly knobs: WorkerKnobs;
+  wake(): boolean;
+  problems(description: ServiceDescription): string[];
+}
+
+### build/index.d.ts#WorkerLoopOptions
+interface WorkerLoopOptions<S> {
+  readonly setup?: ((signal: AbortSignal) => S | PromiseLike<S>) | undefined;
+  readonly iteration: (context: IterationContext<S>) => unknown;
+  readonly teardown?: ((state: S | undefined) => void | PromiseLike<void>) | undefined;
+  readonly clock?: Clock | undefined;
+  readonly random?: (() => number) | undefined;
+  readonly request?: UnitRequest<number> | undefined;
+  readonly onError?: ((error: unknown, failures: number) => void) | undefined;
+}
+
+### build/index.d.ts#capKnob
+export declare const capKnob: (phase: string) => string;
+
+### build/index.d.ts#compressionOf
+export declare const compressionOf: (svc: ServiceDescription, scenario: Scenario, rules: readonly Rule[], k: number, marks: TimerMarks) => {
+  readonly changed: readonly ScopedChange[];
+  readonly unmarked: readonly string[];
+};
+
+### build/index.d.ts#drainMachine
+export declare const drainMachine: (description: ServiceDescription) => Machine;
+
+### build/index.d.ts#lint
+export declare const lint: (svc: ServiceDescription, scenario: Scenario, rules: readonly Rule[]) => Finding[];
+
+### build/index.d.ts#lintStop
+export declare const lintStop: (svc: ServiceDescription, scenario: Scenario, rules: readonly Rule[], way: StopWay) => Finding[];
+
+### build/index.d.ts#retrier
+export declare const retrier: (options: RetrierOptions) => Retrier;
+
+### build/index.d.ts#retry
+export declare const retry: <T>(run: (attempt: number) => Promise<T>, options: RetryOptions) => Promise<T>;
+
+### build/index.d.ts#retryAfterDelay
+export declare const retryAfterDelay: (header: string | null | undefined, now: number) => number | null;
+
+### build/index.d.ts#serviceBindings
+export declare const serviceBindings: (svc: ServiceDescription, scenario: Scenario) => {
+  readonly bind: Record<string, Bound>;
+  readonly from: Record<string, string>;
+  readonly epochs: Epochs;
+};
+
+### build/index.d.ts#workerLoop
+export declare const workerLoop: <S = undefined>(knobs: WorkerKnobs, options: WorkerLoopOptions<S>) => WorkerLoop;
+
+### build/lifecycle.chunk.d.ts#CheckFn
+type CheckFn = (signal: AbortSignal) => Outcome | void | Promise<Outcome | void>;
+
+### build/lifecycle.chunk.d.ts#CheckMetrics
+interface CheckMetrics {
+  readonly outcomes: {
+    readonly ok: number;
+    readonly error: number;
+    readonly indeterminate: number;
+  };
+  readonly thrown: number;
+  readonly forced: number;
+  readonly durations: DurationHistogram;
+  readonly episodes: readonly Episode[];
+}
+
+### build/lifecycle.chunk.d.ts#CheckVerdict
+interface CheckVerdict {
+  readonly gates: Gate | null;
+  readonly dependency: string | null;
+  readonly tripped: boolean | null;
+  readonly streak: number;
+  readonly since: number | null;
+  readonly last: Result | null;
+}
+
+### build/lifecycle.chunk.d.ts#DURATION_FRACTIONS
+declare const DURATION_FRACTIONS: readonly number[];
+
+### build/lifecycle.chunk.d.ts#DependencyHandle
+interface DependencyHandle {
+  connect(signal: AbortSignal): Promise<void> | void;
+  close(): Promise<void> | void;
+}
+
+### build/lifecycle.chunk.d.ts#DurationHistogram
+interface DurationHistogram {
+  readonly le: readonly number[];
+  readonly counts: readonly number[];
+  readonly timedOut: number;
+}
+
+### build/lifecycle.chunk.d.ts#EPISODES_KEPT
+declare const EPISODES_KEPT = 8;
+
+### build/lifecycle.chunk.d.ts#Episode
+interface Episode {
+  readonly start: number;
+  readonly end: number | null;
+  readonly failures: number;
+  readonly cause: string | null;
+}
+
+### build/lifecycle.chunk.d.ts#Health
+interface Health {
+  verdict(): HealthVerdict;
+  probe(kind: ProbeKind, controller?: string): ProbeAnswer;
+  metrics(): HealthMetrics;
+  subscribe(listener: (verdict: HealthVerdict) => void): () => void;
+  forceFail(name: string, on: boolean): void;
+  drain(): void;
+  stop(): void;
+}
+
+### build/lifecycle.chunk.d.ts#HealthMetrics
+interface HealthMetrics {
+  readonly checks: Readonly<Record<string, CheckMetrics>>;
+  readonly transitions: Readonly<Record<string, number>>;
+}
+
+### build/lifecycle.chunk.d.ts#HealthServer
+interface HealthServer {
+  listen(health: Health): Promise<void> | void;
+  close(): Promise<void> | void;
+}
+
+### build/lifecycle.chunk.d.ts#HealthVerdict
+interface HealthVerdict {
+  readonly started: boolean;
+  readonly draining: boolean;
+  readonly ready: boolean;
+  readonly alive: boolean;
+  readonly controllers: Readonly<Record<string, boolean>>;
+  readonly dependencies: Readonly<Record<string, boolean>>;
+  readonly checks: Readonly<Record<string, CheckVerdict>>;
+  readonly startup: {
+    readonly budget: number;
+    readonly elapsed: number;
+    readonly overBudget: boolean;
+  };
+}
+
+### build/lifecycle.chunk.d.ts#Lifecycle
+interface Lifecycle {
+  readonly health: Health;
+  readonly state: LifecycleState;
+  readonly exitCode: number | null;
+  readonly errors: readonly string[];
+  readonly started: Promise<void>;
+  readonly done: Promise<number>;
+  readonly signal: AbortSignal;
+  shutdown(cause?: string, options?: ShutdownOptions): Promise<number>;
+  request<T>(controller: string, route: string, work: RequestFn<T>, options?: RequestOptions): RequestStream<T>;
+  inFlight(controller?: string): number;
+  keepAlive(): boolean;
+}
+
+### build/lifecycle.chunk.d.ts#LifecycleState
+type LifecycleState = "starting" | "running" | "draining" | "exited";
+
+### build/lifecycle.chunk.d.ts#Outcome
+type Outcome = "ok" | "error" | "indeterminate";
+
+### build/lifecycle.chunk.d.ts#PhaseContext
+interface PhaseContext {
+  readonly deadline: number;
+  readonly signal: AbortSignal;
+  readonly clock: Clock;
+}
+
+### build/lifecycle.chunk.d.ts#PhaseWork
+type PhaseWork = (context: PhaseContext) => Promise<void> | void;
+
+### build/lifecycle.chunk.d.ts#ProbeAnswer
+interface ProbeAnswer {
+  readonly status: 200 | 503;
+  readonly contentType: "application/health+json";
+  readonly body: {
+    readonly status: "pass" | "fail";
+    readonly service: string;
+    readonly probe: ProbeKind;
+    readonly controller?: string | undefined;
+    readonly verdict?: HealthVerdict | undefined;
+  };
+}
+
+### build/lifecycle.chunk.d.ts#ProbeKind
+type ProbeKind = "startup" | "readiness" | "liveness" | "report";
+
+### build/lifecycle.chunk.d.ts#RequestEnd
+type RequestEnd = {
+  readonly kind: "done";
+  readonly delivered: number;
+} | {
+  readonly kind: "failed";
+  readonly error: unknown;
+  readonly delivered: number;
+} | {
+  readonly kind: "refused";
+  readonly status: 503;
+  readonly retryable: true;
+  readonly cause: string;
+  readonly delivered: 0;
+} | {
+  readonly kind: "cut";
+  readonly status: 503 | 500 | null;
+  readonly retryable: boolean;
+  readonly cause: string;
+  readonly delivered: number;
+};
+
+### build/lifecycle.chunk.d.ts#RequestEvent
+type RequestEvent<T> = {
+  readonly kind: "item";
+  readonly value: T;
+} | RequestEnd;
+
+### build/lifecycle.chunk.d.ts#RequestFn
+type RequestFn<T> = (signal: AbortSignal) => RequestWork<T>;
+
+### build/lifecycle.chunk.d.ts#RequestOptions
+interface RequestOptions {
+  readonly detail?: unknown;
+}
+
+### build/lifecycle.chunk.d.ts#RequestStream
+interface RequestStream<T> extends AsyncIterable<RequestEvent<T>> {
+  collect(): Promise<{
+    readonly items: readonly T[];
+    readonly end: RequestEnd;
+  }>;
+}
+
+### build/lifecycle.chunk.d.ts#RequestWork
+type RequestWork<T> = T | PromiseLike<T> | AsyncIterable<T> | PromiseLike<AsyncIterable<T>>;
+
+### build/lifecycle.chunk.d.ts#Result
+interface Result {
+  readonly outcome: Outcome;
+  readonly at: number;
+  readonly took: number;
+  readonly cause: string | null;
+  readonly timedOut: boolean;
+  readonly thrown: boolean;
+  readonly forced: boolean;
+}
+
+### build/lifecycle.chunk.d.ts#RunOptions
+interface RunOptions extends StartOptions {
+  readonly process?: ProcessPort | undefined;
+  readonly uncaught?: UncaughtOptions | undefined;
+}
+
+### build/lifecycle.chunk.d.ts#STAGES
+declare const STAGES: readonly ["fail readiness", "stop intake", "drain", "close transports", "stop the poller", "tear down dependencies", "close the health server", "flush the output"];
+
+### build/lifecycle.chunk.d.ts#ShutdownOptions
+interface ShutdownOptions {
+  readonly code?: number | undefined;
+}
+
+### build/lifecycle.chunk.d.ts#Stage
+type Stage = (typeof STAGES)[number];
+
+### build/lifecycle.chunk.d.ts#StartOptions
+interface StartOptions {
+  readonly clock?: Clock | undefined;
+  readonly random?: (() => number) | undefined;
+  readonly forceFail?: readonly string[] | undefined;
+  readonly record?: Recorder | undefined;
+  readonly logger?: Logger | undefined;
+  readonly wrapCheck?: ((check: Check, run: CheckFn) => CheckFn) | undefined;
+}
+
+### build/lifecycle.chunk.d.ts#TransportImpl
+interface TransportImpl {
+  start(signal: AbortSignal, life: Lifecycle): Promise<void> | void;
+  stopIntake(): Promise<void> | void;
+  drain(deadline: number, signal: AbortSignal): Promise<void> | void;
+  inFlight(): number;
+  close(): Promise<void> | void;
+}
+
+### build/lifecycle.chunk.d.ts#UncaughtOptions
+interface UncaughtOptions {
+  readonly exitCode?: number | undefined;
+  readonly ignore?: ((error: unknown, origin: UncaughtOrigin) => boolean) | undefined;
+}
+
+### build/lifecycle.chunk.d.ts#cooperativeAbortAt
+declare const cooperativeAbortAt: (cap: number, window: Extent, floor?: CooperativeFloor) => number;
+
+### build/lifecycle.chunk.d.ts#redact
+declare const redact: (cause: string) => string;
+
+### build/lifecycle.chunk.d.ts#stageRank
+declare const stageRank: (name: string) => number;
+
+### build/limiter.chunk.d.ts#LimiterState
+type LimiterState = "new" | "open" | "limited";
+
+### build/limiter.chunk.d.ts#SLIDING_WINDOW_MACHINE
+declare const SLIDING_WINDOW_MACHINE: Machine;
+
+### build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
+declare const TOKEN_BUCKET_MACHINE: Machine;
+
+### build/limiter.chunk.d.ts#limiterMachine
+declare const limiterMachine: (policy: LimitPolicy) => Machine;
+
+### build/limiter.chunk.d.ts#limiterStateOf
+declare const limiterStateOf: (rule: LimitRule, state: KeyState | undefined, now: number) => LimiterState;
+
+### build/logger.chunk.d.ts#Check
+interface Check {
+  readonly name: string;
+  readonly dependency: string | null;
+  readonly step: Step;
+  readonly ownConnection: boolean;
+  readonly gates: Gate | null;
+  readonly poll: Poll;
+  readonly marks?: ProgressMarks | undefined;
+}
+
+### build/logger.chunk.d.ts#ConsoleLoggerOptions
+interface ConsoleLoggerOptions {
+  readonly level?: LogLevel | undefined;
+  readonly console?: ConsoleTarget | undefined;
+  readonly format?: LogFormat | undefined;
+  readonly traceIds?: TraceIdsSource | undefined;
+}
+
+### build/logger.chunk.d.ts#ConsoleTarget
+type ConsoleTarget = Readonly<Record<LogLevel, (...data: unknown[]) => void>>;
+
+### build/logger.chunk.d.ts#Controller
+interface Controller {
+  readonly name: string;
+  readonly requires: readonly string[];
+  readonly routes: Readonly<Record<string, Operation>>;
+  readonly patterns?: readonly RoutePattern[] | undefined;
+}
+
+### build/logger.chunk.d.ts#CooperativeFloor
+type CooperativeFloor = "half" | "none";
+
+### build/logger.chunk.d.ts#Coupling
+interface Coupling {
+  readonly from: Gate;
+  readonly to: Gate;
+  readonly effect: "fails";
+}
+
+### build/logger.chunk.d.ts#Dependency
+interface Dependency {
+  readonly name: string;
+  readonly system: string | null;
+  readonly knobs: Readonly<Record<string, Extent>>;
+  readonly operations: Readonly<Record<string, Operation>>;
+}
+
+### build/logger.chunk.d.ts#EXIT_SIGNALS
+declare const EXIT_SIGNALS: readonly ExitSignal[];
+
+### build/logger.chunk.d.ts#EmbeddedProcess
+interface EmbeddedProcess extends ProcessPort {
+  readonly exitCode: number | null;
+  readonly exited: Promise<number>;
+}
+
+### build/logger.chunk.d.ts#ExitCodes
+type ExitCodes = Readonly<Partial<Record<ExitTrigger, number>>>;
+
+### build/logger.chunk.d.ts#ExitSignal
+type ExitSignal = "SIGINT" | "SIGTERM" | "SIGQUIT";
+
+### build/logger.chunk.d.ts#ExitTrigger
+type ExitTrigger = ExitSignal | ProcessTrigger;
+
+### build/logger.chunk.d.ts#FORMAT
+declare const FORMAT = "mark1russell7.service/1";
+
+### build/logger.chunk.d.ts#FailsBy
+type FailsBy = "error" | "timeout" | "hang";
+
+### build/logger.chunk.d.ts#Gate
+type Gate = "readiness" | "liveness";
+
+### build/logger.chunk.d.ts#HostStream
+interface HostStream {
+  readonly writable?: boolean;
+  readonly destroyed?: boolean;
+  readonly readableEnded?: boolean;
+  write(chunk: string, done: (error?: unknown) => void): boolean;
+  on(event: string, handler: () => void): unknown;
+  off(event: string, handler: () => void): unknown;
+}
+
+### build/logger.chunk.d.ts#Idempotency
+type Idempotency = boolean | {
+  readonly key: string;
+  readonly window: Extent;
+};
+
+### build/logger.chunk.d.ts#LOG_LEVELS
+declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
+
+### build/logger.chunk.d.ts#LifecycleEvent
+interface LifecycleEvent {
+  readonly at: number;
+  readonly machine: MachineName;
+  readonly instance: string;
+  readonly from: string;
+  readonly to: string;
+  readonly on: string;
+  readonly detail?: string | undefined;
+}
+
+### build/logger.chunk.d.ts#LogEntry
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: LogFields;
+}
+
+### build/logger.chunk.d.ts#LogFields
+type LogFields = Readonly<Record<string, unknown>>;
+
+### build/logger.chunk.d.ts#LogFormat
+type LogFormat = "text" | "json";
+
+### build/logger.chunk.d.ts#LogLevel
+type LogLevel = (typeof LOG_LEVELS)[number];
+
+### build/logger.chunk.d.ts#Logger
+interface Logger {
+  log(level: LogLevel, message: string, fields: LogFields): void;
+}
+
+### build/logger.chunk.d.ts#MachineName
+type MachineName = "gate" | "latch" | "window" | "poller" | "drain" | "exit" | "watchdog" | "client";
+
+### build/logger.chunk.d.ts#MessageShape
+type MessageShape = string | number | boolean | null | readonly MessageShape[] | {
+  readonly [field: string]: MessageShape;
+};
+
+### build/logger.chunk.d.ts#MessageTrigger
+interface MessageTrigger {
+  readonly match: MessageShape;
+  readonly as?: ExitSignal | undefined;
+}
+
+### build/logger.chunk.d.ts#Operation
+interface Operation {
+  readonly idempotent: Idempotency;
+}
+
+### build/logger.chunk.d.ts#OperationOf
+type OperationOf = (request: RouteRequest) => string;
+
+### build/logger.chunk.d.ts#PROCESS_TRIGGERS
+declare const PROCESS_TRIGGERS: readonly ProcessTrigger[];
+
+### build/logger.chunk.d.ts#Phase
+interface Phase {
+  readonly name: string;
+  readonly cap: Quantity;
+}
+
+### build/logger.chunk.d.ts#Poll
+interface Poll {
+  readonly interval: Quantity;
+  readonly jitter: number;
+  readonly timeout: Quantity;
+}
+
+### build/logger.chunk.d.ts#ProcessHost
+interface ProcessHost {
+  on(signal: string, handler: (message?: unknown) => void): unknown;
+  off(signal: string, handler: (message?: unknown) => void): unknown;
+  exit(code: number): unknown;
+  readonly stdin?: HostStream | undefined;
+  readonly stdout?: HostStream | undefined;
+  readonly stderr?: HostStream | undefined;
+}
+
+### build/logger.chunk.d.ts#ProcessPort
+interface ProcessPort {
+  on(trigger: ExitTrigger, handler: (message?: unknown) => void): () => void;
+  onUncaught?(handler: (error: unknown, origin: UncaughtOrigin) => void): () => void;
+  flush?(): Promise<void> | void;
+  hold?(): () => void;
+  exit(code: number): void;
+}
+
+### build/logger.chunk.d.ts#ProcessTrigger
+type ProcessTrigger = "stdin-close" | "ipc-close" | "ipc-message";
+
+### build/logger.chunk.d.ts#ProgressMarks
+interface ProgressMarks {
+  readonly loops: readonly string[];
+  readonly stall: Quantity;
+}
+
+### build/logger.chunk.d.ts#Recorder
+type Recorder = (event: LifecycleEvent) => void;
+
+### build/logger.chunk.d.ts#RepeatSignal
+type RepeatSignal = "ignore" | "exit";
+
+### build/logger.chunk.d.ts#RoutePattern
+interface RoutePattern {
+  readonly pattern: string;
+  readonly operations: Readonly<Record<string, Operation>>;
+}
+
+### build/logger.chunk.d.ts#RouteRequest
+interface RouteRequest {
+  readonly controller: string;
+  readonly route: string;
+  readonly params: Readonly<Record<string, string>>;
+  readonly wildcards: readonly string[];
+  readonly detail: unknown;
+}
+
+### build/logger.chunk.d.ts#ServiceDescription
+interface ServiceDescription {
+  readonly format: typeof FORMAT;
+  readonly name: string;
+  readonly partial: boolean;
+  readonly transports: readonly Transport[];
+  readonly dependencies: readonly Dependency[];
+  readonly controllers: readonly Controller[];
+  readonly checks: readonly Check[];
+  readonly limiters?: readonly Limiter[] | undefined;
+  readonly policies: {
+    readonly readiness: Timing;
+    readonly liveness: Timing;
+    readonly startup: Quantity;
+  };
+  readonly couplings: readonly Coupling[];
+  readonly shutdown: {
+    readonly phases: readonly Phase[];
+    readonly cooperativeWindow: Extent;
+    readonly cooperativeFloor?: CooperativeFloor | undefined;
+    readonly onRepeatSignal: RepeatSignal;
+    readonly triggers?: readonly ProcessTrigger[] | undefined;
+    readonly messages?: readonly MessageTrigger[] | undefined;
+    readonly exitCodes?: ExitCodes | undefined;
+  };
+}
+
+### build/logger.chunk.d.ts#Span
+interface Span {
+  readonly min: Quantity;
+  readonly max: Quantity;
+}
+
+### build/logger.chunk.d.ts#Step
+type Step = "dial" | "local-state" | "round-trip" | "checkout" | "progress" | "topology" | "latency";
+
+### build/logger.chunk.d.ts#Timing
+type Timing = {
+  readonly type: "debounce";
+  readonly interval: Quantity;
+  readonly failAfter: number;
+  readonly recoverAfter: number;
+} | {
+  readonly type: "window";
+  readonly failAfter: Quantity;
+  readonly recoverAfter?: Quantity | undefined;
+};
+
+### build/logger.chunk.d.ts#TraceIds
+interface TraceIds {
+  readonly trace_id: string;
+  readonly span_id: string;
+}
+
+### build/logger.chunk.d.ts#TraceIdsSource
+type TraceIdsSource = () => TraceIds | undefined;
+
+### build/logger.chunk.d.ts#Transport
+interface Transport {
+  readonly name: string;
+  readonly kind: "server" | "consumer" | "worker";
+  readonly knobs: Readonly<Record<string, Extent>>;
+}
+
+### build/logger.chunk.d.ts#UNCAUGHT_ORIGINS
+declare const UNCAUGHT_ORIGINS: readonly UncaughtOrigin[];
+
+### build/logger.chunk.d.ts#UncaughtOrigin
+type UncaughtOrigin = "uncaughtException" | "unhandledRejection";
+
+### build/logger.chunk.d.ts#asDebounce
+declare const asDebounce: (timing: Timing, poll: Poll) => Timing;
+
+### build/logger.chunk.d.ts#asWindow
+declare const asWindow: (timing: Timing) => Timing;
+
+### build/logger.chunk.d.ts#atLeast
+declare const atLeast: (level: LogLevel, least: LogLevel) => boolean;
+
+### build/logger.chunk.d.ts#consoleLogger
+declare const consoleLogger: (options?: ConsoleLoggerOptions) => Logger;
+
+### build/logger.chunk.d.ts#embeddedProcess
+declare const embeddedProcess: () => EmbeddedProcess;
+
+### build/logger.chunk.d.ts#failSpan
+declare const failSpan: (timing: Timing, poll: Poll, by?: FailsBy) => Span;
+
+### build/logger.chunk.d.ts#heartbeatDetection
+declare const heartbeatDetection: (interval: Extent, timeout: Quantity, misses: number) => Extent;
+
+### build/logger.chunk.d.ts#isExitCode
+declare const isExitCode: (code: number) => boolean;
+
+### build/logger.chunk.d.ts#isExitSignal
+declare const isExitSignal: (trigger: string) => trigger is ExitSignal;
+
+### build/logger.chunk.d.ts#isMessageShape
+declare const isMessageShape: (value: unknown) => value is MessageShape;
+
+### build/logger.chunk.d.ts#logEvents
+declare const logEvents: (logger: Logger, description?: ServiceDescription) => Recorder;
+
+### build/logger.chunk.d.ts#matchesMessage
+declare const matchesMessage: (shape: MessageShape, message: unknown) => boolean;
+
+### build/logger.chunk.d.ts#mayReissue
+declare const mayReissue: (operation: Operation, since: Quantity) => boolean;
+
+### build/logger.chunk.d.ts#nodeProcess
+declare const nodeProcess: ProcessPort;
+
+### build/logger.chunk.d.ts#processPortOf
+declare const processPortOf: (find: () => ProcessHost | undefined) => ProcessPort;
+
+### build/logger.chunk.d.ts#recoverSpan
+declare const recoverSpan: (timing: Timing, poll: Poll) => Span;
+
+### build/mongodb.d.ts#HELLO
+export declare const HELLO: Uint8Array;
+
+### build/mongodb.d.ts#MONGO_CLIENT_MACHINE
+export declare const MONGO_CLIENT_MACHINE: Machine;
+
+### build/mongodb.d.ts#MONGO_STARTING_KNOBS
+export declare const MONGO_STARTING_KNOBS: MongoKnobs;
+
+### build/mongodb.d.ts#MONGO_STARTING_POLL
+export declare const MONGO_STARTING_POLL: Poll;
+
+### build/mongodb.d.ts#MongoClient
+interface MongoClient extends Client<MongoStep, MongoJoin> {
+  readonly status: string;
+  command(operation: string, document: MongoDocument, options?: SendOptions): Promise<Sent<MongoDocument>>;
+}
+
+### build/mongodb.d.ts#MongoClientOptions
+type MongoClientOptions = ClientOptions<MongoFactory>;
+
+### build/mongodb.d.ts#MongoClientSpec
+interface MongoClientSpec extends ClientSpec<MongoKnobs> {
+  readonly database: string;
+  readonly username?: string | undefined;
+  readonly authSource?: string | undefined;
+  readonly replicaSet?: string | undefined;
+  readonly seeds?: readonly MongoSeed[] | undefined;
+  readonly pool: {
+    readonly max: number;
+    readonly min: number;
+  };
+  readonly operations?: Readonly<Record<string, Operation>> | undefined;
+}
+
+### build/mongodb.d.ts#MongoConnectOptions
+interface MongoConnectOptions {
+  readonly url: string;
+  readonly options: MongoDriverOptions;
+}
+
+### build/mongodb.d.ts#MongoDb
+interface MongoDb {
+  command(document: MongoDocument, options?: {
+    readonly signal?: AbortSignal | undefined;
+  }): Promise<MongoDocument>;
+}
+
+### build/mongodb.d.ts#MongoDocument
+type MongoDocument = Record<string, unknown>;
+
+### build/mongodb.d.ts#MongoDriverClient
+interface MongoDriverClient {
+  connect(): Promise<unknown>;
+  close(): Promise<void>;
+  db(name: string): MongoDb;
+  on<E extends MongoEventName>(event: E, listener: (payload: MongoEvents[E]) => void): unknown;
+  off<E extends MongoEventName>(event: E, listener: (payload: MongoEvents[E]) => void): unknown;
+}
+
+### build/mongodb.d.ts#MongoDriverOptions
+interface MongoDriverOptions {
+  readonly appName: string;
+  readonly replicaSet?: string | undefined;
+  readonly auth?: {
+    readonly username: string;
+    readonly password: string;
+  } | undefined;
+  readonly authSource?: string | undefined;
+  readonly maxPoolSize: number;
+  readonly minPoolSize: number;
+  readonly connectTimeoutMS: number;
+  readonly socketTimeoutMS: number;
+  readonly serverSelectionTimeoutMS: number;
+  readonly heartbeatFrequencyMS: number;
+  readonly waitQueueTimeoutMS: number;
+  readonly maxIdleTimeMS: number;
+  readonly keepAliveInitialDelay: number;
+  readonly serverMonitoringMode: "stream";
+  readonly retryReads: false;
+  readonly retryWrites: false;
+  readonly monitorCommands: true;
+}
+
+### build/mongodb.d.ts#MongoEventName
+type MongoEventName = keyof MongoEvents;
+
+### build/mongodb.d.ts#MongoEvents
+interface MongoEvents {
+  topologyDescriptionChanged: {
+    readonly newDescription: {
+      readonly servers: ReadonlyMap<string, MongoServer>;
+    };
+  };
+  connectionReady: {
+    readonly connectionId: number | string;
+    readonly address: string;
+  };
+  commandStarted: {
+    readonly connectionId?: number | string | undefined;
+    readonly address: string;
+    readonly serverConnectionId?: bigint | number | null | undefined;
+  };
+  connectionPoolCleared: {
+    readonly address: string;
+    readonly interruptInUseConnections?: boolean | undefined;
+  };
+  serverHeartbeatFailed: {
+    readonly connectionId: string;
+    readonly failure: Error;
+  };
+  error: Error;
+}
+
+### build/mongodb.d.ts#MongoFactory
+type MongoFactory = Factory<MongoConnectOptions, MongoDriverClient>;
+
+### build/mongodb.d.ts#MongoJoin
+interface MongoJoin extends ClientJoin {
+  readonly address: string;
+  readonly serverConnectionId: number | null;
+}
+
+### build/mongodb.d.ts#MongoKnobs
+interface MongoKnobs extends ClientKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly statement_timeout: Extent;
+  readonly heartbeat_interval: Quantity;
+  readonly client_retry_window: Quantity;
+  readonly checkout_timeout: Extent;
+  readonly pool_idle_expiry: Extent;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+}
+
+### build/mongodb.d.ts#MongoSeed
+interface MongoSeed {
+  readonly host: string;
+  readonly port: number;
+}
+
+### build/mongodb.d.ts#MongoServer
+interface MongoServer {
+  readonly type: string;
+}
+
+### build/mongodb.d.ts#MongoStep
+type MongoStep = ClientStep;
+
+### build/mongodb.d.ts#failureOutcome
+export declare const failureOutcome: (error: unknown) => Attempt<never>;
+
+### build/mongodb.d.ts#helloCommandDial
+export declare const helloCommandDial: DialFn;
+
+### build/mongodb.d.ts#helloJudge
+export declare const helloJudge: Judge;
+
+### build/mongodb.d.ts#mongoClient
+export declare const mongoClient: (name: string, spec: MongoClientSpec, options?: MongoClientOptions) => MongoClient;
+
+### build/mongodb.d.ts#mongoMeetings
+export declare const mongoMeetings: (name: string, knobs: MongoKnobs) => Meeting[];
+
+### build/mongodb.d.ts#mongoOptions
+export declare const mongoOptions: (name: string, spec: MongoClientSpec) => MongoConnectOptions;
+
+### build/mongodb.d.ts#nodeMongo
+export declare const nodeMongo: MongoFactory;
+
+### build/mongodb.d.ts#specProblems
+export declare const specProblems: (name: string, spec: MongoClientSpec) => string[];
+
+### build/otel.d.ts#callContext
+export declare const callContext: CallContext;
+
+### build/otel.d.ts#traceIds
+export declare const traceIds: () => TraceIds | undefined;
+
+### build/pg.d.ts#PG_CLIENT_MACHINE
+export declare const PG_CLIENT_MACHINE: Machine;
+
+### build/pg.d.ts#PG_STARTING_KNOBS
+export declare const PG_STARTING_KNOBS: PgKnobs;
+
+### build/pg.d.ts#PG_STARTING_POLL
+export declare const PG_STARTING_POLL: Poll;
+
+### build/pg.d.ts#PgClient
+interface PgClient extends Client<PgStep, PgJoin> {
+  readonly status: string;
+  query<Row = Record<string, unknown>>(operation: string, text: string, values?: readonly unknown[], options?: SendOptions): Promise<Sent<PgResult<Row>>>;
+}
+
+### build/pg.d.ts#PgClientOptions
+type PgClientOptions = ClientOptions<PoolFactory>;
+
+### build/pg.d.ts#PgClientSpec
+interface PgClientSpec extends ClientSpec<PgKnobs> {
+  readonly database?: string | undefined;
+  readonly user?: string | undefined;
+  readonly pool: {
+    readonly max: number;
+    readonly min: number;
+  };
+  readonly operations?: Readonly<Record<string, Operation>> | undefined;
+}
+
+### build/pg.d.ts#PgJoin
+interface PgJoin extends ClientJoin {
+  readonly backendPid: number | null;
+}
+
+### build/pg.d.ts#PgKnobs
+interface PgKnobs extends ClientKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly statement_timeout: Extent;
+  readonly pool_idle_expiry: Extent;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+}
+
+### build/pg.d.ts#PgPool
+interface PgPool {
+  readonly totalCount: number;
+  readonly idleCount: number;
+  readonly waitingCount: number;
+  connect(): Promise<PgPoolClient>;
+  end(): Promise<void>;
+  on(event: "connect" | "remove", listener: (client: PgPoolClient) => void): unknown;
+  on(event: "error", listener: (error: Error, client: PgPoolClient) => void): unknown;
+  off(event: "connect" | "remove", listener: (client: PgPoolClient) => void): unknown;
+  off(event: "error", listener: (error: Error, client: PgPoolClient) => void): unknown;
+}
+
+### build/pg.d.ts#PgPoolClient
+interface PgPoolClient {
+  readonly processID?: number | null | undefined;
+  readonly connection?: {
+    readonly stream?: PgSocket | undefined;
+  } | undefined;
+  query(text: string, values?: readonly unknown[]): Promise<PgResult<never>>;
+  release(error?: Error | boolean): void;
+  on(event: "error", listener: (error: Error) => void): unknown;
+  off(event: "error", listener: (error: Error) => void): unknown;
+}
+
+### build/pg.d.ts#PgPoolOptions
+interface PgPoolOptions {
+  readonly host: string;
+  readonly port: number;
+  readonly database?: string | undefined;
+  readonly user?: string | undefined;
+  readonly password?: string | undefined;
+  readonly application_name: string;
+  readonly max: number;
+  readonly min: number;
+  readonly connectionTimeoutMillis: number;
+  readonly query_timeout: number;
+  readonly statement_timeout: number | undefined;
+  readonly idleTimeoutMillis: number;
+  readonly maxLifetimeSeconds: number;
+  readonly keepAlive: boolean;
+  readonly keepAliveInitialDelayMillis: number;
+  readonly allowExitOnIdle: true;
+}
+
+### build/pg.d.ts#PgResult
+interface PgResult<Row = Record<string, unknown>> {
+  readonly rows: Row[];
+  readonly rowCount: number | null;
+}
+
+### build/pg.d.ts#PgSocket
+type PgSocket = ClientSocket;
+
+### build/pg.d.ts#PgStep
+type PgStep = ClientStep | "checkout";
+
+### build/pg.d.ts#PoolFactory
+type PoolFactory = Factory<PgPoolOptions, PgPool>;
+
+### build/pg.d.ts#nodePostgres
+export declare const nodePostgres: PoolFactory;
+
+### build/pg.d.ts#pgClient
+export declare const pgClient: (name: string, spec: PgClientSpec, options?: PgClientOptions) => PgClient;
+
+### build/pg.d.ts#pgMeetings
+export declare const pgMeetings: (name: string, knobs: PgKnobs) => Meeting[];
+
+### build/pg.d.ts#poolOptions
+export declare const poolOptions: (name: string, spec: PgClientSpec) => PgPoolOptions;
+
+### build/pg.d.ts#specProblems
+export declare const specProblems: (name: string, spec: PgClientSpec) => string[];
+
+### build/pg.d.ts#sslRequestDial
+export declare const sslRequestDial: DialFn;
+
+### build/policy.chunk.d.ts#Allowed
+interface Allowed {
+  readonly allowed: true;
+  readonly remaining: number;
+  readonly failure?: string | undefined;
+}
+
+### build/policy.chunk.d.ts#CapacityRefused
+interface CapacityRefused {
+  readonly allowed: false;
+  readonly cause: "capacity";
+  readonly units: number;
+  readonly capacity: number;
+}
+
+### build/policy.chunk.d.ts#Decision
+type Decision = Allowed | Refused;
+
+### build/policy.chunk.d.ts#KeyState
+type KeyState = {
+  readonly type: "token-bucket";
+  readonly full: number;
+} | {
+  readonly type: "sliding-window";
+  readonly stamps: readonly number[];
+};
+
+### build/policy.chunk.d.ts#LimitPolicy
+type LimitPolicy = TokenBucket | SlidingWindow;
+
+### build/policy.chunk.d.ts#LimitRule
+type LimitRule = {
+  readonly type: "token-bucket";
+  readonly interval: number;
+  readonly burst: number;
+} | {
+  readonly type: "sliding-window";
+  readonly limit: number;
+  readonly window: number;
+};
+
+### build/policy.chunk.d.ts#Limiter
+interface Limiter extends LimiterSpec {
+  readonly name: string;
+}
+
+### build/policy.chunk.d.ts#LimiterEviction
+interface LimiterEviction {
+  readonly maxKeys: Quantity;
+}
+
+### build/policy.chunk.d.ts#LimiterSpec
+interface LimiterSpec {
+  readonly key: string;
+  readonly policy: LimitPolicy;
+  readonly store: LimiterStoreSpec;
+  readonly evict: LimiterEviction;
+}
+
+### build/policy.chunk.d.ts#LimiterStoreSpec
+type LimiterStoreSpec = {
+  readonly kind: "local";
+} | {
+  readonly kind: "shared";
+  readonly dependency: string;
+  readonly onStoreFailure: StoreFailure;
+};
+
+### build/policy.chunk.d.ts#RefusalCause
+type RefusalCause = WaitCause | "capacity";
+
+### build/policy.chunk.d.ts#Refused
+type Refused = WaitRefused | CapacityRefused;
+
+### build/policy.chunk.d.ts#SlidingWindow
+interface SlidingWindow {
+  readonly type: "sliding-window";
+  readonly limit: Quantity;
+  readonly window: Quantity;
+}
+
+### build/policy.chunk.d.ts#StoreFailure
+type StoreFailure = "open" | "closed";
+
+### build/policy.chunk.d.ts#TakeStep
+interface TakeStep {
+  readonly decision: Decision;
+  readonly state: KeyState;
+}
+
+### build/policy.chunk.d.ts#TokenBucket
+interface TokenBucket {
+  readonly type: "token-bucket";
+  readonly rate: Quantity;
+  readonly burst: Quantity;
+}
+
+### build/policy.chunk.d.ts#WaitCause
+type WaitCause = "limit" | "cap" | "store";
+
+### build/policy.chunk.d.ts#WaitRefused
+interface WaitRefused {
+  readonly allowed: false;
+  readonly cause: WaitCause;
+  readonly retryAfter: Quantity;
+  readonly failure?: string | undefined;
+}
+
+### build/policy.chunk.d.ts#capacityOf
+declare const capacityOf: (rule: LimitRule) => number;
+
+### build/policy.chunk.d.ts#decide
+declare const decide: (rule: LimitRule, state: KeyState | undefined, now: number, units?: number) => TakeStep;
+
+### build/policy.chunk.d.ts#freeAt
+declare const freeAt: (rule: LimitRule, state: KeyState) => number;
+
+### build/policy.chunk.d.ts#idleSpan
+declare const idleSpan: (policy: LimitPolicy) => Quantity;
+
+### build/policy.chunk.d.ts#limitRule
+declare const limitRule: (policy: LimitPolicy) => LimitRule;
+
+### build/policy.chunk.d.ts#limiterProblems
+declare const limiterProblems: (name: string, spec: Partial<LimiterSpec> | undefined) => string[];
+
+### build/policy.chunk.d.ts#longestRetryAfter
+declare const longestRetryAfter: (policy: LimitPolicy) => Quantity;
+
+### build/policy.chunk.d.ts#overCapacity
+declare const overCapacity: (rule: LimitRule, units: number) => CapacityRefused | undefined;
+
+### build/policy.chunk.d.ts#retryAfterSeconds
+declare const retryAfterSeconds: (retryAfter: Quantity) => number;
+
+### build/policy.chunk.d.ts#unitsOf
+declare const unitsOf: (units: number | undefined) => number;
+
+### build/ports.chunk.d.ts#ChildHandle
+interface ChildHandle {
+  readonly pid: number | null;
+  readonly ipc: boolean;
+  onOutput(handler: (stream: "stdout" | "stderr", chunk: string | Uint8Array) => void): void;
+  onExit(handler: (code: number | null, signal: string | null) => void): void;
+  send(message: unknown): boolean;
+}
+
+### build/ports.chunk.d.ts#CommandOptions
+interface CommandOptions {
+  readonly cwd?: string | undefined;
+  readonly timeout?: number | undefined;
+}
+
+### build/ports.chunk.d.ts#CommandPort
+interface CommandPort {
+  run(file: string, args: readonly string[], options?: CommandOptions): Promise<CommandResult>;
+}
+
+### build/ports.chunk.d.ts#CommandResult
+interface CommandResult {
+  readonly code: number;
+  readonly out: string;
+}
+
+### build/ports.chunk.d.ts#FilePort
+interface FilePort {
+  read(path: string): Promise<string | null>;
+  write(path: string, data: string | Uint8Array): Promise<void>;
+  create(path: string, data: string): Promise<boolean>;
+  append(path: string, data: string | Uint8Array): Promise<void>;
+  size(path: string): Promise<number | null>;
+  rename(from: string, to: string): Promise<void>;
+  remove(path: string): Promise<void>;
+}
+
+### build/ports.chunk.d.ts#HostPorts
+interface HostPorts {
+  readonly platform: string;
+  readonly commands: CommandPort;
+  readonly files: FilePort;
+  readonly processes: ProcessesPort;
+  readonly net: NetPort;
+  readonly clock: Clock;
+  readonly wall: () => number;
+  readonly self: ProcessMark;
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly homeDir: string;
+  readonly user: () => string;
+  readonly logger?: Logger | undefined;
+}
+
+### build/ports.chunk.d.ts#NetPort
+interface NetPort {
+  httpStatus(url: string, timeout: number): Promise<number | null>;
+  tcpConnect(host: string, port: number, timeout: number): Promise<boolean>;
+}
+
+### build/ports.chunk.d.ts#ProcessMark
+interface ProcessMark {
+  readonly pid: number;
+  readonly startedAt: number;
+}
+
+### build/ports.chunk.d.ts#ProcessesPort
+interface ProcessesPort {
+  alive(pid: number): boolean;
+  startOf(pid: number): Promise<number | null>;
+  signal(pid: number, signal: StopSignal): boolean;
+  signalGroup(pid: number, signal: StopSignal): boolean;
+  spawn(request: SpawnRequest): ChildHandle;
+}
+
+### build/ports.chunk.d.ts#SpawnRequest
+interface SpawnRequest {
+  readonly program: string;
+  readonly args: readonly string[];
+  readonly cwd?: string | undefined;
+  readonly env: Readonly<Record<string, string>>;
+  readonly ipc: boolean;
+}
+
+### build/ports.chunk.d.ts#StopSignal
+type StopSignal = "SIGINT" | "SIGTERM" | "SIGKILL";
+
+### build/ports.chunk.d.ts#joinPath
+declare const joinPath: (platform: string, ...parts: readonly string[]) => string;
+
+### build/queue.chunk.d.ts#JobAction
+type JobAction = "requeue" | "reject" | "ack";
+
+### build/queue.chunk.d.ts#JobContext
+interface JobContext {
+  readonly signal: AbortSignal;
+  readonly intake: AbortSignal;
+  readonly delivery: number;
+  readonly life: Lifecycle;
+}
+
+### build/queue.chunk.d.ts#JobFailure
+interface JobFailure<J> {
+  readonly job: J;
+  readonly error: unknown;
+  readonly delivery: number;
+}
+
+### build/queue.chunk.d.ts#JobSettle
+interface JobSettle<J> {
+  ack(job: J): void | PromiseLike<void>;
+  requeue(job: J, cause: RequeueCause): void | PromiseLike<void>;
+  reject(job: J, error: unknown): void | PromiseLike<void>;
+  delivery(job: J): number;
+}
+
+### build/queue.chunk.d.ts#JobSource
+type JobSource<J> = ((signal: AbortSignal) => J | null | undefined | PromiseLike<J | null | undefined>) | AsyncIterable<J>;
+
+### build/queue.chunk.d.ts#QueueDrain
+interface QueueDrain extends TransportImpl {
+  readonly knobs: QueueKnobs;
+  wake(): boolean;
+  problems(description: ServiceDescription): string[];
+}
+
+### build/queue.chunk.d.ts#QueueDrainOptions
+interface QueueDrainOptions<J> {
+  readonly source: JobSource<J>;
+  readonly handle: (job: J, context: JobContext) => unknown;
+  readonly settle: JobSettle<J>;
+  readonly redelivery: RedeliveryPolicy<J>;
+  readonly close?: (() => void | PromiseLike<void>) | undefined;
+  readonly clock?: Clock | undefined;
+  readonly random?: (() => number) | undefined;
+  readonly request?: UnitRequest<J> | undefined;
+  readonly onError?: ((error: unknown, job: J | undefined) => void) | undefined;
+}
+
+### build/queue.chunk.d.ts#QueueKnobs
+interface QueueKnobs {
+  readonly queue_poll_interval: Extent;
+  readonly unit_processing_time: Extent;
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+  readonly close_bound: Quantity;
+  readonly concurrency: Extent;
+  readonly [knob: string]: Extent;
+}
+
+### build/queue.chunk.d.ts#RedeliveryPolicy
+type RedeliveryPolicy<J> = (failure: JobFailure<J>) => JobAction;
+
+### build/queue.chunk.d.ts#RequeueCause
+type RequeueCause = "failed" | "unstarted" | "cut";
+
+### build/queue.chunk.d.ts#UnitRequest
+interface UnitRequest<U> {
+  readonly controller: string;
+  readonly route: string | ((unit: U) => string);
+  readonly detail?: ((unit: U) => unknown) | undefined;
+}
+
+### build/queue.chunk.d.ts#queueDrain
+declare const queueDrain: <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>) => QueueDrain;
+
+### build/queue.chunk.d.ts#redeliverOnce
+declare const redeliverOnce: <J>(then: JobAction | RedeliveryPolicy<J>, poison?: (error: unknown, job: J) => boolean) => RedeliveryPolicy<J>;
+
+### build/rabbitmq.d.ts#AMQP_HEADER
+export declare const AMQP_HEADER: Uint8Array;
+
+### build/rabbitmq.d.ts#RABBIT_CLIENT_MACHINE
+export declare const RABBIT_CLIENT_MACHINE: Machine;
+
+### build/rabbitmq.d.ts#RABBIT_STARTING_KNOBS
+export declare const RABBIT_STARTING_KNOBS: RabbitKnobs;
+
+### build/rabbitmq.d.ts#RABBIT_STARTING_POLL
+export declare const RABBIT_STARTING_POLL: Poll;
+
+### build/rabbitmq.d.ts#RabbitChannel
+interface RabbitChannel {
+  publish(exchange: string, routingKey: string, content: Buffer, options: RabbitPublishOptions, callback: (error: Error | null) => void): boolean;
+  get(queue: string, options?: {
+    readonly noAck?: boolean | undefined;
+  }): Promise<RabbitMessage | false>;
+  checkExchange(exchange: string): Promise<unknown>;
+  ack(message: RabbitMessage): void;
+  nack(message: RabbitMessage, allUpTo?: boolean, requeue?: boolean): void;
+  close(): Promise<void>;
+  on(event: RabbitChannelEvent, listener: (error?: Error) => void): unknown;
+  off(event: RabbitChannelEvent, listener: (error?: Error) => void): unknown;
+}
+
+### build/rabbitmq.d.ts#RabbitChannelEvent
+type RabbitChannelEvent = "error" | "close";
+
+### build/rabbitmq.d.ts#RabbitClient
+interface RabbitClient extends Client<ClientStep, RabbitJoin> {
+  readonly status: string;
+  publish(operation: string, message: RabbitPublish, options?: SendOptions): Promise<Sent<void>>;
+  get(operation: string, queue: string, options?: SendOptions): Promise<Sent<RabbitDelivery | null>>;
+  jobs(operation: string, queue: string): RabbitJobs;
+}
+
+### build/rabbitmq.d.ts#RabbitClientOptions
+interface RabbitClientOptions extends ClientOptions<RabbitFactory> {
+  readonly random?: (() => number) | undefined;
+}
+
+### build/rabbitmq.d.ts#RabbitClientSpec
+interface RabbitClientSpec extends ClientSpec<RabbitKnobs> {
+  readonly vhost?: string | undefined;
+  readonly username?: string | undefined;
+  readonly seeds?: readonly RabbitSeed[] | undefined;
+  readonly operations?: ClientSpec<RabbitKnobs>["operations"];
+}
+
+### build/rabbitmq.d.ts#RabbitConnectOptions
+interface RabbitConnectOptions {
+  readonly url: string;
+  readonly socketOptions: RabbitSocketOptions;
+}
+
+### build/rabbitmq.d.ts#RabbitConnection
+interface RabbitConnection {
+  createConfirmChannel(): Promise<RabbitChannel>;
+  close(): Promise<void>;
+  on(event: RabbitConnectionEvent, listener: (detail?: unknown) => void): unknown;
+  off(event: RabbitConnectionEvent, listener: (detail?: unknown) => void): unknown;
+  readonly connection: {
+    readonly stream?: ClientSocket | undefined;
+  };
+}
+
+### build/rabbitmq.d.ts#RabbitConnectionEvent
+type RabbitConnectionEvent = "error" | "close" | "blocked" | "unblocked";
+
+### build/rabbitmq.d.ts#RabbitDelivery
+interface RabbitDelivery {
+  readonly message: RabbitMessage;
+  readonly generation: number;
+  readonly delivery: number;
+}
+
+### build/rabbitmq.d.ts#RabbitFactory
+type RabbitFactory = Factory<RabbitConnectOptions, RabbitConnection>;
+
+### build/rabbitmq.d.ts#RabbitJobs
+interface RabbitJobs {
+  readonly source: (signal: AbortSignal) => Promise<RabbitDelivery | null>;
+  readonly settle: JobSettle<RabbitDelivery>;
+}
+
+### build/rabbitmq.d.ts#RabbitJoin
+interface RabbitJoin extends ClientJoin {
+  readonly address: string;
+  readonly connectionName: string | null;
+}
+
+### build/rabbitmq.d.ts#RabbitKnobs
+interface RabbitKnobs extends ClientKnobs, RetryKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly heartbeat_interval: Extent;
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+}
+
+### build/rabbitmq.d.ts#RabbitMessage
+interface RabbitMessage {
+  readonly content: Buffer;
+  readonly fields: {
+    readonly deliveryTag: number;
+    readonly redelivered: boolean;
+    readonly exchange: string;
+    readonly routingKey: string;
+    readonly messageCount?: number | undefined;
+  };
+  readonly properties: {
+    readonly headers?: Readonly<Record<string, unknown>> | undefined;
+    readonly [property: string]: unknown;
+  };
+}
+
+### build/rabbitmq.d.ts#RabbitPublish
+interface RabbitPublish {
+  readonly exchange: string;
+  readonly routingKey: string;
+  readonly content: Buffer | string;
+  readonly properties?: RabbitPublishOptions | undefined;
+}
+
+### build/rabbitmq.d.ts#RabbitPublishOptions
+type RabbitPublishOptions = Readonly<Record<string, unknown>>;
+
+### build/rabbitmq.d.ts#RabbitSeed
+interface RabbitSeed {
+  readonly host: string;
+  readonly port: number;
+}
+
+### build/rabbitmq.d.ts#RabbitSocketOptions
+interface RabbitSocketOptions {
+  readonly timeout: number;
+  readonly noDelay: true;
+  readonly keepAlive: boolean;
+  readonly keepAliveDelay?: number | undefined;
+  readonly clientProperties: {
+    readonly connection_name: string;
+  };
+}
+
+### build/rabbitmq.d.ts#amqpDial
+export declare const amqpDial: DialFn;
+
+### build/rabbitmq.d.ts#deliveryCount
+export declare const deliveryCount: (message: RabbitMessage) => number;
+
+### build/rabbitmq.d.ts#failureOutcome
+export declare const failureOutcome: (error: unknown) => Attempt<never>;
+
+### build/rabbitmq.d.ts#nodeAmqp
+export declare const nodeAmqp: RabbitFactory;
+
+### build/rabbitmq.d.ts#rabbitClient
+export declare const rabbitClient: (name: string, spec: RabbitClientSpec, options?: RabbitClientOptions) => RabbitClient;
+
+### build/rabbitmq.d.ts#rabbitMeetings
+export declare const rabbitMeetings: (name: string, knobs: RabbitKnobs) => Meeting[];
+
+### build/rabbitmq.d.ts#rabbitOptions
+export declare const rabbitOptions: (name: string, spec: RabbitClientSpec, index?: number) => RabbitConnectOptions;
+
+### build/rabbitmq.d.ts#specProblems
+export declare const specProblems: (name: string, spec: RabbitClientSpec) => string[];
+
+### build/rabbitmq.d.ts#startJudge
+export declare const startJudge: Judge;
+
+### build/redis.d.ts#ConnectionFactory
+type ConnectionFactory = Factory<RedisConnectionOptions, RedisConnection>;
+
+### build/redis.d.ts#Join
+interface Join extends ClientJoin {
+  readonly clientId: number | null;
+}
+
+### build/redis.d.ts#LIMITER_SCRIPT
+export declare const LIMITER_SCRIPT = "\nlocal kind = ARGV[1]\nlocal a = tonumber(ARGV[2])\nlocal b = tonumber(ARGV[3])\nlocal cap = tonumber(ARGV[4])\nlocal member = ARGV[5]\nlocal units = tonumber(ARGV[7])\nlocal now\nif ARGV[6] == '' then\n  local t = redis.call('TIME')\n  now = tonumber(t[1]) * 1000 + tonumber(t[2]) / 1000\nelse\n  now = tonumber(ARGV[6])\nend\nlocal TOL = 1e-6\nlocal function num(x) return string.format('%.6f', x) end\nlocal raw = redis.call('GET', KEYS[1])\nlocal full = nil\nlocal stamps = nil\nif raw then\n  if kind == 'token-bucket' then\n    full = tonumber(raw)\n  else\n    stamps = {}\n    for x in string.gmatch(raw, '[^,]+') do stamps[#stamps + 1] = tonumber(x) end\n  end\nend\nlocal function freeAt()\n  if kind == 'token-bucket' then return full end\n  if #stamps == 0 then return -math.huge end\n  return stamps[#stamps] + b\nend\nif raw and freeAt() <= now then\n  redis.call('DEL', KEYS[1])\n  redis.call('ZREM', KEYS[2], member)\n  raw = nil\n  full = nil\n  stamps = nil\nend\nif not raw then\n  if redis.call('ZCARD', KEYS[2]) >= cap then\n    redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', num(now))\n    if redis.call('ZCARD', KEYS[2]) >= cap then\n      local first = redis.call('ZRANGE', KEYS[2], 0, 0, 'WITHSCORES')\n      return {0, num(tonumber(first[2]) - now), 'cap'}\n    end\n  end\nend\nlocal remaining\nlocal state\nif kind == 'token-bucket' then\n  local span = a * b\n  local base = now\n  if full and full > now then base = full end\n  local nxt = base + a * units\n  if nxt - now > span + TOL then\n    return {0, num(nxt - span - now), 'limit'}\n  end\n  remaining = math.floor((span - (nxt - now)) / a + TOL)\n  if remaining < 0 then remaining = 0 end\n  full = nxt\n  state = num(full)\nelse\n  local live = {}\n  for _, stamp in ipairs(stamps or {}) do\n    if stamp + b > now + TOL then live[#live + 1] = stamp end\n  end\n  if #live + units > a then\n    return {0, num(live[#live + units - a] + b - now), 'limit'}\n  end\n  for _ = 1, units do live[#live + 1] = now end\n  remaining = a - #live\n  stamps = live\n  local parts = {}\n  for i, stamp in ipairs(live) do parts[i] = num(stamp) end\n  state = table.concat(parts, ',')\nend\nlocal free = freeAt()\nlocal ttl = math.ceil(free - now)\nif ttl < 1 then ttl = 1 end\nredis.call('SET', KEYS[1], state, 'PX', ttl)\nredis.call('ZADD', KEYS[2], num(free), member)\nif redis.call('PTTL', KEYS[2]) < ttl then redis.call('PEXPIRE', KEYS[2], ttl) end\nreturn {1, remaining}\n";
+
+### build/redis.d.ts#REDIS_CLIENT_MACHINE
+export declare const REDIS_CLIENT_MACHINE: Machine;
+
+### build/redis.d.ts#REDIS_OPERATIONS
+export declare const REDIS_OPERATIONS: Readonly<Record<string, Operation>>;
+
+### build/redis.d.ts#RedisClient
+interface RedisClient extends Client<ClientStep, Join> {
+  readonly status: string;
+  send<T = unknown>(command: string, args?: ReadonlyArray<string | number>, options?: SendOptions): Promise<Sent<T>>;
+}
+
+### build/redis.d.ts#RedisClientOptions
+interface RedisClientOptions extends ClientOptions<ConnectionFactory> {
+  readonly random?: (() => number) | undefined;
+  readonly turn?: (() => Promise<void>) | undefined;
+}
+
+### build/redis.d.ts#RedisClientSpec
+interface RedisClientSpec extends ClientSpec<RedisKnobs> {
+  readonly db?: number | undefined;
+  readonly username?: string | undefined;
+  readonly heartbeatMisses: number;
+}
+
+### build/redis.d.ts#RedisConnection
+interface RedisConnection {
+  readonly status: string;
+  readonly stream?: RedisSocket | undefined;
+  connect(): Promise<void>;
+  call(command: string, ...args: Array<string | number>): Promise<unknown>;
+  quit(): Promise<unknown>;
+  disconnect(reconnect?: boolean): void;
+  on(event: string, listener: (...args: unknown[]) => void): unknown;
+  off(event: string, listener: (...args: unknown[]) => void): unknown;
+}
+
+### build/redis.d.ts#RedisConnectionOptions
+interface RedisConnectionOptions {
+  readonly host: string;
+  readonly port: number;
+  readonly db?: number | undefined;
+  readonly username?: string | undefined;
+  readonly password?: string | undefined;
+  readonly lazyConnect: true;
+  readonly connectTimeout: number;
+  readonly commandTimeout: number;
+  readonly socketTimeout: number | undefined;
+  readonly keepAlive: number | false;
+  readonly enableOfflineQueue: false;
+  readonly autoResendUnfulfilledCommands: false;
+  readonly maxRetriesPerRequest: null;
+  readonly enableReadyCheck: true;
+  readonly connectionName: string;
+  readonly retryStrategy: (times: number) => number | null;
+}
+
+### build/redis.d.ts#RedisKnobs
+interface RedisKnobs extends ClientKnobs, RetryKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly driver_writeoff_time: Extent;
+  readonly heartbeat_interval: Extent;
+  readonly heartbeat_timeout: Quantity;
+  readonly client_retry_window: Extent;
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+  readonly close_bound: Quantity;
+  readonly max_connection_age: Extent;
+}
+
+### build/redis.d.ts#RedisLimiterOptions
+interface RedisLimiterOptions {
+  readonly prefix: string;
+  readonly clock?: Clock | undefined;
+}
+
+### build/redis.d.ts#RedisSender
+type RedisSender = Pick<RedisClient, "send">;
+
+### build/redis.d.ts#RedisSocket
+type RedisSocket = ClientSocket;
+
+### build/redis.d.ts#commandName
+export declare const commandName: (command: string, args: readonly unknown[]) => string;
+
+### build/redis.d.ts#ioredis
+export declare const ioredis: ConnectionFactory;
+
+### build/redis.d.ts#meetings
+export declare const meetings: (name: string, knobs: RedisKnobs, heartbeat: Extent) => Meeting[];
+
+### build/redis.d.ts#redisClient
+export declare const redisClient: (name: string, spec: RedisClientSpec, options?: RedisClientOptions) => RedisClient;
+
+### build/redis.d.ts#redisLimiterStore
+export declare const redisLimiterStore: (client: RedisSender, options: RedisLimiterOptions) => LimiterStore;
+
+### build/redis.d.ts#specProblems
+export declare const specProblems: (name: string, spec: RedisClientSpec) => string[];
+
+### build/redis.d.ts#tcpDial
+export declare const tcpDial: DialFn;
+
+### build/rules.chunk.d.ts#Binding
+type Binding = Readonly<Record<string, Bound | readonly number[] | undefined>> & {
+  readonly margin?: number | undefined;
+  readonly margins?: readonly number[] | undefined;
+};
+
+### build/rules.chunk.d.ts#Bound
+type Bound = number | "inf" | "off";
+
+### build/rules.chunk.d.ts#Change
+interface Change {
+  readonly rule: string;
+  readonly before: Verdict;
+  readonly after: Verdict;
+}
+
+### build/rules.chunk.d.ts#Compressed
+interface Compressed {
+  readonly bind: Binding;
+  readonly unmarked: readonly string[];
+}
+
+### build/rules.chunk.d.ts#Compression
+interface Compression {
+  readonly changed: readonly Change[];
+  readonly unmarked: readonly string[];
+}
+
+### build/rules.chunk.d.ts#DRAIN_RULES
+declare const DRAIN_RULES: readonly Rule[];
+
+### build/rules.chunk.d.ts#Evaluated
+interface Evaluated {
+  readonly lhs: number | null;
+  readonly rhs: number | null;
+  readonly margin: number;
+  readonly holds: boolean | null;
+}
+
+### build/rules.chunk.d.ts#Inequality
+interface Inequality {
+  readonly lhs: Side;
+  readonly op: "<" | "<=" | ">" | ">=";
+  readonly rhs: Side;
+  readonly margin?: number | string | undefined;
+}
+
+### build/rules.chunk.d.ts#O04
+declare const O04: Rule;
+
+### build/rules.chunk.d.ts#O09
+declare const O09: Rule;
+
+### build/rules.chunk.d.ts#O10
+declare const O10: Rule;
+
+### build/rules.chunk.d.ts#O16
+declare const O16: Rule;
+
+### build/rules.chunk.d.ts#Rule
+interface Rule {
+  readonly id: string;
+  readonly rule: string;
+  readonly window?: string | undefined;
+  readonly expr: Inequality;
+  readonly expr_more?: readonly Inequality[] | undefined;
+}
+
+### build/rules.chunk.d.ts#Side
+interface Side {
+  readonly terms: readonly Term[];
+  readonly const?: number | undefined;
+}
+
+### build/rules.chunk.d.ts#Term
+interface Term {
+  readonly knob: string;
+  readonly coef: number;
+  readonly at?: string | undefined;
+}
+
+### build/rules.chunk.d.ts#TimerMark
+type TimerMark = {
+  readonly kind: "scalable";
+} | {
+  readonly kind: "fixed";
+} | {
+  readonly kind: "stepped";
+  readonly step: number;
+} | {
+  readonly kind: "floored";
+  readonly floor: number;
+  readonly by: string;
+};
+
+### build/rules.chunk.d.ts#TimerMarks
+type TimerMarks = Readonly<Record<string, TimerMark | undefined>>;
+
+### build/rules.chunk.d.ts#Verdict
+type Verdict = "holds" | "violated" | "unbounded" | "depends";
+
+### build/rules.chunk.d.ts#compress
+declare const compress: (bind: Binding, k: number, marks: TimerMarks) => Compressed;
+
+### build/rules.chunk.d.ts#compression
+declare const compression: (rules: readonly Rule[], bind: Binding, k: number, marks: TimerMarks) => Compression;
+
+### build/rules.chunk.d.ts#evaluate
+declare const evaluate: (rule: Rule, bind: Binding) => Evaluated[];
+
+### build/rules.chunk.d.ts#inequalities
+declare const inequalities: (rule: Rule) => readonly Inequality[];
+
+### build/rules.chunk.d.ts#symbolsOf
+declare const symbolsOf: (rule: Rule) => string[];
+
+### build/rules.chunk.d.ts#verdictOf
+declare const verdictOf: (rule: Rule, bind: Binding, evaluated: readonly Evaluated[]) => Verdict;
+
+### build/store.chunk.d.ts#KeyedLimiter
+interface KeyedLimiter {
+  readonly name: string;
+  readonly spec: LimiterSpec;
+  readonly rule: LimitRule;
+  readonly maxKeys: number;
+  take(key: string, units?: number): Promise<Decision>;
+  tryTakeSync?(key: string, units?: number): Decision;
+}
+
+### build/store.chunk.d.ts#LimiterStore
+interface LimiterStore {
+  readonly kind: "local" | "shared";
+  take(request: TakeRequest): Decision | Promise<Decision>;
+}
+
+### build/store.chunk.d.ts#LocalLimiter
+interface LocalLimiter extends KeyedLimiter {
+  tryTakeSync(key: string, units?: number): Decision;
+}
+
+### build/store.chunk.d.ts#MemoryStore
+interface MemoryStore extends LimiterStore {
+  readonly kind: "local";
+  size(limiter: string): number;
+}
+
+### build/store.chunk.d.ts#TakeRequest
+interface TakeRequest {
+  readonly limiter: string;
+  readonly key: string;
+  readonly rule: LimitRule;
+  readonly maxKeys: number;
+  readonly units?: number | undefined;
+}
+
+### build/store.chunk.d.ts#keyedLimiter
+declare function keyedLimiter(name: string, spec: LimiterSpec, store: MemoryStore): LocalLimiter;
+declare function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStore): KeyedLimiter;
+
+### build/store.chunk.d.ts#memoryStore
+declare const memoryStore: (clock: Clock) => MemoryStore;
+
+### build/testing.d.ts#Behavior
+export type Behavior = Outcome | "throw" | "timeout" | "hang";
+
+### build/testing.d.ts#CallerView
+interface CallerView {
+  readonly items: readonly unknown[];
+  readonly end: SeenEnd | null;
+}
+
+### build/testing.d.ts#ConformanceOptions
+interface ConformanceOptions {
+  readonly name?: string | undefined;
+  readonly clock?: "fake" | "real" | undefined;
+  readonly cap?: number | undefined;
+  readonly closeBound?: number | undefined;
+  readonly slack?: number | undefined;
+  readonly cooperative?: boolean | undefined;
+  readonly holds?: number | undefined;
+  readonly streams?: boolean | undefined;
+  readonly record?: ((record: ConformanceRecord) => void) | undefined;
+}
+
+### build/testing.d.ts#ConformanceRecord
+interface ConformanceRecord {
+  readonly case: string;
+  readonly what: string;
+  readonly expected: number;
+  readonly measured: number;
+}
+
+### build/testing.d.ts#ContractCase
+interface ContractCase {
+  readonly name: string;
+  run(): Promise<void>;
+}
+
+### build/testing.d.ts#ContractOptions
+interface ContractOptions {
+  readonly degradeBy?: number | undefined;
+  readonly seed?: number | undefined;
+}
+
+### build/testing.d.ts#FakeChild
+interface FakeChild extends ChildHandle {
+  readonly request: SpawnRequest;
+  readonly sent: readonly unknown[];
+  readonly ended: boolean;
+  exit(code: number | null, signal?: string | null): void;
+  output(stream: "stdout" | "stderr", chunk: string | Uint8Array): void;
+}
+
+### build/testing.d.ts#FakeHost
+interface FakeHost {
+  readonly ports: HostPorts;
+  readonly clock: FakeClock;
+  readonly files: Map<string, string | Uint8Array>;
+  readonly commands: RecordedCommand[];
+  readonly signals: RecordedSignal[];
+  readonly children: FakeChild[];
+  readonly processes: Map<number, number | null>;
+  readonly http: Map<string, number | null>;
+  readonly tcp: Set<string>;
+  polite: boolean;
+  failFiles: ((operation: string, path: string) => boolean) | null;
+  failSpawn: ((request: SpawnRequest) => boolean) | null;
+  text(path: string): string | null;
+  settle(): Promise<void>;
+}
+
+### build/testing.d.ts#FakeHostOptions
+interface FakeHostOptions {
+  readonly platform?: string | undefined;
+  readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+  readonly homeDir?: string | undefined;
+  readonly user?: string | undefined;
+  readonly self?: ProcessMark | undefined;
+  readonly wallStart?: number | undefined;
+  readonly files?: Readonly<Record<string, string | Uint8Array>> | undefined;
+  readonly answer?: ((command: RecordedCommand) => CommandResult | undefined) | undefined;
+  readonly logger?: Logger | undefined;
+}
+
+### build/testing.d.ts#FakeProcess
+interface FakeProcess extends ProcessPort {
+  signal(name: ExitSignal): void;
+  trigger(name: ExitTrigger): void;
+  message(value: unknown): void;
+  uncaught(error: unknown, origin?: UncaughtOrigin): void;
+  readonly exits: readonly number[];
+  readonly handlers: number;
+  readonly triggers: readonly ExitTrigger[];
+  readonly log: readonly string[];
+  readonly flushes: number;
+  readonly holds: number;
+  readonly heldAtExit: readonly number[];
+}
+
+### build/testing.d.ts#FakeProcessOptions
+interface FakeProcessOptions {
+  readonly flush?: (() => Promise<void> | void) | undefined;
+  readonly clock?: Clock | undefined;
+}
+
+### build/testing.d.ts#HeldWork
+interface HeldWork {
+  release(): Promise<void>;
+  readonly aborted: boolean;
+}
+
+### build/testing.d.ts#QuietServer
+export interface QuietServer {
+  readonly port: number;
+  quiet(): void;
+  speak(): void;
+  readonly connections: number;
+  close(): Promise<void>;
+}
+
+### build/testing.d.ts#RecordedCommand
+interface RecordedCommand {
+  readonly file: string;
+  readonly args: readonly string[];
+  readonly options: CommandOptions | undefined;
+}
+
+### build/testing.d.ts#RecordedSignal
+interface RecordedSignal {
+  readonly pid: number;
+  readonly signal: StopSignal;
+  readonly group: boolean;
+}
+
+### build/testing.d.ts#ScriptedCheck
+export interface ScriptedCheck {
+  readonly run: CheckFn;
+  behavior: Behavior;
+  readonly calls: number;
+  readonly hung: number;
+  heal(): void;
+}
+
+### build/testing.d.ts#SeenEnd
+interface SeenEnd {
+  readonly kind: RequestEnd["kind"];
+  readonly inBand: boolean;
+}
+
+### build/testing.d.ts#StreamCall
+interface StreamCall {
+  readonly controller: string;
+  readonly route: string;
+  readonly work: RequestFn<unknown>;
+  readonly stream: boolean;
+}
+
+### build/testing.d.ts#SubjectFactory
+type SubjectFactory = (clock: Clock) => TransportSubject | Promise<TransportSubject>;
+
+### build/testing.d.ts#TestLogger
+export interface TestLogger extends Logger {
+  readonly entries: readonly LogEntry[];
+  messages(level?: LogLevel): string[];
+  clear(): void;
+}
+
+### build/testing.d.ts#TransportSubject
+interface TransportSubject {
+  readonly impl: TransportImpl;
+  readonly life?: Lifecycle | undefined;
+  offer(): Promise<boolean>;
+  hold(): Promise<HeldWork>;
+  call?(call: StreamCall): CallerView | Promise<CallerView>;
+  dispose?(): Promise<void> | void;
+}
+
+### build/testing.d.ts#contractCases
+export declare const contractCases: (declare: () => ServiceBuilder, options?: ContractOptions) => ContractCase[];
+
+### build/testing.d.ts#detachedLifecycle
+export declare const detachedLifecycle: () => Lifecycle;
+
+### build/testing.d.ts#fakeHost
+export declare const fakeHost: (options?: FakeHostOptions) => FakeHost;
+
+### build/testing.d.ts#fakeProcess
+export declare const fakeProcess: (options?: FakeProcessOptions) => FakeProcess;
+
+### build/testing.d.ts#quietServer
+export declare const quietServer: () => Promise<QuietServer>;
+
+### build/testing.d.ts#scriptedCheck
+export declare const scriptedCheck: (behavior?: Behavior) => ScriptedCheck;
+
+### build/testing.d.ts#seeded
+export declare const seeded: (seed: number) => (() => number);
+
+### build/testing.d.ts#testLogger
+export declare const testLogger: () => TestLogger;
+
+### build/testing.d.ts#transportConformance
+export declare const transportConformance: (make: SubjectFactory, options?: ConformanceOptions) => ContractCase[];
+
+### build/websocket.d.ts#WS_CLIENT_MACHINE
+export declare const WS_CLIENT_MACHINE: Machine;
+
+### build/websocket.d.ts#WS_CLIENT_STARTING_KNOBS
+export declare const WS_CLIENT_STARTING_KNOBS: WsKnobs;
+
+### build/websocket.d.ts#WS_CLIENT_STARTING_MISSES
+export declare const WS_CLIENT_STARTING_MISSES = 1;
+
+### build/websocket.d.ts#WS_CLIENT_STARTING_POLL
+export declare const WS_CLIENT_STARTING_POLL: Poll;
+
+### build/websocket.d.ts#WS_OPERATIONS
+export declare const WS_OPERATIONS: Readonly<Record<string, Operation>>;
+
+### build/websocket.d.ts#WsClient
+interface WsClient extends Client<ClientStep, WsJoin> {
+  readonly status: string;
+  request(operation: string, call: WsRequest, options?: SendOptions): Promise<Sent<WsResponse>>;
+  ping(options?: SendOptions): Promise<Sent<void>>;
+  send(data: string | Buffer): boolean;
+  onMessage(listener: WsMessageListener): () => void;
+}
+
+### build/websocket.d.ts#WsClientOptions
+interface WsClientOptions extends ClientOptions<WsFactory> {
+  readonly random?: (() => number) | undefined;
+  readonly turn?: (() => Promise<void>) | undefined;
+}
+
+### build/websocket.d.ts#WsClientSpec
+interface WsClientSpec extends ClientSpec<WsKnobs> {
+  readonly path?: string | undefined;
+  readonly protocols?: readonly string[] | undefined;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+  readonly heartbeatMisses: number;
+  readonly replies?: WsReplies | undefined;
+  readonly operations?: ClientSpec<WsKnobs>["operations"];
+}
+
+### build/websocket.d.ts#WsConnectOptions
+interface WsConnectOptions {
+  readonly url: string;
+  readonly protocols: readonly string[];
+  readonly options: WsDriverOptions;
+}
+
+### build/websocket.d.ts#WsConnection
+interface WsConnection {
+  listen(listeners: WsListeners): void;
+  send(data: string | Buffer, callback: (error?: Error) => void): void;
+  ping(data: Buffer): void;
+  close(code: number, reason: string): void;
+  terminate(): void;
+  readonly socket: ClientSocket | undefined;
+  readonly protocol: string;
+}
+
+### build/websocket.d.ts#WsDriverOptions
+interface WsDriverOptions {
+  readonly handshakeTimeout: number;
+  readonly autoPong: true;
+  readonly closeTimeout: number;
+  readonly keepAlive: boolean;
+  readonly keepAliveInitialDelay?: number | undefined;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+}
+
+### build/websocket.d.ts#WsFactory
+type WsFactory = Factory<WsConnectOptions, WsConnection>;
+
+### build/websocket.d.ts#WsJoin
+interface WsJoin extends ClientJoin {
+  readonly url: string;
+  readonly protocol: string;
+}
+
+### build/websocket.d.ts#WsKnobs
+interface WsKnobs extends ClientKnobs, RetryKnobs {
+  readonly connect_bound: Quantity;
+  readonly request_timeout: Quantity;
+  readonly heartbeat_interval: Extent;
+  readonly heartbeat_timeout: Quantity;
+  readonly retry_base: Quantity;
+  readonly retry_cap: Quantity;
+  readonly keepalive_idle: Extent;
+  readonly max_connection_age: Extent;
+  readonly close_bound: Quantity;
+}
+
+### build/websocket.d.ts#WsListeners
+interface WsListeners {
+  open(): void;
+  message(data: Buffer, binary: boolean): void;
+  pong(data: Buffer): void;
+  close(code: number, reason: string): void;
+  error(error: Error): void;
+}
+
+### build/websocket.d.ts#WsMessageListener
+type WsMessageListener = (data: Buffer, binary: boolean) => void;
+
+### build/websocket.d.ts#WsReplies
+interface WsReplies {
+  reply(data: Buffer, binary: boolean): WsReply | null;
+}
+
+### build/websocket.d.ts#WsReply
+interface WsReply {
+  readonly id: string;
+  readonly error?: string | undefined;
+}
+
+### build/websocket.d.ts#WsRequest
+interface WsRequest {
+  readonly id: string;
+  readonly data: string | Buffer;
+}
+
+### build/websocket.d.ts#WsResponse
+interface WsResponse {
+  readonly data: Buffer;
+  readonly binary: boolean;
+}
+
+### build/websocket.d.ts#adaptWs
+export declare const adaptWs: (ws: WsDriver) => WsConnection;
+
+### build/websocket.d.ts#nodeWs
+export declare const nodeWs: WsFactory;
+
+### build/websocket.d.ts#specProblems
+export declare const specProblems: (name: string, spec: WsClientSpec) => string[];
+
+### build/websocket.d.ts#upgradeJudge
+export declare const upgradeJudge: Judge;
+
+### build/websocket.d.ts#upgradeRequest
+export declare const upgradeRequest: (spec: Pick<WsClientSpec, "host" | "port" | "path" | "protocols" | "headers">) => string;
+
+### build/websocket.d.ts#wsClient
+export declare const wsClient: (name: string, spec: WsClientSpec, options?: WsClientOptions) => WsClient;
+
+### build/websocket.d.ts#wsDial
+export declare const wsDial: (spec: Pick<WsClientSpec, "path" | "protocols" | "headers">) => DialFn;
+
+### build/websocket.d.ts#wsMeetings
+export declare const wsMeetings: (name: string, knobs: WsKnobs, misses: number) => Meeting[];
+
+### build/websocket.d.ts#wsOptions
+export declare const wsOptions: (spec: WsClientSpec) => WsConnectOptions;
+
+### build/websocket.d.ts#wsUrl
+export declare const wsUrl: (spec: WsClientSpec) => string;

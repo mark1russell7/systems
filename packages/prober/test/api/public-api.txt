@@ -1,0 +1,64 @@
+# The public API of @mark1russell7/prober
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): names
+
+CollectorLine: build/index.d.ts#CollectorLine
+KernelRecord: build/index.d.ts#KernelRecord
+RECORD_KINDS: build/index.d.ts#RECORD_KINDS
+RecordKind: build/index.d.ts#RecordKind
+
+## Declarations
+
+### build/index.d.ts#CollectorLine
+export type CollectorLine = "begin" | "clock" | "fail" | "undecodable";
+
+### build/index.d.ts#KernelRecord
+export interface KernelRecord {
+  readonly ev: RecordKind | CollectorLine | string;
+  readonly mono: number;
+  readonly cookie?: number;
+  readonly netns?: number;
+  readonly src?: string;
+  readonly dst?: string;
+  readonly state?: number;
+  readonly err?: number;
+  readonly why?: "tlp" | "rto" | "fast";
+  readonly what?: "keepalive" | "window" | "retransmit" | "other";
+  readonly behind?: Quantity;
+  readonly late?: Quantity;
+  readonly owned?: boolean;
+  readonly tcp?: {
+    readonly retransmits: number;
+    readonly pending: number;
+    readonly backoff: number;
+    readonly probes_out: number;
+    readonly rto: Quantity;
+    readonly srtt: Quantity;
+    readonly snd_una?: number;
+    readonly snd_nxt?: number;
+    readonly rcv_nxt?: number;
+    readonly sacked?: number;
+    readonly lost?: number;
+    readonly reordering?: number;
+    readonly reord_seen?: number;
+    readonly dsack_dups?: number;
+    readonly rcv_ooopack?: number;
+  };
+  readonly seg?: {
+    readonly seq: number;
+    readonly ack?: number;
+    readonly flags?: number;
+    readonly len: Quantity;
+  };
+  readonly [field: string]: unknown;
+}
+
+### build/index.d.ts#RECORD_KINDS
+export declare const RECORD_KINDS: readonly ["state", "accept", "retrans", "rst_tx", "rst_rx", "error", "destroy", "tw_enter", "tw_kill", "req_new", "rst_v4", "probe", "rx", "timer", "tx"];
+
+### build/index.d.ts#RecordKind
+export type RecordKind = (typeof RECORD_KINDS)[number];
