@@ -3324,6 +3324,28 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 
 A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`. Service `0.7.0` is on npm, with provenance.
 
+### SYS-107 · Quantity moves to the math repository
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** the first PATCH of `@mark1russell7/quantity` from the math repository, planned for 2026-11-21
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Mark decided on 2026-11-09 that one math repository holds the math packages. `@mark1russell7/quantity` moves there with its history and the same npm name, thus a user of quantity changes nothing. When that repository publishes the next PATCH of quantity, this item removes `packages/quantity` from systems. Eight packages use it with `workspace:^`: algebra, cells, harness, kind, machines, prober, service and site. Each takes the npm release with a caret range. The release of systems no longer packs quantity. The test: `pnpm why @mark1russell7/quantity` shows one copy from npm, and CI passes on main.
+
+### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** the agreement of the strategist on the name
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The proposed name is `@mark1russell7/automata`. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The strategist does the publish and the trust. Cells, machines, service and site import the package. If the declarations of a public package name its types, that package also gets a MINOR. The test: no file of systems names the old package, and the API report of each public package shows only the new name.
+
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
 - **Status:** done
