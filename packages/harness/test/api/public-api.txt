@@ -13,6 +13,7 @@ type BuildRecord: build/index.d.ts#BuildRecord
 CLIENT_CAPABILITIES: build/cell.chunk.d.ts#CLIENT_CAPABILITIES
 CLIENT_NAMES: build/index.d.ts#CLIENT_NAMES
 CLOSED_TOLERANCE: build/index.d.ts#CLOSED_TOLERANCE
+CLOUDS: build/index.d.ts#CLOUDS
 CLUSTER_STAGES: build/index.d.ts#CLUSTER_STAGES
 CONVERGE_MS: build/index.d.ts#CONVERGE_MS
 type CallReading: build/index.d.ts#CallReading
@@ -39,6 +40,7 @@ DIRTY: build/index.d.ts#DIRTY
 DROP_HANDLING: build/index.d.ts#DROP_HANDLING
 type Decision: build/index.d.ts#Decision
 type Drill: build/cell.chunk.d.ts#Drill
+type DrillRoom: build/cell.chunk.d.ts#DrillRoom
 type DriverBand: build/cell.chunk.d.ts#DriverBand
 type DriverSocket: build/index.d.ts#DriverSocket
 type DriverStep: build/cell.chunk.d.ts#DriverStep
@@ -91,6 +93,7 @@ type KafkaLab: build/index.d.ts#KafkaLab
 type KafkaMember: build/index.d.ts#KafkaMember
 type KafkaPause: build/cell.chunk.d.ts#KafkaPause
 type KernelRecord: @mark1russell7/prober#KernelRecord (external)
+LAYERS: build/index.d.ts#LAYERS
 LINGER_MS: build/index.d.ts#LINGER_MS
 LISTING: build/index.d.ts#LISTING
 LOAD_FORMAT: build/index.d.ts#LOAD_FORMAT
@@ -216,6 +219,7 @@ type Subject: build/cell.chunk.d.ts#Subject
 type Substrate: build/index.d.ts#Substrate
 type SubstrateSource: build/index.d.ts#SubstrateSource
 type Target: build/cell.chunk.d.ts#Target
+type TimeFromFault: build/index.d.ts#TimeFromFault
 type Topology: build/cell.chunk.d.ts#Topology
 type Toxic: build/cell.chunk.d.ts#Toxic
 type Verdict: build/index.d.ts#Verdict
@@ -242,6 +246,7 @@ clusterOnce: build/index.d.ts#clusterOnce
 clusterStagesOf: build/index.d.ts#clusterStagesOf
 clusterViewOf: build/index.d.ts#clusterViewOf
 commitProblems: build/index.d.ts#commitProblems
+commitVoid: build/index.d.ts#commitVoid
 comparable: build/index.d.ts#comparable
 controllerEnv: build/index.d.ts#controllerEnv
 crossingsOf: build/index.d.ts#crossingsOf
@@ -255,6 +260,8 @@ dropFinding: build/index.d.ts#dropFinding
 dropOf: build/index.d.ts#dropOf
 endpointAfter: build/index.d.ts#endpointAfter
 envOf: build/index.d.ts#envOf
+environmentCounts: build/index.d.ts#environmentCounts
+environmentProblems: build/cell.chunk.d.ts#environmentProblems
 errorsOf: build/index.d.ts#errorsOf
 estimateOf: build/index.d.ts#estimateOf
 estimateVerdict: build/index.d.ts#estimateVerdict
@@ -313,6 +320,7 @@ measurePause: build/index.d.ts#measurePause
 measurePorts: build/index.d.ts#measurePorts
 measureQueue: build/index.d.ts#measureQueue
 medianInterval: build/index.d.ts#medianInterval
+memAvailableOf: build/index.d.ts#memAvailableOf
 memberCommand: build/index.d.ts#memberCommand
 memberConfig: build/index.d.ts#memberConfig
 memberLineOf: build/index.d.ts#memberLineOf
@@ -368,6 +376,8 @@ replicaSetStagesOf: build/index.d.ts#replicaSetStagesOf
 requestOf: build/index.d.ts#requestOf
 requestWords: build/index.d.ts#requestWords
 restamped: build/index.d.ts#restamped
+roomNeeded: build/index.d.ts#roomNeeded
+roomVoidOf: build/index.d.ts#roomVoidOf
 routeLine: build/index.d.ts#routeLine
 routerImage: build/index.d.ts#routerImage
 routesOf: build/index.d.ts#routesOf
@@ -587,6 +597,13 @@ interface Drill {
   readonly age: Quantity;
   readonly recovery: "election" | "restore";
   readonly quiet?: true;
+}
+
+### build/cell.chunk.d.ts#DrillRoom
+interface DrillRoom {
+  readonly disk: Quantity;
+  readonly memory: Quantity;
+  readonly need: Quantity;
 }
 
 ### build/cell.chunk.d.ts#DriverBand
@@ -1157,6 +1174,7 @@ interface RunDrill {
     readonly ended: number;
   } | null;
   readonly second: number | null;
+  readonly room?: DrillRoom;
 }
 
 ### build/cell.chunk.d.ts#RunFabric
@@ -1312,6 +1330,9 @@ interface WsProbe {
   readonly hold?: Quantity;
 }
 
+### build/cell.chunk.d.ts#environmentProblems
+declare const environmentProblems: (cell: Cell) => string[];
+
 ### build/cell.chunk.d.ts#isHopPlace
 declare const isHopPlace: (place: FaultPlace | undefined) => place is HopPlace;
 
@@ -1346,6 +1367,9 @@ export declare const CLIENT_NAMES: readonly [Client, ...Client[]];
 ### build/index.d.ts#CLOSED_TOLERANCE
 export declare const CLOSED_TOLERANCE = 5;
 
+### build/index.d.ts#CLOUDS
+export declare const CLOUDS: readonly ["azure", "aws", "unknown"];
+
 ### build/index.d.ts#CLUSTER_STAGES
 export declare const CLUSTER_STAGES: readonly ClusterStage[];
 
@@ -1379,7 +1403,7 @@ interface ClockPair {
 }
 
 ### build/index.d.ts#Cloud
-type Cloud = "azure" | "aws" | "unknown";
+type Cloud = (typeof CLOUDS)[number];
 
 ### build/index.d.ts#ClusterLab
 interface ClusterLab {
@@ -1730,6 +1754,9 @@ interface KafkaMember extends GroupClient {
   signal(signal: "STOP" | "CONT", at?: number): Promise<Stamp>;
 }
 
+### build/index.d.ts#LAYERS
+export declare const LAYERS: readonly ["E0", "E1", "E2", "E3", "E4", "E5", "E6"];
+
 ### build/index.d.ts#LINGER_MS
 export declare const LINGER_MS = 1e3;
 
@@ -1818,7 +1845,7 @@ interface Lab {
 }
 
 ### build/index.d.ts#Layer
-type Layer = "E0" | "E1" | "E2" | "E3" | "E4" | "E5" | "E6";
+type Layer = (typeof LAYERS)[number];
 
 ### build/index.d.ts#LeafViews
 interface LeafViews {
@@ -2398,6 +2425,13 @@ interface SubstrateSource {
   readonly hz?: string | null;
 }
 
+### build/index.d.ts#TimeFromFault
+interface TimeFromFault {
+  readonly at: Quantity;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
 ### build/index.d.ts#Verdict
 interface Verdict {
   readonly decision: Decision;
@@ -2516,6 +2550,9 @@ export declare const clusterViewOf: (cluster: Cluster, rows: readonly StatusRow[
 ### build/index.d.ts#commitProblems
 export declare const commitProblems: (commit: string | undefined) => string[];
 
+### build/index.d.ts#commitVoid
+export declare const commitVoid: (commit: Quantity, times: readonly TimeFromFault[]) => string | null;
+
 ### build/index.d.ts#comparable
 export declare const comparable: (a: Substrate, b: Substrate) => boolean;
 
@@ -2554,6 +2591,9 @@ export declare const endpointAfter: (hops: readonly Pick<Hop, "kind">[], element
 
 ### build/index.d.ts#envOf
 export declare const envOf: (property: string) => string;
+
+### build/index.d.ts#environmentCounts
+export declare const environmentCounts: (cell: Cell, runs: number) => number[];
 
 ### build/index.d.ts#errorsOf
 export declare const errorsOf: (events: readonly ProbeEvent[], after: number) => ErrorOnTheWay[];
@@ -2744,6 +2784,9 @@ export declare const measureQueue: (run: Run, expected: QueuePrediction) => Meas
 ### build/index.d.ts#medianInterval
 export declare const medianInterval: (sorted: readonly number[]) => [number, number];
 
+### build/index.d.ts#memAvailableOf
+export declare const memAvailableOf: (meminfo: string) => Quantity;
+
 ### build/index.d.ts#memberCommand
 export declare const memberCommand: (set: ReplicaSet) => string;
 
@@ -2928,6 +2971,12 @@ export declare const requestWords: (outcome: {
 
 ### build/index.d.ts#restamped
 export declare const restamped: (line: NodeLine, events: readonly ProbeEvent[]) => Stamp | null;
+
+### build/index.d.ts#roomNeeded
+export declare const roomNeeded: (drill: Drill, members: number, disk: Quantity) => Quantity;
+
+### build/index.d.ts#roomVoidOf
+export declare const roomVoidOf: (room: DrillRoom | undefined) => string | null;
 
 ### build/index.d.ts#routeLine
 export declare const routeLine: (text: string) => RouteLine | null;

@@ -98,7 +98,10 @@ const trace = (spec: LimiterSpec, options: { shared?: boolean } = {}) => {
     const state = states.get(key);
     if (state === undefined) return undefined;
     const step = decide(rule, state, now);
-    return step.decision.allowed ? freeAt(rule, state) : now + msOf(step.decision.retryAfter);
+    if (step.decision.allowed) return freeAt(rule, state);
+    // a take of one unit is never over the capacity
+    if (step.decision.cause === "capacity") throw new Error("a take of one unit is over the capacity");
+    return now + msOf(step.decision.retryAfter);
   };
 
   return {
@@ -150,6 +153,7 @@ const trace = (spec: LimiterSpec, options: { shared?: boolean } = {}) => {
       expect(decision).toEqual(step.decision);
       states.set(key, step.state);
       if (decision.allowed) lastTake.set(key, now);
+      else if (decision.cause === "capacity") throw new Error("a take of one unit is over the capacity");
       else waits.push({ timer: back, ms: msOf(decision.retryAfter) });
       move(key, from, "take", stateOf(key, now), now);
       return decision;

@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Cluster } from "./cluster.ts";
 import { command } from "./cluster.ts";
-import { HELM, cacheFolder, download, ensureTool, sha256 } from "./tools.ts";
+import { HELM, cacheFolder, download, ensureTool, sha256, writeWhole } from "./tools.ts";
 
 /**
  * This module installs a Helm chart that is pinned by the sha256 of its file. The installs of Cilium
@@ -18,16 +18,22 @@ export interface PinnedChart {
   readonly sha256: string;
 }
 
-/** This function gives the path of a chart in the cache, after a download when the cache does not have it. It refuses a file whose sha256 is not the pinned value. */
-export const ensurePinnedChart = async (chart: PinnedChart, cache: string = cacheFolder()): Promise<string> => {
+/**
+ * This function gives the path of a chart in the cache, after a download when the cache does not have it.
+ * It refuses a download whose sha256 is not the pinned value. A file in the cache with a different
+ * sha256 (a torn write) is downloaded again, and each write replaces the file in one step.
+ */
+export const ensurePinnedChart = async (
+  chart: PinnedChart,
+  cache: string = cacheFolder(),
+  get: (url: string) => Promise<Uint8Array> = download,
+): Promise<string> => {
   const path = join(cache, "charts", `${chart.name}-${chart.version}.tgz`);
-  const bytes = existsSync(path) ? readFileSync(path) : await download(chart.url);
+  if (existsSync(path) && sha256(readFileSync(path)) === chart.sha256) return path;
+  const bytes = await get(chart.url);
   const found = sha256(bytes);
   if (found !== chart.sha256) throw new Error(`the chart ${chart.name} ${chart.version} has the sha256 ${found}, not the pinned ${chart.sha256}`);
-  if (!existsSync(path)) {
-    mkdirSync(join(cache, "charts"), { recursive: true });
-    writeFileSync(path, bytes);
-  }
+  writeWhole(path, bytes, false);
   return path;
 };
 

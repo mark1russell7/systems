@@ -325,7 +325,14 @@ try {
       const permitted = replayEntry.replay(door, [{ instance: "d", from: "shut", on: "open", to: "open" }]);
       const refused = replayEntry.replay(door, [{ instance: "d", from: "open", on: "open", to: "open" }]);
       check(permitted.length === 0 && refused.length === 1, "algebra/replay replays a trace of a machine with its own names");
-      const wait = module.evaluate(doc, { expr: "min(500 * pow(1.5, fired), 4000)", unit: "ms" }, () => undefined, 3);
+      // the clock with no other package, and its fake for tests
+      const clockEntry = await load("@mark1russell7/algebra/clock");
+      const fake = clockEntry.fakeClock(10);
+      let fired = -1;
+      fake.after(5, () => (fired = fake.now()));
+      await fake.advance(5);
+      check(typeof clockEntry.realClock.now() === "number" && fired === 15, "algebra/clock gives the clock of the platform and a fake clock");
+      const wait =module.evaluate(doc, { expr: "min(500 * pow(1.5, fired), 4000)", unit: "ms" }, () => undefined, 3);
       check(wait.value === 1687.5, "algebra raises to a whole power: the fourth wait of a backoff of 1.5");
     }
     if (name === "@mark1russell7/machines") {

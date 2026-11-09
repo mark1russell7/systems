@@ -1,9 +1,21 @@
 import { valueIn } from "@mark1russell7/quantity";
-import type { Cell, Drill, ProbeEvent, Run, RunBackup } from "./cell.ts";
+import type { Cell, Drill, DrillRoom, ProbeEvent, Run, RunBackup } from "./cell.ts";
 import type { GroupClient, Stamp } from "./group.ts";
 import { deadlineOf } from "./group.ts";
 import type { OplogTime } from "./recovery.ts";
-import { HASH_SCRIPT, hashOf, highestHeld, readOplog, seedScript, sliceQuery, standaloneCommand, stopScript } from "./recovery.ts";
+import {
+  HASH_SCRIPT,
+  hashOf,
+  highestHeld,
+  memAvailableOf,
+  readOplog,
+  roomNeeded,
+  roomVoidOf,
+  seedScript,
+  sliceQuery,
+  standaloneCommand,
+  stopScript,
+} from "./recovery.ts";
 import type { ReplicaSetLab } from "./replset.ts";
 import { STEADY, TAIL_MS, clockOffsetOf, droppedSoFar, initiateScript, onMonotonic, replicaSetArgs, sleep, waitFor } from "./replset.ts";
 
@@ -48,6 +60,20 @@ const writeOf = (events: readonly ProbeEvent[], n: number): RunBackup["last"] =>
 const sizeOf = async (lab: ReplicaSetLab, path: string): Promise<RunBackup["size"]> => {
   const [bytes] = (await lab.vault(["du", "-sb", path])).split(/\s+/);
   return { value: Number(bytes), unit: "B" };
+};
+
+/**
+ * This function reads the room of the runner before the seed. Each container writes to the same disk
+ * of the runner, thus the free disk of the backup host is the free disk of the lab. The seed first
+ * removes the data of the run before, thus the files of the members count as room too.
+ */
+const roomOf = async (lab: ReplicaSetLab, drill: Drill): Promise<DrillRoom> => {
+  const [free] = (await lab.vault(["df", "-B1", "--output=avail", VAULT])).trim().split("\n").slice(-1);
+  let held = 0;
+  for (const name of lab.set.members) held += Number((await lab.exec(name, ["du", "-sb", "/data/db"])).split(/\s+/)[0]);
+  const disk = { value: Number(free) + held, unit: "B" } as const;
+  if (!Number.isFinite(disk.value)) throw new Error(`no free disk in the output of df: ${free}`);
+  return { disk, memory: memAvailableOf(await lab.vault(["cat", "/proc/meminfo"])), need: roomNeeded(drill, lab.set.members.length, disk) };
 };
 
 /** This function takes the dump with its oplog, and each slice of the oplog at its interval. It gives each backup in sequence. */
@@ -139,10 +165,33 @@ export const drillOnce = async (lab: ReplicaSetLab, cell: Cell, environment: num
   await lab.unfreeze(primary);
   await lab.forget();
   await lab.vault(["sh", "-c", `rm -rf ${VAULT} && mkdir -p ${VAULT}`]);
+  const tool = (await lab.vault(["mongodump", "--version"])).split("\n")[0]!.trim();
+  const room = await roomOf(lab, drill);
+  // a drill with no room does no seed: its run is void, and its record tells the room (roomVoidOf)
+  if (roomVoidOf(room) !== null)
+    return {
+      environment,
+      index,
+      events: [],
+      fault: null,
+      kernel: [],
+      netns: lab.netns.client,
+      targetNetns: lab.members[primary]!.netns,
+      lost: 0,
+      group: {
+        members: lab.members,
+        sentinels: {},
+        primary,
+        at: primary,
+        timeline: [],
+        after: primary,
+        holds: null,
+        drill: { tool, seed: "generated", backups: [], before: "", after: null, restored: null, second: null, room },
+      },
+    };
   const seeded = await lab.script(primary, seedScript(drill, set.members.length));
   if (!seeded.includes('"ok":true')) throw new Error(`the seed failed: ${seeded}`);
   const before = hashOf(await lab.script(primary, HASH_SCRIPT));
-  const tool = (await lab.vault(["mongodump", "--version"])).split("\n")[0]!.trim();
   const from = lab.kernel.length;
   const logFrom = lab.log.length;
   const lostBefore = droppedSoFar(lab.kernel);
@@ -206,7 +255,7 @@ export const drillOnce = async (lab: ReplicaSetLab, cell: Cell, environment: num
       timeline: onMonotonic(lab.log.slice(logFrom), clockOffsetOf(events)),
       after,
       holds,
-      drill: { tool, seed: "generated", backups, before, after: hash, restored, second },
+      drill: { tool, seed: "generated", backups, before, after: hash, restored, second, room },
     },
   };
 };

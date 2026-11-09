@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { KindCell } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
-import { CHANNEL_USE, CLIENT_ACCOUNT, CLOSE_LEAD, MIDDLEBOX, NETNS_DEFAULTS, POLICY, QUIET_LEAD, SYSCTL, deletes, middleboxCommands, planOf, policyObject, sysctlCommand } from "./faults.ts";
+import { CHANNEL_USE, CLIENT_ACCOUNT, CLOSE_LEAD, MIDDLEBOX, NETNS_DEFAULTS, POLICY, QUIET_LEAD, SYSCTL, deletes, middleboxCommands, middleboxRemoval, planOf, policyObject, sysctlCommand } from "./faults.ts";
 import {
   ACCESS_LOG_FORMAT,
   ISTIO_IMAGES,
@@ -297,6 +297,42 @@ describe("the commands of the injector in a namespace", () => {
       ["iptables", "-X", MIDDLEBOX.input],
       ["iptables", "-X", MIDDLEBOX.output],
     ]);
+  });
+
+  it("removes what the table holds, thus a set that failed half way or a peer with a new address leaves no chain", () => {
+    // a set that failed at its first jump: the two chains and their rules, and no jump
+    const half = [
+      "*filter",
+      ":INPUT ACCEPT [10:600]",
+      ":OUTPUT ACCEPT [12:720]",
+      `:${MIDDLEBOX.input} - [0:0]`,
+      `:${MIDDLEBOX.output} - [0:0]`,
+      `[0:0] -A ${MIDDLEBOX.input} -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m recent --set --name ${MIDDLEBOX.table} --mask 255.255.255.255 --rsource -j RETURN`,
+      "COMMIT",
+    ].join("\n");
+    expect(middleboxRemoval(half)).toEqual([
+      ["iptables", "-F", MIDDLEBOX.input],
+      ["iptables", "-F", MIDDLEBOX.output],
+      ["iptables", "-X", MIDDLEBOX.input],
+      ["iptables", "-X", MIDDLEBOX.output],
+    ]);
+    // the jumps of a peer that the tracker no longer has: the removal takes them from the table
+    const whole = [
+      half.replace("COMMIT", ""),
+      `[3:180] -A INPUT -s 10.244.7.4/32 -p tcp -m tcp --dport 15008 -j ${MIDDLEBOX.input}`,
+      "[0:0] -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT",
+      `[2:120] -A OUTPUT -d 10.244.7.4/32 -p tcp -m tcp --sport 15008 -j ${MIDDLEBOX.output}`,
+      "COMMIT",
+    ].join("\n");
+    const removal = middleboxRemoval(whole);
+    expect(removal.slice(2, 4)).toEqual([
+      ["iptables", "-D", "INPUT", "-s", "10.244.7.4/32", "-p", "tcp", "-m", "tcp", "--dport", "15008", "-j", MIDDLEBOX.input],
+      ["iptables", "-D", "OUTPUT", "-d", "10.244.7.4/32", "-p", "tcp", "-m", "tcp", "--sport", "15008", "-j", MIDDLEBOX.output],
+    ]);
+    expect(removal).toHaveLength(6);
+    for (const word of removal.flat()) expect(word).toMatch(/^[A-Za-z0-9_.,:=/+-]+$/);
+    // a namespace with no middlebox: nothing to remove
+    expect(middleboxRemoval("*filter\n:INPUT ACCEPT [0:0]\nCOMMIT\n")).toEqual([]);
   });
 
   it("keeps a flow that a segment refreshes in each idle time, and forgets it for good after one idle time", () => {

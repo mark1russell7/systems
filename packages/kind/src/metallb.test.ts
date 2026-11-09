@@ -52,11 +52,14 @@ describe("the install of MetalLB", () => {
     expect(METALLB_IMAGES.controller).toMatch(/^quay\.io\/metallb\/controller:v0\.16\.1@sha256:[0-9a-f]{64}$/);
   });
 
-  it("refuses a chart in the cache whose sha256 is not the pinned value", async () => {
+  it("downloads a chart in the cache whose sha256 is not the pinned value again, and refuses a wrong download", async () => {
     const cache = mkdtempSync(join(tmpdir(), "metallb-chart-"));
     mkdirSync(join(cache, "charts"), { recursive: true });
     writeFileSync(join(cache, "charts", `metallb-${METALLB_VERSION}.tgz`), "another chart");
-    await expect(ensurePinnedChart(METALLB_CHART, cache)).rejects.toThrow(/not the pinned/);
+    const urls: string[] = [];
+    const get = async (url: string): Promise<Uint8Array> => (urls.push(url), new TextEncoder().encode("a third chart"));
+    await expect(ensurePinnedChart(METALLB_CHART, cache, get)).rejects.toThrow(/not the pinned/);
+    expect(urls).toEqual([METALLB_CHART.url]);
   });
 
   it("has no BGP, speakers only on the labelled workers, the controller on the control plane, and the local images", () => {
@@ -205,7 +208,7 @@ describe("the hold of MetalLB before a run", () => {
     let seen = 0;
     const cluster = fake((args) => {
       if (args.includes("pods")) return speakers(["w1", "w2"]);
-      if (args.includes("servicel2statuses.metallb.io")) return statuses(seen++ === 0 ? ["w1", "w2"] : ["w2"]);
+      if (args.some((arg) => arg === "servicel2statuses.metallb.io")) return statuses(seen++ === 0 ? ["w1", "w2"] : ["w2"]);
       return "";
     });
     expect(await holdMetallb(cluster, "w2", ["w1", "w2"], "lab", "server", 5000)).toBeNull();

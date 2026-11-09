@@ -94,12 +94,19 @@ const nodeFiles: FilePort = {
 /** This difference is the time from the start of the Windows file time (1601) to the start of the epoch (1970), in milliseconds. */
 const FILETIME_EPOCH_MS = 11_644_473_600_000n;
 
+/**
+ * This limit is the longest time of the query of a start time on Windows, in milliseconds. A cold start of PowerShell
+ * on a loaded host can take more than 10 seconds (SYS-47). After the limit the start time is null, and the lock then
+ * counts a live process ID as its owner. Thus a short limit can hold a stale lock, and the limit is wide.
+ */
+const WINDOWS_START_LIMIT_MS = 30_000;
+
 /** This function gives the start time of a Windows process from PowerShell, in milliseconds after the epoch, or null. */
 const windowsStart = async (pid: number): Promise<number | null> => {
   const result = await nodeCommands.run(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToFileTimeUtc()`],
-    { timeout: 10_000 },
+    { timeout: WINDOWS_START_LIMIT_MS },
   );
   const text = result.out.trim();
   if (result.code !== 0 || !/^\d+$/.test(text)) return null;

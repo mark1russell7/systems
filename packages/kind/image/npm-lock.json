@@ -10,6 +10,7 @@
         "@mark1russell7/collections": "0.7.0",
         "@mark1russell7/rational": "0.1.0",
         "@mark1russell7/rigor-generators": "0.1.0",
+        "@mark1russell7/text": "0.0.2",
         "ioredis": "6.0.0",
         "zod": "4.6.6"
       }
@@ -98,6 +99,15 @@
       "license": "MIT",
       "engines": {
         "node": ">=22"
+      }
+    },
+    "node_modules/@mark1russell7/text": {
+      "version": "0.0.2",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/text/-/text-0.0.2.tgz",
+      "integrity": "sha512-m1aIB8X+PDekktzr1fYOp1/7gvlh9iL/2M7ktj/GnmPmVrWin0rTADgTm00dKFdWFRzXraCUYkjyCl3jQZHEVg==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22.12"
       }
     },
     "node_modules/@protobufjs/aspromise": {

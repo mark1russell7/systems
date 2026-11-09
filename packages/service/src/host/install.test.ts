@@ -150,11 +150,28 @@ describe("the operations on Linux", () => {
     expect(host.files.size).toBe(0);
   });
 
-  it("start and stop use systemctl, and stop sends SIGTERM through it", async () => {
+  it("stop disables the unit, thus the next login does not start it, and start enables it again", async () => {
     const host = fakeHost();
     await startService(linuxSpec, host.ports);
     await stopService(linuxSpec, host.ports);
-    expect(calls(host)).toEqual(["systemctl --user start demo-host.service", "systemctl --user stop demo-host.service"]);
+    expect(calls(host)).toEqual(["systemctl --user enable --now demo-host.service", "systemctl --user disable --now demo-host.service"]);
+  });
+
+  it("stop disables the timer of a daily job, and stops a job that operates", async () => {
+    const host = fakeHost();
+    expect((await stopService(dailySpec, host.ports)).kind).toBe("done");
+    await startService(dailySpec, host.ports);
+    expect(calls(host)).toEqual([
+      "systemctl --user disable --now demo-job.timer",
+      "systemctl --user stop demo-job.service",
+      "systemctl --user enable --now demo-job.timer",
+    ]);
+  });
+
+  it("stop gives the failure of the disable, and does not go on", async () => {
+    const host = fakeHost({ answer: (command) => (command.args[1] === "disable" ? { code: 1, out: "Failed to disable unit\n" } : undefined) });
+    expect((await stopService(dailySpec, host.ports)).kind).toBe("failed");
+    expect(calls(host)).toEqual(["systemctl --user disable --now demo-job.timer"]);
   });
 
   it("status tells the unit file and the state of is-active", async () => {

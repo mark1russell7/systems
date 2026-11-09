@@ -2,7 +2,7 @@ import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { KeyState, LimiterSpec } from "../index.ts";
-import { decide, freeAt, keyedLimiter, limitRule } from "../index.ts";
+import { capacityOf, decide, freeAt, keyedLimiter, limitRule } from "../index.ts";
 import type { RedisKnobs } from "../redis.ts";
 import { redisClient, redisLimiterStore, tcpDial } from "../redis.ts";
 import { fakeClock, seeded } from "../testing.ts";
@@ -105,7 +105,9 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
       for (let take = 0; take < 1500; take += 1) {
         const key = `k${Math.floor(random() * 24)}`;
         const now = clock.now();
-        const decision = await limiter.take(key);
+        // the units go from 1 to one over the capacity, and most takes have 1
+        const units = random() < 0.6 ? 1 : 1 + Math.floor(random() * (capacityOf(rule) + 1));
+        const decision = await limiter.take(key, units);
         const busy = [...states.values()].map((state) => freeAt(rule, state)).filter((free) => free > now);
         if (!decision.allowed && decision.cause === "cap") {
           caps += 1;
@@ -113,8 +115,8 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
           // the index of Redis gives the exact time until the earliest busy key is free
           expect(decision.retryAfter.value).toBeCloseTo(Math.min(...busy) - now, 3);
         } else {
-          const step = decide(rule, states.get(key), now);
-          expect(decision, `${name}: take ${take} of ${key}`).toEqual(step.decision);
+          const step = decide(rule, states.get(key), now, units);
+          expect(decision, `${name}: take ${take} of ${key}, ${units} units`).toEqual(step.decision);
           states.set(key, step.state);
         }
         await clock.advance(Math.floor(random() * (spec === BUCKET ? 300 : 3000)));
@@ -138,7 +140,7 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
     expect(decisions.map((decision) => decision.allowed)).toEqual([true, true, true, false, false]);
     const refused = decisions[4]!;
     // one token each second: the refusal waits less than one second on TIME of the server
-    expect(refused.allowed === false && refused.retryAfter.value > 0 && refused.retryAfter.value <= 1000).toBe(true);
+    expect(refused.allowed === false && refused.cause !== "capacity" && refused.retryAfter.value > 0 && refused.retryAfter.value <= 1000).toBe(true);
     // the bucket is full again in about 3 s, and the state expires then
     const ttl = await one.send<number>("PTTL", ["it:{shared}:key:acme"]);
     expect(ttl.outcome === "ok" ? ttl.value : -1).toBeGreaterThan(2000);

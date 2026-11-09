@@ -150,6 +150,16 @@ fn wait_for(fd: i32, writing: bool, ns: u64) -> std::io::Result<(bool, bool)> {
     }
 }
 
+/// Gives the time of the next wait of the schedule mode: up to the next arrival, and one tick at most.
+/// A full socket cannot take the arrival that is due. Thus the wait is then for POLLOUT, for one tick.
+/// Without this, an overdue arrival gives a wait of 0, and the loop spins while the socket is full.
+fn wait_ns(blocked: bool, next_at: Option<&u64>, start: u64, now: u64, tick: u64) -> u64 {
+    match next_at {
+        Some(at) if !blocked => (start + at).saturating_sub(now).min(tick),
+        _ => tick,
+    }
+}
+
 /// Sends each arrival of `plan` at its time after the file --go appears, whatever the replies do.
 /// The stamp of a send comes before the write that ends it. Thus a full socket shows as the lag of
 /// each arrival behind it.
@@ -197,8 +207,7 @@ fn open_loop(stream: &mut TcpStream, plan: &[u64], args: &Args, deadline: u64) -
             emit("deadline", json!({}));
             return Ok(());
         }
-        let due = plan.get(next).map_or(tick, |at| (start + at).saturating_sub(now));
-        let (can_read, can_write) = wait_for(fd, blocked, due.min(tick))?;
+        let (can_read, can_write) = wait_for(fd, blocked, wait_ns(blocked, plan.get(next), start, now, tick))?;
         blocked = blocked && !can_write;
         if !can_read {
             continue;
@@ -454,5 +463,58 @@ mod tests {
             }
             assert_eq!(lengths, [7, 9, 7], "reads of {size}");
         }
+    }
+
+    #[test]
+    fn the_wait_is_one_tick_while_the_socket_is_full() {
+        let (start, tick) = (1_000, 10_000_000);
+        // an arrival in the future: the wait ends at it
+        assert_eq!(wait_ns(false, Some(&5_000), start, 2_000, tick), 4_000);
+        // an overdue arrival with room in the socket: no wait
+        assert_eq!(wait_ns(false, Some(&0), start, 2_000, tick), 0);
+        // an overdue arrival and a full socket: a wait for POLLOUT, not a wait of 0
+        assert_eq!(wait_ns(true, Some(&0), start, 2_000, tick), tick);
+        // no arrival left: one tick
+        assert_eq!(wait_ns(false, None, start, 2_000, tick), tick);
+    }
+
+    fn thread_cpu_ns() -> u64 {
+        let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+        // SAFETY: one timespec on this stack
+        unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) };
+        time.tv_sec as u64 * 1_000_000_000 + time.tv_nsec as u64
+    }
+
+    #[test]
+    fn a_full_socket_does_not_spin_the_schedule_mode() {
+        // a peer that accepts and does not read: the socket of the client fills, and the arrivals stay overdue
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut stream = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let _peer = listener.accept().unwrap();
+        stream.set_nonblocking(true).unwrap();
+        let go = std::env::temp_dir().join(format!("client-go-{}", std::process::id()));
+        std::fs::write(&go, b"").unwrap();
+        let args = Args {
+            host: "127.0.0.1".into(),
+            port: 0,
+            inflight: false,
+            stream: None,
+            interval: Duration::ZERO,
+            keepalive: false,
+            user_timeout_ms: None,
+            go: go.to_string_lossy().into_owned(),
+            sample: Duration::from_millis(10),
+            max: Duration::from_secs(1),
+            request: vec![b'x'; 1 << 20],
+            schedule: None,
+        };
+        let plan = vec![0u64; 1_000];
+        let length = Duration::from_millis(400).as_nanos() as u64;
+        let before = thread_cpu_ns();
+        open_loop(&mut stream, &plan, &args, monotonic_ns() + length).unwrap();
+        let used = thread_cpu_ns() - before;
+        std::fs::remove_file(&go).ok();
+        // a spin takes the CPU for all of the 400 ms: a wait of one tick takes a small part of it
+        assert!(used < length / 4, "the schedule mode used {used} ns of CPU in {length} ns");
     }
 }

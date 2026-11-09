@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { channel, fanIn, fanOut, merge, pipeline, select, ticker, timeout, unbuffered, workerPool, type Channel } from "./channel.ts";
+import { PreemptedError, channel, fanIn, fanOut, merge, pipeline, preemptivePool, select, ticker, timeout, unbuffered, workerPool, type Channel } from "./channel.ts";
 import { fakeClock, seeded } from "./testing.ts";
 
 /** This function lets the ready promises continue, `turns` times. */
@@ -461,5 +461,97 @@ describe("the functions that start work give each failure to onError, and close 
     );
     expect(got.sort()).toEqual([10, 30]);
     expect(failed).toEqual([[new Error("bad job"), 2]]);
+  });
+});
+
+describe("preemptivePool", () => {
+  /** A task that a test ends by hand, with its signal. */
+  const handTask = () => {
+    const tasks: Array<{ signal: AbortSignal; end(value: number): void; fail(error: Error): void }> = [];
+    const task = (signal: AbortSignal): Promise<number> => new Promise((end, fail) => tasks.push({ signal, end, fail }));
+    return { task, tasks };
+  };
+
+  it("runs at most max tasks, and a new task stops the oldest at once", async () => {
+    const { task, tasks } = handTask();
+    const pool = preemptivePool(2);
+    const first = pool.run(task);
+    const second = pool.run(task);
+    await flush();
+    expect(pool.size).toBe(2);
+    const third = pool.run(task);
+    await expect(first).rejects.toBeInstanceOf(PreemptedError);
+    await flush();
+    expect(tasks.map((each) => each.signal.aborted)).toEqual([true, false, false]);
+    expect(pool.size).toBe(2);
+    // A stopped task that ends later changes nothing
+    tasks[0]?.end(0);
+    tasks[1]?.end(1);
+    tasks[2]?.end(2);
+    expect([await second, await third]).toEqual([1, 2]);
+    await flush();
+    expect(pool.size).toBe(0);
+  });
+
+  it("stops each task with the reason of stop, and passes the failure of a task", async () => {
+    const { task, tasks } = handTask();
+    const pool = preemptivePool(3);
+    const a = pool.run(task);
+    const b = pool.run(task);
+    const reason = new Error("The window closed.");
+    pool.stop(reason);
+    await expect(a).rejects.toBe(reason);
+    await expect(b).rejects.toBe(reason);
+    expect(pool.size).toBe(0);
+    const c = pool.run(task);
+    pool.stop();
+    await expect(c).rejects.toBeInstanceOf(PreemptedError);
+
+    const failed = pool.run(task);
+    await flush();
+    tasks[3]?.fail(new Error("No route."));
+    await expect(failed).rejects.toThrow("No route.");
+    await expect(
+      pool.run(() => {
+        throw new Error("At once.");
+      }),
+    ).rejects.toThrow("At once.");
+    expect(() => preemptivePool(0)).toThrow(RangeError);
+    expect(() => preemptivePool(1.5)).toThrow(RangeError);
+  });
+
+  it("keeps at most max tasks, and stops only the oldest task, in 100 seeded scripts", async () => {
+    const random = seeded(0x9e3779b9);
+    for (let run = 0; run < 100; run += 1) {
+      const max = between(random, 1, 3);
+      const pool = preemptivePool(max);
+      /** The tasks that run, from the oldest, as the test sees them. */
+      const open: Array<{ id: number; end(): void }> = [];
+      const outcome = new Map<number, "done" | "stopped">();
+      const steps = between(random, 1, 30);
+      for (let step = 0, id = 0; step < steps; step += 1) {
+        if (random() < 0.6 || open.length === 0) {
+          const mine = id++;
+          const oldest = open.length >= max ? open.shift() : undefined;
+          let end = (): void => undefined;
+          const promise = pool.run(() => new Promise<number>((resolve) => (end = () => resolve(mine))));
+          open.push({ id: mine, end: () => end() });
+          promise.then(
+            () => outcome.set(mine, "done"),
+            (error: unknown) => outcome.set(mine, error instanceof PreemptedError ? "stopped" : "done"),
+          );
+          await flush(5);
+          if (oldest !== undefined) expect(outcome.get(oldest.id), `run ${run}: task ${oldest.id} is the oldest`).toBe("stopped");
+        } else {
+          const index = between(random, 0, open.length - 1);
+          const [ended] = open.splice(index, 1);
+          ended?.end();
+          await flush(5);
+          if (ended !== undefined) expect(outcome.get(ended.id)).toBe("done");
+        }
+        expect(pool.size).toBe(open.length);
+        expect(pool.size).toBeLessThanOrEqual(max);
+      }
+    }
   });
 });
