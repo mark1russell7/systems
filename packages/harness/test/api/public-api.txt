@@ -39,6 +39,9 @@ DEBUG: build/index.d.ts#DEBUG
 DIRTY: build/index.d.ts#DIRTY
 DROP_HANDLING: build/index.d.ts#DROP_HANDLING
 type Decision: build/index.d.ts#Decision
+type DeliveryPrediction: build/cell.chunk.d.ts#DeliveryPrediction
+type DeliveryReading: build/index.d.ts#DeliveryReading
+type DeliveryStream: build/index.d.ts#DeliveryStream
 type Drill: build/cell.chunk.d.ts#Drill
 type DrillRoom: build/cell.chunk.d.ts#DrillRoom
 type DriverBand: build/cell.chunk.d.ts#DriverBand
@@ -253,6 +256,8 @@ crossingsOf: build/index.d.ts#crossingsOf
 cutOf: build/index.d.ts#cutOf
 deadlineOf: build/index.d.ts#deadlineOf
 delayVoids: build/index.d.ts#delayVoids
+deliveryFinding: build/index.d.ts#deliveryFinding
+deliveryOf: build/index.d.ts#deliveryOf
 deviceOf: build/index.d.ts#deviceOf
 drillOnce: build/index.d.ts#drillOnce
 drillSpan: build/index.d.ts#drillSpan
@@ -356,6 +361,7 @@ pgClientImage: build/index.d.ts#pgClientImage
 pingsOf: build/index.d.ts#pingsOf
 plainOf: build/index.d.ts#plainOf
 planOf: build/index.d.ts#planOf
+pongsOf: build/index.d.ts#pongsOf
 poolOf: build/index.d.ts#poolOf
 programLines: build/index.d.ts#programLines
 programOf: build/index.d.ts#programOf
@@ -399,6 +405,8 @@ standbyCommand: build/index.d.ts#standbyCommand
 statusViewOf: build/index.d.ts#statusViewOf
 stealShare: build/index.d.ts#stealShare
 stopScript: build/index.d.ts#stopScript
+streamEnded: build/index.d.ts#streamEnded
+streamOf: build/index.d.ts#streamOf
 streamsLoadOf: build/index.d.ts#streamsLoadOf
 subjectClient: build/index.d.ts#subjectClient
 subjectProblems: build/index.d.ts#subjectProblems
@@ -454,6 +462,7 @@ interface Cell {
     readonly streams?: readonly LoadStream[];
     readonly count?: number;
     readonly interval?: Quantity;
+    readonly sender?: "client" | "target";
     readonly keepalive: boolean;
     readonly userTimeout?: Quantity;
     readonly request?: string;
@@ -586,6 +595,13 @@ interface ConntrackPrediction {
 interface CountBand {
   readonly low: number;
   readonly high: number;
+}
+
+### build/cell.chunk.d.ts#DeliveryPrediction
+interface DeliveryPrediction {
+  readonly lost: CountBand;
+  readonly duplicates: CountBand;
+  readonly recovered?: boolean;
 }
 
 ### build/cell.chunk.d.ts#Drill
@@ -939,6 +955,7 @@ type Prediction = {
   readonly reconnects?: Reconnects;
   readonly drop?: "frame" | "close";
   readonly exits?: true;
+  readonly delivery?: DeliveryPrediction;
 } | {
   readonly detects: false;
   readonly window: Quantity;
@@ -1068,7 +1085,7 @@ interface Recovers {
 }
 
 ### build/cell.chunk.d.ts#Reference
-type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "first-sent" | "syn-sent";
+type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "pong-sent" | "first-sent" | "syn-sent";
 
 ### build/cell.chunk.d.ts#ReplicaSet
 interface ReplicaSet {
@@ -1328,6 +1345,7 @@ interface WsProbe {
   readonly requestTimeout: Quantity;
   readonly connectionTimeout: Quantity;
   readonly hold?: Quantity;
+  readonly retries?: number;
 }
 
 ### build/cell.chunk.d.ts#environmentProblems
@@ -1481,6 +1499,23 @@ export declare const DROP_HANDLING: Quantity;
 
 ### build/index.d.ts#Decision
 type Decision = "holds" | "fails" | "extend" | "inconclusive" | "measured";
+
+### build/index.d.ts#DeliveryReading
+interface DeliveryReading {
+  readonly emitted: number;
+  readonly got: number;
+  readonly lost: number;
+  readonly duplicates: number;
+  readonly unknown: number;
+  readonly recovered: boolean | null;
+  readonly ended: boolean;
+}
+
+### build/index.d.ts#DeliveryStream
+interface DeliveryStream {
+  readonly count: number;
+  readonly sender: "client" | "target";
+}
 
 ### build/index.d.ts#DriverSocket
 interface DriverSocket {
@@ -1993,6 +2028,7 @@ interface Measured {
   };
   readonly reconnect?: ReconnectReading;
   readonly call?: CallReading;
+  readonly delivery?: DeliveryReading;
   readonly left?: Quantity | null;
   readonly exited?: Quantity;
   readonly pairing?: Pairing;
@@ -2571,6 +2607,12 @@ export declare const deadlineOf: (cell: Cell) => number;
 ### build/index.d.ts#delayVoids
 export declare const delayVoids: (behind: number, hz: number | undefined, noise: Quantity) => boolean;
 
+### build/index.d.ts#deliveryFinding
+export declare const deliveryFinding: (prediction: DeliveryPrediction, stream: DeliveryStream, read: DeliveryReading) => string | null;
+
+### build/index.d.ts#deliveryOf
+export declare const deliveryOf: (run: Run, stream: DeliveryStream) => DeliveryReading;
+
 ### build/index.d.ts#deviceOf
 export declare const deviceOf: (route: string) => string;
 
@@ -2905,6 +2947,9 @@ export declare const plainOf: (text: string) => string;
 ### build/index.d.ts#planOf
 export declare const planOf: (source: string | ImageSource) => ImagePlan;
 
+### build/index.d.ts#pongsOf
+export declare const pongsOf: (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown, delta?: Quantity) => ProgramEvent[];
+
 ### build/index.d.ts#poolOf
 export declare const poolOf: (measures: readonly RunLoad[]) => RunLoad & {
   readonly failed: number;
@@ -3047,6 +3092,12 @@ export declare const stealShare: (before: CpuTime, after: CpuTime) => number | n
 
 ### build/index.d.ts#stopScript
 export declare const stopScript: (terminate: boolean) => string;
+
+### build/index.d.ts#streamEnded
+export declare const streamEnded: (run: Run, stream: DeliveryStream) => boolean;
+
+### build/index.d.ts#streamOf
+export declare const streamOf: (cell: Cell) => DeliveryStream;
 
 ### build/index.d.ts#streamsLoadOf
 export declare const streamsLoadOf: (events: readonly ProbeEvent[], streams: readonly RunStream[]) => {

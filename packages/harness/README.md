@@ -330,6 +330,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **A detection by the program** (`application.ts`). The kernel has no report of it. Thus the program of the observer writes a line before each of its own acts, and the kernel stamps each act on the socket.
   - The program writes `ping` before each ping of its heartbeat. The kernel stamps the write of the ping (`tx`).
   - The reference is the first ping that got no answer (`ping-sent`): no segment with data reached the socket after its write, up to the detection. Its write starts the timer of the heartbeat that the fault met. The fault can come at any time, and its stamps are not necessary.
+  - A heartbeat that the peer starts counts from the last pong of the program before the fault (`pong-sent`). The program writes a `write` line with the type `pong` before each pong, and the kernel stamps its write. The program starts its wait for the next ping at that pong. Thus the events of a stream before the fault do not move this reference, as they move `last-data`.
   - The program writes `drop` before it drops the connection itself. The detection is the kernel's stamp of that drop: the write of its close frame, or the change of its socket out of ESTABLISHED. Without such a record in the handling time of the program (`DROP_HANDLING`, 1.5 ms), it is the stamp of the line. Where the pairing window of the run is longer, the window is that window.
   - The handling time is not δ_abs. δ_abs is the noise of the pipeline, from a reset. The handling is the time of the code of the program, from the firing of its timer to its act.
   - In 585 drops with a close frame in CI, the write came a median of 0.652 ms after the `drop` line, and 1.017 ms at the most. Two of them came more than the δ_abs of 1 ms after it. Each failed its cell, with its time in the band. These are the runs 39390222333 and 39903020657 of the client repository. The bound is that maximum and a margin of 0.48 ms.
@@ -355,6 +356,12 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - It also gives the time from each `dial` line to its SYN (`connects`): the work of the program before connect(2).
   - A measurement-only prediction can give `reconnects` too. The end of its connection has no band, but each wait has one. A wait outside its band is a finding of its run, and the verdict names that run. The decision stays `measured`.
 - **A call in flight of a WebSocket client** (`callOf`). The run gives its error or its reply, and the time from the detection to its end.
+- **The delivery of a stream across the fault** (`deliveryOf`). A prediction with `delivery` gives the law of a stream of numbered events of a WebSocket client.
+  - The sender is the client or the target (`probe.sender`). It sends `count` events, one each `interval`. The target must write its lines (`Target.lines`).
+  - The sender writes an `emitted` line with the number `n` before it sends each event. The receiver writes a `got` line with `n` for each event that it reads.
+  - The run waits until the receiver gets the last event, or until the client stops. It gives the count of the lost events, the extra copies, and the field `recovered` of the second connection of the client.
+  - A count outside its band is a finding. An event that the sender did not emit, or a stream without its last event, is a finding too (`deliveryFinding`).
+  - With `ws.retries`, the client sends each event again after `requestTimeout` without an acknowledgement, that count of times at most.
 - **A stream.** In a stream (`probe.mode` is `stream`), the client sends `count` requests. The run keeps the time from each send to the last byte of its reply (`samples`). A record without `replied` lines gives the time to the first data.
 - **Reordering.** A measurement-only run also gives what reordering, duplicates and losses did (`reordering`). At the client, it counts the arrivals beyond a hole and the arrivals of data that it had already, against `rcv_nxt`. From the sender, it gives the most SACKed and lost segments, the DSACKs, the fast retransmissions, and the reordering degree and count of the kernel.
 - **An arrival is not always one segment.** The segments that arrive while the owner holds the socket wait in its backlog, and the kernel joins the contiguous ones. Thus the kernel counts out-of-order segments (`rcv_ooopack`), and the prober counts arrivals.
@@ -470,6 +477,8 @@ The tests of a cluster read the console log of RabbitMQ. They test the views tha
 The tests of `image.ts` plan the build of each image that the harness ships, and of a build context of a caller. They test the rules of a build, the problems of a source and of a subject, and the schemas.
 
 The tests of `application.ts` measure a heartbeat of a program from test lines and records. They find the first ping without an answer, the drop, the waits of the reconnect and the call in flight. They also test a report of the kernel before the drop, a VM that stopped, the heartbeat of a server, and an idle stall.
+
+The tests of `delivery.ts` read a stream from test lines of the two programs. They count the lost events, the extra copies and the unknown events, and they test each finding of the law.
 
 The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover.
 
