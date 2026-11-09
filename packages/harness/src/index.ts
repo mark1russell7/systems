@@ -141,12 +141,13 @@ export {
   stagesOf,
   writesOf,
 } from "./timeline.ts";
-export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
+export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, TimeFromFault, Verdict } from "./verdict.ts";
 export {
   INJECT,
   NOISE,
   RELATIVE,
   STEPS,
+  commitVoid,
   delayVoids,
   groupVerdictOf,
   medianInterval,

@@ -404,10 +404,12 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
       # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
-      # when a rung is not within its budgets, or when a drill has no record.
+      # when a rung is not within its budgets, when a drill has no record, or when a record has no pin.
+      # Its flip (SYS-99): a fault of 1.5 x the limit of each budget turns each rung beyond, and the copies
+      # with a record gone, a tag with no digest or a checkout with changes each exit with 1.
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
-        run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+        run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()

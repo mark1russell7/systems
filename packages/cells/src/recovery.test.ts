@@ -4,7 +4,20 @@ import { valueIn } from "@mark1russell7/quantity";
 import { checkLadder, ladderVerdict, type RungRecord } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
 import { ALL, SCHEDULED_CELLS } from "./all.ts";
-import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RECOVERY_SIZE_CELLS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
+import {
+  faultedRecords,
+  HOLES,
+  RECOVERY_CELLS,
+  RECOVERY_LADDER,
+  RECOVERY_MEASURES,
+  RECOVERY_RUNGS,
+  RECOVERY_SIZE_CELLS,
+  recoveryFlip,
+  recoveryRecord,
+  recoveryVerdict,
+  RPO,
+  RTO,
+} from "./recovery.ts";
 
 const AT = "2026-11-04T12:00:00.000Z";
 
@@ -104,6 +117,34 @@ describe("the ladder of recovery", () => {
     const verdict = recoveryVerdict(copy.records, copy.records[0]!.at);
     expect(verdict.reason).toBe("Each of the 3 locked rungs is within.");
     expect(verdict.failed).toBe(false);
+  });
+
+  it("turns each locked rung beyond under the fault of each measure (SYS-99)", () => {
+    const flips = recoveryFlip(recordsOf(), AT);
+    expect(flips.map((each) => each.measure)).toEqual(RECOVERY_MEASURES);
+    expect(RECOVERY_MEASURES).toHaveLength(6);
+    expect(flips.every((each) => each.stayed.length === 0)).toBe(true);
+  });
+
+  it("injects 1.5 x the limit of a budget, or 1 above a limit of 0, and leaves the other measures", () => {
+    const [low] = faultedRecords(recordsOf(), RPO);
+    expect(low?.evidence.find((each) => each.measure === RPO)).toMatchObject({ values: [129_600, 129_600, 129_600, 129_600] });
+    expect(low?.evidence.find((each) => each.measure === RTO)).toMatchObject({ values: [60, 60, 60, 60] });
+    const [first] = faultedRecords(recordsOf(), HOLES);
+    expect(first?.evidence.find((each) => each.measure === HOLES)).toMatchObject({ values: [1, 1, 1, 1] });
+  });
+
+  it("names a rung that a fault cannot turn beyond: a rung with no counted drill", () => {
+    const records = recordsOf();
+    const empty = records.map((record) =>
+      record.rung === "100" ? { ...record, evidence: record.evidence.map((each) => (each.kind === "worst" ? { ...each, values: [] } : each)) } : record,
+    );
+    expect(recoveryFlip(empty, AT).map((each) => each.stayed)).toEqual(RECOVERY_MEASURES.map(() => ["100"]));
+    // fewer drills than a budget needs: a value past the limit is enough for `beyond`
+    const short = records.map((record) =>
+      record.rung === "100" ? { ...record, evidence: record.evidence.map((each) => (each.kind === "worst" ? { ...each, values: each.values.slice(0, 3) } : each)) } : record,
+    );
+    expect(recoveryFlip(short, AT).every((each) => each.stayed.length === 0)).toBe(true);
   });
 
   it("states what is real and what is made up", () => {

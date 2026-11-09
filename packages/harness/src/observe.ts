@@ -32,7 +32,7 @@ import type { QueueReading } from "./queue.ts";
 import { measureQueue } from "./queue.ts";
 import { measureGroup } from "./timeline.ts";
 import type { Pairing } from "./verdict.ts";
-import { INJECT, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
+import { commitVoid, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -1041,10 +1041,17 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   if (slow !== undefined)
     voided ??= `a listing of the router took ${Math.round(Number(slow["took"]) * 1e4) / 10} ms, longer than the bound of its prediction`;
   // a toxic starts somewhere in the commit of its request. A commit longer than the noise of the
-  // pipeline leaves its start unknown within δ_abs
-  const commit = run.fault === null ? 0 : (run.fault.t1 - run.fault.t0) / 1e6;
-  if (prediction.from === "fault" && commit > valueIn(INJECT, "ms"))
-    voided ??= `the commit of the fault took ${Math.round(commit * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+  // pipeline leaves its start unknown: the run is void when that can change the read of its band
+  const elapsed = between(reference, ended);
+  if (prediction.from === "fault" && run.fault !== null) {
+    const noise = valueIn(noiseOf(cell), "s");
+    const commit = quantity((run.fault.t1 - run.fault.t0) / 1e9, "s");
+    const times =
+      prediction.detects === true
+        ? [{ at: elapsed, low: quantity(valueIn(prediction.low, "s") - noise, "s"), high: quantity(valueIn(prediction.high, "s") + noise, "s") }]
+        : [];
+    voided ??= commitVoid(commit, times);
+  }
   // the view of the program of a heartbeat: from the line of its first ping without an answer to
   // the line of its drop, or to the line of the error that it saw
   const unanswered = prediction.from === "ping-sent" ? firstUnanswered(pings, socket, ended) : undefined;
@@ -1061,7 +1068,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     ...base,
     ...chain,
     outcome,
-    elapsed: between(reference, ended),
+    elapsed,
     socket: view,
     noticed,
     steps,

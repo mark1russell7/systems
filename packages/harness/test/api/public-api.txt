@@ -219,6 +219,7 @@ type Subject: build/cell.chunk.d.ts#Subject
 type Substrate: build/index.d.ts#Substrate
 type SubstrateSource: build/index.d.ts#SubstrateSource
 type Target: build/cell.chunk.d.ts#Target
+type TimeFromFault: build/index.d.ts#TimeFromFault
 type Topology: build/cell.chunk.d.ts#Topology
 type Toxic: build/cell.chunk.d.ts#Toxic
 type Verdict: build/index.d.ts#Verdict
@@ -245,6 +246,7 @@ clusterOnce: build/index.d.ts#clusterOnce
 clusterStagesOf: build/index.d.ts#clusterStagesOf
 clusterViewOf: build/index.d.ts#clusterViewOf
 commitProblems: build/index.d.ts#commitProblems
+commitVoid: build/index.d.ts#commitVoid
 comparable: build/index.d.ts#comparable
 controllerEnv: build/index.d.ts#controllerEnv
 crossingsOf: build/index.d.ts#crossingsOf
@@ -2423,6 +2425,13 @@ interface SubstrateSource {
   readonly hz?: string | null;
 }
 
+### build/index.d.ts#TimeFromFault
+interface TimeFromFault {
+  readonly at: Quantity;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
 ### build/index.d.ts#Verdict
 interface Verdict {
   readonly decision: Decision;
@@ -2540,6 +2549,9 @@ export declare const clusterViewOf: (cluster: Cluster, rows: readonly StatusRow[
 
 ### build/index.d.ts#commitProblems
 export declare const commitProblems: (commit: string | undefined) => string[];
+
+### build/index.d.ts#commitVoid
+export declare const commitVoid: (commit: Quantity, times: readonly TimeFromFault[]) => string | null;
 
 ### build/index.d.ts#comparable
 export declare const comparable: (a: Substrate, b: Substrate) => boolean;

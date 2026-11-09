@@ -15,8 +15,7 @@
 // no digest, and one with a checkout with changes. It exits with 0 only if the clean read passes, each
 // cell turns red under the fault, and each other read exits with 1.
 
-import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +23,7 @@ import type { Verdict } from "../../harness/src/index.ts";
 import { recordProblems } from "../../harness/src/index.ts";
 import { catalogs, SCHEDULED_CELLS, selectedOf } from "../../cells/src/all.ts";
 import { FAULT_FACTOR, faultedVerdict, heldRead, slowdownSeen } from "../../cells/src/held.ts";
+import { byTag, changed, dirty, exitOf as runScript, withoutOne } from "./flip.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
 import { readFolders } from "./records.ts";
@@ -63,51 +63,8 @@ const verdictsOf = (underFault: boolean): Map<string, Verdict> =>
   new Map([...readings].map(([name, reading]) => [name, underFault ? faultedVerdict(reading.cell, reading.measured) : reading.verdict]));
 
 /** This function starts this script on the folders that it gets, and it gives its exit code. */
-const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null => {
-  const script = fileURLToPath(import.meta.url);
-  const done = spawnSync(process.execPath, [...process.execArgv, script, "--cells", selection, "--shard", shardText, ...flags, ...given], { stdio: "ignore" });
-  return done.status;
-};
-
-/** This function copies a folder into a new folder of a name, and it gives the copy and the file of its first record. */
-const copyOf = (folder: string, into: string, name: string): { readonly copy: string; readonly file: string } => {
-  const copy = join(into, name);
-  cpSync(folder, copy, { recursive: true });
-  const file = readdirSync(copy).filter((each) => each.endsWith(".json")).sort()[0];
-  if (file === undefined) throw new Error(`${folder} has no record`);
-  return { copy, file: join(copy, file) };
-};
-
-/** This function copies a folder without its first record and the line of that record, and it gives the copy. */
-const withoutOne = (folder: string, into: string): string => {
-  const { copy, file } = copyOf(folder, into, "gone");
-  const { cell } = JSON.parse(readFileSync(file, "utf8")) as CellRecord;
-  rmSync(file);
-  const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
-    .split("\n")
-    .filter((line) => line.trim() !== "" && (JSON.parse(line) as Summary).name !== cell.name);
-  writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
-  return copy;
-};
-
-/** This function copies a folder with a change to its first record, and it gives the copy. */
-const changed = (folder: string, into: string, name: string, change: (record: CellRecord) => CellRecord): string => {
-  const { copy, file } = copyOf(folder, into, name);
-  writeFileSync(file, JSON.stringify(change(JSON.parse(readFileSync(file, "utf8")) as CellRecord)));
-  return copy;
-};
-
-/** This change gives the target of each manifest the tag redis:7.4, with no digest and no build record. */
-const byTag = (record: CellRecord): CellRecord => ({
-  ...record,
-  manifests: record.manifests.map((manifest) => {
-    const { build: _build, ...target } = manifest.target;
-    return { ...manifest, target: { ...target, image: "redis:7.4" } };
-  }),
-});
-
-/** This change marks the checkout of the record as one with changes to tracked files. */
-const dirty = (record: CellRecord): CellRecord => ({ ...record, code: { commit: record.code?.commit ?? "0".repeat(40), dirty: true } });
+const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null =>
+  runScript(fileURLToPath(import.meta.url), ["--cells", selection, "--shard", shardText, ...flags, ...given]);
 
 if (flip) {
   // the flip needs one folder for its copy: each shard of the schedule gives one folder
