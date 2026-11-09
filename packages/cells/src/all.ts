@@ -24,6 +24,7 @@ import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { LADDER_CELLS } from "./ladder.ts";
 import { OPEN_LOOP_CELLS } from "./open-loop.ts";
+import { BORDER_CELLS } from "./stability.ts";
 import { RESEND_CELLS } from "./resend.ts";
 import { RECOVERY_CELLS, RECOVERY_SIZE_CELLS } from "./recovery.ts";
 import { REFRESH_CELLS } from "./refresh.ts";
@@ -62,7 +63,7 @@ export interface Subjects {
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
  * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills follow, and the open-loop cells are last.
+ * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder is last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -109,6 +110,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...RECOVERY_CELLS,
     ...RECOVERY_SIZE_CELLS,
     ...OPEN_LOOP_CELLS,
+    ...BORDER_CELLS,
     ...LADDER_CELLS,
   ];
 };
