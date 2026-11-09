@@ -3317,18 +3317,33 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 
 ### SYS-109 · A floor of the coverage for each package
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-09
-- **Shipped:**
-- **Links:** [#442](https://github.com/mark1russell7/systems/pull/442), [#457](https://github.com/mark1russell7/systems/pull/457), [the first coverage of main](https://github.com/mark1russell7/systems/actions/runs/42558826949)
+- **Shipped:** 2026-11-09
+- **Links:** [#442](https://github.com/mark1russell7/systems/pull/442), [#457](https://github.com/mark1russell7/systems/pull/457), [#462](https://github.com/mark1russell7/systems/pull/462), [the floors](../coverage-floors.json)
 
 Each push to main gives the artifact `coverage` for the ten packages with Vitest (#442, #457). The floor is 0, thus a drop of the coverage fails nothing.
 
 - **The floor.** Each package gets a floor for its lines, functions and branches. The floor is the worst of 5 or more CI runs on main, less their spread, rounded down to 0.1. The tests are deterministic, thus the spread is near 0. No run starts only for this item: the runs come from the merges to main.
 - **The record.** The file `coverage-floors.json` at the root gives each floor, the id of each run and the formula. The Vitest config of each package reads its floors from that file.
 - **The gate.** CI starts the coverage on each pull request too, and a package under its floor fails its run. A pull request that lowers a floor gives the reason, as for the other limits. A pull request that raises the coverage can raise the floor.
+
+**The floors of 2026-11-09.** The runs are [42558826949](https://github.com/mark1russell7/systems/actions/runs/42558826949), [42561558394](https://github.com/mark1russell7/systems/actions/runs/42561558394), [42562850313](https://github.com/mark1russell7/systems/actions/runs/42562850313), [42565946464](https://github.com/mark1russell7/systems/actions/runs/42565946464) and [42568135335](https://github.com/mark1russell7/systems/actions/runs/42568135335). They are on five commits of main. The spread is 0 in eight packages. In service and site, the code changed between the commits (#461, #462), thus the spread is 0.03 or less in service and 0.58 or less in site.
+
+| Package | Lines | Functions | Branches |
+| --- | --- | --- | --- |
+| algebra | 96.1 | 94.7 | 90.2 |
+| cells | 98.9 | 99.5 | 87.6 |
+| harness | 53 | 58.1 | 59.1 |
+| kind | 62 | 63.1 | 60.4 |
+| machines | 100 | 80 | 91.6 |
+| prober | 100 | 100 | 50 |
+| quantity | 96.8 | 94.2 | 87.1 |
+| reference | 100 | 100 | 82.3 |
+| service | 96 | 93 | 86.1 |
+| site | 79.9 | 66.4 | 61.8 |
 
 ### SYS-110 · The coverage of the labs of harness and kind
 
