@@ -38,6 +38,7 @@ import { WATCH_CELLS } from "./etcd-watch.ts";
 import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
+import { SOCKETIO_CELLS } from "./socketio.ts";
 import { WRITES_CELLS } from "./writes.ts";
 import { wsCells } from "./ws.ts";
 
@@ -57,7 +58,7 @@ export interface Subjects {
  * of S3 use the same group. The cells of `acks` of S3 follow them, on a group of Kafka. The HTTP
  * cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
- * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
+ * WST cells: the same client through a router or a proxy. The Socket.IO cells (SIO) follow them. The cells of the writes of S3 on a replica
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
@@ -83,6 +84,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),
     ...wstCells(subjects.procedures),
+    ...SOCKETIO_CELLS,
     ...T11_WRITES_CELLS,
     ...MONGO_CELLS,
     ...T01_PG,
