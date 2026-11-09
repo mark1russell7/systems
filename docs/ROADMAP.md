@@ -3304,12 +3304,14 @@ SYS-93 adds a root override that sets `@mark1russell7/service` to `workspace:*`.
 
 ### SYS-105 · A report of the API for each public package
 
-- **Status:** later
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:** [#393](https://github.com/mark1russell7/systems/pull/393), [#371](https://github.com/mark1russell7/systems/pull/371)
+- **Started:** 2026-11-09
+- **Shipped:** 2026-11-09
+- **Links:** [#393](https://github.com/mark1russell7/systems/pull/393), [#371](https://github.com/mark1russell7/systems/pull/371), [#455](https://github.com/mark1russell7/systems/pull/455)
+
+#455 adds the reports of the other 6 public packages: algebra, kind, machines, prober, quantity and service. The checks job of CI runs `check:api` after the build. Thus a change of an export fails CI until its pull request has the new report.
 
 #393 adds `@mark1russell7/api-report` to the repository, with a report for `harness` only. An earlier version of the release train PR #371 added the reports of all 7 public packages. The release train wrote #371 again before it merged on 2026-11-08, and the merged PR changes only dependency ranges. Thus the field `apiReport` still names `harness` only. This item adds the other public packages to the field `apiReport`. A CI run builds all packages and writes the reports. The test: `check:api` passes in CI, and a change of an export shows in the diff of its pull request.
 

@@ -1,0 +1,2612 @@
+# The public API of @mark1russell7/kind
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): names
+
+ACCESS_LOG_FORMAT: build/index.d.ts#ACCESS_LOG_FORMAT
+ANNOUNCE_ANNOTATION: build/index.d.ts#ANNOUNCE_ANNOTATION
+type Announcement: build/index.d.ts#Announcement
+type BacklogTerm: build/judge.chunk.d.ts#BacklogTerm
+type Backoff: build/judge.chunk.d.ts#Backoff
+type Band: build/judge.chunk.d.ts#Band
+type BandV1: build/judge.chunk.d.ts#BandV1
+type Broker: build/index.d.ts#Broker
+CHANNEL_USE: build/index.d.ts#CHANNEL_USE
+CILIUM_CHART: build/index.d.ts#CILIUM_CHART
+CILIUM_CONFIG_KEYS: build/index.d.ts#CILIUM_CONFIG_KEYS
+CILIUM_IMAGES: build/index.d.ts#CILIUM_IMAGES
+CILIUM_VERSION: build/index.d.ts#CILIUM_VERSION
+CILIUM_WORKLOADS: build/index.d.ts#CILIUM_WORKLOADS
+CLIENT: build/judge.chunk.d.ts#CLIENT
+CLIENT_ACCOUNT: build/index.d.ts#CLIENT_ACCOUNT
+CLOSE_LEAD: build/index.d.ts#CLOSE_LEAD
+CONTROLLER: build/index.d.ts#CONTROLLER
+type CiliumImages: build/index.d.ts#CiliumImages
+type Cluster: build/index.d.ts#Cluster
+type ClusterHosts: build/index.d.ts#ClusterHosts
+type ClusterManifest: build/judge.chunk.d.ts#ClusterManifest
+type CountBand: build/judge.chunk.d.ts#CountBand
+type Credentials: build/index.d.ts#Credentials
+type Cycle: build/judge.chunk.d.ts#Cycle
+DATAPLANES: build/judge.chunk.d.ts#DATAPLANES
+DNS_PORT: build/index.d.ts#DNS_PORT
+DOCUMENTED: build/index.d.ts#DOCUMENTED
+DRAIN_RULES: @mark1russell7/service/rules#DRAIN_RULES (external)
+type Dataplane: build/judge.chunk.d.ts#Dataplane
+type Declaration: build/judge.chunk.d.ts#Declaration
+type Deleted: build/judge.chunk.d.ts#Deleted
+type DeletionWindow: build/index.d.ts#DeletionWindow
+EDS_EVERY: build/index.d.ts#EDS_EVERY
+type EdgeProtocol: build/judge.chunk.d.ts#EdgeProtocol
+type EdsSpec: build/index.d.ts#EdsSpec
+Endpoint: build/judge.chunk.d.ts#Endpoint
+type EnvironmentManifest: build/judge.chunk.d.ts#EnvironmentManifest
+FLAG_CHECK: build/index.d.ts#FLAG_CHECK
+FORMAT: build/judge.chunk.d.ts#FORMAT
+FORMAT_V1: build/judge.chunk.d.ts#FORMAT_V1
+type FaultPlan: build/index.d.ts#FaultPlan
+type Flap: build/judge.chunk.d.ts#Flap
+HBONE_PORT: build/judge.chunk.d.ts#HBONE_PORT
+HEALTH_PORT: build/judge.chunk.d.ts#HEALTH_PORT
+HELM: build/index.d.ts#HELM
+ISTIOCTL: build/index.d.ts#ISTIOCTL
+ISTIO_IMAGES: build/index.d.ts#ISTIO_IMAGES
+ISTIO_VERSION: build/index.d.ts#ISTIO_VERSION
+type Judged: build/judge.chunk.d.ts#Judged
+KEPT_KERNEL: build/index.d.ts#KEPT_KERNEL
+KIND: build/index.d.ts#KIND
+KIND_NOISE: build/judge.chunk.d.ts#KIND_NOISE
+KUBECTL: build/index.d.ts#KUBECTL
+KUBE_PROXY_MODES: build/judge.chunk.d.ts#KUBE_PROXY_MODES
+KUBE_VIP: build/index.d.ts#KUBE_VIP
+KUBE_VIP_ANNOUNCER: build/index.d.ts#KUBE_VIP_ANNOUNCER
+KUBE_VIP_ARP_RATE: build/index.d.ts#KUBE_VIP_ARP_RATE
+KUBE_VIP_ELECTION: build/index.d.ts#KUBE_VIP_ELECTION
+KUBE_VIP_IMAGE: build/index.d.ts#KUBE_VIP_IMAGE
+KUBE_VIP_LEASE: build/index.d.ts#KUBE_VIP_LEASE
+KUBE_VIP_VERSION: build/index.d.ts#KUBE_VIP_VERSION
+type KindCell: build/judge.chunk.d.ts#KindCell
+type KindCellRecord: build/judge.chunk.d.ts#KindCellRecord
+type KindCellRecordV1: build/judge.chunk.d.ts#KindCellRecordV1
+type KindCellResult: build/judge.chunk.d.ts#KindCellResult
+type KindCellV1: build/judge.chunk.d.ts#KindCellV1
+type KindConfig: build/judge.chunk.d.ts#KindConfig
+type KindDecision: build/judge.chunk.d.ts#KindDecision
+type KindLab: build/index.d.ts#KindLab
+type KindRun: build/judge.chunk.d.ts#KindRun
+type KindScenario: build/judge.chunk.d.ts#KindScenario
+type KindVerdict: build/judge.chunk.d.ts#KindVerdict
+type KindVerdictV1: build/judge.chunk.d.ts#KindVerdictV1
+type KubeProxyMode: build/judge.chunk.d.ts#KubeProxyMode
+type KubeVipPod: build/index.d.ts#KubeVipPod
+type KubeletProbe: build/judge.chunk.d.ts#KubeletProbe
+LAST_SLACK: build/judge.chunk.d.ts#LAST_SLACK
+LB_CLASS: build/judge.chunk.d.ts#LB_CLASS
+LDS_EVERY: build/index.d.ts#LDS_EVERY
+LDS_FILTER: build/index.d.ts#LDS_FILTER
+LOG_LABEL: build/judge.chunk.d.ts#LOG_LABEL
+type LdsSpec: build/index.d.ts#LdsSpec
+type LeafCertificate: build/index.d.ts#LeafCertificate
+type LearnWindow: build/index.d.ts#LearnWindow
+Line: build/judge.chunk.d.ts#Line
+type ListenerCounts: build/index.d.ts#ListenerCounts
+type LoadSample: build/judge.chunk.d.ts#LoadSample
+MEMBERLIST: build/index.d.ts#MEMBERLIST
+MEMBERLIST_FILE: build/index.d.ts#MEMBERLIST_FILE
+MESH_IMAGES: build/index.d.ts#MESH_IMAGES
+MESH_WORKLOADS: build/index.d.ts#MESH_WORKLOADS
+METALLB_ANNOTATION: build/index.d.ts#METALLB_ANNOTATION
+METALLB_ANNOUNCER: build/index.d.ts#METALLB_ANNOUNCER
+METALLB_CHART: build/index.d.ts#METALLB_CHART
+METALLB_IMAGES: build/index.d.ts#METALLB_IMAGES
+METALLB_NAMESPACE: build/index.d.ts#METALLB_NAMESPACE
+METALLB_POOL: build/index.d.ts#METALLB_POOL
+METALLB_SPAM: build/index.d.ts#METALLB_SPAM
+METALLB_VERSION: build/index.d.ts#METALLB_VERSION
+MIDDLEBOX: build/index.d.ts#MIDDLEBOX
+type MemberlistSettings: build/judge.chunk.d.ts#MemberlistSettings
+type Mesh: build/judge.chunk.d.ts#Mesh
+type MeshFlavor: build/judge.chunk.d.ts#MeshFlavor
+type MeshImages: build/index.d.ts#MeshImages
+type MeshMode: build/judge.chunk.d.ts#MeshMode
+type MetallbImages: build/index.d.ts#MetallbImages
+NETEM_DRAIN: build/index.d.ts#NETEM_DRAIN
+NETNS_DEFAULTS: build/index.d.ts#NETNS_DEFAULTS
+NODE_IMAGES: build/judge.chunk.d.ts#NODE_IMAGES
+NODE_LIFECYCLE: build/index.d.ts#NODE_LIFECYCLE
+NOT_QUIET: build/index.d.ts#NOT_QUIET
+type NodeImage: build/judge.chunk.d.ts#NodeImage
+type NodeLifecycle: build/index.d.ts#NodeLifecycle
+type NonePrediction: build/judge.chunk.d.ts#NonePrediction
+O04: @mark1russell7/service/rules#O04 (external)
+O09: @mark1russell7/service/rules#O09 (external)
+O10: @mark1russell7/service/rules#O10 (external)
+O16: @mark1russell7/service/rules#O16 (external)
+OUTSIDE: build/judge.chunk.d.ts#OUTSIDE
+type OutsideSpec: build/index.d.ts#OutsideSpec
+PING: build/index.d.ts#PING
+POD_LINK: build/index.d.ts#POD_LINK
+POLICY: build/index.d.ts#POLICY
+PORT: build/judge.chunk.d.ts#PORT
+PRODUCER: build/index.d.ts#PRODUCER
+PRODUCER_BACKOFF: build/index.d.ts#PRODUCER_BACKOFF
+PRODUCER_SCRIPT: build/index.d.ts#PRODUCER_SCRIPT
+PULSAR_CHART: build/index.d.ts#PULSAR_CHART
+PULSAR_IMAGE: build/index.d.ts#PULSAR_IMAGE
+PULSAR_LOOKUP: build/index.d.ts#PULSAR_LOOKUP
+PULSAR_NAMESPACE: build/index.d.ts#PULSAR_NAMESPACE
+PULSAR_SERVICE: build/index.d.ts#PULSAR_SERVICE
+PULSAR_TOPIC: build/index.d.ts#PULSAR_TOPIC
+PULSAR_VERSION: build/index.d.ts#PULSAR_VERSION
+type Parts: build/index.d.ts#Parts
+Period: build/judge.chunk.d.ts#Period
+type PermittedWindow: build/judge.chunk.d.ts#PermittedWindow
+type PinnedChart: build/index.d.ts#PinnedChart
+PodLine: build/judge.chunk.d.ts#PodLine
+type PodSettings: build/judge.chunk.d.ts#PodSettings
+type Prediction: build/judge.chunk.d.ts#Prediction
+type PredictionV1: build/judge.chunk.d.ts#PredictionV1
+type ProducerState: build/index.d.ts#ProducerState
+type Propagated: build/judge.chunk.d.ts#Propagated
+type Propagation: build/index.d.ts#Propagation
+PropagationSource: build/judge.chunk.d.ts#PropagationSource
+type PulsarSettings: build/judge.chunk.d.ts#PulsarSettings
+QUIET_GATE: build/index.d.ts#QUIET_GATE
+QUIET_LEAD: build/index.d.ts#QUIET_LEAD
+type QuietGate: build/index.d.ts#QuietGate
+REDIS: build/judge.chunk.d.ts#REDIS
+REDIS_IMAGE: build/index.d.ts#REDIS_IMAGE
+RELATIVE: build/judge.chunk.d.ts#RELATIVE
+ROUTE: build/index.d.ts#ROUTE
+RULES_EVERY: build/index.d.ts#RULES_EVERY
+type Reconnects: build/judge.chunk.d.ts#Reconnects
+type ReconnectsFacts: build/judge.chunk.d.ts#ReconnectsFacts
+type ReconnectsPrediction: build/judge.chunk.d.ts#ReconnectsPrediction
+RecordLine: build/judge.chunk.d.ts#RecordLine
+type RedisDeclaration: build/judge.chunk.d.ts#RedisDeclaration
+type Reference: build/judge.chunk.d.ts#Reference
+type Replica: build/judge.chunk.d.ts#Replica
+Request: build/judge.chunk.d.ts#Request
+type ResetReuse: build/judge.chunk.d.ts#ResetReuse
+type Return: build/judge.chunk.d.ts#Return
+RulesLine: build/judge.chunk.d.ts#RulesLine
+type RunCheck: build/judge.chunk.d.ts#RunCheck
+type RunCheckV1: build/judge.chunk.d.ts#RunCheckV1
+type RunFacts: build/judge.chunk.d.ts#RunFacts
+type RunFactsV1: build/judge.chunk.d.ts#RunFactsV1
+type RunOptions: build/index.d.ts#RunOptions
+SERVER: build/judge.chunk.d.ts#SERVER
+SESSION: build/index.d.ts#SESSION
+SPREAD_LEAD: build/index.d.ts#SPREAD_LEAD
+STAGES: build/judge.chunk.d.ts#STAGES
+SYSCTL: build/index.d.ts#SYSCTL
+type Schedule: build/judge.chunk.d.ts#Schedule
+type ServiceRule: build/index.d.ts#ServiceRule
+Sessions: build/judge.chunk.d.ts#Sessions
+SliceLine: build/judge.chunk.d.ts#SliceLine
+SocketLine: build/judge.chunk.d.ts#SocketLine
+type Stack: build/judge.chunk.d.ts#Stack
+type Stamp: build/index.d.ts#Stamp
+type Step: build/index.d.ts#Step
+TCP_STATE: build/judge.chunk.d.ts#TCP_STATE
+TICK: build/index.d.ts#TICK
+type Target: build/index.d.ts#Target
+type Template: build/judge.chunk.d.ts#Template
+type TimeSpread: build/judge.chunk.d.ts#TimeSpread
+type Tool: build/index.d.ts#Tool
+type Trigger: build/judge.chunk.d.ts#Trigger
+type TriggerKind: build/judge.chunk.d.ts#TriggerKind
+type TriggerV1: build/judge.chunk.d.ts#TriggerV1
+type Try: build/judge.chunk.d.ts#Try
+TunnelLine: build/judge.chunk.d.ts#TunnelLine
+VIP_ANNOTATION: build/judge.chunk.d.ts#VIP_ANNOTATION
+VIP_LABEL: build/index.d.ts#VIP_LABEL
+type Verdicts: build/index.d.ts#Verdicts
+type VipAnnouncer: build/index.d.ts#VipAnnouncer
+type VipAnnouncerName: build/judge.chunk.d.ts#VipAnnouncerName
+type VipLease: build/index.d.ts#VipLease
+type VipNetwork: build/index.d.ts#VipNetwork
+type VipService: build/index.d.ts#VipService
+type VipSettings: build/judge.chunk.d.ts#VipSettings
+WATCHDOG: build/index.d.ts#WATCHDOG
+type WindowPrediction: build/judge.chunk.d.ts#WindowPrediction
+type Workload: build/judge.chunk.d.ts#Workload
+ZONE_KEPT: build/judge.chunk.d.ts#ZONE_KEPT
+ZONE_LABEL: build/judge.chunk.d.ts#ZONE_LABEL
+ZONE_LOST: build/judge.chunk.d.ts#ZONE_LOST
+ZTUNNEL_PODS: build/index.d.ts#ZTUNNEL_PODS
+ZtunnelPodLine: build/judge.chunk.d.ts#ZtunnelPodLine
+announcementsOf: build/index.d.ts#announcementsOf
+announcerOf: build/index.d.ts#announcerOf
+arpMacOf: build/index.d.ts#arpMacOf
+backendsAt: build/judge.chunk.d.ts#backendsAt
+backendsOf: build/index.d.ts#backendsOf
+backlogEnd: build/judge.chunk.d.ts#backlogEnd
+bandOf: build/judge.chunk.d.ts#bandOf
+baselineOf: build/index.d.ts#baselineOf
+brokerOfHost: build/index.d.ts#brokerOfHost
+brokersOf: build/index.d.ts#brokersOf
+byClients: build/judge.chunk.d.ts#byClients
+byNode: build/judge.chunk.d.ts#byNode
+cacheFolder: build/index.d.ts#cacheFolder
+calibrationOf: build/judge.chunk.d.ts#calibrationOf
+capOf: build/index.d.ts#capOf
+cellsTable: build/judge.chunk.d.ts#cellsTable
+certificateArgs: build/index.d.ts#certificateArgs
+checkRun: build/judge.chunk.d.ts#checkRun
+cidrOverlap: build/judge.chunk.d.ts#cidrOverlap
+cidrRange: build/judge.chunk.d.ts#cidrRange
+ciliumBackendsOf: build/index.d.ts#ciliumBackendsOf
+ciliumMode: build/index.d.ts#ciliumMode
+ciliumValues: build/index.d.ts#ciliumValues
+clientObjects: build/index.d.ts#clientObjects
+clusterFilter: build/index.d.ts#clusterFilter
+clusterNameOf: build/index.d.ts#clusterNameOf
+compose: build/index.d.ts#compose
+createCluster: build/index.d.ts#createCluster
+cyclesOf: build/judge.chunk.d.ts#cyclesOf
+deletes: build/index.d.ts#deletes
+deletionOf: build/judge.chunk.d.ts#deletionOf
+deletionWindow: build/index.d.ts#deletionWindow
+deletionsOf: build/judge.chunk.d.ts#deletionsOf
+describeCell: build/index.d.ts#describeCell
+dnsCommands: build/index.d.ts#dnsCommands
+drainBand: build/judge.chunk.d.ts#drainBand
+dropOf: build/judge.chunk.d.ts#dropOf
+emptyOf: build/judge.chunk.d.ts#emptyOf
+ensureChart: build/index.d.ts#ensureChart
+ensurePinnedChart: build/index.d.ts#ensurePinnedChart
+ensureTool: build/index.d.ts#ensureTool
+estimatedTime: build/index.d.ts#estimatedTime
+factsOf: build/judge.chunk.d.ts#factsOf
+failuresOf: build/judge.chunk.d.ts#failuresOf
+faultSpan: build/index.d.ts#faultSpan
+followsZtunnel: build/index.d.ts#followsZtunnel
+goDuration: build/judge.chunk.d.ts#goDuration
+helmInstall: build/index.d.ts#helmInstall
+holdMetallb: build/index.d.ts#holdMetallb
+holdPulsar: build/index.d.ts#holdPulsar
+holdVip: build/index.d.ts#holdVip
+hostsOf: build/index.d.ts#hostsOf
+installCilium: build/index.d.ts#installCilium
+installKubeVip: build/index.d.ts#installKubeVip
+installMesh: build/index.d.ts#installMesh
+installMetallb: build/index.d.ts#installMetallb
+installPulsar: build/index.d.ts#installPulsar
+intakeAfter: build/index.d.ts#intakeAfter
+intakeOf: build/judge.chunk.d.ts#intakeOf
+isKubeProxyMode: build/judge.chunk.d.ts#isKubeProxyMode
+isTunnelState: build/judge.chunk.d.ts#isTunnelState
+istioOperator: build/index.d.ts#istioOperator
+judge: build/judge.chunk.d.ts#judge
+judgeKind: build/judge.chunk.d.ts#judgeKind
+judgeReconnects: build/judge.chunk.d.ts#judgeReconnects
+keptKernel: build/index.d.ts#keptKernel
+kernelCounts: build/judge.chunk.d.ts#kernelCounts
+kindCellRecordSchema: build/judge.chunk.d.ts#kindCellRecordSchema
+kindCellRecordV1Schema: build/judge.chunk.d.ts#kindCellRecordV1Schema
+kindConfig: build/judge.chunk.d.ts#kindConfig
+kubeProxyPatch: build/judge.chunk.d.ts#kubeProxyPatch
+kubeVipObjects: build/index.d.ts#kubeVipObjects
+kubeVipPods: build/index.d.ts#kubeVipPods
+kubeVipReady: build/index.d.ts#kubeVipReady
+kubeletBand: build/index.d.ts#kubeletBand
+labImage: build/index.d.ts#labImage
+labSource: build/index.d.ts#labSource
+latchBand: build/index.d.ts#latchBand
+latestReturn: build/judge.chunk.d.ts#latestReturn
+leafCertificates: build/index.d.ts#leafCertificates
+learnWindow: build/index.d.ts#learnWindow
+lintCell: build/index.d.ts#lintCell
+listenerCountsOf: build/index.d.ts#listenerCountsOf
+localPin: build/index.d.ts#localPin
+macsAt: build/index.d.ts#macsAt
+medianInterval: build/judge.chunk.d.ts#medianInterval
+medianText: build/judge.chunk.d.ts#medianText
+memberlistFileOf: build/index.d.ts#memberlistFileOf
+memberlistTermsOf: build/index.d.ts#memberlistTermsOf
+meshKey: build/index.d.ts#meshKey
+metallbObjects: build/index.d.ts#metallbObjects
+metallbRecord: build/index.d.ts#metallbRecord
+metallbValues: build/index.d.ts#metallbValues
+metallbVipOf: build/index.d.ts#metallbVipOf
+middle: build/judge.chunk.d.ts#middle
+middleboxCommands: build/index.d.ts#middleboxCommands
+middleboxRemoval: build/index.d.ts#middleboxRemoval
+namesService: build/index.d.ts#namesService
+namespaceObject: build/index.d.ts#namespaceObject
+namespaceOf: build/index.d.ts#namespaceOf
+neededIdle: build/index.d.ts#neededIdle
+nodeLossBand: build/index.d.ts#nodeLossBand
+nodeNames: build/judge.chunk.d.ts#nodeNames
+nodeReturnBand: build/index.d.ts#nodeReturnBand
+observationAfter: build/judge.chunk.d.ts#observationAfter
+observationEnd: build/judge.chunk.d.ts#observationEnd
+openKindLab: build/index.d.ts#openKindLab
+outboundCluster: build/index.d.ts#outboundCluster
+outcomesOf: build/judge.chunk.d.ts#outcomesOf
+overshootBand: build/judge.chunk.d.ts#overshootBand
+ownerAtRest: build/index.d.ts#ownerAtRest
+ownerOrder: build/index.d.ts#ownerOrder
+pausedWindow: build/index.d.ts#pausedWindow
+periodOf: build/judge.chunk.d.ts#periodOf
+placementOf: build/index.d.ts#placementOf
+planOf: build/index.d.ts#planOf
+platformKey: build/index.d.ts#platformKey
+podsAt: build/judge.chunk.d.ts#podsAt
+podsOf: build/judge.chunk.d.ts#podsOf
+policyObject: build/index.d.ts#policyObject
+pollsListeners: build/index.d.ts#pollsListeners
+predictionText: build/judge.chunk.d.ts#predictionText
+probeOf: build/index.d.ts#probeOf
+propagationOf: build/judge.chunk.d.ts#propagationOf
+propagationSource: build/judge.chunk.d.ts#propagationSource
+pulsarObjects: build/index.d.ts#pulsarObjects
+pulsarRecord: build/index.d.ts#pulsarRecord
+pulsarValues: build/index.d.ts#pulsarValues
+quantileOf: build/judge.chunk.d.ts#quantileOf
+quietWhy: build/index.d.ts#quietWhy
+readRecord: build/judge.chunk.d.ts#readRecord
+recordsOf: build/judge.chunk.d.ts#recordsOf
+redisObjects: build/index.d.ts#redisObjects
+referenceOf: build/judge.chunk.d.ts#referenceOf
+removalBand: build/index.d.ts#removalBand
+requestBand: build/judge.chunk.d.ts#requestBand
+requestsOf: build/judge.chunk.d.ts#requestsOf
+restartBand: build/index.d.ts#restartBand
+restartOf: build/judge.chunk.d.ts#restartOf
+restartsAt: build/judge.chunk.d.ts#restartsAt
+reusesReset: build/judge.chunk.d.ts#reusesReset
+rulesOf: build/judge.chunk.d.ts#rulesOf
+runKindCells: build/index.d.ts#runKindCells
+scenario: build/judge.chunk.d.ts#scenario
+scenarioOf: build/index.d.ts#scenarioOf
+scenarioProblems: build/judge.chunk.d.ts#scenarioProblems
+seconds: build/judge.chunk.d.ts#seconds
+secondsOf: build/judge.chunk.d.ts#secondsOf
+serverCluster: build/index.d.ts#serverCluster
+serverObjects: build/index.d.ts#serverObjects
+sessionsAt: build/judge.chunk.d.ts#sessionsAt
+setZtunnelEnv: build/index.d.ts#setZtunnelEnv
+sha256: build/index.d.ts#sha256
+shardOf: build/index.d.ts#shardOf
+sharedGate: build/index.d.ts#sharedGate
+showBand: build/judge.chunk.d.ts#showBand
+signalOf: build/judge.chunk.d.ts#signalOf
+signalsOf: build/judge.chunk.d.ts#signalsOf
+sliceDropOf: build/judge.chunk.d.ts#sliceDropOf
+sliceEmptyOf: build/judge.chunk.d.ts#sliceEmptyOf
+sliceReadyAt: build/judge.chunk.d.ts#sliceReadyAt
+sliceReadyOf: build/judge.chunk.d.ts#sliceReadyOf
+slicesOf: build/judge.chunk.d.ts#slicesOf
+socketsOf: build/judge.chunk.d.ts#socketsOf
+speakersReady: build/index.d.ts#speakersReady
+stackOf: build/index.d.ts#stackOf
+stageLabImage: build/index.d.ts#stageLabImage
+stallRemovalBand: build/index.d.ts#stallRemovalBand
+stopOf: build/index.d.ts#stopOf
+stoppingOf: build/judge.chunk.d.ts#stoppingOf
+suspicionOf: build/index.d.ts#suspicionOf
+sysctlCommand: build/index.d.ts#sysctlCommand
+tarEntry: build/index.d.ts#tarEntry
+timeSpread: build/judge.chunk.d.ts#timeSpread
+toolPath: build/index.d.ts#toolPath
+transitionOf: build/judge.chunk.d.ts#transitionOf
+triesOf: build/judge.chunk.d.ts#triesOf
+tunnelsOf: build/judge.chunk.d.ts#tunnelsOf
+unitOf: build/judge.chunk.d.ts#unitOf
+updatesOf: build/judge.chunk.d.ts#updatesOf
+upgrade: build/judge.chunk.d.ts#upgrade
+upgradeCell: build/judge.chunk.d.ts#upgradeCell
+verdictsOf: build/index.d.ts#verdictsOf
+vipLeaseOf: build/index.d.ts#vipLeaseOf
+vipNetworkOf: build/index.d.ts#vipNetworkOf
+vipOf: build/index.d.ts#vipOf
+vipServed: build/index.d.ts#vipServed
+vipService: build/index.d.ts#vipService
+writeResult: build/index.d.ts#writeResult
+zoneOf: build/judge.chunk.d.ts#zoneOf
+ztunnelCertificates: build/index.d.ts#ztunnelCertificates
+ztunnelEnvArgs: build/index.d.ts#ztunnelEnvArgs
+ztunnelPodsOf: build/judge.chunk.d.ts#ztunnelPodsOf
+ztunnelReplaced: build/judge.chunk.d.ts#ztunnelReplaced
+
+## ./judge (build/judge.d.ts): names
+
+type BacklogTerm: build/judge.chunk.d.ts#BacklogTerm
+type Backoff: build/judge.chunk.d.ts#Backoff
+type Band: build/judge.chunk.d.ts#Band
+type BandV1: build/judge.chunk.d.ts#BandV1
+CLIENT: build/judge.chunk.d.ts#CLIENT
+type ClusterManifest: build/judge.chunk.d.ts#ClusterManifest
+type CountBand: build/judge.chunk.d.ts#CountBand
+type Cycle: build/judge.chunk.d.ts#Cycle
+type Dataplane: build/judge.chunk.d.ts#Dataplane
+type Declaration: build/judge.chunk.d.ts#Declaration
+type Deleted: build/judge.chunk.d.ts#Deleted
+type EdgeProtocol: build/judge.chunk.d.ts#EdgeProtocol
+Endpoint: build/judge.chunk.d.ts#Endpoint
+type EnvironmentManifest: build/judge.chunk.d.ts#EnvironmentManifest
+FORMAT: build/judge.chunk.d.ts#FORMAT
+FORMAT_V1: build/judge.chunk.d.ts#FORMAT_V1
+type Flap: build/judge.chunk.d.ts#Flap
+HBONE_PORT: build/judge.chunk.d.ts#HBONE_PORT
+HEALTH_PORT: build/judge.chunk.d.ts#HEALTH_PORT
+type Judged: build/judge.chunk.d.ts#Judged
+KIND_NOISE: build/judge.chunk.d.ts#KIND_NOISE
+type KindCell: build/judge.chunk.d.ts#KindCell
+type KindCellRecord: build/judge.chunk.d.ts#KindCellRecord
+type KindCellRecordV1: build/judge.chunk.d.ts#KindCellRecordV1
+type KindCellResult: build/judge.chunk.d.ts#KindCellResult
+type KindCellV1: build/judge.chunk.d.ts#KindCellV1
+type KindDecision: build/judge.chunk.d.ts#KindDecision
+type KindRun: build/judge.chunk.d.ts#KindRun
+type KindVerdict: build/judge.chunk.d.ts#KindVerdict
+type KindVerdictV1: build/judge.chunk.d.ts#KindVerdictV1
+type KubeProxyMode: build/judge.chunk.d.ts#KubeProxyMode
+type KubeletProbe: build/judge.chunk.d.ts#KubeletProbe
+LAST_SLACK: build/judge.chunk.d.ts#LAST_SLACK
+LB_CLASS: build/judge.chunk.d.ts#LB_CLASS
+LOG_LABEL: build/judge.chunk.d.ts#LOG_LABEL
+Line: build/judge.chunk.d.ts#Line
+type LoadSample: build/judge.chunk.d.ts#LoadSample
+type MemberlistSettings: build/judge.chunk.d.ts#MemberlistSettings
+type Mesh: build/judge.chunk.d.ts#Mesh
+type MeshFlavor: build/judge.chunk.d.ts#MeshFlavor
+type MeshMode: build/judge.chunk.d.ts#MeshMode
+type NonePrediction: build/judge.chunk.d.ts#NonePrediction
+OUTSIDE: build/judge.chunk.d.ts#OUTSIDE
+PORT: build/judge.chunk.d.ts#PORT
+Period: build/judge.chunk.d.ts#Period
+type PermittedWindow: build/judge.chunk.d.ts#PermittedWindow
+PodLine: build/judge.chunk.d.ts#PodLine
+type PodSettings: build/judge.chunk.d.ts#PodSettings
+type Prediction: build/judge.chunk.d.ts#Prediction
+type PredictionV1: build/judge.chunk.d.ts#PredictionV1
+type Propagated: build/judge.chunk.d.ts#Propagated
+PropagationSource: build/judge.chunk.d.ts#PropagationSource
+type PulsarSettings: build/judge.chunk.d.ts#PulsarSettings
+REDIS: build/judge.chunk.d.ts#REDIS
+RELATIVE: build/judge.chunk.d.ts#RELATIVE
+type Reconnects: build/judge.chunk.d.ts#Reconnects
+type ReconnectsFacts: build/judge.chunk.d.ts#ReconnectsFacts
+type ReconnectsPrediction: build/judge.chunk.d.ts#ReconnectsPrediction
+RecordLine: build/judge.chunk.d.ts#RecordLine
+type RedisDeclaration: build/judge.chunk.d.ts#RedisDeclaration
+type Reference: build/judge.chunk.d.ts#Reference
+type Replica: build/judge.chunk.d.ts#Replica
+Request: build/judge.chunk.d.ts#Request
+type ResetReuse: build/judge.chunk.d.ts#ResetReuse
+type Return: build/judge.chunk.d.ts#Return
+RulesLine: build/judge.chunk.d.ts#RulesLine
+type RunCheck: build/judge.chunk.d.ts#RunCheck
+type RunCheckV1: build/judge.chunk.d.ts#RunCheckV1
+type RunFacts: build/judge.chunk.d.ts#RunFacts
+type RunFactsV1: build/judge.chunk.d.ts#RunFactsV1
+SERVER: build/judge.chunk.d.ts#SERVER
+STAGES: build/judge.chunk.d.ts#STAGES
+type Schedule: build/judge.chunk.d.ts#Schedule
+Sessions: build/judge.chunk.d.ts#Sessions
+SliceLine: build/judge.chunk.d.ts#SliceLine
+SocketLine: build/judge.chunk.d.ts#SocketLine
+type Stack: build/judge.chunk.d.ts#Stack
+TCP_STATE: build/judge.chunk.d.ts#TCP_STATE
+type Template: build/judge.chunk.d.ts#Template
+type TimeSpread: build/judge.chunk.d.ts#TimeSpread
+type Trigger: build/judge.chunk.d.ts#Trigger
+type TriggerKind: build/judge.chunk.d.ts#TriggerKind
+type TriggerV1: build/judge.chunk.d.ts#TriggerV1
+type Try: build/judge.chunk.d.ts#Try
+TunnelLine: build/judge.chunk.d.ts#TunnelLine
+VIP_ANNOTATION: build/judge.chunk.d.ts#VIP_ANNOTATION
+type VipAnnouncerName: build/judge.chunk.d.ts#VipAnnouncerName
+type VipSettings: build/judge.chunk.d.ts#VipSettings
+type WindowPrediction: build/judge.chunk.d.ts#WindowPrediction
+type Workload: build/judge.chunk.d.ts#Workload
+ZtunnelPodLine: build/judge.chunk.d.ts#ZtunnelPodLine
+backendsAt: build/judge.chunk.d.ts#backendsAt
+backlogEnd: build/judge.chunk.d.ts#backlogEnd
+bandOf: build/judge.chunk.d.ts#bandOf
+byClients: build/judge.chunk.d.ts#byClients
+byNode: build/judge.chunk.d.ts#byNode
+calibrationOf: build/judge.chunk.d.ts#calibrationOf
+cellsTable: build/judge.chunk.d.ts#cellsTable
+checkRun: build/judge.chunk.d.ts#checkRun
+cyclesOf: build/judge.chunk.d.ts#cyclesOf
+deletionOf: build/judge.chunk.d.ts#deletionOf
+deletionsOf: build/judge.chunk.d.ts#deletionsOf
+drainBand: build/judge.chunk.d.ts#drainBand
+dropOf: build/judge.chunk.d.ts#dropOf
+emptyOf: build/judge.chunk.d.ts#emptyOf
+factsOf: build/judge.chunk.d.ts#factsOf
+failuresOf: build/judge.chunk.d.ts#failuresOf
+intakeOf: build/judge.chunk.d.ts#intakeOf
+isTunnelState: build/judge.chunk.d.ts#isTunnelState
+judge: build/judge.chunk.d.ts#judge
+judgeKind: build/judge.chunk.d.ts#judgeKind
+judgeReconnects: build/judge.chunk.d.ts#judgeReconnects
+kernelCounts: build/judge.chunk.d.ts#kernelCounts
+kindCellRecordSchema: build/judge.chunk.d.ts#kindCellRecordSchema
+kindCellRecordV1Schema: build/judge.chunk.d.ts#kindCellRecordV1Schema
+latestReturn: build/judge.chunk.d.ts#latestReturn
+medianInterval: build/judge.chunk.d.ts#medianInterval
+medianText: build/judge.chunk.d.ts#medianText
+middle: build/judge.chunk.d.ts#middle
+observationAfter: build/judge.chunk.d.ts#observationAfter
+observationEnd: build/judge.chunk.d.ts#observationEnd
+outcomesOf: build/judge.chunk.d.ts#outcomesOf
+overshootBand: build/judge.chunk.d.ts#overshootBand
+periodOf: build/judge.chunk.d.ts#periodOf
+podsAt: build/judge.chunk.d.ts#podsAt
+podsOf: build/judge.chunk.d.ts#podsOf
+predictionText: build/judge.chunk.d.ts#predictionText
+propagationOf: build/judge.chunk.d.ts#propagationOf
+propagationSource: build/judge.chunk.d.ts#propagationSource
+quantileOf: build/judge.chunk.d.ts#quantileOf
+readRecord: build/judge.chunk.d.ts#readRecord
+recordsOf: build/judge.chunk.d.ts#recordsOf
+referenceOf: build/judge.chunk.d.ts#referenceOf
+requestBand: build/judge.chunk.d.ts#requestBand
+requestsOf: build/judge.chunk.d.ts#requestsOf
+restartOf: build/judge.chunk.d.ts#restartOf
+restartsAt: build/judge.chunk.d.ts#restartsAt
+reusesReset: build/judge.chunk.d.ts#reusesReset
+rulesOf: build/judge.chunk.d.ts#rulesOf
+seconds: build/judge.chunk.d.ts#seconds
+secondsOf: build/judge.chunk.d.ts#secondsOf
+sessionsAt: build/judge.chunk.d.ts#sessionsAt
+showBand: build/judge.chunk.d.ts#showBand
+signalOf: build/judge.chunk.d.ts#signalOf
+signalsOf: build/judge.chunk.d.ts#signalsOf
+sliceDropOf: build/judge.chunk.d.ts#sliceDropOf
+sliceEmptyOf: build/judge.chunk.d.ts#sliceEmptyOf
+sliceReadyAt: build/judge.chunk.d.ts#sliceReadyAt
+sliceReadyOf: build/judge.chunk.d.ts#sliceReadyOf
+slicesOf: build/judge.chunk.d.ts#slicesOf
+socketsOf: build/judge.chunk.d.ts#socketsOf
+stoppingOf: build/judge.chunk.d.ts#stoppingOf
+timeSpread: build/judge.chunk.d.ts#timeSpread
+transitionOf: build/judge.chunk.d.ts#transitionOf
+triesOf: build/judge.chunk.d.ts#triesOf
+tunnelsOf: build/judge.chunk.d.ts#tunnelsOf
+unitOf: build/judge.chunk.d.ts#unitOf
+updatesOf: build/judge.chunk.d.ts#updatesOf
+upgrade: build/judge.chunk.d.ts#upgrade
+upgradeCell: build/judge.chunk.d.ts#upgradeCell
+ztunnelPodsOf: build/judge.chunk.d.ts#ztunnelPodsOf
+ztunnelReplaced: build/judge.chunk.d.ts#ztunnelReplaced
+
+## Declarations
+
+### build/index.d.ts#ACCESS_LOG_FORMAT
+export declare const ACCESS_LOG_FORMAT: Readonly<Record<string, string>>;
+
+### build/index.d.ts#ANNOUNCE_ANNOTATION
+export declare const ANNOUNCE_ANNOTATION = "lab.systems/announce";
+
+### build/index.d.ts#Announcement
+interface Announcement {
+  readonly node: string;
+  readonly created: string | null;
+}
+
+### build/index.d.ts#Broker
+interface Broker {
+  readonly pod: string;
+  readonly node: string;
+  readonly ip: string;
+  readonly ready: boolean;
+}
+
+### build/index.d.ts#CHANNEL_USE
+export declare const CHANNEL_USE: Quantity;
+
+### build/index.d.ts#CILIUM_CHART
+export declare const CILIUM_CHART: PinnedChart;
+
+### build/index.d.ts#CILIUM_CONFIG_KEYS
+export declare const CILIUM_CONFIG_KEYS: readonly string[];
+
+### build/index.d.ts#CILIUM_IMAGES
+export declare const CILIUM_IMAGES: {
+  readonly agent: string;
+  readonly operator: string;
+  readonly envoy: string;
+};
+
+### build/index.d.ts#CILIUM_VERSION
+export declare const CILIUM_VERSION = "1.20.4";
+
+### build/index.d.ts#CILIUM_WORKLOADS
+export declare const CILIUM_WORKLOADS: readonly string[];
+
+### build/index.d.ts#CLIENT_ACCOUNT
+export declare const CLIENT_ACCOUNT = "default";
+
+### build/index.d.ts#CLOSE_LEAD
+export declare const CLOSE_LEAD: Quantity;
+
+### build/index.d.ts#CONTROLLER
+export declare const CONTROLLER = "work";
+
+### build/index.d.ts#CiliumImages
+interface CiliumImages {
+  readonly agent: string;
+  readonly operator: string;
+  readonly envoy: string;
+}
+
+### build/index.d.ts#Cluster
+interface Cluster {
+  readonly scenario: KindScenario;
+  readonly dir: string;
+  readonly kubeconfig: string;
+  readonly network: string;
+  readonly nodes: readonly string[];
+  kubectl(args: readonly string[], input?: string): Promise<string>;
+  apply(objects: readonly unknown[]): Promise<void>;
+  exec(node: string, argv: readonly string[]): Promise<string>;
+  load(image: string): Promise<void>;
+  credentials(): Promise<Credentials>;
+  manifest(): Promise<ClusterManifest>;
+  delete(): Promise<void>;
+}
+
+### build/index.d.ts#ClusterHosts
+interface ClusterHosts {
+  readonly b: readonly string[];
+  readonly u: Readonly<Record<string, string>>;
+}
+
+### build/index.d.ts#Credentials
+interface Credentials {
+  readonly server: string;
+  readonly ca: string;
+  readonly cert: string;
+  readonly key: string;
+}
+
+### build/index.d.ts#DNS_PORT
+export declare const DNS_PORT = 53;
+
+### build/index.d.ts#DOCUMENTED
+export declare const DOCUMENTED: Propagation;
+
+### build/index.d.ts#DeletionWindow
+interface DeletionWindow {
+  readonly empty: boolean;
+  readonly end: Band;
+  readonly intake: Quantity;
+}
+
+### build/index.d.ts#EDS_EVERY
+export declare const EDS_EVERY: Quantity;
+
+### build/index.d.ts#EdsSpec
+interface EdsSpec {
+  readonly cluster: string;
+  readonly every: Quantity;
+  readonly pods: ReadonlyArray<{
+    readonly node: string;
+    readonly pod: string;
+    readonly pid: number;
+  }>;
+}
+
+### build/index.d.ts#FLAG_CHECK
+export declare const FLAG_CHECK = "self.flag";
+
+### build/index.d.ts#FaultPlan
+interface FaultPlan {
+  readonly prepare?: readonly Step[] | undefined;
+  readonly inject: readonly Step[];
+  readonly hold: Quantity | null;
+  readonly heal: readonly Step[];
+  readonly restore: readonly Step[];
+  readonly flaps?: readonly Flap[] | undefined;
+}
+
+### build/index.d.ts#HELM
+export declare const HELM: Tool;
+
+### build/index.d.ts#ISTIOCTL
+export declare const ISTIOCTL: Tool;
+
+### build/index.d.ts#ISTIO_IMAGES
+export declare const ISTIO_IMAGES: {
+  readonly pilot: string;
+  readonly proxy: string;
+  readonly cni: string;
+  readonly ztunnel: string;
+};
+
+### build/index.d.ts#ISTIO_VERSION
+export declare const ISTIO_VERSION = "1.31.3";
+
+### build/index.d.ts#KEPT_KERNEL
+export declare const KEPT_KERNEL: ReadonlySet<string>;
+
+### build/index.d.ts#KIND
+export declare const KIND: Tool;
+
+### build/index.d.ts#KUBECTL
+export declare const KUBECTL: Tool;
+
+### build/index.d.ts#KUBE_VIP
+export declare const KUBE_VIP = "kube-vip";
+
+### build/index.d.ts#KUBE_VIP_ANNOUNCER
+export declare const KUBE_VIP_ANNOUNCER: VipAnnouncer;
+
+### build/index.d.ts#KUBE_VIP_ARP_RATE
+export declare const KUBE_VIP_ARP_RATE: Quantity;
+
+### build/index.d.ts#KUBE_VIP_ELECTION
+export declare const KUBE_VIP_ELECTION: {
+  readonly lease: Quantity;
+  readonly renew: Quantity;
+  readonly retry: Quantity;
+};
+
+### build/index.d.ts#KUBE_VIP_IMAGE
+export declare const KUBE_VIP_IMAGE = "ghcr.io/kube-vip/kube-vip:v1.3.1@sha256:47353c7bde7fec21642cf621bc3fda2b999c051342912efda468999a399be667";
+
+### build/index.d.ts#KUBE_VIP_LEASE
+export declare const KUBE_VIP_LEASE: {
+  readonly namespace: string;
+  readonly name: string;
+};
+
+### build/index.d.ts#KUBE_VIP_VERSION
+export declare const KUBE_VIP_VERSION = "1.3.1";
+
+### build/index.d.ts#KindLab
+interface KindLab {
+  readonly cluster: Cluster;
+  readonly image: string;
+  readonly lines: Line[];
+  readonly dropped: Record<string, number>;
+  own(): string[];
+  take(): Line[];
+  listen(listener: (line: Line) => void): () => void;
+  record(line: Line): void;
+  watch(namespaces: readonly string[], options?: {
+    readonly ztunnel?: boolean | undefined;
+  }): Promise<void>;
+  probe(netns: readonly number[]): Promise<void>;
+  stopProbe(): Promise<void>;
+  outside(spec: OutsideSpec | null): Promise<void>;
+  outsideMacs(ip: string): Promise<ReadonlyArray<{
+    readonly client: string;
+    readonly mac: string | null;
+  }>>;
+  rules(rule: (ServiceRule & {
+    readonly every: Quantity;
+  }) | null): Promise<void>;
+  eds(spec: EdsSpec | null): Promise<void>;
+  lds(spec: LdsSpec | null): Promise<void>;
+  act(node: string, spec: Readonly<Record<string, unknown>>): Promise<Stamp>;
+  inject(node: string, pid: number, args: readonly string[]): Promise<Stamp>;
+  tables(node: string, pid: number, table: string): Promise<string>;
+  netns(node: string, pid: number, commands: ReadonlyArray<readonly string[]>): Promise<string>;
+  now(): Promise<number>;
+  pidOf(node: string, namespace: string, pod: string, container: string): Promise<number>;
+  netnsOf(node: string, pid: number): Promise<number>;
+  cgroupOf(node: string, pid: number): Promise<string>;
+  forgetHandshakes(ip: string, port: number): Promise<Record<string, number>>;
+  close(): Promise<void>;
+}
+
+### build/index.d.ts#KubeVipPod
+interface KubeVipPod {
+  readonly name: string;
+  readonly node: string;
+  readonly ready: boolean;
+  readonly restarts: number;
+}
+
+### build/index.d.ts#LDS_EVERY
+export declare const LDS_EVERY: Quantity;
+
+### build/index.d.ts#LDS_FILTER
+export declare const LDS_FILTER = "^listener_manager\\.listener_(in_place_updated|modified)$";
+
+### build/index.d.ts#LdsSpec
+interface LdsSpec {
+  readonly every: Quantity;
+  readonly pods: ReadonlyArray<{
+    readonly node: string;
+    readonly pod: string;
+    readonly pid: number;
+  }>;
+}
+
+### build/index.d.ts#LeafCertificate
+interface LeafCertificate {
+  readonly pod: string;
+  readonly identity: string;
+  readonly state: string;
+  readonly from: string | null;
+  readonly to: string | null;
+}
+
+### build/index.d.ts#LearnWindow
+interface LearnWindow {
+  readonly turn: Quantity;
+  readonly latch: Band;
+  readonly start: Band;
+  readonly end: {
+    readonly from: Reference;
+    readonly band: Band;
+  };
+}
+
+### build/index.d.ts#ListenerCounts
+interface ListenerCounts {
+  readonly mod: number;
+  readonly inPlace: number;
+}
+
+### build/index.d.ts#MEMBERLIST
+export declare const MEMBERLIST: {
+  readonly probeInterval: Quantity;
+  readonly probeTimeout: Quantity;
+  readonly suspicionMult: number;
+  readonly suspicionMaxTimeoutMult: number;
+  readonly pushPullInterval: Quantity;
+  readonly gossipInterval: Quantity;
+};
+
+### build/index.d.ts#MEMBERLIST_FILE
+export declare const MEMBERLIST_FILE: Readonly<Record<string, string | number | boolean>>;
+
+### build/index.d.ts#MESH_IMAGES
+export declare const MESH_IMAGES: Readonly<Record<MeshFlavor, ReadonlyArray<keyof typeof ISTIO_IMAGES>>>;
+
+### build/index.d.ts#MESH_WORKLOADS
+export declare const MESH_WORKLOADS: Readonly<Record<MeshFlavor, readonly string[]>>;
+
+### build/index.d.ts#METALLB_ANNOTATION
+export declare const METALLB_ANNOTATION = "metallb.io/loadBalancerIPs";
+
+### build/index.d.ts#METALLB_ANNOUNCER
+export declare const METALLB_ANNOUNCER: VipAnnouncer;
+
+### build/index.d.ts#METALLB_CHART
+export declare const METALLB_CHART: PinnedChart;
+
+### build/index.d.ts#METALLB_IMAGES
+export declare const METALLB_IMAGES: {
+  readonly speaker: string;
+  readonly controller: string;
+};
+
+### build/index.d.ts#METALLB_NAMESPACE
+export declare const METALLB_NAMESPACE = "metallb-system";
+
+### build/index.d.ts#METALLB_POOL
+export declare const METALLB_POOL = "lab-vip";
+
+### build/index.d.ts#METALLB_SPAM
+export declare const METALLB_SPAM: {
+  readonly every: Quantity;
+  readonly for: Quantity;
+};
+
+### build/index.d.ts#METALLB_VERSION
+export declare const METALLB_VERSION = "0.16.1";
+
+### build/index.d.ts#MIDDLEBOX
+export declare const MIDDLEBOX: {
+  readonly input: "LAB-MBX-IN";
+  readonly output: "LAB-MBX-OUT";
+  readonly table: "LAB-MBX";
+};
+
+### build/index.d.ts#MeshImages
+interface MeshImages {
+  readonly pilot: string;
+  readonly proxy: string;
+  readonly cni?: string | undefined;
+  readonly ztunnel?: string | undefined;
+}
+
+### build/index.d.ts#MetallbImages
+interface MetallbImages {
+  readonly speaker: string;
+  readonly controller: string;
+}
+
+### build/index.d.ts#NETEM_DRAIN
+export declare const NETEM_DRAIN: Quantity;
+
+### build/index.d.ts#NETNS_DEFAULTS
+export declare const NETNS_DEFAULTS: {
+  readonly retries: "15";
+};
+
+### build/index.d.ts#NODE_LIFECYCLE
+export declare const NODE_LIFECYCLE: NodeLifecycle;
+
+### build/index.d.ts#NOT_QUIET
+export declare const NOT_QUIET: RegExp;
+
+### build/index.d.ts#NodeLifecycle
+interface NodeLifecycle {
+  readonly grace: Quantity;
+  readonly monitor: Quantity;
+  readonly renew: Quantity;
+  readonly jitter: number;
+  readonly writes: Quantity;
+  readonly pingTimeout: Quantity;
+  readonly rewatch: Quantity;
+  readonly statusSync: Quantity;
+}
+
+### build/index.d.ts#OutsideSpec
+interface OutsideSpec {
+  readonly target: string;
+  readonly every: Quantity;
+  readonly timeout: Quantity;
+  readonly count: number;
+  readonly arp: string;
+}
+
+### build/index.d.ts#PING
+export declare const PING: Quantity;
+
+### build/index.d.ts#POD_LINK
+export declare const POD_LINK = "eth0";
+
+### build/index.d.ts#POLICY
+export declare const POLICY = "lab-deny";
+
+### build/index.d.ts#PRODUCER
+export declare const PRODUCER = "producer";
+
+### build/index.d.ts#PRODUCER_BACKOFF
+export declare const PRODUCER_BACKOFF: Backoff;
+
+### build/index.d.ts#PRODUCER_SCRIPT
+export declare const PRODUCER_SCRIPT = "import json, logging, os, sys, threading, time, urllib.request\nimport pulsar\n\nPOD = os.environ[\"POD_NAME\"]\nNODE = os.environ[\"NODE_NAME\"]\nEVERY = int(os.environ[\"EVERY_MS\"]) / 1000\nTIMEOUT = int(os.environ[\"TIMEOUT_MS\"])\nPROBE = int(os.environ[\"PROBE_MS\"]) / 1000\nLOCK = threading.Lock()\nKEPT = (\"Schedule reconnection\", \"Getting connection from pool\", \"Created producer\", \"Connection closed\", \"Disconnected\", \"Lookup response\", \"Failed to\", \"Finished connecting\")\n\n\ndef now():\n    return time.monotonic() * 1000\n\n\ndef say(**line):\n    text = json.dumps({**line, \"p\": POD, \"n\": NODE}, separators=(\",\", \":\"))\n    with LOCK:\n        sys.stdout.write(text + \"\\n\")\n        sys.stdout.flush()\n\n\nclass Relay(logging.Handler):\n    def emit(self, record):\n        message = record.getMessage()\n        if any(word in message for word in KEPT):\n            say(ev=\"pulsar\", t=now(), m=message[:400])\n\n\ndef probe():\n    while True:\n        start = now()\n        owner = None\n        outcome = \"ok\"\n        try:\n            with urllib.request.urlopen(os.environ[\"LOOKUP\"], timeout=1) as answer:\n                data = json.loads(answer.read())\n            url = data.get(\"brokerUrl\") or \"\"\n            owner = url.split(\"://\", 1)[-1].rsplit(\":\", 1)[0] or None\n        except Exception as error:\n            outcome = type(error).__name__.lower()\n        say(ev=\"lookup\", t=start, d=round(now() - start, 3), o=outcome, owner=owner)\n        time.sleep(max(0.0, PROBE - (now() - start) / 1000))\n\n\ndef answered(start):\n    def done(result, message_id):\n        took = now() - start\n        if result == pulsar.Result.Ok:\n            outcome = \"ok\" if took <= TIMEOUT else \"late\"\n        else:\n            outcome = getattr(result, \"name\", str(result).split(\".\")[-1]).lower()\n        say(ev=\"send\", t=start, d=round(took, 3), o=outcome)\n    return done\n\n\nlogger = logging.getLogger(\"lab\")\nlogger.setLevel(logging.INFO)\nlogger.propagate = False\nlogger.addHandler(Relay())\nthreading.Thread(target=probe, daemon=True).start()\nclient = pulsar.Client(os.environ[\"SERVICE\"], logger=logger)\nwhile True:\n    try:\n        producer = client.create_producer(os.environ[\"TOPIC\"])\n        break\n    except Exception as error:\n        say(ev=\"text\", t=now(), text=\"create_producer: \" + str(error)[:200])\n        time.sleep(2)\nat = time.monotonic()\nwhile True:\n    start = now()\n    try:\n        producer.send_async(b\"lab\", answered(start))\n    except Exception as error:\n        say(ev=\"send\", t=start, d=0, o=\"refused-\" + type(error).__name__.lower())\n    at += EVERY\n    time.sleep(max(0.0, at - time.monotonic()))\n";
+
+### build/index.d.ts#PULSAR_CHART
+export declare const PULSAR_CHART: PinnedChart;
+
+### build/index.d.ts#PULSAR_IMAGE
+export declare const PULSAR_IMAGE = "apachepulsar/pulsar:5.0.0@sha256:11e9a885121e16be91da77fdd3cfc3d4cbbece4700271d75e949585dbd3a5a5b";
+
+### build/index.d.ts#PULSAR_LOOKUP
+export declare const PULSAR_LOOKUP: string;
+
+### build/index.d.ts#PULSAR_NAMESPACE
+export declare const PULSAR_NAMESPACE = "pulsar";
+
+### build/index.d.ts#PULSAR_SERVICE
+export declare const PULSAR_SERVICE: string;
+
+### build/index.d.ts#PULSAR_TOPIC
+export declare const PULSAR_TOPIC = "persistent://public/default/lab";
+
+### build/index.d.ts#PULSAR_VERSION
+export declare const PULSAR_VERSION = "5.0.0";
+
+### build/index.d.ts#Parts
+interface Parts {
+  readonly redis?: RedisClient | undefined;
+  readonly flag?: CheckFn | undefined;
+  readonly http?: TransportImpl | undefined;
+  readonly health?: HealthServer | undefined;
+}
+
+### build/index.d.ts#PinnedChart
+interface PinnedChart {
+  readonly name: string;
+  readonly version: string;
+  readonly url: string;
+  readonly sha256: string;
+}
+
+### build/index.d.ts#ProducerState
+interface ProducerState {
+  readonly owners: ReadonlyMap<string, {
+    readonly t: number;
+    readonly owner: string | null;
+  }>;
+  readonly sends: ReadonlyMap<string, {
+    readonly ok: number;
+    readonly failed: number;
+  }>;
+  readonly last: number;
+}
+
+### build/index.d.ts#Propagation
+interface Propagation extends Band {
+  readonly from: string;
+}
+
+### build/index.d.ts#QUIET_GATE
+export declare const QUIET_GATE: QuietGate;
+
+### build/index.d.ts#QUIET_LEAD
+export declare const QUIET_LEAD: Quantity;
+
+### build/index.d.ts#QuietGate
+interface QuietGate {
+  readonly flat: number;
+  readonly margin: number;
+  readonly floor: number;
+  readonly settle: number;
+  readonly samples: number;
+}
+
+### build/index.d.ts#REDIS_IMAGE
+export declare const REDIS_IMAGE = "redis:7.4@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f";
+
+### build/index.d.ts#ROUTE
+export declare const ROUTE = "GET /work";
+
+### build/index.d.ts#RULES_EVERY
+export declare const RULES_EVERY: Quantity;
+
+### build/index.d.ts#RunOptions
+interface RunOptions {
+  readonly out: string;
+  readonly log: (line: string) => void;
+  readonly environments?: number;
+  readonly idle?: number;
+  readonly work?: string;
+}
+
+### build/index.d.ts#SESSION
+export declare const SESSION: Quantity;
+
+### build/index.d.ts#SPREAD_LEAD
+export declare const SPREAD_LEAD: Quantity;
+
+### build/index.d.ts#SYSCTL
+export declare const SYSCTL: {
+  readonly retries: "net.ipv4.tcp_retries2";
+};
+
+### build/index.d.ts#ServiceRule
+interface ServiceRule {
+  readonly mode: "iptables" | "ipvs" | "nftables" | "cilium";
+  readonly ns: string;
+  readonly svc: string;
+  readonly ip: string;
+  readonly port: number;
+}
+
+### build/index.d.ts#Stamp
+interface Stamp {
+  readonly t0: number;
+  readonly t1: number;
+}
+
+### build/index.d.ts#Step
+type Step = {
+  readonly do: "kubectl";
+  readonly args: readonly string[];
+  readonly background?: boolean;
+} | {
+  readonly do: "signal";
+  readonly target: Target;
+  readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" | "SIGUSR1" | "SIGUSR2" | "SIGHUP";
+} | {
+  readonly do: "pause";
+  readonly target: Target;
+  readonly time: Quantity;
+} | {
+  readonly do: "inject";
+  readonly target: Target;
+  readonly action: "blackhole" | "clear" | "rst" | "clear-rst";
+} | {
+  readonly do: "flag";
+  readonly target: Target;
+  readonly on: boolean;
+} | {
+  readonly do: "cpu";
+  readonly target: Target;
+  readonly max: string;
+} | {
+  readonly do: "stall";
+  readonly target: Target;
+  readonly time: Quantity;
+} | {
+  readonly do: "wait";
+  readonly time: Quantity;
+} | {
+  readonly do: "apply";
+  readonly object: Readonly<Record<string, unknown>>;
+} | {
+  readonly do: "sysctl";
+  readonly target: Target;
+  readonly key: string;
+  readonly value: string;
+} | {
+  readonly do: "middlebox";
+  readonly target: Target;
+  readonly idle: Quantity | null;
+  readonly port: number;
+} | {
+  readonly do: "certificates";
+} | {
+  readonly do: "zone";
+  readonly lost: boolean;
+} | {
+  readonly do: "netem";
+  readonly target: Target;
+  readonly delay: Quantity | null;
+} | {
+  readonly do: "place";
+  readonly onTarget: number;
+} | {
+  readonly do: "dns";
+  readonly target: Target;
+  readonly on: boolean;
+};
+
+### build/index.d.ts#TICK
+export declare const TICK: Quantity;
+
+### build/index.d.ts#Target
+type Target = "server" | "redis" | "kube-proxy" | "broker" | "servers" | "clients" | "speaker";
+
+### build/index.d.ts#Tool
+interface Tool {
+  readonly name: "kind" | "kubectl" | "istioctl" | "helm";
+  readonly version: string;
+  readonly assets: Readonly<Record<string, {
+    readonly url: string;
+    readonly sha256: string;
+  }>>;
+  readonly entry?: string | undefined;
+}
+
+### build/index.d.ts#VIP_LABEL
+export declare const VIP_LABEL = "lab.systems/vip";
+
+### build/index.d.ts#Verdicts
+type Verdicts = Readonly<Record<string, Verdict>>;
+
+### build/index.d.ts#VipAnnouncer
+interface VipAnnouncer {
+  readonly name: VipAnnouncerName;
+  readonly images: Readonly<Record<string, string>>;
+  readonly service: VipService;
+  readonly settle: Quantity;
+  readonly vipOf: (subnet: string, owner: string, nodes: readonly string[]) => string;
+  readonly install: (cluster: Cluster, local: Readonly<Record<string, string>>, owner: string, nodes: readonly string[], vip: string, settings?: VipSettings) => Promise<void>;
+  readonly hold: (cluster: Cluster, owner: string, nodes: readonly string[], namespace: string, service: string) => Promise<string | null>;
+  readonly record: (cluster: Cluster, namespace: string, service: string) => Promise<Record<string, unknown>>;
+}
+
+### build/index.d.ts#VipLease
+interface VipLease {
+  readonly holder: string | null;
+  readonly acquireTime: string | null;
+  readonly renewTime: string | null;
+  readonly leaseDurationSeconds: number | null;
+  readonly leaseTransitions: number | null;
+}
+
+### build/index.d.ts#VipNetwork
+interface VipNetwork {
+  readonly subnet: string;
+  readonly macs: Readonly<Record<string, string>>;
+}
+
+### build/index.d.ts#VipService
+interface VipService {
+  readonly loadBalancerClass: string | null;
+  readonly annotation: string;
+}
+
+### build/index.d.ts#WATCHDOG
+export declare const WATCHDOG = "self.event-loop";
+
+### build/index.d.ts#ZTUNNEL_PODS
+export declare const ZTUNNEL_PODS = "app=ztunnel";
+
+### build/index.d.ts#announcementsOf
+export declare const announcementsOf: (cluster: Pick<Cluster, "kubectl">, namespace: string, service: string) => Promise<Announcement[]>;
+
+### build/index.d.ts#announcerOf
+export declare const announcerOf: (cell: Pick<KindCell, "vip">) => VipAnnouncer;
+
+### build/index.d.ts#arpMacOf
+export declare const arpMacOf: (table: string, ip: string) => string | null;
+
+### build/index.d.ts#backendsOf
+export declare const backendsOf: (mode: ServiceRule["mode"], text: string, rule: Pick<ServiceRule, "ns" | "svc" | "ip" | "port">) => string[];
+
+### build/index.d.ts#baselineOf
+export declare const baselineOf: (previous: number | null, samples: ReadonlyArray<{
+  readonly idle: number;
+  readonly foreign: readonly string[];
+}>) => number | null;
+
+### build/index.d.ts#brokerOfHost
+export declare const brokerOfHost: (brokers: readonly Broker[], host: string) => Broker | undefined;
+
+### build/index.d.ts#brokersOf
+export declare const brokersOf: (cluster: Pick<Cluster, "kubectl">) => Promise<Broker[]>;
+
+### build/index.d.ts#cacheFolder
+export declare const cacheFolder: () => string;
+
+### build/index.d.ts#capOf
+export declare const capOf: (declaration: Declaration, stage: Stage) => Quantity;
+
+### build/index.d.ts#certificateArgs
+export declare const certificateArgs: (pod: string, kubeconfig: string) => string[];
+
+### build/index.d.ts#ciliumBackendsOf
+export declare const ciliumBackendsOf: (text: string, rule: Pick<ServiceRule, "ip" | "port">) => string[];
+
+### build/index.d.ts#ciliumMode
+export declare const ciliumMode: (data: Readonly<Record<string, string>>) => string;
+
+### build/index.d.ts#ciliumValues
+export declare const ciliumValues: (clusterName: string, images: CiliumImages) => Record<string, unknown>;
+
+### build/index.d.ts#clientObjects
+export declare const clientObjects: (cell: KindCell, namespace: string, image: string, target: string) => unknown[];
+
+### build/index.d.ts#clusterFilter
+export declare const clusterFilter: (cluster: string) => string;
+
+### build/index.d.ts#clusterNameOf
+export declare const clusterNameOf: (cell: KindCell, env: number) => string;
+
+### build/index.d.ts#compose
+export declare const compose: (name: string, declaration: Declaration, parts?: Parts) => ServiceBuilder;
+
+### build/index.d.ts#createCluster
+export declare const createCluster: (scenario: KindScenario, dir: string) => Promise<Cluster>;
+
+### build/index.d.ts#deletes
+export declare const deletes: (cell: KindCell) => boolean;
+
+### build/index.d.ts#deletionWindow
+export declare const deletionWindow: (declaration: Declaration, preStop: Quantity, propagation: Propagation) => DeletionWindow;
+
+### build/index.d.ts#describeCell
+export declare const describeCell: (cell: KindCell) => ServiceDescription;
+
+### build/index.d.ts#dnsCommands
+export declare const dnsCommands: (on: boolean) => string[][];
+
+### build/index.d.ts#ensureChart
+export declare const ensureChart: (cache?: string) => Promise<string>;
+
+### build/index.d.ts#ensurePinnedChart
+export declare const ensurePinnedChart: (chart: PinnedChart, cache?: string, get?: (url: string) => Promise<Uint8Array>) => Promise<string>;
+
+### build/index.d.ts#ensureTool
+export declare const ensureTool: (tool: Tool, key?: string, cache?: string) => Promise<string>;
+
+### build/index.d.ts#estimatedTime
+export declare const estimatedTime: (cell: KindCell, environments?: number) => Quantity;
+
+### build/index.d.ts#faultSpan
+export declare const faultSpan: (trigger: Pick<KindCell["trigger"], "hold" | "flaps">) => Quantity;
+
+### build/index.d.ts#followsZtunnel
+export declare const followsZtunnel: (cell: Pick<KindCell, "mesh">) => boolean;
+
+### build/index.d.ts#helmInstall
+export declare const helmInstall: (cluster: Pick<Cluster, "dir" | "kubeconfig">, release: string, chart: PinnedChart, namespace: string, values: Readonly<Record<string, unknown>>, options?: {
+  readonly createNamespace?: boolean;
+}) => Promise<void>;
+
+### build/index.d.ts#holdMetallb
+export declare const holdMetallb: (cluster: Pick<Cluster, "kubectl">, owner: string, nodes: readonly string[], namespace: string, service: string, within?: number) => Promise<string | null>;
+
+### build/index.d.ts#holdPulsar
+export declare const holdPulsar: (cluster: Pick<Cluster, "kubectl">, state: () => ProducerState, clients: number, within?: number) => Promise<{
+  readonly broker: Broker;
+  readonly host: string;
+} | string>;
+
+### build/index.d.ts#holdVip
+export declare const holdVip: (cluster: Pick<Cluster, "kubectl">, holder: string, nodes: readonly string[], within?: number) => Promise<string | null>;
+
+### build/index.d.ts#hostsOf
+export declare const hostsOf: (text: string, cluster: string) => ClusterHosts;
+
+### build/index.d.ts#installCilium
+export declare const installCilium: (cluster: Cluster, images: CiliumImages) => Promise<void>;
+
+### build/index.d.ts#installKubeVip
+export declare const installKubeVip: (cluster: Cluster, image: string, holder: string, nodes: readonly string[]) => Promise<void>;
+
+### build/index.d.ts#installMesh
+export declare const installMesh: (cluster: Cluster, flavor: MeshFlavor, images: MeshImages) => Promise<void>;
+
+### build/index.d.ts#installMetallb
+export declare const installMetallb: (cluster: Cluster, images: MetallbImages, nodes: readonly string[], vip: string, memberlist?: MemberlistSettings) => Promise<void>;
+
+### build/index.d.ts#installPulsar
+export declare const installPulsar: (cluster: Cluster, image: string) => Promise<void>;
+
+### build/index.d.ts#intakeAfter
+export declare const intakeAfter: (declaration: Declaration, preStop: Quantity) => Quantity;
+
+### build/index.d.ts#istioOperator
+export declare const istioOperator: (flavor: MeshFlavor, images: MeshImages) => Record<string, unknown>;
+
+### build/index.d.ts#keptKernel
+export declare const keptKernel: (record: Readonly<Record<string, unknown>>) => boolean;
+
+### build/index.d.ts#kubeVipObjects
+export declare const kubeVipObjects: (image: string) => unknown[];
+
+### build/index.d.ts#kubeVipPods
+export declare const kubeVipPods: (cluster: Pick<Cluster, "kubectl">) => Promise<KubeVipPod[]>;
+
+### build/index.d.ts#kubeVipReady
+export declare const kubeVipReady: (cluster: Pick<Cluster, "kubectl">) => Promise<string[]>;
+
+### build/index.d.ts#kubeletBand
+export declare const kubeletBand: (probe: KubeletProbe, hangs: boolean) => Band;
+
+### build/index.d.ts#labImage
+export declare const labImage: () => Promise<string>;
+
+### build/index.d.ts#labSource
+export declare const labSource: (context: string) => BuildImage;
+
+### build/index.d.ts#latchBand
+export declare const latchBand: (timing: Timing, poll: Poll, failure: "refuses" | "silent", requestTimeout?: Quantity) => Band;
+
+### build/index.d.ts#leafCertificates
+export declare const leafCertificates: (pod: string, json: string) => LeafCertificate[];
+
+### build/index.d.ts#learnWindow
+export declare const learnWindow: (declaration: Declaration, readiness: KubeletProbe, propagation: Propagation, workload: Workload) => LearnWindow;
+
+### build/index.d.ts#lintCell
+export declare const lintCell: (description: ServiceDescription, cell: KindCell, propagation: Propagation) => Finding[];
+
+### build/index.d.ts#listenerCountsOf
+export declare const listenerCountsOf: (text: string) => ListenerCounts | null;
+
+### build/index.d.ts#localPin
+export declare const localPin: (image: string) => Promise<string>;
+
+### build/index.d.ts#macsAt
+export declare const macsAt: (found: ReadonlyArray<{
+  readonly client: string;
+  readonly mac: string | null;
+}>, mac: string, count: number) => string | null;
+
+### build/index.d.ts#memberlistFileOf
+export declare const memberlistFileOf: (settings: MemberlistSettings) => Record<string, string | number | boolean>;
+
+### build/index.d.ts#memberlistTermsOf
+export declare const memberlistTermsOf: (settings: MemberlistSettings | undefined) => typeof MEMBERLIST;
+
+### build/index.d.ts#meshKey
+export declare const meshKey: (cell: Pick<KindCell, "mesh">) => MeshFlavor | "none";
+
+### build/index.d.ts#metallbObjects
+export declare const metallbObjects: (vip: string) => unknown[];
+
+### build/index.d.ts#metallbRecord
+export declare const metallbRecord: (cluster: Pick<Cluster, "kubectl">, namespace: string, service: string) => Promise<Record<string, unknown>>;
+
+### build/index.d.ts#metallbValues
+export declare const metallbValues: (images: MetallbImages) => Record<string, unknown>;
+
+### build/index.d.ts#metallbVipOf
+export declare const metallbVipOf: (subnet: string, owner: string, nodes: readonly string[]) => string;
+
+### build/index.d.ts#middleboxCommands
+export declare const middleboxCommands: (peers: readonly string[], idle: Quantity | null, port: number) => string[][];
+
+### build/index.d.ts#middleboxRemoval
+export declare const middleboxRemoval: (saved: string) => string[][];
+
+### build/index.d.ts#namesService
+export declare const namesService: (mode: ServiceRule["mode"], text: string, rule: Pick<ServiceRule, "ns" | "svc">) => boolean;
+
+### build/index.d.ts#namespaceObject
+export declare const namespaceObject: (cell: Pick<KindCell, "mesh">, namespace: string) => Record<string, unknown>;
+
+### build/index.d.ts#namespaceOf
+export declare const namespaceOf: (cell: Pick<KindCell, "name">) => string;
+
+### build/index.d.ts#neededIdle
+export declare const neededIdle: (gate: QuietGate, baseline: number | null) => number;
+
+### build/index.d.ts#nodeLossBand
+export declare const nodeLossBand: (lifecycle: NodeLifecycle, propagation: Propagation) => Band;
+
+### build/index.d.ts#nodeReturnBand
+export declare const nodeReturnBand: (lifecycle: NodeLifecycle) => Band;
+
+### build/index.d.ts#openKindLab
+export declare const openKindLab: (cluster: Cluster, image: string) => Promise<KindLab>;
+
+### build/index.d.ts#outboundCluster
+export declare const outboundCluster: (service: string, namespace: string, port: number) => string;
+
+### build/index.d.ts#ownerAtRest
+export declare const ownerAtRest: (state: ProducerState, clients: number) => {
+  readonly owner: string;
+} | string;
+
+### build/index.d.ts#ownerOrder
+export declare const ownerOrder: (nodes: readonly string[], vip: string) => string[];
+
+### build/index.d.ts#pausedWindow
+export declare const pausedWindow: (declaration: Declaration, preStop: Quantity, lead: Quantity, hold: Quantity, propagation: Propagation) => DeletionWindow & {
+  readonly resume: Quantity;
+};
+
+### build/index.d.ts#placementOf
+export declare const placementOf: (clients: readonly string[], connections: number, onTarget: number, target: string, others: readonly string[]) => Map<string, string[]>;
+
+### build/index.d.ts#planOf
+export declare const planOf: (cell: KindCell) => FaultPlan;
+
+### build/index.d.ts#platformKey
+export declare const platformKey: (platform?: string, arch?: string) => string;
+
+### build/index.d.ts#policyObject
+export declare const policyObject: (account: string) => Readonly<Record<string, unknown>>;
+
+### build/index.d.ts#pollsListeners
+export declare const pollsListeners: (cell: Pick<KindCell, "mesh" | "trigger">) => boolean;
+
+### build/index.d.ts#probeOf
+export declare const probeOf: (path: string | null, probe: KubeletProbe, service?: string) => Record<string, unknown>;
+
+### build/index.d.ts#pulsarObjects
+export declare const pulsarObjects: (cell: KindCell, namespace: string, image: string) => unknown[];
+
+### build/index.d.ts#pulsarRecord
+export declare const pulsarRecord: (cluster: Pick<Cluster, "kubectl">) => Promise<Record<string, unknown>>;
+
+### build/index.d.ts#pulsarValues
+export declare const pulsarValues: (image: string) => Record<string, unknown>;
+
+### build/index.d.ts#quietWhy
+export declare const quietWhy: (idle: number, needed: number, foreign: readonly string[]) => string;
+
+### build/index.d.ts#redisObjects
+export declare const redisObjects: (namespace: string, image: string) => unknown[];
+
+### build/index.d.ts#removalBand
+export declare const removalBand: (latch: Band, probe: KubeletProbe, propagation: Propagation) => Band;
+
+### build/index.d.ts#restartBand
+export declare const restartBand: (latch: Band, liveness: KubeletProbe, preStop: Quantity) => Band;
+
+### build/index.d.ts#runKindCells
+export declare const runKindCells: (cells: readonly KindCell[], options: RunOptions) => Promise<KindCellResult[]>;
+
+### build/index.d.ts#scenarioOf
+export declare const scenarioOf: (cell: KindCell, propagation: Propagation) => Scenario;
+
+### build/index.d.ts#serverCluster
+export declare const serverCluster: (namespace: string) => string;
+
+### build/index.d.ts#serverObjects
+export declare const serverObjects: (cell: KindCell, namespace: string, image: string, version?: number, vip?: string | null) => unknown[];
+
+### build/index.d.ts#setZtunnelEnv
+export declare const setZtunnelEnv: (cluster: Cluster, env: Readonly<Record<string, string>>, undo: boolean) => Promise<void>;
+
+### build/index.d.ts#sha256
+export declare const sha256: (bytes: Uint8Array) => string;
+
+### build/index.d.ts#shardOf
+export declare const shardOf: <T extends KindCell>(cells: readonly T[], index: number, count: number) => T[];
+
+### build/index.d.ts#sharedGate
+export declare const sharedGate: (server: HealthServer, dependency: string, couplings: readonly Coupling[]) => HealthServer;
+
+### build/index.d.ts#speakersReady
+export declare const speakersReady: (cluster: Pick<Cluster, "kubectl">) => Promise<string[]>;
+
+### build/index.d.ts#stackOf
+export declare const stackOf: (cell: Pick<KindCell, "stack">) => Stack;
+
+### build/index.d.ts#stageLabImage
+export declare const stageLabImage: () => string;
+
+### build/index.d.ts#stallRemovalBand
+export declare const stallRemovalBand: (readiness: KubeletProbe, propagation: Propagation) => Band;
+
+### build/index.d.ts#stopOf
+export declare const stopOf: (cell: KindCell) => StopWay | null;
+
+### build/index.d.ts#suspicionOf
+export declare const suspicionOf: (members: number, terms?: Pick<typeof MEMBERLIST, "probeInterval" | "suspicionMult" | "suspicionMaxTimeoutMult">) => Quantity;
+
+### build/index.d.ts#sysctlCommand
+export declare const sysctlCommand: (key: string, value: string) => string[];
+
+### build/index.d.ts#tarEntry
+export declare const tarEntry: (gzipped: Uint8Array, entry: string) => Uint8Array;
+
+### build/index.d.ts#toolPath
+export declare const toolPath: (tool: Tool, key?: string, cache?: string) => string;
+
+### build/index.d.ts#verdictsOf
+export declare const verdictsOf: (findings: readonly Finding[]) => Verdicts;
+
+### build/index.d.ts#vipLeaseOf
+export declare const vipLeaseOf: (cluster: Pick<Cluster, "kubectl">) => Promise<VipLease | null>;
+
+### build/index.d.ts#vipNetworkOf
+export declare const vipNetworkOf: (network: string) => Promise<VipNetwork>;
+
+### build/index.d.ts#vipOf
+export declare const vipOf: (subnet: string) => string;
+
+### build/index.d.ts#vipServed
+export declare const vipServed: (cluster: Pick<Cluster, "kubectl">, namespace: string, service: string, vip: string, within?: number) => Promise<string | null>;
+
+### build/index.d.ts#vipService
+export declare const vipService: (namespace: string, vip: string, ports: readonly unknown[], service?: VipService) => unknown;
+
+### build/index.d.ts#writeResult
+export declare const writeResult: (out: string, result: KindCellResult) => void;
+
+### build/index.d.ts#ztunnelCertificates
+export declare const ztunnelCertificates: (cluster: Cluster) => Promise<LeafCertificate[]>;
+
+### build/index.d.ts#ztunnelEnvArgs
+export declare const ztunnelEnvArgs: (env: Readonly<Record<string, string>>, undo: boolean) => string[];
+
+### build/judge.chunk.d.ts#BacklogTerm
+interface BacklogTerm<A = Quantity> {
+  readonly drain: Band<A>;
+  readonly requests: {
+    readonly lo: number;
+    readonly hi: number;
+  };
+  readonly most: number;
+  readonly drains?: boolean | undefined;
+  readonly slowest?: A | undefined;
+  readonly early?: boolean | undefined;
+}
+
+### build/judge.chunk.d.ts#Backoff
+interface Backoff<A = Quantity> {
+  readonly initial: A;
+  readonly max: A;
+  readonly mandatoryStop: A;
+  readonly jitter: number;
+  readonly attempt: A;
+}
+
+### build/judge.chunk.d.ts#Band
+interface Band<A = Quantity> {
+  readonly lo: A;
+  readonly hi: A;
+}
+
+### build/judge.chunk.d.ts#BandV1
+type BandV1 = Band<number>;
+
+### build/judge.chunk.d.ts#CLIENT
+declare const CLIENT = "client";
+
+### build/judge.chunk.d.ts#ClusterManifest
+interface ClusterManifest {
+  readonly kind: string;
+  readonly nodeImage: string;
+  readonly server: string;
+  readonly mode: string;
+  readonly docker: string;
+  readonly nodes: ReadonlyArray<{
+    readonly name: string;
+    readonly kubelet: string;
+    readonly kernel: string;
+    readonly runtime: string;
+    readonly os: string;
+  }>;
+}
+
+### build/judge.chunk.d.ts#CountBand
+interface CountBand {
+  readonly lo: number;
+  readonly hi: number;
+}
+
+### build/judge.chunk.d.ts#Cycle
+interface Cycle {
+  readonly fault: number;
+  readonly heal: number;
+}
+
+### build/judge.chunk.d.ts#DATAPLANES
+declare const DATAPLANES: readonly Dataplane[];
+
+### build/judge.chunk.d.ts#Dataplane
+type Dataplane = KubeProxyMode | "cilium";
+
+### build/judge.chunk.d.ts#Declaration
+interface Declaration {
+  readonly poll: Poll;
+  readonly readiness: Timing;
+  readonly liveness: Timing;
+  readonly startup: Quantity;
+  readonly phases: ReadonlyArray<readonly [Stage, Quantity]>;
+  readonly cooperativeWindow: Extent;
+  readonly couplings: readonly Coupling[];
+  readonly redis: RedisDeclaration | null;
+  readonly flag: Gate | null;
+  readonly watchdog: {
+    readonly tick: Quantity;
+    readonly threshold: Quantity;
+  } | null;
+  readonly lameDuck?: boolean | undefined;
+  readonly protocol?: EdgeProtocol | undefined;
+  readonly sharedGate?: boolean | undefined;
+}
+
+### build/judge.chunk.d.ts#Deleted
+interface Deleted {
+  readonly pod: string;
+  readonly intake: number | null;
+  readonly deletion: number;
+}
+
+### build/judge.chunk.d.ts#EdgeProtocol
+type EdgeProtocol = "http/1.1" | "h2c";
+
+### build/judge.chunk.d.ts#Endpoint
+interface Endpoint {
+  readonly ip: string | null;
+  readonly r: boolean | null;
+  readonly s: boolean | null;
+  readonly x: boolean | null;
+  readonly pod: string | null;
+  readonly node: string | null;
+}
+
+### build/judge.chunk.d.ts#EnvironmentManifest
+interface EnvironmentManifest {
+  readonly env: number;
+  readonly scenario: KindScenario;
+  readonly cluster: ClusterManifest;
+  readonly images: Readonly<Record<string, string>>;
+  readonly substrate?: Substrate;
+}
+
+### build/judge.chunk.d.ts#FORMAT
+declare const FORMAT = "systems.kind-cell-record/2";
+
+### build/judge.chunk.d.ts#FORMAT_V1
+declare const FORMAT_V1 = "systems.kind-cell-record/1";
+
+### build/judge.chunk.d.ts#Flap
+interface Flap {
+  readonly rest: Quantity;
+  readonly hold: Quantity;
+}
+
+### build/judge.chunk.d.ts#HBONE_PORT
+declare const HBONE_PORT = 15008;
+
+### build/judge.chunk.d.ts#HEALTH_PORT
+declare const HEALTH_PORT = 9e3;
+
+### build/judge.chunk.d.ts#Judged
+interface Judged {
+  readonly cell: KindCell;
+  readonly runs: readonly KindRun[];
+  readonly verdict: KindVerdict;
+}
+
+### build/judge.chunk.d.ts#KIND_NOISE
+declare const KIND_NOISE: Quantity;
+
+### build/judge.chunk.d.ts#KUBE_PROXY_MODES
+declare const KUBE_PROXY_MODES: readonly KubeProxyMode[];
+
+### build/judge.chunk.d.ts#KindCell
+interface KindCell<A = Quantity> {
+  readonly id: string;
+  readonly name: string;
+  readonly template: Template;
+  readonly stack?: Stack | undefined;
+  readonly mesh?: Mesh | undefined;
+  readonly substitutes: string | null;
+  readonly mode: Dataplane;
+  readonly workers: number;
+  readonly trigger: Trigger<A>;
+  readonly pod: PodSettings;
+  readonly declaration: Declaration | null;
+  readonly workload: Workload;
+  readonly prediction: Prediction<A>;
+  readonly calibrates: boolean;
+  readonly runs: number;
+  readonly vip?: VipSettings | undefined;
+  readonly pulsar?: PulsarSettings | undefined;
+  readonly plannedLoad?: number | undefined;
+}
+
+### build/judge.chunk.d.ts#KindCellRecord
+interface KindCellRecord extends KindCellResult {
+  readonly format: typeof FORMAT;
+}
+
+### build/judge.chunk.d.ts#KindCellRecordV1
+interface KindCellRecordV1 extends KindCellResult<number> {
+  readonly format: typeof FORMAT_V1;
+}
+
+### build/judge.chunk.d.ts#KindCellResult
+interface KindCellResult<A = Quantity> {
+  readonly cell: KindCell<A>;
+  readonly runs: readonly KindRun[];
+  readonly manifests: readonly EnvironmentManifest[];
+  readonly loads: readonly LoadSample[];
+  readonly verdict: KindVerdict<A>;
+  readonly at: string;
+}
+
+### build/judge.chunk.d.ts#KindCellV1
+type KindCellV1 = KindCell<number>;
+
+### build/judge.chunk.d.ts#KindConfig
+interface KindConfig {
+  readonly kind: "Cluster";
+  readonly apiVersion: "kind.x-k8s.io/v1alpha4";
+  readonly networking: {
+    readonly ipFamily: "ipv4";
+    readonly kubeProxyMode: KubeProxyMode | "none";
+    readonly disableDefaultCNI: boolean;
+    readonly podSubnet: string;
+    readonly serviceSubnet: string;
+  };
+  readonly nodes: ReadonlyArray<{
+    readonly role: "control-plane" | "worker";
+    readonly image: string;
+    readonly labels: Readonly<Record<string, string>>;
+  }>;
+  readonly kubeadmConfigPatches: readonly string[];
+}
+
+### build/judge.chunk.d.ts#KindDecision
+type KindDecision = "holds" | "fails" | "extend" | "measured" | "calibration" | "void";
+
+### build/judge.chunk.d.ts#KindRun
+interface KindRun {
+  readonly env: number;
+  readonly index: number;
+  readonly warmup: boolean;
+  readonly start: number;
+  readonly end: number;
+  readonly acts: {
+    readonly fault: number | null;
+    readonly heal: number | null;
+    readonly resume: number | null;
+    readonly cycles?: readonly Cycle[] | undefined;
+  };
+  readonly target: Replica | null;
+  readonly paused: string | null;
+  readonly broker?: string | undefined;
+  readonly replicas: readonly Replica[];
+  readonly void: string | null;
+  readonly lines: ReadonlyArray<{
+    readonly ev: string;
+    readonly t: number;
+    readonly [field: string]: unknown;
+  }>;
+  readonly dropped: Readonly<Record<string, number>>;
+  readonly notes?: readonly string[] | undefined;
+}
+
+### build/judge.chunk.d.ts#KindScenario
+interface KindScenario {
+  readonly name: string;
+  readonly kubernetes: string;
+  readonly workers: number;
+  readonly dataplane: Dataplane;
+  readonly kubeProxy: {
+    readonly mode: KubeProxyMode;
+    readonly minSyncPeriod: Quantity;
+    readonly syncPeriod: Quantity;
+  } | null;
+  readonly cni: "kindnet" | "cilium";
+  readonly podSubnet: string;
+  readonly serviceSubnet: string;
+  readonly zoned?: boolean;
+}
+
+### build/judge.chunk.d.ts#KindVerdict
+interface KindVerdict<A = Quantity> {
+  readonly decision: KindDecision;
+  readonly counted: number;
+  readonly voided: number;
+  readonly failed: number;
+  readonly median: A | null;
+  readonly why: string;
+  readonly checks: ReadonlyArray<RunCheck<A>>;
+}
+
+### build/judge.chunk.d.ts#KindVerdictV1
+type KindVerdictV1 = KindVerdict<number>;
+
+### build/judge.chunk.d.ts#KubeProxyMode
+type KubeProxyMode = "iptables" | "ipvs" | "nftables";
+
+### build/judge.chunk.d.ts#KubeletProbe
+interface KubeletProbe {
+  readonly period: Quantity;
+  readonly threshold: number;
+  readonly timeout: Quantity;
+}
+
+### build/judge.chunk.d.ts#LAST_SLACK
+declare const LAST_SLACK: Quantity;
+
+### build/judge.chunk.d.ts#LB_CLASS
+declare const LB_CLASS = "kube-vip.io/kube-vip-class";
+
+### build/judge.chunk.d.ts#LOG_LABEL
+declare const LOG_LABEL = "lab.systems/log";
+
+### build/judge.chunk.d.ts#Line
+interface Line {
+  readonly ev: string;
+  readonly t: number;
+  readonly [field: string]: unknown;
+}
+
+### build/judge.chunk.d.ts#LoadSample
+interface LoadSample {
+  readonly t: number;
+  readonly idle: number;
+  readonly top: readonly string[];
+  readonly foreign: readonly string[];
+  readonly needed?: number | undefined;
+}
+
+### build/judge.chunk.d.ts#MemberlistSettings
+interface MemberlistSettings {
+  readonly probeInterval: Quantity;
+  readonly probeTimeout: Quantity;
+  readonly suspicionMult: number;
+}
+
+### build/judge.chunk.d.ts#Mesh
+interface Mesh {
+  readonly flavor: MeshFlavor;
+  readonly mode: MeshMode;
+  readonly ztunnel?: Readonly<Record<string, string>> | undefined;
+}
+
+### build/judge.chunk.d.ts#MeshFlavor
+type MeshFlavor = "sidecar" | "ambient";
+
+### build/judge.chunk.d.ts#MeshMode
+type MeshMode = "sidecar" | "ambient";
+
+### build/judge.chunk.d.ts#NODE_IMAGES
+declare const NODE_IMAGES: Readonly<Record<string, NodeImage>>;
+
+### build/judge.chunk.d.ts#NodeImage
+interface NodeImage {
+  readonly kubernetes: string;
+  readonly image: string;
+}
+
+### build/judge.chunk.d.ts#NonePrediction
+interface NonePrediction {
+  readonly kind: "none";
+  readonly outcomes?: readonly string[] | undefined;
+  readonly why: string;
+}
+
+### build/judge.chunk.d.ts#OUTSIDE
+declare const OUTSIDE = "outside";
+
+### build/judge.chunk.d.ts#PORT
+declare const PORT = 8080;
+
+### build/judge.chunk.d.ts#Period
+interface Period<A = number> {
+  readonly median: A;
+  readonly mean: A;
+  readonly low: A;
+  readonly high: A;
+  readonly intervals: number;
+  readonly byClient: Readonly<Record<string, A>>;
+}
+
+### build/judge.chunk.d.ts#PermittedWindow
+interface PermittedWindow<A = Quantity> {
+  readonly from: Reference;
+  readonly band: Band<A>;
+  readonly outcomes: readonly string[];
+  readonly watch?: A | undefined;
+  readonly why: string;
+}
+
+### build/judge.chunk.d.ts#PodLine
+interface PodLine {
+  readonly t: number;
+  readonly type: string;
+  readonly name: string;
+  readonly node: string | null;
+  readonly ip: string | null;
+  readonly del: boolean;
+  readonly ready: boolean;
+  readonly phase: string | null;
+  readonly cs: ReadonlyArray<{
+    readonly n: string;
+    readonly r: boolean;
+    readonly rc: number;
+    readonly st: string;
+    readonly id: string | null;
+  }>;
+  readonly labels: Readonly<Record<string, string>>;
+}
+
+### build/judge.chunk.d.ts#PodSettings
+interface PodSettings {
+  readonly replicas: number;
+  readonly grace: Quantity;
+  readonly preStop: Quantity;
+  readonly readiness: KubeletProbe;
+  readonly liveness: KubeletProbe;
+  readonly startup: KubeletProbe | null;
+}
+
+### build/judge.chunk.d.ts#Prediction
+type Prediction<A = Quantity> = NonePrediction | WindowPrediction<A> | {
+  readonly kind: "removal";
+  readonly band: Band<A>;
+  readonly window?: WindowPrediction<A> | undefined;
+  readonly flaps?: boolean | undefined;
+  readonly why: string;
+} | {
+  readonly kind: "leaves";
+  readonly band: Band<A>;
+  readonly window?: WindowPrediction<A> | undefined;
+  readonly why: string;
+} | {
+  readonly kind: "restarts";
+  readonly band: Band<A> | null;
+  readonly why: string;
+} | {
+  readonly kind: "stays";
+  readonly failures?: WindowPrediction<A> | NonePrediction | undefined;
+  readonly why: string;
+} | {
+  readonly kind: "stalls";
+  readonly why: string;
+} | {
+  readonly kind: "ends";
+  readonly from: Reference;
+  readonly band: Band<A> | null;
+  readonly window?: WindowPrediction<A> | undefined;
+  readonly of?: "socket" | "tunnel" | undefined;
+  readonly answer?: Band<A> | undefined;
+  readonly why: string;
+} | ReconnectsPrediction<A> | {
+  readonly kind: "measured";
+  readonly why: string;
+};
+
+### build/judge.chunk.d.ts#PredictionV1
+type PredictionV1 = Prediction<number>;
+
+### build/judge.chunk.d.ts#Propagated
+interface Propagated<A = Quantity> {
+  readonly after: A | null;
+  readonly by: A;
+}
+
+### build/judge.chunk.d.ts#PropagationSource
+type PropagationSource = "rules" | "eds";
+
+### build/judge.chunk.d.ts#PulsarSettings
+interface PulsarSettings {
+  readonly clients: number;
+  readonly probe: Quantity;
+}
+
+### build/judge.chunk.d.ts#REDIS
+declare const REDIS = "redis";
+
+### build/judge.chunk.d.ts#RELATIVE
+declare const RELATIVE = .05;
+
+### build/judge.chunk.d.ts#Reconnects
+interface Reconnects {
+  readonly ok: boolean;
+  readonly why: string;
+  readonly flip: number | null;
+  readonly gap: number | null;
+  readonly returns: readonly Return[];
+  readonly failures: Readonly<Record<string, number>>;
+  readonly value: number | null;
+}
+
+### build/judge.chunk.d.ts#ReconnectsFacts
+interface ReconnectsFacts<A = Quantity> {
+  readonly flip: A | null;
+  readonly gap: A | null;
+  readonly returns: ReadonlyArray<{
+    readonly pod: string;
+    readonly disconnect: A | null;
+    readonly back: A | null;
+    readonly setup: A | null;
+    readonly tries: number;
+  }>;
+  readonly failures: Readonly<Record<string, number>>;
+}
+
+### build/judge.chunk.d.ts#ReconnectsPrediction
+interface ReconnectsPrediction<A = Quantity> {
+  readonly kind: "reconnects";
+  readonly flip: Band<A>;
+  readonly owner?: "other" | "either" | undefined;
+  readonly probe: A;
+  readonly disconnect: Band<A>;
+  readonly backoff: Backoff<A>;
+  readonly setup: Band<A>;
+  readonly outcomes: readonly string[];
+  readonly why: string;
+}
+
+### build/judge.chunk.d.ts#RecordLine
+interface RecordLine {
+  readonly t: number;
+  readonly at: number;
+  readonly p: string;
+  readonly m: string;
+  readonly i: string;
+  readonly from: string;
+  readonly to: string;
+  readonly on: string;
+  readonly d: string | null;
+}
+
+### build/judge.chunk.d.ts#RedisDeclaration
+interface RedisDeclaration {
+  readonly gates: Gate | null;
+  readonly knobs: RedisKnobs;
+  readonly misses: number;
+}
+
+### build/judge.chunk.d.ts#Reference
+type Reference = "deletion" | "intake" | "fault" | "resume" | "heal" | "restart";
+
+### build/judge.chunk.d.ts#Replica
+interface Replica {
+  readonly pod: string;
+  readonly node: string;
+  readonly ip: string;
+  readonly version: string;
+}
+
+### build/judge.chunk.d.ts#Request
+interface Request {
+  readonly t: number;
+  readonly d: number;
+  readonly o: string;
+  readonly p: string;
+  readonly n: string;
+  readonly b?: string;
+  readonly lp?: number | null;
+}
+
+### build/judge.chunk.d.ts#ResetReuse
+interface ResetReuse<A = Quantity> {
+  readonly life: A;
+  readonly outcome: string;
+}
+
+### build/judge.chunk.d.ts#Return
+interface Return {
+  readonly pod: string;
+  readonly disconnect: number | null;
+  readonly schedules: readonly Schedule[];
+  readonly back: number | null;
+  readonly setup: number | null;
+  readonly tries: number;
+  readonly ok: boolean;
+  readonly why: string;
+}
+
+### build/judge.chunk.d.ts#RulesLine
+interface RulesLine {
+  readonly t: number;
+  readonly prev: number | null;
+  readonly node: string;
+  readonly b: readonly string[];
+}
+
+### build/judge.chunk.d.ts#RunCheck
+interface RunCheck<A = Quantity> {
+  readonly ok: boolean;
+  readonly why: string;
+  readonly value: A | null;
+  readonly facts: RunFacts<A>;
+  readonly tail?: string | undefined;
+}
+
+### build/judge.chunk.d.ts#RunCheckV1
+type RunCheckV1 = RunCheck<number>;
+
+### build/judge.chunk.d.ts#RunFacts
+interface RunFacts<A = Quantity> {
+  readonly failures: number;
+  readonly outcomes: Readonly<Record<string, number>>;
+  readonly byNode: Readonly<Record<string, number>>;
+  readonly first: number | null;
+  readonly last: number | null;
+  readonly deletion: number | null;
+  readonly intakeAfterDeletion: A | null;
+  readonly sliceAfter: A | null;
+  readonly propagation: Readonly<Record<string, Propagated<A> | null>>;
+  readonly sliceEmpty?: A | undefined;
+  readonly rules?: Readonly<Record<string, A | null>> | undefined;
+  readonly left?: A | undefined;
+  readonly signals?: ReadonlyArray<A | null> | undefined;
+  readonly deletions?: readonly Deleted[] | undefined;
+  readonly updates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
+  readonly healUpdates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
+  readonly closes?: Readonly<Record<string, A | null>> | undefined;
+  readonly cycles?: ReadonlyArray<{
+    readonly empty: A | null;
+    readonly ready: A | null;
+  }> | undefined;
+  readonly sessions?: Sessions | undefined;
+  readonly stall?: {
+    readonly start: A | null;
+    readonly held: A | null;
+  } | undefined;
+  readonly period?: Period<A> | undefined;
+  readonly reconnects?: ReconnectsFacts<A> | undefined;
+}
+
+### build/judge.chunk.d.ts#RunFactsV1
+type RunFactsV1 = RunFacts<number>;
+
+### build/judge.chunk.d.ts#SERVER
+declare const SERVER = "lab";
+
+### build/judge.chunk.d.ts#STAGES
+declare const STAGES: readonly [Stage, ...Stage[]];
+
+### build/judge.chunk.d.ts#Schedule
+interface Schedule {
+  readonly t: number;
+  readonly delay: number;
+}
+
+### build/judge.chunk.d.ts#Sessions
+interface Sessions {
+  readonly onTarget: number;
+  readonly of: number;
+  readonly byClient: Readonly<Record<string, number>>;
+}
+
+### build/judge.chunk.d.ts#SliceLine
+interface SliceLine {
+  readonly t: number;
+  readonly type: string;
+  readonly name: string;
+  readonly svc: string | null;
+  readonly eps: readonly Endpoint[];
+}
+
+### build/judge.chunk.d.ts#SocketLine
+interface SocketLine {
+  readonly t: number;
+  readonly what: "connect" | "close";
+  readonly p: string;
+  readonly n: string;
+  readonly lp: number | null;
+  readonly err?: string | null;
+  readonly la?: string | null;
+}
+
+### build/judge.chunk.d.ts#Stack
+type Stack = "service" | "grpc";
+
+### build/judge.chunk.d.ts#TCP_STATE
+declare const TCP_STATE: {
+  readonly established: 1;
+  readonly finWait1: 4;
+  readonly closeWait: 8;
+};
+
+### build/judge.chunk.d.ts#Template
+type Template = "T07" | "T15" | "T18";
+
+### build/judge.chunk.d.ts#TimeSpread
+interface TimeSpread {
+  readonly count: number;
+  readonly min: Quantity;
+  readonly median: Quantity;
+  readonly p99: Quantity;
+  readonly max: Quantity;
+}
+
+### build/judge.chunk.d.ts#Trigger
+interface Trigger<A = Quantity> {
+  readonly kind: TriggerKind;
+  readonly hold?: Quantity | undefined;
+  readonly lead?: Quantity | undefined;
+  readonly cpuMax?: {
+    readonly quota: A;
+    readonly period: A;
+  } | undefined;
+  readonly account?: string | undefined;
+  readonly middlebox?: Quantity | undefined;
+  readonly retries?: number | undefined;
+  readonly quiet?: boolean | undefined;
+  readonly close?: boolean | undefined;
+  readonly partition?: boolean | undefined;
+  readonly serves?: boolean | undefined;
+  readonly flaps?: readonly Flap[] | undefined;
+  readonly delay?: Quantity | undefined;
+}
+
+### build/judge.chunk.d.ts#TriggerKind
+type TriggerKind = "pod-deletion" | "rolling-update" | "node-drain" | "scale-in" | "crash" | "liveness-restart" | "freeze-process" | "rst" | "blackhole" | "peer-gone-without-close" | "app-stall" | "rollout" | "cpu-throttle" | "authorization-policy" | "idle" | "ztunnel-restart" | "certificate-expiry" | "cannot-serve" | "zone-loss" | "latency" | "dns-blackhole";
+
+### build/judge.chunk.d.ts#TriggerV1
+type TriggerV1 = Trigger<number>;
+
+### build/judge.chunk.d.ts#Try
+interface Try {
+  readonly lo: number;
+  readonly hi: number;
+}
+
+### build/judge.chunk.d.ts#TunnelLine
+interface TunnelLine {
+  readonly t: number;
+  readonly src: string;
+  readonly dst: string;
+  readonly old: number;
+  readonly new: number;
+}
+
+### build/judge.chunk.d.ts#VIP_ANNOTATION
+declare const VIP_ANNOTATION = "kube-vip.io/loadbalancerIPs";
+
+### build/judge.chunk.d.ts#VipAnnouncerName
+type VipAnnouncerName = "kube-vip" | "metallb";
+
+### build/judge.chunk.d.ts#VipSettings
+interface VipSettings {
+  readonly clients: number;
+  readonly announcer?: VipAnnouncerName | undefined;
+  readonly memberlist?: MemberlistSettings | undefined;
+}
+
+### build/judge.chunk.d.ts#WindowPrediction
+interface WindowPrediction<A = Quantity> {
+  readonly kind: "window";
+  readonly nodes: "all" | "paused";
+  readonly start: {
+    readonly from: Reference;
+    readonly band: Band<A>;
+  };
+  readonly end: {
+    readonly from: Reference;
+    readonly band: Band<A>;
+  } | null;
+  readonly certain: boolean;
+  readonly afterReset?: ResetReuse<A> | undefined;
+  readonly each?: boolean | undefined;
+  readonly propagation?: Band<A> | undefined;
+  readonly flaps?: boolean | undefined;
+  readonly outcomes?: readonly string[] | undefined;
+  readonly backlog?: BacklogTerm<A> | undefined;
+  readonly permits?: PermittedWindow<A> | undefined;
+  readonly why: string;
+}
+
+### build/judge.chunk.d.ts#Workload
+interface Workload {
+  readonly every: Quantity;
+  readonly timeout: Quantity;
+  readonly connections?: number | undefined;
+  readonly sessionCheck?: SessionCheckKnobs | undefined;
+  readonly onTarget?: number | undefined;
+  readonly byName?: boolean | undefined;
+}
+
+### build/judge.chunk.d.ts#ZONE_KEPT
+declare const ZONE_KEPT = "zone-a";
+
+### build/judge.chunk.d.ts#ZONE_LABEL
+declare const ZONE_LABEL = "topology.kubernetes.io/zone";
+
+### build/judge.chunk.d.ts#ZONE_LOST
+declare const ZONE_LOST = "zone-b";
+
+### build/judge.chunk.d.ts#ZtunnelPodLine
+interface ZtunnelPodLine {
+  readonly t: number;
+  readonly type: string;
+  readonly name: string;
+  readonly node: string | null;
+  readonly del: boolean;
+  readonly cs: ReadonlyArray<{
+    readonly r: boolean;
+  }>;
+}
+
+### build/judge.chunk.d.ts#backendsAt
+declare const backendsAt: (lines: readonly Line[], at: number) => Map<string, readonly string[]>;
+
+### build/judge.chunk.d.ts#backlogEnd
+declare const backlogEnd: (end: Band, term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest">>, sessions: number) => Band;
+
+### build/judge.chunk.d.ts#bandOf
+declare const bandOf: (lo: number, hi: number) => Band;
+
+### build/judge.chunk.d.ts#byClients
+declare const byClients: <T extends {
+  readonly pod: string;
+}>(replicas: readonly T[], answers: ReadonlyMap<string, string>) => T[];
+
+### build/judge.chunk.d.ts#byNode
+declare const byNode: (requests: readonly Request[]) => Map<string, Request[]>;
+
+### build/judge.chunk.d.ts#calibrationOf
+declare const calibrationOf: (judged: Judged) => {
+  readonly nodes: Readonly<Record<string, TimeSpread | null>>;
+  readonly all: TimeSpread | null;
+  readonly slice: TimeSpread | null;
+  readonly intake: TimeSpread | null;
+  readonly heal?: TimeSpread | null | undefined;
+};
+
+### build/judge.chunk.d.ts#cellsTable
+declare const cellsTable: (judged: readonly Judged[]) => string;
+
+### build/judge.chunk.d.ts#checkRun
+declare const checkRun: (cell: KindCell, run: KindRun) => RunCheck;
+
+### build/judge.chunk.d.ts#cidrOverlap
+declare const cidrOverlap: (a: string, b: string) => boolean;
+
+### build/judge.chunk.d.ts#cidrRange
+declare const cidrRange: (cidr: string) => [number, number];
+
+### build/judge.chunk.d.ts#cyclesOf
+declare const cyclesOf: (run: Pick<KindRun, "acts">) => readonly Cycle[];
+
+### build/judge.chunk.d.ts#deletionOf
+declare const deletionOf: (lines: readonly Line[], pods: readonly string[], after: number) => number | null;
+
+### build/judge.chunk.d.ts#deletionsOf
+declare const deletionsOf: (run: KindRun) => Deleted[];
+
+### build/judge.chunk.d.ts#drainBand
+declare const drainBand: (term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest">>, mean: Quantity, connections: number, sessions: number) => CountBand;
+
+### build/judge.chunk.d.ts#dropOf
+declare const dropOf: (lines: readonly Line[], node: string, backend: string, after: number, source?: PropagationSource) => RulesLine | null;
+
+### build/judge.chunk.d.ts#emptyOf
+declare const emptyOf: (lines: readonly Line[], node: string, after: number) => RulesLine | null;
+
+### build/judge.chunk.d.ts#factsOf
+declare const factsOf: (cell: KindCell, run: KindRun) => RunFacts;
+
+### build/judge.chunk.d.ts#failuresOf
+declare const failuresOf: (lines: readonly Line[]) => Request[];
+
+### build/judge.chunk.d.ts#goDuration
+declare const goDuration: (amount: Quantity) => string;
+
+### build/judge.chunk.d.ts#intakeOf
+declare const intakeOf: (lines: readonly Line[], pod: string, after: number) => number | null;
+
+### build/judge.chunk.d.ts#isKubeProxyMode
+declare const isKubeProxyMode: (mode: Dataplane) => mode is KubeProxyMode;
+
+### build/judge.chunk.d.ts#isTunnelState
+declare const isTunnelState: (record: Readonly<Record<string, unknown>>) => boolean;
+
+### build/judge.chunk.d.ts#judge
+declare const judge: (record: KindCellRecordV1 | KindCellRecord) => KindVerdict;
+
+### build/judge.chunk.d.ts#judgeKind
+declare const judgeKind: (cell: KindCell, runs: readonly KindRun[]) => KindVerdict;
+
+### build/judge.chunk.d.ts#judgeReconnects
+declare const judgeReconnects: (prediction: ReconnectsPrediction, run: {
+  readonly fault: number;
+  readonly broker: string;
+  readonly lines: readonly Line[];
+}, sends: {
+  readonly timeout: number;
+  readonly every: number;
+}, noise: number) => Reconnects;
+
+### build/judge.chunk.d.ts#kernelCounts
+declare const kernelCounts: (lines: readonly Line[]) => Record<string, number>;
+
+### build/judge.chunk.d.ts#kindCellRecordSchema
+declare const kindCellRecordSchema: z.ZodType<KindCellRecord>;
+
+### build/judge.chunk.d.ts#kindCellRecordV1Schema
+declare const kindCellRecordV1Schema: z.ZodType<KindCellRecordV1>;
+
+### build/judge.chunk.d.ts#kindConfig
+declare const kindConfig: (s: KindScenario) => KindConfig;
+
+### build/judge.chunk.d.ts#kubeProxyPatch
+declare const kubeProxyPatch: (s: KindScenario) => string;
+
+### build/judge.chunk.d.ts#latestReturn
+declare const latestReturn: (prediction: ReconnectsPrediction) => number;
+
+### build/judge.chunk.d.ts#medianInterval
+declare const medianInterval: (sorted: readonly number[]) => [number, number];
+
+### build/judge.chunk.d.ts#medianText
+declare const medianText: (judged: Judged) => string;
+
+### build/judge.chunk.d.ts#middle
+declare const middle: (sorted: readonly number[]) => number;
+
+### build/judge.chunk.d.ts#nodeNames
+declare const nodeNames: (s: KindScenario) => string[];
+
+### build/judge.chunk.d.ts#observationAfter
+declare const observationAfter: (cell: Pick<KindCell, "prediction" | "workload">) => Quantity | null;
+
+### build/judge.chunk.d.ts#observationEnd
+declare const observationEnd: (cell: KindCell, run: Pick<KindRun, "start" | "acts" | "target" | "replicas" | "lines">) => number | null;
+
+### build/judge.chunk.d.ts#outcomesOf
+declare const outcomesOf: (requests: readonly Request[]) => Record<string, number>;
+
+### build/judge.chunk.d.ts#overshootBand
+declare const overshootBand: (end: Band, term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest" | "early">>, sessions: number) => Band;
+
+### build/judge.chunk.d.ts#periodOf
+declare const periodOf: (lines: readonly Line[], from: number, to: number) => Period | null;
+
+### build/judge.chunk.d.ts#podsAt
+declare const podsAt: (lines: readonly Line[], at: number) => Map<string, PodLine>;
+
+### build/judge.chunk.d.ts#podsOf
+declare const podsOf: (lines: readonly Line[]) => PodLine[];
+
+### build/judge.chunk.d.ts#predictionText
+declare const predictionText: (prediction: Prediction) => string;
+
+### build/judge.chunk.d.ts#propagationOf
+declare const propagationOf: (run: KindRun, from: number | null, ip?: string | undefined, source?: PropagationSource) => Record<string, Propagated | null>;
+
+### build/judge.chunk.d.ts#propagationSource
+declare const propagationSource: (cell: Pick<KindCell, "mesh">) => PropagationSource;
+
+### build/judge.chunk.d.ts#quantileOf
+declare const quantileOf: (sorted: readonly number[], p: number) => number;
+
+### build/judge.chunk.d.ts#readRecord
+declare const readRecord: (data: unknown) => KindCellRecord;
+
+### build/judge.chunk.d.ts#recordsOf
+declare const recordsOf: (lines: readonly Line[]) => RecordLine[];
+
+### build/judge.chunk.d.ts#referenceOf
+declare const referenceOf: (run: Pick<KindRun, "start" | "acts" | "target" | "lines">, from: Reference, pod?: string | undefined) => number | null;
+
+### build/judge.chunk.d.ts#requestBand
+declare const requestBand: (term: Pick<BacklogTerm, "requests"> & Partial<Pick<BacklogTerm, "drain" | "drains" | "slowest">>, span: Quantity, mean: Quantity, connections: number, sessions: number) => CountBand;
+
+### build/judge.chunk.d.ts#requestsOf
+declare const requestsOf: (lines: readonly Line[]) => Request[];
+
+### build/judge.chunk.d.ts#restartOf
+declare const restartOf: (lines: readonly Line[], after: number) => number | null;
+
+### build/judge.chunk.d.ts#restartsAt
+declare const restartsAt: (lines: readonly Line[], at: number) => Map<string, number>;
+
+### build/judge.chunk.d.ts#reusesReset
+declare const reusesReset: (request: Request, requests: readonly Request[], reuse: ResetReuse) => boolean;
+
+### build/judge.chunk.d.ts#rulesOf
+declare const rulesOf: (lines: readonly Line[], source?: PropagationSource) => RulesLine[];
+
+### build/judge.chunk.d.ts#scenario
+declare const scenario: (name: string, mode: Dataplane, workers: number, kubernetes?: string, zoned?: boolean) => KindScenario;
+
+### build/judge.chunk.d.ts#scenarioProblems
+declare const scenarioProblems: (s: KindScenario) => string[];
+
+### build/judge.chunk.d.ts#seconds
+declare const seconds: (value: number) => Quantity;
+
+### build/judge.chunk.d.ts#secondsOf
+declare const secondsOf: (band: Band) => {
+  readonly lo: number;
+  readonly hi: number;
+};
+
+### build/judge.chunk.d.ts#sessionsAt
+declare const sessionsAt: (lines: readonly Line[], at: number, target: string, connections: number) => Sessions;
+
+### build/judge.chunk.d.ts#showBand
+declare const showBand: (band: Band) => string;
+
+### build/judge.chunk.d.ts#signalOf
+declare const signalOf: (lines: readonly Line[], pod: string, after: number) => number | null;
+
+### build/judge.chunk.d.ts#signalsOf
+declare const signalsOf: (lines: readonly Line[], pods: readonly string[], after: number) => Map<string, number>;
+
+### build/judge.chunk.d.ts#sliceDropOf
+declare const sliceDropOf: (lines: readonly Line[], svc: string, ip: string, after: number) => number | null;
+
+### build/judge.chunk.d.ts#sliceEmptyOf
+declare const sliceEmptyOf: (lines: readonly Line[], svc: string, after: number) => number | null;
+
+### build/judge.chunk.d.ts#sliceReadyAt
+declare const sliceReadyAt: (lines: readonly Line[], svc: string, at: number) => boolean | null;
+
+### build/judge.chunk.d.ts#sliceReadyOf
+declare const sliceReadyOf: (lines: readonly Line[], svc: string, after: number) => number | null;
+
+### build/judge.chunk.d.ts#slicesOf
+declare const slicesOf: (lines: readonly Line[], svc: string) => SliceLine[];
+
+### build/judge.chunk.d.ts#socketsOf
+declare const socketsOf: (lines: readonly Line[]) => SocketLine[];
+
+### build/judge.chunk.d.ts#stoppingOf
+declare const stoppingOf: (lines: readonly Line[], pod: string, after: number) => number | null;
+
+### build/judge.chunk.d.ts#timeSpread
+declare const timeSpread: (times: readonly Quantity[]) => TimeSpread | null;
+
+### build/judge.chunk.d.ts#transitionOf
+declare const transitionOf: (lines: readonly Line[], pod: string, machine: string, match: (record: RecordLine) => boolean, after: number) => number | null;
+
+### build/judge.chunk.d.ts#triesOf
+declare const triesOf: (backoff: Backoff, until: number) => Try[];
+
+### build/judge.chunk.d.ts#tunnelsOf
+declare const tunnelsOf: (lines: readonly Line[]) => TunnelLine[];
+
+### build/judge.chunk.d.ts#unitOf
+declare const unitOf: (prediction: {
+  readonly kind: Prediction["kind"];
+  readonly band?: unknown;
+}) => string;
+
+### build/judge.chunk.d.ts#updatesOf
+declare const updatesOf: (run: Pick<KindRun, "lines">, from: number | null) => Record<string, Propagated | null>;
+
+### build/judge.chunk.d.ts#upgrade
+declare const upgrade: (record: KindCellRecordV1 | KindCellRecord) => KindCellRecord;
+
+### build/judge.chunk.d.ts#upgradeCell
+declare const upgradeCell: (cell: KindCellV1) => KindCell;
+
+### build/judge.chunk.d.ts#zoneOf
+declare const zoneOf: (at: number, count: number) => string;
+
+### build/judge.chunk.d.ts#ztunnelPodsOf
+declare const ztunnelPodsOf: (lines: readonly Line[]) => ZtunnelPodLine[];
+
+### build/judge.chunk.d.ts#ztunnelReplaced
+declare const ztunnelReplaced: (lines: readonly Line[], nodes: readonly string[]) => boolean;
