@@ -1,7 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "The shared settings of mark1russell7 with no automerge (template renovate/base), and the systems that the cells measure left as they are.",
-  "extends": ["github>mark1russell7/template//renovate/base"],
+  "extends": [
+    "github>mark1russell7/template//renovate/base"
+  ],
+  "schedule": [
+    "before 6am on sunday"
+  ],
   "ignorePaths": [
     "**/node_modules/**",
     "**/bower_components/**",
@@ -18,13 +23,24 @@
   "packageRules": [
     {
       "description": "The images of the harness and of kind, and the targets of the cells, pin the systems that the cells measure. Each machine document cites their versions. They change only with their documents, thus Renovate leaves them (ignorePaths, after the defaults of config:recommended). The prober is the tool of each measurement: its updates come in one group.",
-      "matchFileNames": ["packages/prober/image/**", "packages/prober/native/**", "packages/prober/go/**"],
+      "matchFileNames": [
+        "packages/prober/image/**",
+        "packages/prober/native/**",
+        "packages/prober/go/**"
+      ],
       "groupName": "the prober",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ]
     },
     {
       "description": "A major update waits for an approval on the dependency dashboard.",
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "dependencyDashboardApproval": true
     }
   ]
