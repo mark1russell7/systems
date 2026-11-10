@@ -29,7 +29,7 @@ jobs:
   checks:
     # This pin is later than the other pins of the template: it has the coverage of each push to main
     # (template#263). The release build keeps the pin of release.yml.
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@ddf7e495fc88b536e2ea89bb8271ac2d50b28baf # main
     permissions:
       contents: read
     with:
@@ -48,7 +48,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@d20d75b11120af71eaf6d2f59385c9cd053fff8b # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@ddf7e495fc88b536e2ea89bb8271ac2d50b28baf # main
     permissions:
       contents: read
     with:
