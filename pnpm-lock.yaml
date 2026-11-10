@@ -241,7 +241,7 @@ importers:
         version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-chaos':
         specifier: ^0.1.3
-        version: 0.1.3
+        version: 0.1.4
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.11
         version: 0.1.27
@@ -299,7 +299,7 @@ importers:
         version: 0.2.34(esbuild@0.28.2)
       '@mark1russell7/rigor-chaos':
         specifier: ^0.1.3
-        version: 0.1.3
+        version: 0.1.4
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.11
         version: 0.1.27
@@ -1475,16 +1475,12 @@ packages:
       esbuild:
         optional: true
 
-  '@mark1russell7/rigor-chaos@0.1.3':
-    resolution: {integrity: sha512-PHY5gk3RLjM1uIDDt9DczYSZKU8vp31GNvJsAUuHFxoC8N60TGFiEI+v5tpec3/e4DSeUr1207v8xo9xvyd6vg==}
+  '@mark1russell7/rigor-chaos@0.1.4':
+    resolution: {integrity: sha512-IXMkr4zfJtQraJHUBOo2IrkAzzOfJw2ChTcpCfPFEdwpwZgrOWf+9ok1k8BWP/o/BEnElCXUCVVj8b6FDO49hA==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-generators@0.1.14':
     resolution: {integrity: sha512-wSSv2qWetdgWMhhr7VdujBKgdF0kYB8PsckImdGC3yibgpI79fwos0U61dKZaPF7DebhE29F9AXWk7Ke//ASPQ==}
-    engines: {node: '>=22'}
-
-  '@mark1russell7/rigor-generators@0.1.6':
-    resolution: {integrity: sha512-eSuVS6nNd2H63dMrfleop+ffBtNd8Ua0/JrcUWUMxf2jHWw432fSwJ+aSa4ecAYq1Pa2ReCfwpqFUP4MII5+GA==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-generators@0.1.8':
@@ -5119,14 +5115,12 @@ snapshots:
     optionalDependencies:
       esbuild: 0.28.2
 
-  '@mark1russell7/rigor-chaos@0.1.3':
+  '@mark1russell7/rigor-chaos@0.1.4':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.6
+      '@mark1russell7/rigor-generators': 0.1.14
       '@mark1russell7/rigor-statistics': 0.1.27
 
   '@mark1russell7/rigor-generators@0.1.14': {}
-
-  '@mark1russell7/rigor-generators@0.1.6': {}
 
   '@mark1russell7/rigor-generators@0.1.8': {}
 
