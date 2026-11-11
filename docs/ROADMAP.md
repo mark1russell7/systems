@@ -1609,7 +1609,7 @@ The work:
 2. Calibrate the gate from the baseline of the cell, and write the prediction before the first run. The gate must still refuse a loaded VM. An A/A pair with a planned load proves that.
 3. Run the 2 missing runs of the pauses of 500 ms × 2, under the new gate.
 
-This item changes a gate, thus the strategist reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
+This item changes a gate, thus the maintainer reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
 
 **The first step has a first answer.** The cause is the read of the conntrack table by the agent of the lab. The clients fill the table, and each agent reads the whole table each second. In one record of the re-dispatch, the table grows from 9,600 to 22,000 lines in the first 75 s. In that time, the read on each of the 3 nodes grows from 91 ms to 205 ms. This is approximately 0.35 of a core, or 9 of the 12 points of idle share. The other 3 points have no name yet. The calibration reads all 9 records.
 
@@ -3409,7 +3409,7 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 - **Shipped:**
 - **Links:** [#453](https://github.com/mark1russell7/systems/pull/453)
 
-The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The strategist agreed on the new name `@mark1russell7/automata` on 2026-11-09. The draft #453 has the rename. It merges after the npm sitting. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The strategist does the publish and the trust. Cells, machines, service and site import the package. Other repositories use it too, for example client and collections. Each changes its imports after the release. If the declarations of a public package name its types, that package also gets a MINOR. The test: only the history and the registry entries of the locks name the old package. The API report of each public package shows only the new name.
+The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The maintainer agreed on the new name `@mark1russell7/automata` on 2026-11-09. The draft #453 has the rename. It merges after the npm sitting. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The maintainer does the publish and the trust. Cells, machines, service and site import the package. Other repositories use it too, for example client and collections. Each changes its imports after the release. If the declarations of a public package name its types, that package also gets a MINOR. The test: only the history and the registry entries of the locks name the old package. The API report of each public package shows only the new name.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
