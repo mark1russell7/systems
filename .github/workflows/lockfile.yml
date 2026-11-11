@@ -1,5 +1,5 @@
 # Makes the pnpm-lock.yaml of a pull request branch again, on a runner, when a merge of main conflicts in it.
-# Start it on the branch of the pull request: fleet.mjs dispatch mark1russell7/systems lockfile.yml --ref <branch>.
+# Start it on the branch of the pull request: gh workflow run lockfile.yml -R mark1russell7/systems --ref <branch>.
 # The steps after the run are in the header of the reusable workflow.
 name: Lockfile
 
