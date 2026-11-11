@@ -465,11 +465,11 @@ importers:
         specifier: workspace:*
         version: link:../service
       '@procedures/client':
-        specifier: ^0.49.1
-        version: 0.49.1
+        specifier: ^0.54.1
+        version: 0.54.1
       '@procedures/peer':
-        specifier: ^0.49.1
-        version: 0.49.1
+        specifier: ^0.54.1
+        version: 0.54.1
       mongodb:
         specifier: ^7.7.0
         version: 7.7.0
@@ -1380,15 +1380,6 @@ packages:
   '@kwsites/file-exists@1.1.1':
     resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
 
-  '@mark1russell7/algebra@0.8.1':
-    resolution: {integrity: sha512-lpuX4jO56Ht7F6ugymJwPCoL1F6fMVX/HAfuWaxfxBUCTrZxpSwD8qVk6O9M0fqaiyj2XUE+D5fz1XQP6BQlRA==}
-    engines: {node: '>=22.19'}
-    peerDependencies:
-      zod: ^4.1.0
-    peerDependenciesMeta:
-      zod:
-        optional: true
-
   '@mark1russell7/algebra@0.8.3':
     resolution: {integrity: sha512-Z0saYxCDcqZu1leABWqksrIa9y9dbeTjR5l36ZRBqsDW6XfUcM4mWoE90YgzSW86YFP+dcV8y+WCKu8446e/ng==}
     engines: {node: '>=22.19'}
@@ -1403,15 +1394,11 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/coeval@0.22.0':
-    resolution: {integrity: sha512-woojpBeRerVqxfFBx0yiR6ibSpm2f9mcfsUPDdvIyT9GKZ2uCtM0S/108Ur765C0rjNKxopwlSH4xXyhf906iA==}
+  '@mark1russell7/coeval@0.26.1':
+    resolution: {integrity: sha512-fzWgtsl3xpoOwmB5u/ZqEDPQIG6hIkXN3qSZc8uoN2Rv54OrqrMLw5Bgr9gedqIWhfHnT0+61EgkmRkoVg539Q==}
 
   '@mark1russell7/collections@0.10.0':
     resolution: {integrity: sha512-WsLRfrej6msQLVqcS17x6KODic8bLf/IuOF2tD04NNbOhWKYCQi0xAEGBCy/TtthxRvRa6Yti2fcpeIQbX/nCA==}
-    engines: {node: '>=22.12'}
-
-  '@mark1russell7/collections@0.5.0':
-    resolution: {integrity: sha512-/SBxY5LOLjIYuBiSf0hdxA6OeGPJUIAHSQSepVDZVnCLEvY1Jte0E3ec0ahN3oyO7oE677FY9d3LuuN18nyv3g==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/conventions@0.41.0':
@@ -1436,6 +1423,10 @@ packages:
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
+
+  '@mark1russell7/files@0.0.2':
+    resolution: {integrity: sha512-3oKnBCxZi5ChjRmxP3lMFsWTRZuhHvt8I7ZHIr2UmgPQR5VrY/qJDKF6k9m8IqFq4958m0Z1+8BDa0SqXe/Ymw==}
+    engines: {node: '>=22'}
 
   '@mark1russell7/optional@1.2.0':
     resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
@@ -1846,8 +1837,8 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@procedures/client@0.49.1':
-    resolution: {integrity: sha512-B+XImxZZuUMHZzo1mRd1nvkAeD4hZqk6yrYuug8JFSBdZ69sGgDH1HIzpYIr65lnq8glZ404z5kCSPYTE0CNHg==}
+  '@procedures/client@0.54.1':
+    resolution: {integrity: sha512-nlO3CRri2pNac2OrNQGszcqCyjvSTSTLFfYRvS/u2yUUtxGS0+ZK4Uj+lsqOnzV96yIM4CwySOLRkOS9zgpH8Q==}
     engines: {node: '>=22'}
     peerDependencies:
       express: ^4.0.0 || ^5.0.0
@@ -1855,8 +1846,8 @@ packages:
       express:
         optional: true
 
-  '@procedures/peer@0.49.1':
-    resolution: {integrity: sha512-KPy4pr3Ia2DQoWDOmg1WgtFc5l5UIE7Mfu9c5TfKNI9WXEvA8S/0sfMY3AtKo4i/wW9iY+meU4lwwlvQk0IYjA==}
+  '@procedures/peer@0.54.1':
+    resolution: {integrity: sha512-3xBWIDg7PzeveQzuh34CeHFK/z+XLkXJJUuGB+hhyZdjZdWAk6oiHZmgQ1R/QyPkoU6Y3X5CSVR/6PjFRUKfMg==}
     engines: {node: '>=22'}
 
   '@protobufjs/aspromise@1.1.2':
@@ -5029,12 +5020,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@mark1russell7/algebra@0.8.1(zod@4.6.7)':
-    dependencies:
-      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
-    optionalDependencies:
-      zod: 4.6.7
-
   '@mark1russell7/algebra@0.8.3(zod@4.6.7)':
     dependencies:
       '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
@@ -5045,7 +5030,9 @@ snapshots:
     dependencies:
       '@mark1russell7/conventions': 0.41.0
 
-  '@mark1russell7/coeval@0.22.0': {}
+  '@mark1russell7/coeval@0.26.1':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.14
 
   '@mark1russell7/collections@0.10.0(zod@4.6.7)':
     dependencies:
@@ -5054,8 +5041,6 @@ snapshots:
       '@mark1russell7/rigor-statistics': 0.1.26
     transitivePeerDependencies:
       - zod
-
-  '@mark1russell7/collections@0.5.0': {}
 
   '@mark1russell7/conventions@0.41.0':
     dependencies:
@@ -5066,6 +5051,8 @@ snapshots:
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e': {}
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
+
+  '@mark1russell7/files@0.0.2': {}
 
   '@mark1russell7/optional@1.2.0': {}
 
@@ -5519,24 +5506,26 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@procedures/client@0.49.1':
+  '@procedures/client@0.54.1':
     dependencies:
-      '@mark1russell7/algebra': 0.8.1(zod@4.6.7)
-      '@mark1russell7/coeval': 0.22.0
-      '@mark1russell7/collections': 0.5.0
+      '@mark1russell7/algebra': 0.8.3(zod@4.6.7)
+      '@mark1russell7/coeval': 0.26.1
+      '@mark1russell7/collections': 0.10.0(zod@4.6.7)
       '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
       '@mark1russell7/service': link:packages/service
+      '@opentelemetry/api': 1.10.0
       '@types/ws': 8.18.2
-      ws: 8.22.0
+      ws: 8.21.3
       zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@procedures/peer@0.49.1':
+  '@procedures/peer@0.54.1':
     dependencies:
+      '@mark1russell7/files': 0.0.2
       '@mark1russell7/service': link:packages/service
-      '@procedures/client': 0.49.1
+      '@procedures/client': 0.54.1
       zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
