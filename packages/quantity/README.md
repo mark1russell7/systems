@@ -12,7 +12,7 @@ Amounts in typed units, with exact arithmetic. A `Quantity` is `{ value, unit }`
 
 - **Dimensions.** A dimension is an exponent vector over seven bases: time, length, mass, temperature, data, money and electric current. Counts and ratios have no dimension, as in SI. Thus a duration times a count is still a duration.
 - **Kinds.** A kind names a dimension that a schema can ask for, for example `time`, `money`, `data-rate` and `transfer-rate`. A value of 8 GT/s is a transfer rate, not a clock.
-- **Electricity.** The kinds `current` (`A`), `voltage` (`V`), `charge` (`Ah`) and `resistance` (`ohm`) measure a circuit. A volt times an ampere is a watt, exactly. The kind `energy-price` is a price such as `USD/kWh`.
+- **Electricity.** The kinds `current` (`A`), `voltage` (`V`), `charge` (`Ah`) and `resistance` (`ohm`) measure a circuit. A volt times an ampere is a watt, exactly. The kind `energy-price` is a price of energy, for example `USD/kWh`.
 - **Units.** The grammar of a unit is similar to UCUM, with easy symbols: `h`, `min`, `tbsp`, `fl oz`, `kcal/(h·kg)`. A unit has one `/` at most, and all that follows it divides.
 - **Annotations.** An annotation names what a unit counts: `{rep}` counts reps, and `%{1RM}` is a percentage of a one-rep max. A conversion joins only units that count the same thing: bpm is not Hz, and `{rep}` is not `count`.
 - **Exact conversions.** Each factor is a rational over bigint (`units.ts`). Thus a decimal input converts exactly, and money adds to the cent. `toNanoseconds` gives a whole number of nanoseconds, or it refuses the value. A jiffy depends on the HZ of the kernel, and the package does not guess it.
