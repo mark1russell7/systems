@@ -115,7 +115,7 @@ lock.state; // "armed", 2000 ms after the last load
 replay(LOCK, trace); // []
 ```
 
-An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake clock. The entry `@mark1russell7/algebra/run` does not import zod, thus a client in a browser can run its own machines.
+An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake clock. The entry `@mark1russell7/algebra/run` does not import zod, thus a client in a browser can operate its own machines.
 
 ## The clock
 
