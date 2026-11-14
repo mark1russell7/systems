@@ -2268,19 +2268,20 @@ A consumer runs a pipeline under `superviseGroup` of `@mark1russell7/service/hos
 
 ### SYS-112 · An outside watcher of targets in the host of service
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-111
 - **Started:** 2026-11-14
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-14
+- **Links:** [#510](https://github.com/mark1russell7/systems/pull/510), [service 0.8.11 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.11), [the release run](https://github.com/mark1russell7/systems/actions/runs/43655214184)
 
 A heartbeat from a program tells only that the program sends. A consumer needs a second watcher on a second computer. It must find a program that answers while its work stopped, and a failure of the provider of the heartbeat.
 
 - **The watcher.** `watchTargets` of `@mark1russell7/service/host` polls each target on its own loop, with the poller and the latch of the package. A debounce or a window turns the polls into up or down. Each change has the reason of the latest failed poll.
 - **The freshness bounds.** An HTTP probe can read its JSON answer. Each bound names a time with a JSON Pointer and gives its largest age. The probe reads up to 1 MiB.
 - Each change adds an export or an optional field. Thus the release is `0.8.11` (a PATCH before 1.0).
-- The test: tests on the test clock and the fake host, and the net port of Node against a local server. The item is done when service `0.8.11` is on npm with provenance.
+- The test: tests on the test clock and the fake host, and unit tests of the read of a text with no network. The net port of Node has tests against a local server.
+- Service `0.8.11` is on npm with provenance since 2026-11-14.
 
 ## The private corpus
 
@@ -3523,19 +3524,34 @@ The work:
 - Write the prediction first. It gives the ratio to the 1 GB restore, and the fixed part from a fit of the three sizes.
 - Add the drill to the Sunday cells, if the job stays within its time limit.
 
-### SYS-98 · Recovery rungs 10 and 10,000
+### SYS-98 · Recovery rung 10
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-94
+- **Started:** 2026-11-14
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [SYS-113](#sys-113--recovery-rung-10000)
+
+SYS-94 holds rungs 1, 100 and 1,000. Rung 10 is one process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it operates on one runner. It needs only SYS-94. The milestone of the recovery rungs counts it as rung 4.
+
+- A drill case of rung 10 in the catalog of the recovery drills, with its budgets.
+- One cells dispatch of the case, and the read of its verdict. A rung counts only when it holds.
+
+The item was one item with rung 10,000 until 2026-11-14. The two rungs have different costs and different dates, thus rung 10,000 is SYS-113.
+
+A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
+
+### SYS-113 · Recovery rung 10,000
 
 - **Status:** later
 - **Area:** catalogs
-- **Depends on:** SYS-94, SYS-97, SYS-85
+- **Depends on:** SYS-97, SYS-85
 - **Started:**
 - **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+- **Links:** [SYS-98](#sys-98--recovery-rung-10)
 
-SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, thus they have different dates.
-
-- **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
-- **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+Rung 10,000 has an RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
 
 ### SYS-99 · The scheduled cells can fail on a failing cell
 
@@ -3562,8 +3578,6 @@ This is the read of false blocks, before the check blocks. The code and the cata
 - Seven of these nights came before the wider bound of the section WS, thus they do not test it. Two failing cells of these nights hold only through that bound.
 - The 12 nights after the run 40123441278 have no failing cell as written. Zero of 12 bound the rate of false blocks only near 22 percent, at 95 percent confidence.
 - A slowdown of 1.5 x from the slowest run turns 22 of the 27 timed cells red. The 5 other cells read 0.04 ms to 0.12 ms against a band top near 5 ms. Their slack is approximately 5 ms, thus they hide no large slowdown.
-
-A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
 ### SYS-100 · A flip test for each gate check of a measure
 
