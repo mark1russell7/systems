@@ -88,10 +88,23 @@ export interface ProcessesPort {
   spawn(request: SpawnRequest): ChildHandle;
 }
 
+/** An HTTP answer is the status and the text of an answer. `complete` is false when the text stopped at the limit. */
+export interface HttpAnswer {
+  readonly status: number;
+  readonly body: string;
+  readonly complete: boolean;
+}
+
 /** A net port does the network part of a readiness probe. */
 export interface NetPort {
   /** This method sends a GET request, and gives the status of the answer, or null when no answer came in the timeout. */
   httpStatus(url: string, timeout: number): Promise<number | null>;
+  /**
+   * This method sends a GET request, and gives the status and up to `limit` bytes of the text. It gives
+   * null when the answer did not end in the timeout. A probe with freshness bounds uses it. It is optional
+   * for the net ports that callers wrote before it. `nodeHostPorts` and `fakeHost` have it.
+   */
+  httpText?(url: string, timeout: number, limit: number): Promise<HttpAnswer | null>;
   /** This method tells if a TCP connection to the host and the port opens in the timeout, in milliseconds. */
   tcpConnect(host: string, port: number, timeout: number): Promise<boolean>;
 }

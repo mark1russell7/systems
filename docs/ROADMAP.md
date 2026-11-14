@@ -2266,6 +2266,22 @@ A consumer runs a pipeline under `superviseGroup` of `@mark1russell7/service/hos
 - The test: tests on the test clock and the task XML as data, with no real task.
 - Service `0.8.10` is on npm with provenance since 2026-11-14.
 
+### SYS-112 · An outside watcher of targets in the host of service
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-111
+- **Started:** 2026-11-14
+- **Shipped:**
+- **Links:**
+
+A heartbeat from a program tells only that the program sends. A consumer needs a second watcher on a second computer. It must find a program that answers while its work stopped, and a failure of the provider of the heartbeat.
+
+- **The watcher.** `watchTargets` of `@mark1russell7/service/host` polls each target on its own loop, with the poller and the latch of the package. A debounce or a window turns the polls into up or down. Each change has the reason of the latest failed poll.
+- **The freshness bounds.** An HTTP probe can read its JSON answer. Each bound names a time with a JSON Pointer and gives its largest age. The probe reads up to 1 MiB.
+- Each change adds an export or an optional field. Thus the release is `0.8.11` (a PATCH before 1.0).
+- The test: tests on the test clock and the fake host, and the net port of Node against a local server. The item is done when service `0.8.11` is on npm with provenance.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents

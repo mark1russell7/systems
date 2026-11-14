@@ -93,6 +93,99 @@ describe("the ready probes", () => {
   });
 });
 
+describe("the freshness bounds of an http probe", () => {
+  const URL = "http://127.0.0.1:8080/freshness";
+  const MIN = 60_000;
+  const answer = {
+    now: WALL - 9 * MIN,
+    sources: { nws: { lastSuccessAt: WALL - MIN }, "a/b": { lastSuccessAt: WALL - 10 * MIN }, "c~d": { lastSuccessAt: WALL - 2 * MIN } },
+    delivery: { lastTestSendAt: new Date(WALL - 27 * 60 * MIN).toISOString(), lastTestAckAt: null },
+    list: [WALL],
+  };
+  const within = (value: number, unit: string) => ({ value, unit });
+  const served = (body: string, status = 200) => {
+    const host = fakeHost();
+    host.http.set(URL, status);
+    host.bodies.set(URL, body);
+    return host;
+  };
+
+  it("pass when each time is in its bound, by the wall clock of the host", async () => {
+    const host = served(JSON.stringify(answer));
+    const fresh = [
+      { pointer: "/sources/nws/lastSuccessAt", within: within(5, "min") },
+      { pointer: "/sources/c~0d/lastSuccessAt", within: within(2, "min") },
+      { pointer: "/list/0", within: within(0, "s") },
+    ];
+    expect(await probeOnce({ kind: "http", url: URL, fresh }, 500, host.ports)).toEqual({ ok: true });
+  });
+
+  it("name each stale or missing time, and read an ISO 8601 text and an escaped pointer", async () => {
+    const host = served(JSON.stringify(answer));
+    const fresh = [
+      { pointer: "/sources/a~1b/lastSuccessAt", within: within(5, "min") },
+      { pointer: "/delivery/lastTestSendAt", within: within(26, "h") },
+      { pointer: "/delivery/lastTestAckAt", within: within(26, "h") },
+      { pointer: "/sources/gone/lastSuccessAt", within: within(1, "h") },
+      { pointer: "/list/1", within: within(1, "h") },
+    ];
+    expect(await probeOnce({ kind: "http", url: URL, fresh }, 500, host.ports)).toEqual({
+      ok: false,
+      why:
+        `${URL}: /sources/a~1b/lastSuccessAt is 10 min old, above 5 min; /delivery/lastTestSendAt is 1 day 3 h old, above 1 day 2 h; ` +
+        "/delivery/lastTestAckAt has no time; /sources/gone/lastSuccessAt has no time; /list/1 has no time",
+    });
+  });
+
+  it("measure the age from the time of the target with now", async () => {
+    const host = served(JSON.stringify(answer));
+    const fresh = [{ pointer: "/sources/a~1b/lastSuccessAt", within: within(5, "min") }];
+    expect(await probeOnce({ kind: "http", url: URL, fresh, now: "/now" }, 500, host.ports)).toEqual({ ok: true });
+    expect(await probeOnce({ kind: "http", url: URL, fresh, now: "/missing" }, 500, host.ports)).toEqual({ ok: false, why: `${URL} has no time at /missing` });
+  });
+
+  it("fail on a bad status, an answer that is not JSON, an answer above the limit and no answer", async () => {
+    const fresh = [{ pointer: "/now", within: within(1, "h") }];
+    expect(await probeOnce({ kind: "http", url: URL, fresh }, 500, served(JSON.stringify(answer), 503).ports)).toEqual({ ok: false, why: `${URL} gave 503, not 200` });
+    expect(await probeOnce({ kind: "http", url: URL, fresh }, 500, served("<html>").ports)).toEqual({ ok: false, why: `${URL} did not give JSON` });
+    const big = `{"now":${WALL},"pad":"${"x".repeat(1_048_576)}"}`;
+    expect(await probeOnce({ kind: "http", url: URL, fresh }, 500, served(big).ports)).toEqual({ ok: false, why: `the answer of ${URL} is above 1048576 bytes` });
+    expect(await probeOnce({ kind: "http", url: URL, fresh }, 500, fakeHost().ports)).toEqual({ ok: false, why: `${URL} gave no answer in 500 ms` });
+  });
+
+  it("fail with a net port that cannot read an answer", async () => {
+    const host = served(JSON.stringify(answer));
+    const ports = { ...host.ports, net: { httpStatus: host.ports.net.httpStatus, tcpConnect: host.ports.net.tcpConnect } };
+    expect(await probeOnce({ kind: "http", url: URL, fresh: [{ pointer: "/now", within: within(1, "h") }] }, 500, ports)).toEqual({
+      ok: false,
+      why: "the net port cannot read an answer, thus it cannot examine freshness",
+    });
+  });
+
+  it("name each bad bound", () => {
+    expect(
+      probeProblems({
+        kind: "http",
+        url: URL,
+        fresh: [
+          { pointer: "now", within: within(1, "h") },
+          { pointer: "/a~2", within: within(-1, "s") },
+          { pointer: "/b", within: within(3, "m") },
+        ],
+        now: "x",
+      }),
+    ).toEqual([
+      'the now "x" is not a JSON Pointer',
+      'the freshness pointer "now" is not a JSON Pointer',
+      'the freshness pointer "/a~2" is not a JSON Pointer',
+      'the freshness bound of "/a~2" is not a time of zero or more',
+      'the freshness bound of "/b" is not a time of zero or more',
+    ]);
+    expect(probeProblems({ kind: "http", url: URL, fresh: [] })).toEqual(["the fresh list is empty"]);
+    expect(probeProblems({ kind: "http", url: URL, now: "/now" })).toEqual(["the probe has a now, but no fresh list"]);
+  });
+});
+
 describe("parseEnvFile", () => {
   it("reads KEY=value lines, quotes, export and comments", () => {
     const text = [
