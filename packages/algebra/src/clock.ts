@@ -64,6 +64,30 @@ export const platformClock = (options: PlatformClockOptions = {}): Clock => ({
  */
 export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });
 
+/**
+ * This function gives a promise that resolves after `ms` milliseconds on the clock. When the signal
+ * aborts, the promise stops its timer and rejects with the reason of the signal. A signal that
+ * aborted before the call rejects at once, and starts no timer. Each end removes the listener from
+ * the signal. A timer of `realClock` does not keep a Node process alive: give `platformClock()` to
+ * keep the process alive until the delay ends.
+ */
+export const delay = (clock: Clock, ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted === true) {
+      reject(signal.reason);
+      return;
+    }
+    const abort = (): void => {
+      cancel();
+      reject(signal?.reason);
+    };
+    const cancel = clock.after(ms, () => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    });
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+
 /** A fake clock moves only when a test tells it to. */
 export interface FakeClock extends Clock {
   /** This method moves the clock forward by `ms`, and it starts each timer that comes due, in sequence. */

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { type TimeWindow, fakeClock, inWindow, localTime, nextBoundary, platformClock, realClock, windowProblems } from "./clock.ts";
+import { type TimeWindow, delay, fakeClock, inWindow, localTime, nextBoundary, platformClock, realClock, windowProblems } from "./clock.ts";
 
 describe("the clock entry: a client in a browser can import it", () => {
   it("imports nothing: no node: module, no zod and no other package", () => {
@@ -359,5 +359,55 @@ describe("windowProblems", () => {
       "The day 1.5 is not a day of the week from 0 (Sunday) to 6.",
     ]);
     expect(windowProblems({ zone: "UTC", start: "06:00", end: "07:00", days: [] })).toEqual(["The window has no day, thus it does not open."]);
+  });
+});
+
+describe("delay", () => {
+  it("resolves after its time on the clock, and removes its listener", async () => {
+    const clock = fakeClock();
+    const controller = new AbortController();
+    const removed = vi.spyOn(controller.signal, "removeEventListener");
+    let done = false;
+    const waited = delay(clock, 1000, controller.signal).then(() => {
+      done = true;
+    });
+    expect(clock.pending).toBe(1);
+    await clock.advance(999);
+    expect(done).toBe(false);
+    await clock.advance(1);
+    await waited;
+    expect(done).toBe(true);
+    expect(clock.pending).toBe(0);
+    expect(removed).toHaveBeenCalledWith("abort", expect.any(Function));
+    // an abort after the end does nothing
+    controller.abort(new Error("late"));
+  });
+
+  it("stops its timer and rejects with the reason of the signal at an abort", async () => {
+    const clock = fakeClock();
+    const controller = new AbortController();
+    const waited = delay(clock, 1000, controller.signal);
+    await clock.advance(400);
+    const reason = new Error("the drain started");
+    controller.abort(reason);
+    await expect(waited).rejects.toBe(reason);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("rejects at once and starts no timer when the signal aborted before the call", async () => {
+    const clock = fakeClock();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(delay(clock, 1000, controller.signal)).rejects.toBe(controller.signal.reason);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("resolves without a signal, and a delay of 0 or less resolves at the next advance", async () => {
+    const clock = fakeClock();
+    const order: string[] = [];
+    const waits = [delay(clock, 10).then(() => order.push("10")), delay(clock, -5).then(() => order.push("-5"))];
+    await clock.advance(10);
+    await Promise.all(waits);
+    expect(order).toEqual(["-5", "10"]);
   });
 });
