@@ -7,7 +7,7 @@ import { dirname } from "node:path";
 import type { Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { Logger } from "../logger.ts";
-import type { ChildHandle, CommandPort, FilePort, HostPorts, NetPort, ProcessesPort, SpawnRequest, StopSignal } from "./ports.ts";
+import type { ChildHandle, CommandPort, FilePort, HostPorts, HttpAnswer, NetPort, ProcessesPort, SpawnRequest, StopSignal } from "./ports.ts";
 
 /** These options go with the ports of Node. */
 export interface NodeHostOptions {
@@ -213,6 +213,30 @@ const nodeProcesses: ProcessesPort = {
  */
 const get = (url: string, timeout: number): Promise<Response> => fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
 
+/**
+ * This function reads the body of an answer up to `limit` bytes, and gives the status and the text.
+ * At the limit, it cancels the body, and `complete` is false. The decoder keeps the bytes of a
+ * character that two parts of the body split. The unit tests give it answers with no network.
+ */
+export const answerText = async (response: Response, limit: number): Promise<HttpAnswer> => {
+  const reader = response.body?.getReader();
+  if (reader === undefined) return { status: response.status, body: "", complete: true };
+  const decoder = new TextDecoder();
+  let body = "";
+  let size = 0;
+  for (;;) {
+    const read = await reader.read();
+    if (read.done) return { status: response.status, body: body + decoder.decode(), complete: true };
+    if (size + read.value.byteLength > limit) {
+      body += decoder.decode(read.value.subarray(0, limit - size));
+      await reader.cancel();
+      return { status: response.status, body, complete: false };
+    }
+    body += decoder.decode(read.value, { stream: true });
+    size += read.value.byteLength;
+  }
+};
+
 const nodeNet: NetPort = {
   async httpStatus(url, timeout) {
     try {
@@ -225,25 +249,7 @@ const nodeNet: NetPort = {
   },
   async httpText(url, timeout, limit) {
     try {
-      const response = await get(url, timeout);
-      const reader = response.body?.getReader();
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      let complete = true;
-      for (;;) {
-        const read = await reader?.read();
-        if (read === undefined || read.done) break;
-        if (size + read.value.byteLength > limit) {
-          chunks.push(read.value.subarray(0, limit - size));
-          size = limit;
-          complete = false;
-          await reader?.cancel();
-          break;
-        }
-        chunks.push(read.value);
-        size += read.value.byteLength;
-      }
-      return { status: response.status, body: new TextDecoder().decode(Buffer.concat(chunks)), complete };
+      return await answerText(await get(url, timeout), limit);
     } catch {
       return null;
     }
