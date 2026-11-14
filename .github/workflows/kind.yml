@@ -218,12 +218,15 @@ jobs:
         run: |
           sudo sysctl -w fs.inotify.max_user_instances=512 fs.inotify.max_user_watches=524288
           echo "inotify: $(sysctl -n fs.inotify.max_user_instances) instances, $(sysctl -n fs.inotify.max_user_watches) watches" | tee -a "$RUNNER_TEMP/kindcells/runner.txt"
+      - name: The conntrack tool
+        uses: ./.github/actions/apt-install
+        with:
+          packages: conntrack
       # A dump of conntrack through netlink walks each bucket of the table of the kernel with the
       # softirqs off, and a segment that comes in that walk waits for its end. The agent of each node
       # dumps the table each second. A runner of 16 GB has 262144 buckets: the table gets 16384.
       - name: A small conntrack table
         run: |
-          sudo apt-get install -y -qq conntrack >/dev/null
           sudo modprobe nf_conntrack
           listing() {
             sudo unshare --net python3 -c 'import subprocess, time

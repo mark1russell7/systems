@@ -86,9 +86,13 @@ jobs:
           fi
       - name: The tools of the host
         if: steps.kvm.outputs.present == 'true'
+        uses: ./.github/actions/apt-install
+        with:
+          packages: qemu-system-x86 qemu-utils flex bison bc libelf-dev libssl-dev dwarves
+          update: "true"
+      - name: The version of qemu
+        if: steps.kvm.outputs.present == 'true'
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq qemu-system-x86 qemu-utils flex bison bc libelf-dev libssl-dev dwarves
           echo "qemu: $(qemu-system-x86_64 --version | head -n 1)" | tee -a "$VM/runner.txt"
       # Node 26 runs the tool of this tier with no build
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
