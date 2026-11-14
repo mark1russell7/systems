@@ -207,10 +207,16 @@ const nodeProcesses: ProcessesPort = {
   spawn: nodeSpawn,
 };
 
+/**
+ * This function sends a GET request that does not follow a redirect. The timeout also stops the
+ * read of the body. The status read and the text read use it, thus they have one timeout.
+ */
+const get = (url: string, timeout: number): Promise<Response> => fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
+
 const nodeNet: NetPort = {
   async httpStatus(url, timeout) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
+      const response = await get(url, timeout);
       await response.body?.cancel();
       return response.status;
     } catch {
@@ -219,7 +225,7 @@ const nodeNet: NetPort = {
   },
   async httpText(url, timeout, limit) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
+      const response = await get(url, timeout);
       const reader = response.body?.getReader();
       const chunks: Uint8Array[] = [];
       let size = 0;
