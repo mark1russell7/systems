@@ -2251,19 +2251,20 @@ The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forg
 
 ### SYS-111 · A start at boot and a liveness probe in the host of service
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-14
-- **Shipped:**
-- **Links:** [#507](https://github.com/mark1russell7/systems/pull/507)
+- **Shipped:** 2026-11-14
+- **Links:** [#507](https://github.com/mark1russell7/systems/pull/507), [npm 0.8.10](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.10)
 
 A consumer runs a pipeline under `superviseGroup` of `@mark1russell7/service/host`, and it must stay up without a person. Two gaps stopped that. A task or a unit started only at logon, thus nothing started after a power cut until a logon. The supervisor also used its probe only until a program was ready, thus a hung program stayed hung.
 
 - **The start at boot.** `start: "boot"` gives a `BootTrigger` on Windows. A spec in the background gets the S4U logon on Windows and `loginctl enable-linger` on Linux. Task Scheduler refuses both from a shell that is not elevated. Thus the problem of a failed outcome tells the user to elevate.
 - **The liveness probe.** The optional `alive` of a program uses a probe each interval after ready. After its count of failures in sequence, the supervisor stops the program in stages and starts it again after the backoff.
 - Each new field is optional, and the old specs give the same task, unit and behavior. Thus the release is `0.8.10` (a PATCH before 1.0).
-- The test: tests on the test clock and the task XML as data, with no real task. The item is done when service `0.8.10` is on npm with provenance.
+- The test: tests on the test clock and the task XML as data, with no real task.
+- Service `0.8.10` is on npm with provenance since 2026-11-14.
 
 ## The private corpus
 
