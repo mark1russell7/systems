@@ -271,13 +271,16 @@ jobs:
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
             echo "image: $ImageOS $ImageVersion"
           } | tee "$RUNNER_TEMP/cells/runner.txt"
+      - name: The conntrack tool
+        uses: ./.github/actions/apt-install
+        with:
+          packages: conntrack
       # The router of a middlebox lists the conntrack table each 50 to 100 ms to evict its expired
       # flows. A listing walks each bucket of the table of the kernel with the softirqs off, and a
       # segment that comes in that walk waits for its end. A runner of 16 GB has 262144 buckets: in
       # the run 39057994070, one reply through the router waited 6.8 ms. The table gets 16384.
       - name: A small conntrack table
         run: |
-          sudo apt-get install -y -qq conntrack >/dev/null
           sudo modprobe nf_conntrack
           # the client of the conntrack cells reads the field drop over ctnetlink
           sudo modprobe nf_conntrack_netlink
@@ -370,7 +373,7 @@ jobs:
         if: steps.needs.outputs.containerlab == 'true'
         run: |
           deb=containerlab_0.82.0_linux_amd64.deb
-          curl -fsSL -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
           echo "770e18f19ef75732eb9f4e362541f509abb2b6eeadde2d5c98140190b19b519a  $RUNNER_TEMP/$deb" | sha256sum -c -
           sudo apt-get install -y -qq "$RUNNER_TEMP/$deb"
           echo "containerlab: $(containerlab version | sed -n 's/^ *version: *//p')" | tee -a "$RUNNER_TEMP/cells/runner.txt"
