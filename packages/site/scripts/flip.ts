@@ -19,22 +19,28 @@ const copyOf = (folder: string, into: string, name: string): { readonly copy: st
   return { copy, file: join(copy, file) };
 };
 
+/** A raw record of any workflow: the name of its cell, and the pin of its checkout. */
+export interface Named {
+  readonly cell: { readonly name: string };
+  readonly code?: { readonly commit: string; readonly dirty: boolean } | undefined;
+}
+
 /** This function copies a folder without its first record and the line of that record, and it gives the copy. */
 export const withoutOne = (folder: string, into: string): string => {
   const { copy, file } = copyOf(folder, into, "gone");
-  const { cell } = JSON.parse(readFileSync(file, "utf8")) as CellRecord;
+  const { cell } = JSON.parse(readFileSync(file, "utf8")) as Named;
   rmSync(file);
   const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
     .split("\n")
-    .filter((line) => line.trim() !== "" && (JSON.parse(line) as Summary).name !== cell.name);
+    .filter((line) => line.trim() !== "" && (JSON.parse(line) as Pick<Summary, "name">).name !== cell.name);
   writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
   return copy;
 };
 
 /** This function copies a folder with a change to its first record, and it gives the copy. */
-export const changed = (folder: string, into: string, name: string, change: (record: CellRecord) => CellRecord): string => {
+export const changed = <R extends Named = CellRecord>(folder: string, into: string, name: string, change: (record: R) => R): string => {
   const { copy, file } = copyOf(folder, into, name);
-  writeFileSync(file, JSON.stringify(change(JSON.parse(readFileSync(file, "utf8")) as CellRecord)));
+  writeFileSync(file, JSON.stringify(change(JSON.parse(readFileSync(file, "utf8")) as R)));
   return copy;
 };
 
@@ -48,4 +54,4 @@ export const byTag = (record: CellRecord): CellRecord => ({
 });
 
 /** This change marks the checkout of the record as one with changes to tracked files. */
-export const dirty = (record: CellRecord): CellRecord => ({ ...record, code: { commit: record.code?.commit ?? "0".repeat(40), dirty: true } });
+export const dirty = <R extends Named>(record: R): R => ({ ...record, code: { commit: record.code?.commit ?? "0".repeat(40), dirty: true } });

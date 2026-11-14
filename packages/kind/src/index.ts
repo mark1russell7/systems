@@ -40,7 +40,9 @@ export {
   policyObject,
   sysctlCommand,
 } from "./faults.ts";
-export { labImage, labSource, stageLabImage } from "./image.ts";
+export type { KindPinnable } from "./held.ts";
+export { KIND_FAULT_OUTCOME, faultedKind, kindRecordProblems } from "./held.ts";
+export { labBuildRecord, labImage, labSource, stageLabImage } from "./image.ts";
 export type { LeafCertificate, MeshImages } from "./istio.ts";
 export {
   ACCESS_LOG_FORMAT,
