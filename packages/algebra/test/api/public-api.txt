@@ -68,6 +68,7 @@ LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
 WindowBoundary: build/clock.chunk.d.ts#WindowBoundary
+delay: build/clock.chunk.d.ts#delay
 fakeClock: build/clock.chunk.d.ts#fakeClock
 inWindow: build/clock.chunk.d.ts#inWindow
 localTime: build/clock.chunk.d.ts#localTime
@@ -143,6 +144,9 @@ interface WindowBoundary {
   readonly at: number;
   readonly opens: boolean;
 }
+
+### build/clock.chunk.d.ts#delay
+declare const delay: (clock: Clock, ms: number, signal?: AbortSignal) => Promise<void>;
 
 ### build/clock.chunk.d.ts#fakeClock
 declare const fakeClock: (start?: number) => FakeClock;

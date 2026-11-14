@@ -127,13 +127,17 @@ An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake 
 | `platformClock({ unref })` | A clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. |
 | `realClock` | The clock of the platform with `unref: true`. |
 | `fakeClock(start)` | A clock that moves only on `advance(ms)`. `block(ms)` moves it and starts no timer, as a blocked event loop does. `pending` counts the live timers. |
+| `delay(clock, ms, signal?)` | A promise that resolves after `ms` on the clock. An abort of the signal stops the timer and rejects with the reason of the signal. |
 
 ```ts
-import { fakeClock } from "@mark1russell7/algebra/clock";
+import { delay, fakeClock, realClock } from "@mark1russell7/algebra/clock";
 
 const clock = fakeClock();
 clock.after(30_000, () => cache.sweep());
 await clock.advance(30_000); // the sweep runs, at 30 s exactly
+
+// a wait before the next try, which the drain stops
+await delay(realClock, retryAfter, controller.signal);
 ```
 
 ### Civil time
