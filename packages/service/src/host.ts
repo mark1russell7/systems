@@ -22,7 +22,7 @@ export type { EnvFile } from "./host/env.ts";
 export { parseEnvFile } from "./host/env.ts";
 export type { LogSpec, RotatingLog } from "./host/logs.ts";
 export { rotatingLog } from "./host/logs.ts";
-export type { GroupOptions, GroupSpec, GroupSupervisor, ProgramPhase, ProgramRestart, ProgramSpec, ProgramState, ReadySpec, StopSpec } from "./host/group.ts";
+export type { AliveSpec, GroupOptions, GroupSpec, GroupSupervisor, ProgramPhase, ProgramRestart, ProgramSpec, ProgramState, ReadySpec, StopSpec } from "./host/group.ts";
 export { DEFAULT_RESTART, groupProblems, startOrder, superviseGroup } from "./host/group.ts";
 export type { NodeHostOptions } from "./host/node.ts";
 export { nodeHostPorts } from "./host/node.ts";
