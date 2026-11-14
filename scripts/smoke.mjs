@@ -348,6 +348,30 @@ try {
       fake.after(5, () => (fired = fake.now()));
       await fake.advance(5);
       check(typeof clockEntry.realClock.now() === "number" && fired === 15, "algebra/clock gives the clock of the platform and a fake clock");
+      // the run of a live instance without zod, on the fake clock
+      const runEntry = await load("@mark1russell7/algebra/run");
+      const lock = {
+        format: "mark1russell7.machine/1",
+        id: "lock",
+        title: "A lock",
+        layer: "self",
+        version: "1",
+        sources: [],
+        states: { loading: { initial: true }, armed: {} },
+        events: { stop: { kind: "app" }, settled: { kind: "timer" } },
+        knobs: { settle: { key: "settle", scope: "lock", unit: "ms", default: 2000 } },
+        timers: { settle: { duration: { knob: "settle", unit: "ms" }, arms: ["stop"], fires: "settled" } },
+        transitions: [{ id: "arm", from: "loading", to: "armed", on: "settled" }],
+      };
+      const lockClock = clockEntry.fakeClock();
+      const trace = [];
+      const lockRun = runEntry.runMachine(lock, { clock: lockClock, onTransition: (transition) => trace.push(transition) });
+      lockRun.send("stop");
+      await lockClock.advance(2000);
+      check(
+        lockRun.state === "armed" && trace.length === 1 && replayEntry.replay(lock, trace).length === 0,
+        "algebra/run starts a timer on the fake clock, and its trace replays",
+      );
       const wait =module.evaluate(doc, { expr: "min(500 * pow(1.5, fired), 4000)", unit: "ms" }, () => undefined, 3);
       check(wait.value === 1687.5, "algebra raises to a whole power: the fourth wait of a backoff of 1.5");
     }

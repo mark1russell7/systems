@@ -113,4 +113,8 @@ describe("the entries of the package", () => {
     expect(packagesOf("index.ts")).toEqual(["@mark1russell7/quantity"]);
     expect(packagesOf("schema.ts")).toEqual(["@mark1russell7/quantity/schema", "zod"]);
   });
+
+  it("load only quantity from the entry @mark1russell7/algebra/run: no zod", () => {
+    expect(packagesOf("run.ts")).toEqual(["@mark1russell7/quantity"]);
+  });
 });

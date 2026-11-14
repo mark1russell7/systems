@@ -6,65 +6,68 @@
 
 ## . (build/index.d.ts): names
 
-type Band: build/index.d.ts#Band
-type Detection: build/index.d.ts#Detection
-type Detector: build/index.d.ts#Detector
+type Band: build/run.chunk.d.ts#Band
+type Detection: build/run.chunk.d.ts#Detection
+type Detector: build/run.chunk.d.ts#Detector
 type Expr: build/machine.chunk.d.ts#Expr
 FIRED: build/machine.chunk.d.ts#FIRED
-type Firing: build/index.d.ts#Firing
-type KnobValues: build/index.d.ts#KnobValues
+type Firing: build/run.chunk.d.ts#Firing
+type KnobValues: build/run.chunk.d.ts#KnobValues
 type Machine: build/machine.chunk.d.ts#Machine
-type Manifestation: build/index.d.ts#Manifestation
-type Node: build/index.d.ts#Node
+type MachineRun: build/run.chunk.d.ts#MachineRun
+type Manifestation: build/run.chunk.d.ts#Manifestation
+type Node: build/run.chunk.d.ts#Node
 type Over: build/machine.chunk.d.ts#Over
 type Realization: build/machine.chunk.d.ts#Realization
-type Recovery: build/index.d.ts#Recovery
+type Recovery: build/run.chunk.d.ts#Recovery
 type ReplayOptions: build/replay.chunk.d.ts#ReplayOptions
 type Replayable: build/replay.chunk.d.ts#Replayable
-type ScheduleOptions: build/index.d.ts#ScheduleOptions
-type Scheduled: build/index.d.ts#Scheduled
-type Situation: build/index.d.ts#Situation
+type RunMachineOptions: build/run.chunk.d.ts#RunMachineOptions
+type ScheduleOptions: build/run.chunk.d.ts#ScheduleOptions
+type Scheduled: build/run.chunk.d.ts#Scheduled
+type Situation: build/run.chunk.d.ts#Situation
 type Timer: build/machine.chunk.d.ts#Timer
-type TimerBounds: build/index.d.ts#TimerBounds
+type TimerBounds: build/run.chunk.d.ts#TimerBounds
 type Transition: build/replay.chunk.d.ts#Transition
 type TransitionDef: build/machine.chunk.d.ts#TransitionDef
 type Unit: build/machine.chunk.d.ts#Unit
 type Vantage: build/machine.chunk.d.ts#Vantage
-algebraProblems: build/index.d.ts#algebraProblems
+algebraProblems: build/run.chunk.d.ts#algebraProblems
 arr: build/index.d.ts#arr
 conntrackFloor: build/index.d.ts#conntrackFloor
-detection: build/index.d.ts#detection
-errnoOf: build/index.d.ts#errnoOf
-evaluate: build/index.d.ts#evaluate
+detection: build/run.chunk.d.ts#detection
+errnoOf: build/run.chunk.d.ts#errnoOf
+evaluate: build/run.chunk.d.ts#evaluate
 exprKnobs: build/machine.chunk.d.ts#exprKnobs
-firings: build/index.d.ts#firings
+firings: build/run.chunk.d.ts#firings
 fromStates: build/index.d.ts#fromStates
 machineProblems: build/machine.chunk.d.ts#machineProblems
-modelSource: build/index.d.ts#modelSource
-overValues: build/index.d.ts#overValues
-parseExpr: build/index.d.ts#parseExpr
-probeTrain: build/index.d.ts#probeTrain
+modelSource: build/run.chunk.d.ts#modelSource
+overValues: build/run.chunk.d.ts#overValues
+parseExpr: build/run.chunk.d.ts#parseExpr
+probeTrain: build/run.chunk.d.ts#probeTrain
 readsFired: build/machine.chunk.d.ts#readsFired
-realizationKnobs: build/index.d.ts#realizationKnobs
-realizationOf: build/index.d.ts#realizationOf
-recovery: build/index.d.ts#recovery
+realizationKnobs: build/run.chunk.d.ts#realizationKnobs
+realizationOf: build/run.chunk.d.ts#realizationOf
+recovery: build/run.chunk.d.ts#recovery
 replay: build/replay.chunk.d.ts#replay
-stackedDetection: build/index.d.ts#stackedDetection
-synGiveUpSends: build/index.d.ts#synGiveUpSends
-timerBand: build/index.d.ts#timerBand
-timerOf: build/index.d.ts#timerOf
-timerUnder: build/index.d.ts#timerUnder
-transitionOn: build/index.d.ts#transitionOn
+runMachine: build/run.chunk.d.ts#runMachine
+stackedDetection: build/run.chunk.d.ts#stackedDetection
+synGiveUpSends: build/run.chunk.d.ts#synGiveUpSends
+timerBand: build/run.chunk.d.ts#timerBand
+timerOf: build/run.chunk.d.ts#timerOf
+timerUnder: build/run.chunk.d.ts#timerUnder
+transitionOn: build/run.chunk.d.ts#transitionOn
 
 ## ./clock (build/clock.d.ts): names
 
-Cancel: build/clock.d.ts#Cancel
-Clock: build/clock.d.ts#Clock
-FakeClock: build/clock.d.ts#FakeClock
-PlatformClockOptions: build/clock.d.ts#PlatformClockOptions
-fakeClock: build/clock.d.ts#fakeClock
-platformClock: build/clock.d.ts#platformClock
-realClock: build/clock.d.ts#realClock
+Cancel: build/clock.chunk.d.ts#Cancel
+Clock: build/clock.chunk.d.ts#Clock
+FakeClock: build/clock.chunk.d.ts#FakeClock
+PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
+fakeClock: build/clock.chunk.d.ts#fakeClock
+platformClock: build/clock.chunk.d.ts#platformClock
+realClock: build/clock.chunk.d.ts#realClock
 
 ## ./replay (build/replay.d.ts): names
 
@@ -73,156 +76,49 @@ Replayable: build/replay.chunk.d.ts#Replayable
 Transition: build/replay.chunk.d.ts#Transition
 replay: build/replay.chunk.d.ts#replay
 
+## ./run (build/run.d.ts): names
+
+MachineRun: build/run.chunk.d.ts#MachineRun
+RunMachineOptions: build/run.chunk.d.ts#RunMachineOptions
+runMachine: build/run.chunk.d.ts#runMachine
+
 ## ./schema (build/schema.d.ts): names
 
 machineSchema: build/schema.d.ts#machineSchema
 
 ## Declarations
 
-### build/clock.d.ts#Cancel
-export type Cancel = (() => void) & {
+### build/clock.chunk.d.ts#Cancel
+type Cancel = (() => void) & {
   readonly unref?: (() => void) | undefined;
 };
 
-### build/clock.d.ts#Clock
-export interface Clock {
+### build/clock.chunk.d.ts#Clock
+interface Clock {
   now(): number;
   after(ms: number, run: () => void): Cancel;
 }
 
-### build/clock.d.ts#FakeClock
-export interface FakeClock extends Clock {
+### build/clock.chunk.d.ts#FakeClock
+interface FakeClock extends Clock {
   advance(ms: number): Promise<void>;
   block(ms: number): void;
   readonly pending: number;
 }
 
-### build/clock.d.ts#PlatformClockOptions
-export interface PlatformClockOptions {
+### build/clock.chunk.d.ts#PlatformClockOptions
+interface PlatformClockOptions {
   readonly unref?: boolean | undefined;
 }
 
-### build/clock.d.ts#fakeClock
-export declare const fakeClock: (start?: number) => FakeClock;
+### build/clock.chunk.d.ts#fakeClock
+declare const fakeClock: (start?: number) => FakeClock;
 
-### build/clock.d.ts#platformClock
-export declare const platformClock: (options?: PlatformClockOptions) => Clock;
+### build/clock.chunk.d.ts#platformClock
+declare const platformClock: (options?: PlatformClockOptions) => Clock;
 
-### build/clock.d.ts#realClock
-export declare const realClock: Clock;
-
-### build/index.d.ts#Band
-interface Band {
-  readonly low: Extent;
-  readonly high: Extent;
-}
-
-### build/index.d.ts#Detection
-interface Detection {
-  readonly detectors: readonly Detector[];
-  readonly first: Detector | null;
-  readonly unsettled: readonly string[];
-  readonly held: ReadonlyArray<{
-    readonly timer: string;
-    readonly why: string;
-  }>;
-  readonly delivered: ReadonlyArray<{
-    readonly event: string;
-    readonly to: string;
-    readonly errno: string | null;
-  }>;
-}
-
-### build/index.d.ts#Detector
-interface Detector {
-  readonly timer: string;
-  readonly fires: string;
-  readonly duration: Extent | Unknown;
-  readonly beneath?: string | undefined;
-}
-
-### build/index.d.ts#Firing
-interface Firing {
-  readonly fired: number;
-  readonly low: Quantity;
-  readonly high: Quantity;
-}
-
-### build/index.d.ts#KnobValues
-type KnobValues = (name: string) => Extent | Unknown | undefined;
-
-### build/index.d.ts#Manifestation
-interface Manifestation {
-  readonly name: string;
-  readonly passes: readonly string[];
-  readonly delivers?: readonly string[] | undefined;
-  readonly errno?: {
-    readonly errno: string;
-    readonly timers: readonly string[];
-  } | undefined;
-  readonly replaces?: Readonly<Record<string, {
-    readonly duration?: Expr;
-    readonly lateness?: Expr;
-    readonly early?: Expr;
-  }>> | undefined;
-}
-
-### build/index.d.ts#Node
-type Node = {
-  readonly op: "num";
-  readonly n: Rational;
-} | {
-  readonly op: "knob";
-  readonly name: string;
-} | {
-  readonly op: "+" | "-" | "*" | "/";
-  readonly a: Node;
-  readonly b: Node;
-} | {
-  readonly op: "neg";
-  readonly a: Node;
-} | {
-  readonly op: "min" | "max" | "floor" | "ceil" | "pow";
-  readonly args: readonly Node[];
-};
-
-### build/index.d.ts#Recovery
-interface Recovery {
-  readonly firings: readonly Firing[];
-  readonly first: readonly number[];
-  readonly low: Quantity;
-  readonly high: Quantity;
-}
-
-### build/index.d.ts#ScheduleOptions
-interface ScheduleOptions {
-  readonly from?: number | undefined;
-  readonly count?: number | undefined;
-  readonly until?: Extent | undefined;
-  readonly reach?: Extent | undefined;
-}
-
-### build/index.d.ts#Scheduled
-interface Scheduled {
-  readonly fired: number;
-  readonly at: Quantity;
-}
-
-### build/index.d.ts#Situation
-interface Situation {
-  readonly state: string;
-  readonly inFlight: boolean;
-}
-
-### build/index.d.ts#TimerBounds
-interface TimerBounds {
-  readonly duration: Extent | Unknown;
-  readonly lateness?: Extent | Unknown | undefined;
-  readonly early?: Extent | Unknown | undefined;
-}
-
-### build/index.d.ts#algebraProblems
-export declare const algebraProblems: (doc: Machine) => string[];
+### build/clock.chunk.d.ts#realClock
+declare const realClock: Clock;
 
 ### build/index.d.ts#arr
 export declare const arr: <T>(value: T | readonly T[]) => readonly T[];
@@ -230,62 +126,8 @@ export declare const arr: <T>(value: T | readonly T[]) => readonly T[];
 ### build/index.d.ts#conntrackFloor
 export declare const conntrackFloor: (max: number, hz: number, expired?: number) => number;
 
-### build/index.d.ts#detection
-export declare const detection: (doc: Machine, situation: Situation, manifestation: Manifestation, values: KnobValues) => Detection;
-
-### build/index.d.ts#errnoOf
-export declare const errnoOf: (doc: Machine, state: string, detector: {
-  readonly timer: string;
-  readonly fires: string;
-}, manifestation: Manifestation) => string | null;
-
-### build/index.d.ts#evaluate
-export declare const evaluate: (doc: Machine, expr: Expr, values: KnobValues, fired?: number) => Extent | Unknown;
-
-### build/index.d.ts#firings
-export declare const firings: (doc: Machine, timer: string, values: KnobValues, options: ScheduleOptions) => Scheduled[];
-
 ### build/index.d.ts#fromStates
 export declare const fromStates: (m: Pick<Machine, "states">, from: string | readonly string[]) => string[];
-
-### build/index.d.ts#modelSource
-export declare const modelSource: (name: string) => string | undefined;
-
-### build/index.d.ts#overValues
-export declare const overValues: (upper: Machine, upperValues: KnobValues, lowerValues: KnobValues) => KnobValues;
-
-### build/index.d.ts#parseExpr
-export declare const parseExpr: (text: string) => Node;
-
-### build/index.d.ts#probeTrain
-export declare const probeTrain: (first: Extent, interval: Extent, count: number) => Quantity[];
-
-### build/index.d.ts#realizationKnobs
-export declare const realizationKnobs: (doc: Machine, mechanism: string) => string[];
-
-### build/index.d.ts#realizationOf
-export declare const realizationOf: (doc: Machine, mechanism: string, values: KnobValues) => TimerBounds | undefined;
-
-### build/index.d.ts#recovery
-export declare const recovery: (doc: Machine, timer: string, values: KnobValues, stall: Extent) => Recovery | Unknown;
-
-### build/index.d.ts#stackedDetection
-export declare const stackedDetection: (upper: Machine, lower: Machine, situation: Situation, manifestation: Manifestation, upperValues: KnobValues, lowerValues: KnobValues) => Detection;
-
-### build/index.d.ts#synGiveUpSends
-export declare const synGiveUpSends: (retries: number, linear: number) => number;
-
-### build/index.d.ts#timerBand
-export declare const timerBand: (bounds: TimerBounds, unit?: string) => Band | Unknown;
-
-### build/index.d.ts#timerOf
-export declare const timerOf: (doc: Machine, timer: string, values: KnobValues, fired?: number) => TimerBounds;
-
-### build/index.d.ts#timerUnder
-export declare const timerUnder: (doc: Machine, timer: string, values: KnobValues, manifestation: Manifestation, fired?: number) => TimerBounds;
-
-### build/index.d.ts#transitionOn
-export declare const transitionOn: (doc: Machine, state: string, event: string) => TransitionDef | undefined;
 
 ### build/machine.chunk.d.ts#Expr
 type Expr = {
@@ -435,6 +277,192 @@ interface Transition {
 
 ### build/replay.chunk.d.ts#replay
 declare const replay: (doc: Replayable, transitions: readonly Transition[], options?: ReplayOptions) => string[];
+
+### build/run.chunk.d.ts#Band
+interface Band {
+  readonly low: Extent;
+  readonly high: Extent;
+}
+
+### build/run.chunk.d.ts#Detection
+interface Detection {
+  readonly detectors: readonly Detector[];
+  readonly first: Detector | null;
+  readonly unsettled: readonly string[];
+  readonly held: ReadonlyArray<{
+    readonly timer: string;
+    readonly why: string;
+  }>;
+  readonly delivered: ReadonlyArray<{
+    readonly event: string;
+    readonly to: string;
+    readonly errno: string | null;
+  }>;
+}
+
+### build/run.chunk.d.ts#Detector
+interface Detector {
+  readonly timer: string;
+  readonly fires: string;
+  readonly duration: Extent | Unknown;
+  readonly beneath?: string | undefined;
+}
+
+### build/run.chunk.d.ts#Firing
+interface Firing {
+  readonly fired: number;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/run.chunk.d.ts#KnobValues
+type KnobValues = (name: string) => Extent | Unknown | undefined;
+
+### build/run.chunk.d.ts#MachineRun
+interface MachineRun {
+  readonly state: string;
+  send(event: string): TransitionDef | undefined;
+  stop(): void;
+}
+
+### build/run.chunk.d.ts#Manifestation
+interface Manifestation {
+  readonly name: string;
+  readonly passes: readonly string[];
+  readonly delivers?: readonly string[] | undefined;
+  readonly errno?: {
+    readonly errno: string;
+    readonly timers: readonly string[];
+  } | undefined;
+  readonly replaces?: Readonly<Record<string, {
+    readonly duration?: Expr;
+    readonly lateness?: Expr;
+    readonly early?: Expr;
+  }>> | undefined;
+}
+
+### build/run.chunk.d.ts#Node
+type Node = {
+  readonly op: "num";
+  readonly n: Rational;
+} | {
+  readonly op: "knob";
+  readonly name: string;
+} | {
+  readonly op: "+" | "-" | "*" | "/";
+  readonly a: Node;
+  readonly b: Node;
+} | {
+  readonly op: "neg";
+  readonly a: Node;
+} | {
+  readonly op: "min" | "max" | "floor" | "ceil" | "pow";
+  readonly args: readonly Node[];
+};
+
+### build/run.chunk.d.ts#Recovery
+interface Recovery {
+  readonly firings: readonly Firing[];
+  readonly first: readonly number[];
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+### build/run.chunk.d.ts#RunMachineOptions
+interface RunMachineOptions {
+  readonly clock: Clock;
+  readonly values?: KnobValues | undefined;
+  readonly state?: string | undefined;
+  readonly instance?: string | undefined;
+  readonly onTransition?: ((transition: Transition) => void) | undefined;
+}
+
+### build/run.chunk.d.ts#ScheduleOptions
+interface ScheduleOptions {
+  readonly from?: number | undefined;
+  readonly count?: number | undefined;
+  readonly until?: Extent | undefined;
+  readonly reach?: Extent | undefined;
+}
+
+### build/run.chunk.d.ts#Scheduled
+interface Scheduled {
+  readonly fired: number;
+  readonly at: Quantity;
+}
+
+### build/run.chunk.d.ts#Situation
+interface Situation {
+  readonly state: string;
+  readonly inFlight: boolean;
+}
+
+### build/run.chunk.d.ts#TimerBounds
+interface TimerBounds {
+  readonly duration: Extent | Unknown;
+  readonly lateness?: Extent | Unknown | undefined;
+  readonly early?: Extent | Unknown | undefined;
+}
+
+### build/run.chunk.d.ts#algebraProblems
+declare const algebraProblems: (doc: Machine) => string[];
+
+### build/run.chunk.d.ts#detection
+declare const detection: (doc: Machine, situation: Situation, manifestation: Manifestation, values: KnobValues) => Detection;
+
+### build/run.chunk.d.ts#errnoOf
+declare const errnoOf: (doc: Machine, state: string, detector: {
+  readonly timer: string;
+  readonly fires: string;
+}, manifestation: Manifestation) => string | null;
+
+### build/run.chunk.d.ts#evaluate
+declare const evaluate: (doc: Machine, expr: Expr, values: KnobValues, fired?: number) => Extent | Unknown;
+
+### build/run.chunk.d.ts#firings
+declare const firings: (doc: Machine, timer: string, values: KnobValues, options: ScheduleOptions) => Scheduled[];
+
+### build/run.chunk.d.ts#modelSource
+declare const modelSource: (name: string) => string | undefined;
+
+### build/run.chunk.d.ts#overValues
+declare const overValues: (upper: Machine, upperValues: KnobValues, lowerValues: KnobValues) => KnobValues;
+
+### build/run.chunk.d.ts#parseExpr
+declare const parseExpr: (text: string) => Node;
+
+### build/run.chunk.d.ts#probeTrain
+declare const probeTrain: (first: Extent, interval: Extent, count: number) => Quantity[];
+
+### build/run.chunk.d.ts#realizationKnobs
+declare const realizationKnobs: (doc: Machine, mechanism: string) => string[];
+
+### build/run.chunk.d.ts#realizationOf
+declare const realizationOf: (doc: Machine, mechanism: string, values: KnobValues) => TimerBounds | undefined;
+
+### build/run.chunk.d.ts#recovery
+declare const recovery: (doc: Machine, timer: string, values: KnobValues, stall: Extent) => Recovery | Unknown;
+
+### build/run.chunk.d.ts#runMachine
+declare const runMachine: (doc: Machine, options: RunMachineOptions) => MachineRun;
+
+### build/run.chunk.d.ts#stackedDetection
+declare const stackedDetection: (upper: Machine, lower: Machine, situation: Situation, manifestation: Manifestation, upperValues: KnobValues, lowerValues: KnobValues) => Detection;
+
+### build/run.chunk.d.ts#synGiveUpSends
+declare const synGiveUpSends: (retries: number, linear: number) => number;
+
+### build/run.chunk.d.ts#timerBand
+declare const timerBand: (bounds: TimerBounds, unit?: string) => Band | Unknown;
+
+### build/run.chunk.d.ts#timerOf
+declare const timerOf: (doc: Machine, timer: string, values: KnobValues, fired?: number) => TimerBounds;
+
+### build/run.chunk.d.ts#timerUnder
+declare const timerUnder: (doc: Machine, timer: string, values: KnobValues, manifestation: Manifestation, fired?: number) => TimerBounds;
+
+### build/run.chunk.d.ts#transitionOn
+declare const transitionOn: (doc: Machine, state: string, event: string) => TransitionDef | undefined;
 
 ### build/schema.d.ts#machineSchema
 export declare const machineSchema: z.ZodType<Machine>;

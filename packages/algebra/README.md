@@ -1,6 +1,6 @@
 # @mark1russell7/algebra
 
-State machines as data, and the timer algebra over them. A machine document gives the states, transitions, timers and knobs of one machine, for example Linux TCP. The algebra then gives how long each timer operates, in exact rationals, from the values of the knobs. It also gives which timer finds a failure first, and when a connection moves again after a stall.
+State machines as data, and the timer algebra over them. A machine document gives the states, transitions, timers and knobs of one machine, for example Linux TCP. The algebra then gives how long each timer operates, in exact rationals, from the values of the knobs. It also gives which timer finds a failure first, and when a connection moves again after a stall. `runMachine` operates a live instance of a document on a clock.
 
 ## The machine document
 
@@ -61,6 +61,62 @@ const problems = replay(CONNECTION_MACHINE, recorded, { machine: CONNECTION_MACH
 // for example ["c1: app.machine.connection has no transition from OPEN on open to OPEN"]
 ```
 
+## The run
+
+`runMachine(doc, options)` starts a live instance of a machine document on a clock. It gives the run: `state`, `send(event)` and `stop()`. The run follows these rules:
+
+- **Transitions.** `send(event)` takes the transition of the document from the state on the event, and gives it. It gives undefined when the state has no transition on the event. An event that the document does not name is an error.
+- **Timers.** In sequence, these events operate the timers: the event, each event that the transition emits, and `enter:<to>`. A transition to the state that it leaves also enters that state again. An event without a transition also operates the timers.
+- **Arms and cancels.** An event of `cancels` stops a timer. An event of `arms` starts it again from its full duration. An event in the two lists stops the timer, as in `detection`.
+- **Durations.** The run reads each duration from `timerOf`, with the knob values of the options or the defaults of the knobs. It converts the duration to milliseconds exactly. A duration with no bound, for example a knob at its `off` value, starts no timer.
+- **Backoff timers.** A backoff timer starts again after it fires, with its next wait. An event of its `resets` sets its count to 0.
+- **The start and the end.** At the start, the instance enters its start state, thus `enter:<state>` can arm a timer. The entry to a final state stops each timer. `stop()` stops each timer, and after it each send does nothing.
+- **A record for the replay.** `onTransition` gets each transition in the form that `replay` reads. Thus a recorded run replays against its document with no problem.
+
+The example is the lock of an app. The lock arms after 2000 ms with no load of a page. Each stop of a load starts that time again.
+
+```ts
+import type { Machine, Transition } from "@mark1russell7/algebra";
+import { fakeClock } from "@mark1russell7/algebra/clock";
+import { replay } from "@mark1russell7/algebra/replay";
+import { runMachine } from "@mark1russell7/algebra/run";
+
+const LOCK: Machine = {
+  format: "mark1russell7.machine/1",
+  id: "app.machine.lock",
+  title: "A lock that arms after a quiet time",
+  layer: "self",
+  version: "1.0.0",
+  sources: [{ ref: "the app", rung: "implemented" }],
+  states: { loading: { initial: true }, armed: {} },
+  events: { start: { kind: "app" }, stop: { kind: "app" }, press: { kind: "app" }, settled: { kind: "timer" }, reload: { kind: "app" } },
+  knobs: { settle: { key: "settle", scope: "lock", unit: "ms", default: 2000 } },
+  timers: {
+    settle: { duration: { knob: "settle", unit: "ms" }, arms: ["stop"], cancels: ["start", "press", "reload"], fires: "settled" },
+  },
+  transitions: [
+    { id: "lock.arm", from: "loading", to: "armed", on: ["press", "settled"] },
+    { id: "lock.reload", from: "armed", to: "loading", on: "reload" },
+  ],
+};
+
+const clock = fakeClock();
+const trace: Transition[] = [];
+const lock = runMachine(LOCK, { clock, onTransition: (transition) => trace.push(transition) });
+lock.send("start");
+lock.send("stop"); // a load, at 0 ms
+await clock.advance(1500);
+lock.send("start");
+lock.send("stop"); // a second load, 1500 ms later: the time starts again
+await clock.advance(1999);
+lock.state; // "loading"
+await clock.advance(1);
+lock.state; // "armed", 2000 ms after the last load
+replay(LOCK, trace); // []
+```
+
+An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake clock. The entry `@mark1russell7/algebra/run` does not import zod, thus a client in a browser can operate its own machines.
+
 ## The clock
 
 `@mark1russell7/algebra/clock` gives the clock of a runtime and a fake clock for tests. The entry imports nothing: no `node:` module, no zod and no other package. Thus a client in a browser can use it. The service and collections read time through it.
@@ -90,6 +146,14 @@ The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark
 
 The root entry has the machine types, the consistency checks and the algebra. It does not import `zod`.
 
+| Entry | What it has | `zod` |
+| --- | --- | --- |
+| `@mark1russell7/algebra` | The machine types, the consistency checks, the algebra, `replay` and `runMachine` | No |
+| `@mark1russell7/algebra/clock` | The clock of a runtime and a fake clock for tests | No |
+| `@mark1russell7/algebra/replay` | The replay of a trace against a machine document | No |
+| `@mark1russell7/algebra/run` | The run of a live instance of a machine document | No |
+| `@mark1russell7/algebra/schema` | `machineSchema`, the schema of a machine document | Yes |
+
 The schema is in the entry `@mark1russell7/algebra/schema`. That entry uses `zod` as an optional peer dependency, as `@mark1russell7/quantity/schema` does. An application that does not parse documents can install the package without `zod`.
 
 **From 0.7 to 0.8.** The root entry does not give `machineSchema`. Import it from `@mark1russell7/algebra/schema`.
@@ -118,7 +182,7 @@ detection(tcp, idle, { name: "blackhole", passes: [] }, values).first?.timer; //
 
 `pnpm --filter @mark1russell7/algebra test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault.
 
-The replay tests use a machine with its own names, and they hold the entry of the replay without zod. A test of the root entry fails if the root imports zod.
+The replay tests use a machine with its own names, and they hold the entry of the replay without zod. The tests of the run use a lock, a call with a backoff and a connection with a keepalive, on the fake clock. Each run of the lock with 4 steps or fewer replays against its document with no problem. A test of the root entry fails if the root imports zod.
 
 The tests of the algebra on the real documents are in `@mark1russell7/machines`.
 
