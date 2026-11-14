@@ -69,6 +69,8 @@ export interface FakeHost {
   readonly processes: Map<number, number | null>;
   /** This map gives the HTTP status of each address. An address that it does not have gives no answer. */
   readonly http: Map<string, number | null>;
+  /** This map gives the text of the answer of each address, for `httpText`. The default text is empty. */
+  readonly bodies: Map<string, string>;
   /** This set holds each `host:port` that takes a TCP connection. */
   readonly tcp: Set<string>;
   /** True makes each child end with the code 0 at a staged stop: SIGTERM, SIGINT, an IPC message or `taskkill` without `/F`. */
@@ -254,6 +256,12 @@ export const fakeHost = (options: FakeHostOptions = {}): FakeHost => {
     },
     net: {
       httpStatus: async (url) => host.http.get(url) ?? null,
+      httpText: async (url, _timeout, limit) => {
+        const status = host.http.get(url) ?? null;
+        if (status === null) return null;
+        const bytes = encoder.encode(host.bodies.get(url) ?? "");
+        return { status, body: decoder.decode(bytes.subarray(0, limit)), complete: bytes.length <= limit };
+      },
       tcpConnect: async (hostName, port) => host.tcp.has(`${hostName}:${port}`),
     },
     clock,
@@ -274,6 +282,7 @@ export const fakeHost = (options: FakeHostOptions = {}): FakeHost => {
     children,
     processes,
     http: new Map(),
+    bodies: new Map(),
     tcp: new Set(),
     polite: false,
     failFiles: null,

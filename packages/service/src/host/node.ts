@@ -217,6 +217,31 @@ const nodeNet: NetPort = {
       return null;
     }
   },
+  async httpText(url, timeout, limit) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
+      const reader = response.body?.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      let complete = true;
+      for (;;) {
+        const read = await reader?.read();
+        if (read === undefined || read.done) break;
+        if (size + read.value.byteLength > limit) {
+          chunks.push(read.value.subarray(0, limit - size));
+          size = limit;
+          complete = false;
+          await reader?.cancel();
+          break;
+        }
+        chunks.push(read.value);
+        size += read.value.byteLength;
+      }
+      return { status: response.status, body: new TextDecoder().decode(Buffer.concat(chunks)), complete };
+    } catch {
+      return null;
+    }
+  },
   tcpConnect: (host, port, timeout) =>
     new Promise((resolve) => {
       const socket = connect({ host, port });
