@@ -5,9 +5,10 @@ import { ONE, div, fromDecimal, mul, pow, rational } from "@mark1russell7/ration
  * These are the base dimensions. A dimension is an exponent vector over them, as in SI, with two
  * more: data (the bit) and money (one currency). A second currency is a second base, because
  * currencies have no fixed rate. Counts and ratios have no dimension, thus a duration times a
- * count is still a duration.
+ * count is still a duration. The electric current (the ampere) is the last base, thus a volt is
+ * a watt per ampere.
  */
-export const BASES = ["time", "length", "mass", "temperature", "data", "money"] as const;
+export const BASES = ["time", "length", "mass", "temperature", "data", "money", "current"] as const;
 export type Base = (typeof BASES)[number];
 export type Vector = Readonly<Partial<Record<Base, number>>>;
 
@@ -35,9 +36,14 @@ export type Kind =
   | "volume"
   | "energy"
   | "power"
+  | "current"
+  | "voltage"
+  | "charge"
+  | "resistance"
   | "specific-power"
   | "specific-volume-rate"
-  | "money-rate";
+  | "money-rate"
+  | "energy-price";
 
 export const KINDS: Readonly<Record<Kind, Vector>> = {
   time: { time: 1 },
@@ -57,12 +63,22 @@ export const KINDS: Readonly<Record<Kind, Vector>> = {
   volume: { length: 3 },
   energy: { mass: 1, length: 2, time: -2 },
   power: { mass: 1, length: 2, time: -3 },
+  /** The electric current is the rating of a breaker or of a cable, as A. */
+  current: { current: 1 },
+  /** The voltage of a circuit, as V. A volt times an ampere is a watt. */
+  voltage: { mass: 1, length: 2, time: -3, current: -1 },
+  /** The charge is the capacity of a battery, as Ah. */
+  charge: { current: 1, time: 1 },
+  /** The resistance is a volt per ampere, as ohm. */
+  resistance: { mass: 1, length: 2, time: -3, current: -2 },
   /** The power per body mass is the cost of an exertion, as kcal/(h·kg). */
   "specific-power": { length: 2, time: -3 },
   /** The volume per body mass per time is a VO2 max, as mL/(kg·min). */
   "specific-volume-rate": { length: 3, mass: -1, time: -1 },
   /** The money per time is a monthly limit of a budget, or a subscription. */
   "money-rate": { money: 1, time: -1 },
+  /** The money per energy is the price of electricity, as USD/kWh. */
+  "energy-price": { money: 1, mass: -1, length: -2, time: 2 },
 };
 
 export const KIND_NAMES: readonly Kind[] = Object.keys(KINDS) as Kind[];
@@ -106,6 +122,9 @@ const D: Vector = { data: 1 };
 const V: Vector = { length: 3 };
 const E: Vector = KINDS.energy;
 const P: Vector = KINDS.power;
+const I: Vector = KINDS.current;
+const U: Vector = KINDS.voltage;
+const Q: Vector = KINDS.charge;
 const NONE: Vector = {};
 
 /** The US gallon is 231 cubic inches exactly, and the measures of a kitchen divide it. */
@@ -211,6 +230,16 @@ export const ATOMS: readonly Atom[] = [
   atom("kWh", "kilowatt-hour", E, mul(JOULE, r("3600000"))),
   atom("W", "watt", P, JOULE, { aliases: ["watt", "watts"] }),
   atom("kW", "kilowatt", P, mul(JOULE, r("1000"))),
+  // electricity: the ampere is the base of the current, and a volt is a watt per ampere. A
+  // volt-ampere has the vector of a watt, but it is not a real power, thus the package does not have it.
+  atom("A", "ampere", I, ONE, { aliases: ["amp", "amps", "ampere", "amperes"] }),
+  atom("mA", "milliampere", I, r("0.001"), { aliases: ["milliampere", "milliamperes"] }),
+  atom("V", "volt", U, JOULE, { aliases: ["volt", "volts"] }),
+  atom("mV", "millivolt", U, mul(JOULE, r("0.001"))),
+  atom("kV", "kilovolt", U, mul(JOULE, r("1000"))),
+  atom("Ah", "ampere-hour", Q, r("3600"), { aliases: ["ampere-hour", "ampere-hours"] }),
+  atom("mAh", "milliampere-hour", Q, r("3.6")),
+  atom("ohm", "ohm", KINDS.resistance, JOULE, { display: "Ω", aliases: ["Ω", "ohms"] }),
   // money: one currency, kept to the cent
   atom("USD", "US dollar", { money: 1 }, ONE, {
     display: "$",

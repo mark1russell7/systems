@@ -834,6 +834,7 @@ type Rule: build/rules.chunk.d.ts#Rule
 
 ## ./host (build/host.d.ts): names
 
+type AliveSpec: build/host.d.ts#AliveSpec
 type ChildHandle: build/ports.chunk.d.ts#ChildHandle
 type CommandOptions: build/ports.chunk.d.ts#CommandOptions
 type CommandPort: build/ports.chunk.d.ts#CommandPort
@@ -1537,6 +1538,14 @@ export declare const detectionTime: (interval: number, timeout: number, misses: 
 ### build/heartbeat.d.ts#heartbeat
 export declare const heartbeat: (options: HeartbeatOptions) => Heartbeat;
 
+### build/host.d.ts#AliveSpec
+interface AliveSpec {
+  readonly probe: ReadyProbe;
+  readonly interval: Quantity;
+  readonly timeout: Quantity;
+  readonly failures: number;
+}
+
 ### build/host.d.ts#CommandRecord
 interface CommandRecord {
   readonly file: string;
@@ -1702,6 +1711,7 @@ interface ProgramSpec {
   readonly envFile?: string | undefined;
   readonly after?: readonly string[] | undefined;
   readonly ready?: ReadySpec | undefined;
+  readonly alive?: AliveSpec | undefined;
   readonly restart?: ProgramRestart | null | undefined;
   readonly log?: LogSpec | null | undefined;
   readonly ipc?: boolean | undefined;
@@ -1797,13 +1807,14 @@ interface ServiceSpec {
   readonly cwd?: string | undefined;
   readonly start: ServiceStart;
   readonly restart: RestartPolicy | null;
+  readonly background?: boolean | undefined;
   readonly stateDir: string;
   readonly console?: "hidden" | "visible" | undefined;
   readonly timeLimit?: Quantity | undefined;
 }
 
 ### build/host.d.ts#ServiceStart
-type ServiceStart = "logon" | {
+type ServiceStart = "logon" | "boot" | {
   readonly daily: string;
 };
 

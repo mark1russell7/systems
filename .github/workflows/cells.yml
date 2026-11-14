@@ -98,7 +98,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
+        uses: mark1russell7/template/.github/actions/changes@214dbed7b52dac94c0dce1c170162e75672a556d # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -128,8 +128,8 @@ jobs:
         with:
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -247,8 +247,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -271,13 +271,16 @@ jobs:
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
             echo "image: $ImageOS $ImageVersion"
           } | tee "$RUNNER_TEMP/cells/runner.txt"
+      - name: The conntrack tool
+        uses: ./.github/actions/apt-install
+        with:
+          packages: conntrack
       # The router of a middlebox lists the conntrack table each 50 to 100 ms to evict its expired
       # flows. A listing walks each bucket of the table of the kernel with the softirqs off, and a
       # segment that comes in that walk waits for its end. A runner of 16 GB has 262144 buckets: in
       # the run 39057994070, one reply through the router waited 6.8 ms. The table gets 16384.
       - name: A small conntrack table
         run: |
-          sudo apt-get install -y -qq conntrack >/dev/null
           sudo modprobe nf_conntrack
           # the client of the conntrack cells reads the field drop over ctnetlink
           sudo modprobe nf_conntrack_netlink
@@ -370,7 +373,7 @@ jobs:
         if: steps.needs.outputs.containerlab == 'true'
         run: |
           deb=containerlab_0.82.0_linux_amd64.deb
-          curl -fsSL -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
           echo "770e18f19ef75732eb9f4e362541f509abb2b6eeadde2d5c98140190b19b519a  $RUNNER_TEMP/$deb" | sha256sum -c -
           sudo apt-get install -y -qq "$RUNNER_TEMP/$deb"
           echo "containerlab: $(containerlab version | sed -n 's/^ *version: *//p')" | tee -a "$RUNNER_TEMP/cells/runner.txt"
@@ -423,7 +426,7 @@ jobs:
             fi
           done
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cells-${{ matrix.shard }}
           path: ${{ runner.temp }}/cells/
@@ -442,8 +445,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -457,7 +460,7 @@ jobs:
           SELECTION: ${{ needs.plan.outputs.selection }}
         run: pnpm exec tsx packages/site/scripts/refresh.ts "$SELECTION" "$RUNNER_TEMP/copies" "$RUNNER_TEMP"/records/cells-*
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: refresh
           path: ${{ runner.temp }}/copies/
@@ -472,7 +475,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@214dbed7b52dac94c0dce1c170162e75672a556d # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells export

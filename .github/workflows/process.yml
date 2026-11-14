@@ -42,7 +42,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
+        uses: mark1russell7/template/.github/actions/changes@214dbed7b52dac94c0dce1c170162e75672a556d # main
         with:
           paths: |
             .github/workflows/process.yml
@@ -64,8 +64,8 @@ jobs:
         with:
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -102,6 +102,6 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@4466542421ef76bcb3ccf5b5e1765d4f509f8f4f # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@214dbed7b52dac94c0dce1c170162e75672a556d # main
         with:
           needs: ${{ toJSON(needs) }}

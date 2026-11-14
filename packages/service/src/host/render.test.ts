@@ -80,6 +80,18 @@ describe("serviceProblems", () => {
     expect(serviceProblems({ ...linuxSpec, program: "", stateDir: "" })).toEqual(["the program is empty", "the stateDir is empty"]);
   });
 
+  it("names a boot start that is not in the background, and a visible console in the background", () => {
+    expect(serviceProblems({ ...windowsSpec, start: "boot" })).toEqual([]);
+    expect(serviceProblems({ ...windowsSpec, start: "boot", background: false })).toEqual(["a boot start runs before a logon: give background true, or leave it out"]);
+    expect(serviceProblems({ ...windowsSpec, start: "boot", console: "visible" })).toEqual([
+      "a program in the background has no desktop: give the console hidden, or leave it out",
+    ]);
+    expect(serviceProblems({ ...dailySpec, background: true, console: "visible" })).toEqual([
+      "a program in the background has no desktop: give the console hidden, or leave it out",
+    ]);
+    expect(serviceProblems({ ...windowsSpec, console: "visible", background: false })).toEqual([]);
+  });
+
   it("makes each render throw on a problem", () => {
     const bad = { ...linuxSpec, name: "bad name" };
     expect(() => renderSystemdUnit(bad)).toThrow(/the service spec has problems/);
@@ -146,6 +158,43 @@ describe("renderTaskXml", () => {
     expect(once).toContain("<LogonTrigger>");
     expect(once).not.toContain("<TimeTrigger>");
   });
+
+  it("runs a task at logon only in the session of the user", () => {
+    expect(xml).toContain(`      <UserId>HOST\\test</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>`);
+  });
+
+  it("starts a boot task at boot with an S4U logon, and again each 2 minutes for a wait of 90 s", () => {
+    const boot = renderTaskXml({ ...windowsSpec, start: "boot" }, context);
+    expect(boot).toContain(`  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+    </BootTrigger>
+    <TimeTrigger>
+      <Enabled>true</Enabled>
+      <StartBoundary>2000-01-01T00:00:00</StartBoundary>
+      <Repetition>
+        <Interval>PT2M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+    </TimeTrigger>
+  </Triggers>`);
+    expect(boot).toContain(`      <UserId>HOST\\test</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>`);
+    expect(boot).not.toContain("LogonTrigger");
+    expect(boot).toContain("<Command>Z:\\Windows\\System32\\conhost.exe</Command>");
+    const once = renderTaskXml({ ...windowsSpec, start: "boot", restart: null }, context);
+    expect(once).toContain("<BootTrigger>");
+    expect(once).not.toContain("<TimeTrigger>");
+  });
+
+  it("gives a daily job in the background an S4U logon", () => {
+    const daily = renderTaskXml({ ...dailySpec, program: "Z:\\node.exe", args: [], background: true }, context);
+    expect(daily).toContain("<CalendarTrigger>");
+    expect(daily).toContain("<LogonType>S4U</LogonType>");
+  });
 });
 
 describe("utf16le", () => {
@@ -171,6 +220,11 @@ RestartSec=10
 WantedBy=default.target
 `);
     expect(renderSystemdTimer(linuxSpec)).toBeNull();
+  });
+
+  it("gives a boot start the same unit as a start at logon, and no timer", () => {
+    expect(renderSystemdUnit({ ...linuxSpec, start: "boot" })).toBe(renderSystemdUnit(linuxSpec));
+    expect(renderSystemdTimer({ ...linuxSpec, start: "boot" })).toBeNull();
   });
 
   it("gives a oneshot daily job and its timer", () => {

@@ -72,6 +72,34 @@ describe("units", () => {
     );
   });
 
+  it("measures the electricity of a circuit: amperes, volts, ampere-hours, ohms and the price of energy", () => {
+    expect(kindOf("A")).toBe("current");
+    expect(kindOf("W/V")).toBe("current");
+    expect(kindOf("V")).toBe("voltage");
+    expect(kindOf("W/A")).toBe("voltage");
+    expect(kindOf("V·A")).toBe("power");
+    expect(kindOf("Ah")).toBe("charge");
+    expect(kindOf("ohm")).toBe("resistance");
+    expect(kindOf("V/A")).toBe("resistance");
+    expect(kindOf("USD/kWh")).toBe("energy-price");
+    // a volt times an ampere is a watt, exactly
+    expect(convert(quantity(1, "V·A"), "W").value).toBe(1);
+    expect(convert(quantity(1, "W/V"), "A").value).toBe(1);
+    expect(convert(quantity(1, "V/A"), "ohm").value).toBe(1);
+    expect(convert(quantity(1, "kV"), "V").value).toBe(1000);
+    expect(convert(quantity(250, "mV"), "V").value).toBe(0.25);
+    expect(convert(quantity(1500, "mA"), "A").value).toBe(1.5);
+    expect(convert(quantity(2, "Ah"), "mAh").value).toBe(2000);
+    expect(convert(quantity(1, "Ah"), "A·s").value).toBe(3600);
+    expect(convert(quantity(0.15, "USD/kWh"), "USD/Wh").value).toBe(0.00015);
+    expect(canonicalUnit("amps")).toBe("A");
+    expect(canonicalUnit("Ω")).toBe("ohm");
+    expect(isCanonicalUnit("volts")).toBe(false);
+    // a current is not a charge, and a volt is not a watt
+    expect(whyNotConvertible("A", "Ah")).toMatch(/is a current and Ah is a charge/);
+    expect(whyNotConvertible("V", "W")).toMatch(/is a voltage and W is a power/);
+  });
+
   it("converts only between what counts the same thing", () => {
     expect(whyNotConvertible("bpm", "Hz")).toMatch(/counts beat/);
     expect(whyNotConvertible("{rep}", "count")).toMatch(/counts rep/);
@@ -168,6 +196,11 @@ describe("format", () => {
     expect(format(quantity(8, "mi/h"))).toBe("8 mph");
     expect(format(quantity(4.5, "kcal/(h·kg)"))).toBe("4.5 kcal/(h·kg)");
     expect(format(quantity(250, "us"))).toBe("250 µs");
+    expect(format(quantity(15, "A"))).toBe("15 A");
+    expect(format(quantity(120, "V"))).toBe("120 V");
+    expect(format(quantity(4.7, "ohm"))).toBe("4.7 Ω");
+    expect(format(quantity(0.15, "USD/kWh"))).toBe("$0.15/kWh");
+    expect(format(quantity(0.1234, "USD/kWh"), { digits: 4 })).toBe("$0.1234/kWh");
     expect(format(unbounded("s"))).toBe("∞ s");
     expect(format({ unknown: "not published", unit: "s" })).toBe("unknown: not published");
     expect(format(quantity(2.5, "min"), { signed: true })).toBe("+2.5 min");
