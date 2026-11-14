@@ -537,7 +537,7 @@ importers:
         version: 0.7.5(@opentelemetry/sdk-node@0.223.0(@opentelemetry/api@1.10.0))(vite@8.3.8(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))(zone.js@0.16.3)
       '@mark1russell7/rigor-testkit':
         specifier: ^0.1.2
-        version: 0.1.5(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
+        version: 0.1.6(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
       '@opentelemetry/api':
         specifier: ^1.10.0
         version: 1.10.0
@@ -1547,14 +1547,14 @@ packages:
     resolution: {integrity: sha512-Wh91NJIwxIRN3+a5V2bqUkMhdPcjHI+gVZBCnohf12ZegdSTNqGlpqS2WXYmrRVjasF9EBgm1lC8GQNYpBSg7Q==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-testkit@0.1.5':
-    resolution: {integrity: sha512-9wt6zR8Z1Jez3se1OfaXlg3ZIH8ZmG+n2FDTb0xoYYrhl+3HHtKuMo+XPWPyYLWMiZvtywtVr/uUF/tRidfWcA==}
+  '@mark1russell7/rigor-testkit@0.1.6':
+    resolution: {integrity: sha512-fsAf/iUpxQK6NMAo66RXmgt1OMqlRJ78yBtG+wSPRMkgXf7RrRn2PMhp4GGFHR4C4/3SJrCS8/FJhuKidXtB/Q==}
     engines: {node: '>=22'}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
       '@opentelemetry/api-logs': ^0.213.0 || ^0.223.0
-      '@opentelemetry/sdk-logs': ^0.223.0
-      '@opentelemetry/sdk-metrics': ^2.12.0
+      '@opentelemetry/sdk-logs': ^0.223.0 || ^3.0.0
+      '@opentelemetry/sdk-metrics': ^2.12.0 || ^3.0.0
       '@opentelemetry/sdk-trace-base': ^2.12.0
       fast-check: ^4.0.0
     peerDependenciesMeta:
@@ -5437,7 +5437,7 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.16
 
-  '@mark1russell7/rigor-testkit@0.1.5(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
+  '@mark1russell7/rigor-testkit@0.1.6(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.223.0
