@@ -32,6 +32,7 @@
     ".": "./src/index.ts",
     "./clock": "./src/clock.ts",
     "./replay": "./src/replay.ts",
+    "./run": "./src/run.ts",
     "./schema": "./src/schema.ts",
     "./package.json": "./package.json"
   },
@@ -86,6 +87,10 @@
       "./replay": {
         "types": "./build/replay.d.ts",
         "default": "./build/replay.js"
+      },
+      "./run": {
+        "types": "./build/run.d.ts",
+        "default": "./build/run.js"
       },
       "./schema": {
         "types": "./build/schema.d.ts",
