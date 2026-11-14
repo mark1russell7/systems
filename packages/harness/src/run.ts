@@ -784,12 +784,12 @@ const inEnvironment = async (
   if (cell.cluster !== undefined) return inClusterEnvironment(cell, environment, count, say);
   if (cell.kafka !== undefined) return inKafkaEnvironment(cell, environment, count, say);
   if (cell.pair !== undefined) return inPairEnvironment(cell, environment, count, say);
-  const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
+  // the setup of the target comes before the hops: a hop can connect to the target at its start
+  const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology, cell.targetSetup);
   try {
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
     const settings = await lab.configure(cell.targetSettings ?? {});
     const targetSysctls = await lab.targetSysctl(cell.targetSysctls ?? {});
-    if (cell.targetSetup !== undefined) await lab.setup(cell.targetSetup);
     // netem and a length match act on segments only when TSO, GSO and GRO are off on the two ends,
     // and on the hop that the fault is at
     if (cell.fault === "mtu-blackhole" || cell.fault === "netem") {

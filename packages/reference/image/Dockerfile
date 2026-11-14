@@ -8,5 +8,5 @@ WORKDIR /srv
 COPY image/package.json ./
 COPY image/npm-lock.json ./package-lock.json
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
-COPY src/main.ts src/procedures.ts src/store.ts src/mongo-store.ts ./src/
+COPY src/main.ts src/service.ts src/procedures.ts src/store.ts src/mongo-store.ts ./src/
 CMD ["node", "/srv/src/main.ts"]

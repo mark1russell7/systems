@@ -617,6 +617,9 @@ export const deviceOf = (route: string): string => {
  * - each hop of the topology, on the network of each of its sides. A hop is a router, or a stock
  *   proxy with an injector sidecar in its namespace.
  * - an injector sidecar in the namespace of the target.
+ * - the commands of `setup` in the target, after the target is ready and before the first hop
+ *   starts. A hop can connect to the target at its start, as a service to its replica set. Then it
+ *   sees the target in the state that the cell needs.
  * - the prober, a privileged container that loads the kernel program and watches the namespace of
  *   the client, of the target and of each hop.
  *
@@ -632,6 +635,7 @@ export const openLab = async (
   target: Target,
   kind: Client | ClientImage = "tcp",
   topology?: Topology,
+  setup: ReadonlyArray<readonly string[]> = [],
 ): Promise<Lab> => {
   const image = await harnessImage();
   const { clientImage, command, clientKind, capabilities, source } = await clientOf(kind);
@@ -696,6 +700,8 @@ export const openLab = async (
     ).start();
     opened.push(server);
     const serverIp = await ipOn(server, last);
+    // the target is in the state of the cell before a hop connects to it
+    for (const argv of setup) await output(server, [...argv]);
 
     // the hops, from the target to the client: each proxy gets the address of the endpoint after it
     const middlebox: MiddleboxEvent[] = [];
@@ -779,11 +785,16 @@ export const openLab = async (
         throw new Error(`the hop ${hop.name} did not start: ${error instanceof Error ? error.message : String(error)}. Its last lines:\n${tail.join("\n")}`);
       });
       opened.push(box);
-      await join(box, clientSide);
+      // a hop that stops after its ready line tells why in its last lines
+      const stopped = (error: unknown): never => {
+        throw new Error(`the hop ${hop.name} stopped after it started: ${error instanceof Error ? error.message : String(error)}. Its last lines:\n${tail.join("\n")}`);
+      };
+      await join(box, clientSide).catch(stopped);
       const injector = await new GenericContainer(image)
         .withNetworkMode(`container:${box.getId()}`)
         .withAddedCapabilities("NET_ADMIN", "NET_RAW")
-        .start();
+        .start()
+        .catch(stopped);
       opened.push(injector);
       inChain[at] = {
         hop,

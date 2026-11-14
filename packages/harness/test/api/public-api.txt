@@ -2900,7 +2900,7 @@ export declare const openGroupLab: (group: Group, options?: {
 export declare const openKafkaLab: (kafka: Kafka) => Promise<KafkaLab>;
 
 ### build/index.d.ts#openLab
-export declare const openLab: (target: Target, kind?: Client | ClientImage, topology?: Topology) => Promise<Lab>;
+export declare const openLab: (target: Target, kind?: Client | ClientImage, topology?: Topology, setup?: ReadonlyArray<readonly string[]>) => Promise<Lab>;
 
 ### build/index.d.ts#openReplicaSetLab
 export declare const openReplicaSetLab: (set: ReplicaSet, backups?: boolean) => Promise<ReplicaSetLab>;

@@ -28,6 +28,7 @@ export const REFERENCE_FILES: readonly string[] = [
   "image/package.json",
   "image/npm-lock.json",
   "src/main.ts",
+  "src/service.ts",
   "src/procedures.ts",
   "src/store.ts",
   "src/mongo-store.ts",
