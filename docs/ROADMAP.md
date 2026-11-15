@@ -2326,14 +2326,14 @@ A sender of alerts gives each send a time limit. The `timeout` channel of servic
 
 ### SYS-117 · A scaled clock: speed and start
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-15
+- **Links:** [#537](https://github.com/mark1russell7/systems/pull/537), [algebra 0.8.10 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.8.10), [the release run](https://github.com/mark1russell7/systems/actions/runs/43734543847)
 
-A test of a source of alerts runs 80 minutes of the source in 80 s of real time. A fake clock cannot drive a server, a proxy or a socket, because these wait on real time. The consumer had a local copy of a fast clock. The options `speed` and `start` of `platformClock` and `wallClock` of `@mark1russell7/algebra/clock` give a scaled clock.
+A test of a source of alerts puts 80 minutes of the source into 80 s of real time. A fake clock cannot drive a server, a proxy or a socket, because these wait on real time. The consumer had a local copy of a fast clock. The options `speed` and `start` of `platformClock` and `wallClock` of `@mark1russell7/algebra/clock` give a scaled clock.
 
 - `now()` is the start plus the monotonic time since the call, times the speed. A wall clock gives whole milliseconds.
 - A timer of `ms` waits `ms / speed` real milliseconds. When the platform starts it before its due time on the clock, it waits again for the rest.
