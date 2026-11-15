@@ -1,3 +1,4 @@
+import { delay } from "@mark1russell7/algebra/clock";
 import type { Backoff } from "./backoff.ts";
 import { backoffDelay, backoffProblems } from "./backoff.ts";
 import type { Cancel, Clock } from "./clock.ts";
@@ -126,18 +127,13 @@ export const retry = async <T>(run: (attempt: number) => Promise<T>, options: Re
       const own = delayOf?.(error, attempt);
       // A bad delay (NaN, an infinite or a negative number) gets the backoff, so that it cannot start the tries at once.
       const valid = typeof own === "number" && Number.isFinite(own) && own >= 0;
-      const delay = Math.round(valid ? own : backoffDelay(backoff, attempt, random));
-      await new Promise<void>((resume, stop) => {
-        const abort = (): void => {
-          cancel();
-          stop(error);
-        };
-        const cancel = clock.after(delay, () => {
-          signal?.removeEventListener("abort", abort);
-          resume();
-        });
-        signal?.addEventListener("abort", abort, { once: true });
-      });
+      const wait = Math.round(valid ? own : backoffDelay(backoff, attempt, random));
+      // An abort in the wait ends the call with the last error of the run, not with the reason of the signal.
+      try {
+        await delay(clock, wait, signal);
+      } catch {
+        throw error;
+      }
     }
   }
 };
