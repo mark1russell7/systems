@@ -174,19 +174,20 @@ export interface TakeStep {
  */
 const TOLERANCE = 1e-6;
 
-const isCount = (amount: Quantity | undefined): boolean => amount !== undefined && convertible(amount.unit, "count");
-const isTime = (amount: Quantity | undefined): boolean => amount !== undefined && convertible(amount.unit, "s");
+/** These checks of an amount are internal: the quota module uses them, and the entry does not export them. */
+export const isCount = (amount: Quantity | undefined): boolean => amount !== undefined && convertible(amount.unit, "count");
+export const isTime = (amount: Quantity | undefined): boolean => amount !== undefined && convertible(amount.unit, "s");
 const isRate = (amount: Quantity | undefined): boolean => amount !== undefined && convertible(amount.unit, "count/s");
 /** This function tells if a unit converts, also for a unit that the quantity package does not know. */
-const safely = (test: (amount: Quantity | undefined) => boolean, amount: Quantity | undefined): boolean => {
+export const safely = (test: (amount: Quantity | undefined) => boolean, amount: Quantity | undefined): boolean => {
   try {
     return test(amount);
   } catch {
     return false;
   }
 };
-const finiteAbove = (amount: Quantity): boolean => typeof amount.value === "number" && Number.isFinite(amount.value) && amount.value > 0;
-const wholeCount = (amount: Quantity): boolean => finiteAbove(amount) && Number.isInteger(r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count")));
+export const finiteAbove = (amount: Quantity): boolean => typeof amount.value === "number" && Number.isFinite(amount.value) && amount.value > 0;
+export const wholeCount = (amount: Quantity): boolean => finiteAbove(amount) && Number.isInteger(r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count")));
 
 /** A loose policy is a policy from any source, with each part optional, for the check of its parts. */
 interface LoosePolicy {
@@ -244,9 +245,9 @@ export const limiterProblems = (name: string, spec: Partial<LimiterSpec> | undef
 };
 
 /** This function gives an amount in milliseconds, exactly where the units permit, as one number. */
-const milliseconds = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "ms"));
+export const milliseconds = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "ms"));
 /** This function gives a count as one number. */
-const countOf = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count"));
+export const countOf = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count"));
 
 /**
  * This function gives the rule of a policy in numbers. The interval of a bucket is exact as a

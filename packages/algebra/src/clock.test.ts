@@ -1,9 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
+  type Clock,
   type TimeWindow,
+  type WallClock,
   delay,
   fakeClock,
+  fakeWallClock,
+  firstInstantOf,
   inWindow,
   instantsOf,
   localTime,
@@ -11,6 +15,7 @@ import {
   offsetChanges,
   platformClock,
   realClock,
+  wallClock,
   windowProblems,
 } from "./clock.ts";
 
@@ -101,6 +106,58 @@ describe("the clock of the platform", () => {
   it("reads a monotonic time", () => {
     const first = realClock.now();
     expect(platformClock().now()).toBeGreaterThanOrEqual(first);
+  });
+});
+
+describe("the wall clock", () => {
+  it("reads the instant of Date.now, and starts its timers as the clock of the platform does", async () => {
+    const clock = wallClock({ unref: true });
+    expect(clock.time).toBe("wall");
+    const before = Date.now();
+    const instant = clock.now();
+    expect(instant).toBeGreaterThanOrEqual(before);
+    expect(instant).toBeLessThanOrEqual(Date.now());
+    const runs: string[] = [];
+    const kept = clock.after(0, () => runs.push("kept"));
+    clock.after(0, () => runs.push("stopped"))();
+    expect(typeof kept.unref).toBe("function");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(runs).toEqual(["kept"]);
+  });
+
+  it("keeps a wall clock and a monotonic clock apart in their types", () => {
+    const needsMonotonic = (clock: Clock): number => clock.now();
+    const needsWall = (clock: WallClock): number => clock.now();
+    // @ts-expect-error a wall clock is not a monotonic clock
+    needsMonotonic(wallClock());
+    // @ts-expect-error a monotonic clock is not a wall clock
+    needsWall(realClock);
+    expect(needsWall(fakeWallClock(5))).toBe(5);
+    expect(needsMonotonic(fakeClock(5))).toBe(5);
+  });
+
+  it("steps the instant of a fake wall clock back and forth, and only the monotonic time starts its timers", async () => {
+    const start = Date.UTC(2026, 10, 15, 12);
+    const clock = fakeWallClock(start);
+    const runs: number[] = [];
+    clock.after(1000, () => runs.push(clock.now()));
+    // a step back of one hour moves no timer
+    clock.set(start - 3_600_000);
+    expect(clock.now()).toBe(start - 3_600_000);
+    await clock.advance(999);
+    expect(runs).toEqual([]);
+    expect(clock.pending).toBe(1);
+    await clock.advance(1);
+    expect(runs).toEqual([start - 3_600_000 + 1000]);
+    // a step forward of one day starts no timer either
+    clock.after(10, () => runs.push(-1));
+    clock.set(start + 86_400_000);
+    expect(runs).toHaveLength(1);
+    clock.block(10);
+    expect(clock.now()).toBe(start + 86_400_000 + 10);
+    expect(clock.pending).toBe(1);
+    await clock.advance(0);
+    expect(runs).toEqual([start - 3_600_000 + 1000, -1]);
   });
 });
 
@@ -432,6 +489,59 @@ describe("offsetChanges", () => {
     expect(offsetChanges(0, 24 * HOUR, "Mars/Olympus")).toBeUndefined();
     expect(offsetChanges(Number.NaN, 0, "UTC")).toBeUndefined();
     expect(offsetChanges(0, 1e20, "UTC")).toBeUndefined();
+  });
+});
+
+/** The first instant of the table at which the clock of the zone shows `wall` or a later time. */
+const oracleFirst = (zone: Zone, wall: number): number | undefined => {
+  const [first] = oracleInstants(zone, wall);
+  if (first !== undefined) return first;
+  // a gap: the change to the larger offset whose skipped wall-clock times hold `wall`
+  return ZONES[zone].changes.find((change) => {
+    const before = oracleOffset(zone, change - 1) * MINUTE;
+    const after = oracleOffset(zone, change) * MINUTE;
+    return change + before <= wall && wall < change + after;
+  });
+};
+
+describe("firstInstantOf", () => {
+  it("gives the first instant of the table near each change of 2026, also for a time with milliseconds", () => {
+    let gaps = 0;
+    for (const zone of Object.keys(ZONES) as Zone[]) {
+      for (const change of ZONES[zone].changes) {
+        const near = change + ZONES[zone].standard * MINUTE;
+        for (let wall = near - 3 * HOUR; wall <= near + 3 * HOUR; wall += 10 * MINUTE + 1234) {
+          const expected = oracleFirst(zone, wall);
+          expect(expected, `${zone} ${new Date(wall).toISOString()}`).toBeDefined();
+          expect(firstInstantOf(wall, zone), `${zone} ${new Date(wall).toISOString()}`).toBe(expected);
+          if (oracleInstants(zone, wall).length === 0) gaps += 1;
+        }
+      }
+    }
+    // each zone with summer time has one gap of 60 minutes in 2026, and the steps of 601.234 s find it 6 times
+    expect(gaps).toBe(3 * 6);
+  });
+
+  it("gives the end of a gap, and the first of two instants, in the zones of the providers", () => {
+    const at = (iso: string): number => Date.parse(iso);
+    // Santiago on 2026-09-06: the clock goes from 00:00 to 01:00 at 04:00 UTC, thus the day starts at the end of the gap
+    expect(firstInstantOf(at("2026-09-06T00:00:00Z"), "America/Santiago")).toBe(at("2026-09-06T04:00:00Z"));
+    // Chicago on 2026-03-08: the clock goes from 02:00 to 03:00 at 08:00 UTC
+    expect(firstInstantOf(at("2026-03-08T02:00:00Z"), "America/Chicago")).toBe(at("2026-03-08T08:00:00Z"));
+    expect(firstInstantOf(at("2026-03-08T02:59:59.999Z"), "America/Chicago")).toBe(at("2026-03-08T08:00:00Z"));
+    expect(firstInstantOf(at("2026-03-08T03:00:00Z"), "America/Chicago")).toBe(at("2026-03-08T08:00:00Z"));
+    // Berlin on 2026-10-25: the clock shows 01:00 one time and 02:00 two times, from 00:00 and 01:00 UTC
+    expect(firstInstantOf(at("2026-10-25T01:00:00Z"), "Europe/Berlin")).toBe(at("2026-10-24T23:00:00Z"));
+    expect(firstInstantOf(at("2026-10-25T02:00:00Z"), "Europe/Berlin")).toBe(at("2026-10-25T00:00:00Z"));
+    // Chicago on 2026-11-01: the day starts at 05:00 UTC, and 01:00 occurs from 06:00 and from 07:00 UTC
+    expect(firstInstantOf(at("2026-11-01T00:00:00Z"), "America/Chicago")).toBe(at("2026-11-01T05:00:00Z"));
+    expect(firstInstantOf(at("2026-11-01T01:00:00Z"), "America/Chicago")).toBe(at("2026-11-01T06:00:00Z"));
+  });
+
+  it("gives undefined for a name that is not a time zone, and for a wall-clock time that is not a date", () => {
+    expect(firstInstantOf(0, "Mars/Olympus")).toBeUndefined();
+    expect(firstInstantOf(Number.NaN, "UTC")).toBeUndefined();
+    expect(firstInstantOf(1e20, "UTC")).toBeUndefined();
   });
 });
 

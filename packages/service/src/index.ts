@@ -74,6 +74,32 @@ export type {
   WaitCause,
   WaitRefused,
 } from "./limiter.ts";
+export type {
+  CalendarWindow,
+  KeyedQuota,
+  MemoryQuotaStore,
+  QuotaAllowed,
+  QuotaAnswer,
+  QuotaCapacityRefused,
+  QuotaChange,
+  QuotaEvent,
+  QuotaPart,
+  QuotaReading,
+  QuotaRecord,
+  QuotaRefused,
+  QuotaRule,
+  QuotaSpec,
+  QuotaState,
+  QuotaStep,
+  QuotaStore,
+  QuotaTakeStep,
+  QuotaVerdict,
+  QuotaWaitRefused,
+  QuotaWindow,
+  QuotasVerdict,
+  RollingWindow,
+} from "./limiter.ts";
+export { keyedQuota, memoryQuotaStore, quotaProblems, quotaRule, quotaStep, takeQuotas } from "./limiter.ts";
 export {
   SLIDING_WINDOW_MACHINE,
   TOKEN_BUCKET_MACHINE,

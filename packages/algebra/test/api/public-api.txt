@@ -64,12 +64,16 @@ transitionOn: build/run.chunk.d.ts#transitionOn
 Cancel: build/clock.chunk.d.ts#Cancel
 Clock: build/clock.chunk.d.ts#Clock
 FakeClock: build/clock.chunk.d.ts#FakeClock
+FakeWallClock: build/clock.chunk.d.ts#FakeWallClock
 LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
+WallClock: build/clock.chunk.d.ts#WallClock
 WindowBoundary: build/clock.chunk.d.ts#WindowBoundary
 delay: build/clock.chunk.d.ts#delay
 fakeClock: build/clock.chunk.d.ts#fakeClock
+fakeWallClock: build/clock.chunk.d.ts#fakeWallClock
+firstInstantOf: build/clock.chunk.d.ts#firstInstantOf
 inWindow: build/clock.chunk.d.ts#inWindow
 instantsOf: build/clock.chunk.d.ts#instantsOf
 localTime: build/clock.chunk.d.ts#localTime
@@ -77,6 +81,7 @@ nextBoundary: build/clock.chunk.d.ts#nextBoundary
 offsetChanges: build/clock.chunk.d.ts#offsetChanges
 platformClock: build/clock.chunk.d.ts#platformClock
 realClock: build/clock.chunk.d.ts#realClock
+wallClock: build/clock.chunk.d.ts#wallClock
 windowProblems: build/clock.chunk.d.ts#windowProblems
 
 ## ./replay (build/replay.d.ts): names
@@ -105,6 +110,7 @@ type Cancel = (() => void) & {
 
 ### build/clock.chunk.d.ts#Clock
 interface Clock {
+  readonly time?: "monotonic" | undefined;
   now(): number;
   after(ms: number, run: () => void): Cancel;
 }
@@ -113,6 +119,14 @@ interface Clock {
 interface FakeClock extends Clock {
   advance(ms: number): Promise<void>;
   block(ms: number): void;
+  readonly pending: number;
+}
+
+### build/clock.chunk.d.ts#FakeWallClock
+interface FakeWallClock extends WallClock {
+  advance(ms: number): Promise<void>;
+  block(ms: number): void;
+  set(instant: number): void;
   readonly pending: number;
 }
 
@@ -141,6 +155,13 @@ interface TimeWindow {
   readonly days?: readonly number[] | undefined;
 }
 
+### build/clock.chunk.d.ts#WallClock
+interface WallClock {
+  readonly time: "wall";
+  now(): number;
+  after(ms: number, run: () => void): Cancel;
+}
+
 ### build/clock.chunk.d.ts#WindowBoundary
 interface WindowBoundary {
   readonly at: number;
@@ -152,6 +173,12 @@ declare const delay: (clock: Clock, ms: number, signal?: AbortSignal) => Promise
 
 ### build/clock.chunk.d.ts#fakeClock
 declare const fakeClock: (start?: number) => FakeClock;
+
+### build/clock.chunk.d.ts#fakeWallClock
+declare const fakeWallClock: (start: number) => FakeWallClock;
+
+### build/clock.chunk.d.ts#firstInstantOf
+declare function firstInstantOf(wall: number, zone: string): number | undefined;
 
 ### build/clock.chunk.d.ts#inWindow
 declare function inWindow(instant: number, window: TimeWindow): boolean;
@@ -173,6 +200,9 @@ declare const platformClock: (options?: PlatformClockOptions) => Clock;
 
 ### build/clock.chunk.d.ts#realClock
 declare const realClock: Clock;
+
+### build/clock.chunk.d.ts#wallClock
+declare const wallClock: (options?: PlatformClockOptions) => WallClock;
 
 ### build/clock.chunk.d.ts#windowProblems
 declare function windowProblems(window: TimeWindow): string[];
