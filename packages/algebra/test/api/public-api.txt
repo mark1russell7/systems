@@ -68,10 +68,13 @@ LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
 WindowBoundary: build/clock.chunk.d.ts#WindowBoundary
+delay: build/clock.chunk.d.ts#delay
 fakeClock: build/clock.chunk.d.ts#fakeClock
 inWindow: build/clock.chunk.d.ts#inWindow
+instantsOf: build/clock.chunk.d.ts#instantsOf
 localTime: build/clock.chunk.d.ts#localTime
 nextBoundary: build/clock.chunk.d.ts#nextBoundary
+offsetChanges: build/clock.chunk.d.ts#offsetChanges
 platformClock: build/clock.chunk.d.ts#platformClock
 realClock: build/clock.chunk.d.ts#realClock
 windowProblems: build/clock.chunk.d.ts#windowProblems
@@ -144,17 +147,26 @@ interface WindowBoundary {
   readonly opens: boolean;
 }
 
+### build/clock.chunk.d.ts#delay
+declare const delay: (clock: Clock, ms: number, signal?: AbortSignal) => Promise<void>;
+
 ### build/clock.chunk.d.ts#fakeClock
 declare const fakeClock: (start?: number) => FakeClock;
 
 ### build/clock.chunk.d.ts#inWindow
 declare function inWindow(instant: number, window: TimeWindow): boolean;
 
+### build/clock.chunk.d.ts#instantsOf
+declare function instantsOf(wall: number, zone: string): number[] | undefined;
+
 ### build/clock.chunk.d.ts#localTime
 declare function localTime(instant: number, zone: string): LocalTime | undefined;
 
 ### build/clock.chunk.d.ts#nextBoundary
 declare function nextBoundary(instant: number, window: TimeWindow): WindowBoundary | undefined;
+
+### build/clock.chunk.d.ts#offsetChanges
+declare function offsetChanges(from: number, to: number, zone: string): number[] | undefined;
 
 ### build/clock.chunk.d.ts#platformClock
 declare const platformClock: (options?: PlatformClockOptions) => Clock;
