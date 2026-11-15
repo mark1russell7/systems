@@ -51,6 +51,14 @@ export interface QuotaSpec {
   /** The gate keeps this count of units unused: from 0 to less than the limit. */
   readonly reserve: Quantity;
   readonly window: QuotaWindow;
+  /**
+   * This value is the longest block that a reading of the provider can set: a time above zero, or
+   * `window`. A reading at the instant `t` blocks the key until `t` plus the time at the latest. With
+   * `window`, the block ends at the latest when the bucket of `t` stops counting. Thus a reset of the
+   * provider in a wrong form does not stop a key for much longer than one window. The step also
+   * applies this bound to a block that the stored record keeps. When it is absent, no block has a bound.
+   */
+  readonly maxBlock?: Quantity | "window" | undefined;
 }
 
 /** A quota rule is a spec in numbers: each count as a number, and each time in milliseconds. */
@@ -60,6 +68,8 @@ export interface QuotaRule {
   readonly window:
     | { readonly kind: "rolling"; readonly span: number; readonly buckets: number }
     | { readonly kind: "calendar"; readonly unit: "day" | "month"; readonly zone: string; readonly start: number };
+  /** This value is the longest block in milliseconds, or `window`. When it is absent, no block has a bound. */
+  readonly maxBlock?: number | "window" | undefined;
 }
 
 /**
@@ -235,6 +245,11 @@ export const quotaProblems = (name: string, spec: Partial<QuotaSpec> | undefined
     else if (!atLeastZero(window.start) || !Number.isInteger(milliseconds(window.start)) || milliseconds(window.start) >= DAY_MS)
       problems.push(`${owner}'s start is not a whole count of milliseconds from 0 to less than 24 h`);
   } else problems.push(`${owner}'s window is not rolling or calendar`);
+  const { maxBlock } = spec;
+  if (maxBlock !== undefined && maxBlock !== "window") {
+    if (typeof maxBlock !== "object" || maxBlock === null || !safely(isTime, maxBlock)) problems.push(`${owner}'s maxBlock is not a time or "window"`);
+    else if (!finiteAbove(maxBlock)) problems.push(`${owner}'s maxBlock is not a finite time above zero`);
+  }
   return problems;
 };
 
@@ -242,7 +257,7 @@ export const quotaProblems = (name: string, spec: Partial<QuotaSpec> | undefined
 export const quotaRule = (name: string, spec: QuotaSpec): QuotaRule => {
   const problems = quotaProblems(name, spec);
   if (problems.length > 0) throw new Error(problems.join("; "));
-  const { window } = spec;
+  const { window, maxBlock } = spec;
   return {
     limit: countOf(spec.limit),
     reserve: countOf(spec.reserve),
@@ -250,6 +265,7 @@ export const quotaRule = (name: string, spec: QuotaSpec): QuotaRule => {
       window.kind === "rolling"
         ? { kind: "rolling", span: milliseconds(window.span), buckets: countOf(window.buckets) }
         : { kind: "calendar", unit: window.unit, zone: window.zone, start: milliseconds(window.start) },
+    ...(maxBlock === undefined ? {} : { maxBlock: maxBlock === "window" ? "window" : milliseconds(maxBlock) }),
   };
 };
 
@@ -342,6 +358,19 @@ const prune = (buckets: Buckets, record: QuotaRecord, t: number): QuotaRecord =>
   };
 };
 
+/**
+ * This function applies the bound of the rule to the block of a record at the instant `t`. The
+ * block ends at `t` plus the longest block at the latest. With `window`, it ends at the latest when
+ * the bucket of `t` stops counting. The bound is after `t`, thus a capped block stays a block.
+ */
+const capBlock = (rule: QuotaRule, buckets: Buckets, record: QuotaRecord, t: number): QuotaRecord => {
+  const { maxBlock } = rule;
+  const { blockedUntil } = record;
+  if (maxBlock === undefined || blockedUntil === undefined) return record;
+  const bound = maxBlock === "window" ? buckets.freeAt(buckets.bucket(t)[0]) : t + maxBlock;
+  return blockedUntil > bound ? { ...record, blockedUntil: bound } : record;
+};
+
 const usedOf = (record: QuotaRecord): number => record.spent.reduce((sum, [, units]) => sum + units, 0);
 
 /** This function adds units to the bucket of the instant `t`. */
@@ -406,6 +435,8 @@ const checkEvent = (event: QuotaEvent): void => {
  *   is the end of that refusal, or a later instant when the window has room for the units.
  * - A take over the room of the window is refused with the cause `limit`, until enough of the
  *   oldest units stop counting.
+ * - With `maxBlock` in the rule, a block ends at the latest at the bound of the instant. The step
+ *   applies the bound to the stored block before the event, and to the block of a note after it.
  *
  * It throws a `RangeError` for an instant that is not a date, and for units that are not a finite
  * count of 0 or more.
@@ -416,7 +447,8 @@ export function quotaStep(rule: QuotaRule, stored: unknown, instant: number, eve
   if (!isInstant(instant)) throw new RangeError(`the instant of a quota step is not a date: ${String(instant)}`);
   checkEvent(event);
   const buckets = bucketsOf(rule.window);
-  const record = prune(buckets, recordOf(stored), instant);
+  // the bound of the rule applies to the stored block before the event, thus the step writes back the capped record
+  const record = capBlock(rule, buckets, prune(buckets, recordOf(stored), instant), instant);
   const done = (next: QuotaRecord): QuotaStep => ({ record: next, state: stateOf(rule, buckets, next, instant) });
   switch (event.type) {
     case "read":
@@ -431,7 +463,7 @@ export function quotaStep(rule: QuotaRule, stored: unknown, instant: number, eve
       }
       const exhausted = remaining === undefined || remaining <= 0;
       if (exhausted && isInstant(resetAt) && resetAt > instant)
-        next = { ...next, blockedUntil: Math.max(next.blockedUntil ?? resetAt, resetAt) };
+        next = capBlock(rule, buckets, { ...next, blockedUntil: Math.max(next.blockedUntil ?? resetAt, resetAt) }, instant);
       return done(next);
     }
     case "give-back": {
@@ -587,7 +619,7 @@ export function keyedQuota<Sync extends boolean>(
     });
   const verdictOf = (step: QuotaStep): QuotaVerdict => step.verdict as QuotaVerdict;
   const stateOfStep = (step: QuotaStep): QuotaState => step.state;
-  const { window } = spec;
+  const { window, maxBlock } = spec;
   return {
     name,
     spec: {
@@ -597,6 +629,7 @@ export function keyedQuota<Sync extends boolean>(
         window.kind === "rolling"
           ? { kind: "rolling", span: { ...window.span }, buckets: { ...window.buckets } }
           : { kind: "calendar", unit: window.unit, zone: window.zone, start: { ...window.start } },
+      ...(maxBlock === undefined ? {} : { maxBlock: maxBlock === "window" ? "window" : { ...maxBlock } }),
     },
     rule,
     sync: store.sync,
@@ -607,9 +640,13 @@ export function keyedQuota<Sync extends boolean>(
   };
 }
 
-/** A quota part is one take of a multi-quota take: a quota, a key, and the units of the take. */
+/**
+ * A quota part is one take of a multi-quota take: a quota, a key, and the units of the take. The
+ * quota needs only `sync`, `take` and `giveBack`. Thus a gate of your own with these members can be
+ * a part, and a `KeyedQuota` is one.
+ */
 export interface QuotaPart<Sync extends boolean = boolean> {
-  readonly quota: KeyedQuota<Sync>;
+  readonly quota: Pick<KeyedQuota<Sync>, "sync" | "take" | "giveBack">;
   readonly key: string;
   readonly units: number;
 }
