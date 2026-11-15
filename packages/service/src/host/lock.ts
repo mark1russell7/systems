@@ -1,3 +1,4 @@
+import { delay } from "@mark1russell7/algebra/clock";
 import type { HostPorts, ProcessMark } from "./ports.ts";
 import { sameProcess } from "./processes.ts";
 
@@ -79,8 +80,6 @@ export const lockText = (owner: LockOwner): string => `${JSON.stringify(owner)}\
 const ownerAlive = async (owner: LockOwner, ports: HostPorts): Promise<boolean> =>
   (await sameProcess(owner, ports)) || (owner.child !== undefined && (await sameProcess(owner.child, ports)));
 
-const sleep = (ports: HostPorts, ms: number): Promise<void> => new Promise((resolve) => ports.clock.after(ms, resolve));
-
 /**
  * This function removes a file only when it has this text: a lock file or a discovery file. The
  * removal holds the removal lock `<path>.rm` for its read and its delete. Thus two processes that find
@@ -145,7 +144,7 @@ export const acquireInstanceLock = async (path: string, ports: HostPorts, option
       if (other === null) {
         malformed += 1;
         if (malformed < tries) {
-          await sleep(ports, pause);
+          await delay(ports.clock, pause);
           continue;
         }
         if (await removeIfSame(path, found, ports)) recovered = "the lock file was not a lock record";
