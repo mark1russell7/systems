@@ -75,7 +75,10 @@ const CONFIRM_MS = 10_000;
  */
 export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack" | "silence";
 
-/** These are the options of a network fault: its direction, its protocol, the code of a reject, the length of an MTU drop. */
+/**
+ * These are the options of a network fault: its direction and its protocol. A reject takes a code,
+ * an MTU drop a length, and a reset its handshake.
+ */
 export interface FaultOptions {
   /**
    * This direction is relative to the namespace of the rule: `in` acts on what comes from the peer,
@@ -91,6 +94,11 @@ export interface FaultOptions {
   readonly code?: "host" | "net" | "port" | "admin";
   /** This length is the longest segment in bytes that an MTU drop lets through. */
   readonly above?: number;
+  /**
+   * This value lets each SYN of a reset pass. The connect then succeeds, and the next segment of
+   * the peer gets the reset. Without it, the SYN also gets the reset.
+   */
+  readonly handshake?: "pass";
   /** These are the addresses that the rule faces, in place of the peer of its place. */
   readonly peers?: readonly string[];
 }
@@ -101,6 +109,7 @@ export const optionArgs = (options: FaultOptions): string[] => [
   ...(options.protocol === undefined ? [] : ["--protocol", options.protocol]),
   ...(options.code === undefined ? [] : ["--code", options.code]),
   ...(options.above === undefined ? [] : ["--above", String(options.above)]),
+  ...(options.handshake === undefined ? [] : ["--handshake", options.handshake]),
 ];
 
 /** These are the actions of the injector that lift each network fault. */

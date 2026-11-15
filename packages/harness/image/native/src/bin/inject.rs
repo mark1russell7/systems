@@ -11,9 +11,11 @@
 //! - `blackhole PEER [--direction both|in|out] [--protocol tcp|udp|icmp|all]` / `clear PEER […]`:
 //!   the peer's packets drop, in both directions or one, of each protocol or of one. `in` drops
 //!   what comes from the peer, `out` what goes to it: a simplex partition.
-//! - `rst PEER` / `clear-rst PEER`: the peer's next segment is answered with a reset, so its next
-//!   send fails at once. A REJECT resets only the sender of the matched segment: the target's
-//!   process never hears of it.
+//! - `rst PEER [--handshake pass]` / `clear-rst PEER […]`: the peer's next segment is answered with
+//!   a reset, so its next send fails at once. A REJECT resets only the sender of the matched
+//!   segment: the target's process never hears of it. With `--handshake pass` a SYN passes
+//!   (`! --syn`), so a connect succeeds and the first segment after the SYN gets the reset: the
+//!   last ACK of the handshake, or the first data.
 //! - `reject PEER --code host|net|port|admin [--direction in|out|both] [--protocol …]` /
 //!   `clear-reject PEER --code …`: each segment from the peer is answered with that ICMP
 //!   unreachable. On an established socket Linux keeps it as a soft error (tcp_v4_err) and goes on
@@ -123,7 +125,7 @@ fn commit(body: &str, at: Option<u64>) -> Result<(u64, u64), Box<dyn Error>> {
 }
 
 /// The options after the positional arguments: `--at NS`, `--direction D`, `--protocol P`,
-/// `--code C`, `--above N`, `--via DEV`.
+/// `--code C`, `--above N`, `--handshake pass`, `--via DEV`.
 #[derive(Default)]
 struct Options {
     at: Option<u64>,
@@ -131,7 +133,17 @@ struct Options {
     protocol: Option<String>,
     code: Option<String>,
     above: Option<u32>,
+    handshake: Option<String>,
     via: Option<String>,
+}
+
+/// The match of the handshake in a reset: nothing, or ` ! --syn` when the SYN passes.
+fn handshake_match(handshake: Option<&str>) -> Result<&'static str, Box<dyn Error>> {
+    Ok(match handshake {
+        None => "",
+        Some("pass") => " ! --syn",
+        Some(other) => return Err(format!("unknown handshake {other}: say pass").into()),
+    })
 }
 
 /// The match of a protocol in a rule: ` -p tcp`, ` -p udp`, ` -p icmp`, or nothing for `all`.
@@ -167,6 +179,7 @@ fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
             "--protocol" => out.protocol = Some(protocol_match(value).map(|_| value.clone())?),
             "--code" => out.code = Some(value.clone()),
             "--above" => out.above = Some(value.parse()?),
+            "--handshake" => out.handshake = Some(handshake_match(Some(value.as_str())).map(|_| value.clone())?),
             "--via" => out.via = Some(device(value)?.to_string()),
             other => return Err(format!("unknown option {other}").into()),
         }
@@ -187,6 +200,9 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
     if opts.protocol.is_some() && !matches!(action, "blackhole" | "clear" | "reject" | "clear-reject") {
         return Err(format!("--protocol acts on a blackhole or a reject, not on {action}").into());
     }
+    if opts.handshake.is_some() && !matches!(action, "rst" | "clear-rst") {
+        return Err(format!("--handshake acts on a rst, not on {action}").into());
+    }
     Ok(match action {
         // by default, each protocol in both directions
         "blackhole" | "clear" => {
@@ -198,9 +214,12 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
                 format!("{op} {to}{p} -j DROP\n"),
             )?
         }
+        // with the handshake that passes, a SYN goes through and the reset answers the segment
+        // after it: the connect succeeds, and the first exchange on it fails
         "rst" | "clear-rst" => {
             let op = op("rst");
-            format!("{op} {from} -p tcp -j REJECT --reject-with tcp-reset\n")
+            let syn = handshake_match(opts.handshake.as_deref())?;
+            format!("{op} {from} -p tcp{syn} -j REJECT --reject-with tcp-reset\n")
         }
         // by default, TCP from the peer. `out` at a router answers what it forwards to the peer, as
         // a router whose next hop is down answers
@@ -748,6 +767,34 @@ mod tests {
         let tcp = Options { protocol: Some("tcp".into()), above: Some(1200), ..Options::default() };
         for action in ["rst", "clear-rst", "mtu", "fin-ack"] {
             assert!(rules(action, peer, &tcp).is_err(), "{action}");
+        }
+    }
+
+    #[test]
+    fn a_reset_after_the_handshake_lets_each_syn_pass() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let pass = Options { handshake: Some("pass".into()), ..Options::default() };
+        // without the option, the rule is the one from before: the SYN gets the reset too
+        assert_eq!(
+            rules("rst", peer, &Options::default()).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p tcp -j REJECT --reject-with tcp-reset\n"
+        );
+        assert_eq!(
+            rules("rst", peer, &pass).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p tcp ! --syn -j REJECT --reject-with tcp-reset\n"
+        );
+        assert_eq!(rules("clear-rst", peer, &pass).unwrap(), rules("rst", peer, &pass).unwrap().replace("-I ", "-D "));
+        let via = Options { handshake: Some("pass".into()), via: Some("eth0".into()), ..Options::default() };
+        assert_eq!(
+            rules("rst", peer, &via).unwrap(),
+            "-I FORWARD -i eth0 -s 10.0.0.2/32 -p tcp ! --syn -j REJECT --reject-with tcp-reset\n"
+        );
+        // the one value is pass, and only a reset takes it
+        assert!(options(&["--handshake".into(), "drop".into()]).is_err());
+        assert_eq!(options(&["--handshake".into(), "pass".into()]).unwrap().handshake.as_deref(), Some("pass"));
+        let host = Options { handshake: Some("pass".into()), code: Some("host".into()), above: Some(1200), ..Options::default() };
+        for action in ["blackhole", "clear", "reject", "mtu", "fin-ack"] {
+            assert!(rules(action, peer, &host).is_err(), "{action}");
         }
     }
 

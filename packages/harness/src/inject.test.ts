@@ -60,4 +60,10 @@ describe("the arguments of the injector for a network fault", () => {
     ]);
     expect(faultArgs("reject", toward, "10.0.1.3", ["--via", "eth1"], host, true)[1]).toBe("clear-reject");
   });
+
+  it("lets the handshake of a reset pass, at an end and at a router", () => {
+    expect(optionArgs({ handshake: "pass" })).toEqual(["--handshake", "pass"]);
+    expect(faultArgs("rst", "target", PEER, [], { handshake: "pass" })).toEqual([INJECT, "rst", PEER, "--handshake", "pass"]);
+    expect(faultArgs("rst", GW, PEER, VIA, { handshake: "pass" }, true)).toEqual([INJECT, "clear-rst", PEER, "--handshake", "pass", ...VIA]);
+  });
 });
