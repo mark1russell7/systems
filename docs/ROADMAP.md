@@ -3528,7 +3528,7 @@ The state-machine package publishes as `@mark1russell7/algebra`, and that name c
 - **Depends on:** conventions `0.41.13` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
 - **Started:** 2026-11-15
 - **Shipped:**
-- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538)
+- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538), [part 1, #539](https://github.com/mark1russell7/systems/pull/539)
 
 On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependencies merged first, and the release published its `0.8.18`. Then #535 merged with the same version and other files. The two version lines had the same text, thus the merge had no conflict. The release check of #535 operated before `0.8.18` was on npm. Thus the pack step of `main` stopped, and #538 set `0.8.19`.
 
