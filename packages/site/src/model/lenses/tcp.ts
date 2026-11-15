@@ -33,7 +33,7 @@ export const TCP_NAMES: Readonly<Record<string, string>> = {
 /** The S1 cells of the harness, by the settings that each one has. Each cell operates on Linux 6.6 at HZ 250, with no deadline of a program. */
 const HARNESS = harness.cells;
 const cellOf = (name: string) => HARNESS.find((cell) => cell.name === name);
-const medianOf = (name: string): string => {
+const measuredOf = (name: string): string => {
   const cell = cellOf(name);
   const median = cell?.verdict.median ?? null;
   return median === null ? `silent in ${cell?.verdict.counted ?? 0} runs` : `${say(s(median))} (median of ${cell?.verdict.counted ?? 0} runs)`;
@@ -62,7 +62,7 @@ const tcpMeasured = (settings: Settings, computed: { band: Band | null; recovery
     const computedText = band === null ? "no TCP timer fires" : `${sayBand(band)}${from === undefined ? "" : `, ${from}`}`;
     const median = cell.verdict.median;
     const at = median === null ? null : add(s(median), frame === "first-retransmission" ? firstRetransmission(settings) : ZERO);
-    out.push({ cell: name, measured: medianOf(name), computed: computedText, href, at });
+    out.push({ cell: name, measured: measuredOf(name), computed: computedText, href, at });
   };
   if (settings.fault === "blackhole" && !settings.inFlight && scaledKeepalive(settings)) show("Q1 idle, black hole", CELLS_PAGE, computed.band);
   if (settings.fault === "blackhole" && settings.inFlight && settings.hz === 250 && (settings.retries2 === 3 || settings.retries2 === 5)) {

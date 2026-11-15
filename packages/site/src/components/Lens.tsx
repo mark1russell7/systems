@@ -1,8 +1,8 @@
 /**
- * The parts of each page of lenses (`../model/lens.ts`): one timeline of lanes, the marks on a lane, the
- * player that moves a cursor through the time, the card of a lane, the legend and the table of events.
- * Each part takes lanes and the names of each lane, thus a page of one lens and a page of many lenses
- * use the same parts.
+ * This module has the parts of each page of lenses (`../model/lens.ts`). The parts are one timeline of
+ * lanes, the marks on a lane and the card of a lane. A player moves a cursor through the time, and a
+ * legend and a table of events explain the marks. Each part takes lanes and the names of each lane.
+ * Thus a page of one lens and a page of many lenses use the same parts.
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef, type ReactElement, type ReactNode } from "react";
 import { quantity, valueIn, type Quantity } from "@mark1russell7/quantity";

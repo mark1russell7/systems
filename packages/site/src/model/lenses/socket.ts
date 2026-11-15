@@ -1,5 +1,5 @@
 /**
- * The lens of the socket: the write returns at once, and the error of TCP arrives at the next read. The
+ * The lens of the socket: the write ends at once, and the error of TCP arrives at the next read. The
  * socket shows what TCP below it decides, thus the lens reads the model of the TCP lens.
  */
 import { errnoOf } from "@mark1russell7/algebra";
