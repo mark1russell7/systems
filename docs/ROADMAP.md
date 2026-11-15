@@ -2285,12 +2285,12 @@ A heartbeat from a program tells only that the program sends. A consumer needs a
 
 ### SYS-115 · The quota of a key: a calendar window and a rolling window
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-15
+- **Links:** [#527](https://github.com/mark1russell7/systems/pull/527), [#530](https://github.com/mark1russell7/systems/pull/530), [service 0.8.17 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.17), [algebra 0.8.9 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.8.9), [the release run of 0.8.17](https://github.com/mark1russell7/systems/actions/runs/43720488187)
 
 An API provider gives a quota: a limit in each day or month of a time zone, or in each rolling span. Before this item, polite-crawler counted these windows in its own code. The count of a window is a limiter, thus its home is `@mark1russell7/service/limiter`. Its civil time comes from `@mark1russell7/algebra/clock`.
 
@@ -2302,15 +2302,19 @@ An API provider gives a quota: a limit in each day or month of a time zone, or i
 - The test of the rolling window: a seeded walk against the true count of each window.
 - **A failed give-back.** In service `0.8.15`, a failed give-back of a refused take threw the error of the store. The refusal was lost, and the next parts kept their units. In service `0.8.17`, a failed give-back keeps the verdict, and the other give-backs still occur. The units of its part stay counted, thus its quota refuses sooner, not later. The new option `onGiveBackError` gets each error after the last give-back. This is a PATCH: a fix and an optional parameter before 1.0.
 - **The cases of polite-crawler.** The tests of `quota.test.ts` at 56207b9 in polite-crawler give the cases of a list of gates and of a give-back. Service holds each case that applies to it, and the five new tests fail on the code of `0.8.15`. Two do not apply: service reads no HTTP header, and it has no `read` callback for each gate.
+- **The longest block.** In service `0.8.17`, a reset of the provider in a wrong form blocked a key with no bound. In service `0.8.19`, the optional `maxBlock` of a spec (a time, or `window`) caps each block in `quotaStep`. The step caps the stored block before the event and the block of a note after it, and the store keeps the capped record.
+- **A gate of your own.** In service `0.8.19`, a part of `takeQuotas` needs only `sync`, `take` and `giveBack`, thus a gate of your own can be a part. The tests port the three cases of the bound in polite-crawler 0.7.0. This is a PATCH: an optional field and a wider parameter before 1.0. The version is `0.8.19`, because an update of the dependencies took `0.8.18` first.
+
+The page [the quota lab](https://mark1russell7.github.io/systems/lab/quota/) of the site ([#532](https://github.com/mark1russell7/systems/pull/532)) shows each window on the clock of its zone. A reader takes units, gives units back and moves the clock. Each count comes from `quotaStep`.
 
 ### SYS-116 · A time limit on one work: within
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-115
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-15
+- **Links:** [#528](https://github.com/mark1russell7/systems/pull/528), [service 0.8.16 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.16), [the release run](https://github.com/mark1russell7/systems/actions/runs/43718969667)
 
 A sender of alerts gives each send a time limit. The `timeout` channel of service is a time limit for `select`, but its timer stays after the work ends. The new function `within(work, ms, clock)` of `@mark1russell7/service/channel` gives a result and does not reject.
 

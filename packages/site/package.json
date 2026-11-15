@@ -33,6 +33,7 @@
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/rigor-bench": "^0.2.3",
     "@mark1russell7/rigor-statistics": "^0.2.1",
+    "@mark1russell7/service": "workspace:^",
     "astro": "^7.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

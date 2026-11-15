@@ -478,6 +478,25 @@ const decision = await limiter.take(tenantOf(req));
 if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-After from 1 to 60
 ```
 
+### The quota of a key
+
+A quota is the limit of a provider of an API: at most `limit` units in each window. The window is a calendar window or a rolling window. The gate refuses a take over it before the provider does.
+
+| Export | Function |
+| --- | --- |
+| `keyedQuota(name, spec, store, clock)` | The runtime of a quota on a store and a wall clock: `take`, `note`, `giveBack` and `state` for each key |
+| `quotaStep(rule, stored, instant, event)` | The pure step of one key, for a store of your own |
+| `quotaRule(name, spec)`, `quotaProblems(name, spec)` | The spec in numbers, and the problems of a spec that `keyedQuota` refuses |
+| `memoryQuotaStore()` | The store of one process |
+| `takeQuotas(parts, options?)` | A take of several quotas, all or none |
+
+- **No defaults.** A spec has a limit, a reserve and a window. A rolling window has a span and a count of buckets. A calendar window has a unit (`day` or `month`), a time zone and a time of day that starts it.
+- **A reading of the provider.** `note(key, reading)` adds what an answer of the provider tells. The count can only become larger. A reset with no units left blocks the key until the reset.
+- **The longest block.** `maxBlock` in the spec is a time above zero, or `window`. A reading at the instant `t` blocks the key until `t` plus that time at the latest. With `window`, the block ends at the latest when the bucket of `t` stops counting.
+- **Why a bound.** A provider can give a reset in a wrong form, for example milliseconds in a header of seconds. Without a bound, such a reset stops the key for hours or for centuries.
+- **The step applies the bound.** `quotaStep` caps the block of the stored record before each event, and the block of a note after it. The store keeps the capped record. When `maxBlock` is absent, no block has a bound.
+- **A gate of your own.** A part of `takeQuotas` needs only `sync`, `take` and `giveBack`. Thus a gate of your own with these members can be a part, next to a `KeyedQuota`.
+
 ## The HTTP edge
 
 `@mark1russell7/service/http` is the edge of a service in Node. Of the modules of Node, it imports only `node:http` and `node:net`. The root of the package does not import it. It is not a framework: it has no routing language, no body parser and no middleware.
