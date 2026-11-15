@@ -497,6 +497,31 @@ export const endpointAfter = (hops: readonly Pick<Hop, "kind">[], element: numbe
   return at;
 };
 
+/**
+ * This function gives the run topology of a chain of hops, or null for a direct pair. Each hop gets
+ * its namespace, its peer on each side and its own address on each side.
+ */
+export const runTopologyOf = (
+  targetPeer: string,
+  hops: ReadonlyArray<{
+    readonly hop: Pick<Hop, "name">;
+    readonly netns: number;
+    readonly peer: { readonly client: string; readonly target: string };
+    readonly ip: { readonly client: string; readonly target: string };
+  }>,
+): RunTopology | null =>
+  hops.length === 0
+    ? null
+    : {
+        targetPeer,
+        hops: Object.fromEntries(
+          hops.map((hop) => [
+            hop.hop.name,
+            { netns: hop.netns, client: hop.peer.client, target: hop.peer.target, address: { client: hop.ip.client, target: hop.ip.target } },
+          ]),
+        ),
+      };
+
 // each container here is a holder, a probe or the prober: nothing drains, thus the stop is immediate
 export const STOP = { timeout: 0 };
 
@@ -891,15 +916,7 @@ export const openLab = async (
     const targetIp = fabric !== undefined ? FABRIC_TARGET : first === hops.length + 1 ? serverIp : inChain[first - 1]!.ip.client;
     const targetPort = first === hops.length + 1 ? target.port : (inChain[first - 1]!.hop as ProxyHop).port;
     const targetPeer = inChain.length === 0 ? clientIp : inChain.at(-1)!.ip.target;
-    const placed: RunTopology | null =
-      inChain.length === 0
-        ? null
-        : {
-            targetPeer,
-            hops: Object.fromEntries(
-              inChain.map((hop) => [hop.hop.name, { netns: hop.netns, client: hop.peer.client, target: hop.peer.target }]),
-            ),
-          };
+    const placed = runTopologyOf(targetPeer, inChain);
     const paused = runtime.container.getById(server.getId());
     let targetAdmin: StartedTestContainer | undefined;
     let signaller: StartedTestContainer | undefined;
