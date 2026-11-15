@@ -69,7 +69,7 @@ describe("the ladder of recovery", () => {
 
   it("holds each rung with clean drills", () => {
     const verdict = recoveryVerdict(recordsOf(), AT);
-    expect(verdict.rungs.map((rung) => rung.outcome)).toEqual(["within", "within", "within"]);
+    expect(verdict.rungs.map((rung) => rung.outcome)).toEqual(["within", "within", "within", "within"]);
     expect(verdict.held).toBe("1000");
     expect(verdict.failed).toBe(false);
   });
@@ -77,6 +77,12 @@ describe("the ladder of recovery", () => {
   it("adds the interval of the rung to the excess of a drill", () => {
     const [record] = recordsOf();
     expect(record?.evidence.find((each) => each.measure === RPO)).toMatchObject({ kind: "worst", values: [82_800.1, 82_800.1, 82_800.1, 82_800.1] });
+    expect(recordsOf().map((each) => [each.rung, each.evidence.find((one) => one.measure === RPO)?.values[0]])).toEqual([
+      ["1", 82_800.1],
+      ["10", 3_300.1],
+      ["100", 240.1],
+      ["1000", 45.1],
+    ]);
   });
 
   it("stops at the first rung with a broken rule", () => {
@@ -105,10 +111,10 @@ describe("the ladder of recovery", () => {
   });
 
   it("locks each rung, thus a missing record fails it too", () => {
-    expect(RECOVERY_LADDER.rungs.map((rung) => rung.locked)).toEqual([true, true, true]);
+    expect(RECOVERY_LADDER.rungs.map((rung) => rung.locked)).toEqual([true, true, true, true]);
     const [first, second] = recordsOf();
     const verdict = recoveryVerdict([first!, second!], AT);
-    expect(verdict.held).toBe("100");
+    expect(verdict.held).toBe("10");
     expect(verdict.failed).toBe(true);
   });
 
@@ -148,7 +154,10 @@ describe("the ladder of recovery", () => {
   });
 
   it("states what is real and what is made up", () => {
-    const [low, high] = recordsOf();
+    const records = recordsOf();
+    const low = records.find((each) => each.rung === "1");
+    const high = records.find((each) => each.rung === "1000");
+    expect(records.find((each) => each.rung === "10")?.real.join(" ")).toContain("mongodump of 10 MB");
     expect(low?.real.join(" ")).toContain("mongorestore");
     expect(high?.real.join(" ")).toContain("slices of the oplog");
     expect(low?.synthetic.join(" ")).toContain("no detection time and no human time");
@@ -158,7 +167,16 @@ describe("the ladder of recovery", () => {
 describe("the drills", () => {
   it("are in the catalog, with a name of their own", () => {
     for (const cell of RECOVERY_CELLS) expect(ALL).toContain(cell);
-    expect(RECOVERY_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual(["RD.1", "RD.100.failover", "RD.100.restore", "RD.1000.failover", "RD.1000.restore", "RD.control"]);
+    expect(RECOVERY_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual([
+      "RD.1",
+      "RD.10.control",
+      "RD.10.restore",
+      "RD.100.failover",
+      "RD.100.restore",
+      "RD.1000.failover",
+      "RD.1000.restore",
+      "RD.control",
+    ]);
   });
 
   it("starts an election above the election timeout less a heartbeat, and it gives a restore a tenth of its budget", () => {
@@ -174,10 +192,16 @@ describe("the drills", () => {
     if (one.detects !== true) throw new Error("a detection");
     expect(valueIn(one.high, "s")).toBe(1440);
     expect(one.group?.lost).toEqual({ low: 1, high: 1202 });
+    const ten = named("RD.10.restore").prediction;
+    if (ten.detects !== true) throw new Error("a detection");
+    expect(valueIn(ten.high, "s")).toBe(360);
+    expect(ten.group?.lost).toEqual({ low: 1, high: 1202 });
   });
 
-  it("has three sizes, thus a time reads against the size", () => {
-    expect(RECOVERY_RUNGS.map((rung) => rung.tenants)).toEqual([1, 100, 1000]);
+  it("has a size for each rung, thus a time reads against the size", () => {
+    expect(RECOVERY_RUNGS.map((rung) => rung.tenants)).toEqual([1, 10, 100, 1000]);
+    expect(named("RD.10.restore").drill).toMatchObject({ tenants: 10, slices: 0, recovery: "restore" });
+    expect(named("RD.10.restore").replicaSet?.members).toHaveLength(1);
     expect(named("RD.1000.restore").drill?.tenants).toBe(1000);
     expect(named("RD.1000.failover").drill?.recovery).toBe("election");
   });
@@ -201,6 +225,7 @@ describe("the drills", () => {
 
   it("stops the writes of a control before its backup ends", () => {
     expect(named("RD.control").drill).toMatchObject({ quiet: true, recovery: "restore" });
-    expect(RECOVERY_CELLS.filter((cell) => cell.drill?.quiet === true)).toHaveLength(1);
+    expect(named("RD.10.control").drill).toMatchObject({ tenants: 10, quiet: true, recovery: "restore" });
+    expect(RECOVERY_CELLS.filter((cell) => cell.drill?.quiet === true).map((cell) => cell.name.split(" ")[0])).toEqual(["RD.10.control", "RD.control"]);
   });
 });
