@@ -196,6 +196,73 @@ export const timeout = (ms: number, clock: Clock = realClock): Channel<void> => 
   return ch;
 };
 
+/**
+ * This error is the reason of the signal of a work that `within` stopped at its time limit. A
+ * caller tells it from a failure of the work with `instanceof`.
+ */
+export class LateError extends Error {
+  override readonly name = "LateError";
+}
+
+/**
+ * The result of `within`: the value of the work, an end at the time limit, or the failure of the
+ * work. The field `late` tells the two failures apart.
+ */
+export type Within<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly late: true }
+  | { readonly ok: false; readonly late: false; readonly error: unknown };
+
+/** A work for `within`: a promise, or a function that gets the signal of the time limit. */
+export type WithinWork<T> = PromiseLike<T> | ((signal: AbortSignal) => PromiseLike<T> | T);
+
+/**
+ * This function gives the result of `work` when the work ends within `ms` milliseconds of `clock`.
+ * Else it gives `{ ok: false, late: true }` at the time limit, and it aborts the signal of the work
+ * with a `LateError`. The promise does not reject: a failure of the work is a result.
+ *
+ * The work starts before the timer. Thus a work whose own timer on `clock` ends at the time limit
+ * is in time. The end of the work stops the timer, so a finished work keeps no timer. A function
+ * that throws starts no timer. A failure of the work after the time limit is caught and dropped.
+ * Give the work as a function to get the signal: a promise that started before the call cannot get it.
+ *
+ * @example
+ * const result = await within((signal) => fetch(url, { signal }), 5000, clock);
+ * if (result.ok) use(result.value);
+ * else if (result.late) report("late");
+ * else report(result.error);
+ */
+export const within = <T>(work: WithinWork<T>, ms: number, clock: Clock = realClock): Promise<Within<T>> => {
+  if (!(Number.isFinite(ms) && ms >= 0)) throw new RangeError(`The time limit of within is a finite number of 0 or more, not ${ms}`);
+  const controller = new AbortController();
+  let started: PromiseLike<T> | T;
+  try {
+    started = typeof work === "function" ? work(controller.signal) : work;
+  } catch (error) {
+    return Promise.resolve({ ok: false, late: false, error });
+  }
+  return new Promise<Within<T>>((resolve) => {
+    let done = false;
+    const cancel = clock.after(ms, () => {
+      if (done) return;
+      done = true;
+      resolve({ ok: false, late: true });
+      controller.abort(new LateError(`The work did not end within ${ms} ms`));
+    });
+    const end = (result: Within<T>): void => {
+      if (done) return;
+      done = true;
+      cancel();
+      resolve(result);
+    };
+    // The handlers also catch a failure after the time limit: it is not an unhandled rejection
+    Promise.resolve(started).then(
+      (value) => end({ ok: true, value }),
+      (error: unknown) => end({ ok: false, late: false, error }),
+    );
+  });
+};
+
 /** A ticker is a channel of the numbers of its ticks. `stop` stops its timer and closes it. */
 export type Ticker = Channel<number> & { readonly stop: () => void };
 

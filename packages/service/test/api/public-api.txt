@@ -732,11 +732,14 @@ realClock: @mark1russell7/algebra/clock#realClock (external)
 Channel: build/channel.d.ts#Channel
 ErrorHandler: build/channel.d.ts#ErrorHandler
 FlowOptions: build/channel.d.ts#FlowOptions
+LateError: build/channel.d.ts#LateError
 PreemptedError: build/channel.d.ts#PreemptedError
 PreemptivePool: build/channel.d.ts#PreemptivePool
 SelectCase: build/channel.d.ts#SelectCase
 Ticker: build/channel.d.ts#Ticker
 Wait: build/channel.d.ts#Wait
+Within: build/channel.d.ts#Within
+WithinWork: build/channel.d.ts#WithinWork
 WorkerPoolOptions: build/channel.d.ts#WorkerPoolOptions
 buffered: build/channel.d.ts#buffered
 channel: build/channel.d.ts#channel
@@ -749,6 +752,7 @@ select: build/channel.d.ts#select
 ticker: build/channel.d.ts#ticker
 timeout: build/channel.d.ts#timeout
 unbuffered: build/channel.d.ts#unbuffered
+within: build/channel.d.ts#within
 workerPool: build/channel.d.ts#workerPool
 
 ## ./heartbeat (build/heartbeat.d.ts): names
@@ -1162,6 +1166,11 @@ export interface FlowOptions {
   readonly onError?: ErrorHandler | undefined;
 }
 
+### build/channel.d.ts#LateError
+export declare class LateError extends Error {
+  override readonly name = "LateError";
+}
+
 ### build/channel.d.ts#PreemptedError
 export declare class PreemptedError extends Error {
   override readonly name = "PreemptedError";
@@ -1187,6 +1196,22 @@ export type Ticker = Channel<number> & {
 
 ### build/channel.d.ts#Wait
 export type Wait = (onValue: (value: unknown) => void, onClosed: (error: Error) => void) => () => boolean;
+
+### build/channel.d.ts#Within
+export type Within<T> = {
+  readonly ok: true;
+  readonly value: T;
+} | {
+  readonly ok: false;
+  readonly late: true;
+} | {
+  readonly ok: false;
+  readonly late: false;
+  readonly error: unknown;
+};
+
+### build/channel.d.ts#WithinWork
+export type WithinWork<T> = PromiseLike<T> | ((signal: AbortSignal) => PromiseLike<T> | T);
 
 ### build/channel.d.ts#WorkerPoolOptions
 export interface WorkerPoolOptions<T> {
@@ -1227,6 +1252,9 @@ export declare const timeout: (ms: number, clock?: Clock) => Channel<void>;
 
 ### build/channel.d.ts#unbuffered
 export declare const unbuffered: <T>() => Channel<T>;
+
+### build/channel.d.ts#within
+export declare const within: <T>(work: WithinWork<T>, ms: number, clock?: Clock) => Promise<Within<T>>;
 
 ### build/channel.d.ts#workerPool
 export declare const workerPool: <T, R>(jobs: Channel<T>, worker: (job: T) => Promise<R>, options?: WorkerPoolOptions<T>) => Channel<R>;
