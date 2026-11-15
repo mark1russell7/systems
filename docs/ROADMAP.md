@@ -2363,11 +2363,11 @@ The entry `polite-crawler/api` is for a browser, and its quotas come from `keyed
 
 ### SYS-126 · A wait that a caller awaits keeps the process alive
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
+- **Shipped:** 2026-11-15
 - **Links:** [#550](https://github.com/mark1russell7/systems/pull/550)
 
 `realClock` was `platformClock({ unref: true })`, and its timers did not keep a Node process alive. The default clock of `retry` is `realClock`. A command-line tool whose only work was the wait of a retry thus ended in the wait, with the exit code 0 and no error. The same fault held for each wait that a caller awaits on the default clock.
@@ -2564,6 +2564,10 @@ A listener that does not accept fills its queue. The page shows each step of a n
 The test: the predictions of the cells `AQ.1` to `AQ.10` do not change. The page shows the measured median of each cell next to its band.
 
 Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra give the count of the queue. The timers `synack_retransmit` and `synack_giveup` of `linux-tcp` give the waits of the SYN-ACK and the expiry. The cells use them, and the predictions of `AQ.1` to `AQ.10` did not change. Part 2 is the lens and its page.
+
+- The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
+- Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
+- Service `0.9.1` and kind `0.14.10` are PATCH versions for their new dependency ranges.
 
 ### SYS-121 · The port range: a lens and its page
 
