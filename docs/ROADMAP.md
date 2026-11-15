@@ -2343,12 +2343,12 @@ A test of a source of alerts puts 80 minutes of the source into 80 s of real tim
 
 ### SYS-125 · A smaller limiter for a browser: the entry of the times
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-115
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-15
+- **Links:** [#543](https://github.com/mark1russell7/systems/pull/543), [the release run](https://github.com/mark1russell7/systems/actions/runs/43746178529)
 
 The entry `polite-crawler/api` is for a browser, and its quotas come from `keyedQuota`, `takeQuotas` and `quotaProblems` of `@mark1russell7/service/limiter`. In service `0.8.19`, these three imports were 11155 B after gzip. The limiter converts only times and counts, but its bundle had the full table of units and all of the rational arithmetic.
 
@@ -2358,7 +2358,8 @@ The entry `polite-crawler/api` is for a browser, and its quotas come from `keyed
 - **One file for each module.** The build of quantity and service makes one file for each module of `src/`. Before, a shared chunk joined modules into one file, and a bundle kept all of the chunk.
 - The measure: esbuild bundles the three imports for a browser with minify, and gzip compresses the result. The same three imports are 7699 B after gzip.
 - The rest is mostly `quota.ts` (8510 B before gzip) and the unit system of quantity (4224 B).
-- The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API.
+- The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API. Both are on npm with their provenance.
+- The size of 2.1 kB is not possible without a loss. `quota.ts` alone is approximately 3 kB after gzip. The exact conversion of units is the quantity law. Thus `polite-crawler/api` keeps the limiter. Only its two functions of quotas bundle the limiter. A caller that does not import them does not get it.
 
 ## The private corpus
 
