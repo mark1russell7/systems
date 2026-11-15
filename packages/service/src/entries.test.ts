@@ -360,8 +360,8 @@ describe("the channel entry: a client in a browser can import it (collections C2
 });
 
 describe("the limiter entry: a client in a browser can import it (SYS-28)", () => {
-  it("loads only quantity: no node: module and no zod", () => {
-    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/quantity"]);
+  it("loads only quantity and the clock of the algebra: no node: module and no zod", () => {
+    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
     expect(reachAll("limiter.ts")).toEqual([]);
   });
 
@@ -374,14 +374,20 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
       "freeAt",
       "idleSpan",
       "keyedLimiter",
+      "keyedQuota",
       "limitRule",
       "limiterMachine",
       "limiterProblems",
       "limiterStateOf",
       "longestRetryAfter",
+      "memoryQuotaStore",
       "memoryStore",
       "overCapacity",
+      "quotaProblems",
+      "quotaRule",
+      "quotaStep",
       "retryAfterSeconds",
+      "takeQuotas",
       "unitsOf",
     ]);
     for (const name of Object.keys(limiterEntry)) expect(root, name).toHaveProperty(name);

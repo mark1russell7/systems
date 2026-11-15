@@ -12,6 +12,7 @@ type Backoff: build/backoff.chunk.d.ts#Backoff
 type Binding: build/rules.chunk.d.ts#Binding
 type Bound: build/rules.chunk.d.ts#Bound
 CLOSE_BOUND_RULE: build/index.d.ts#CLOSE_BOUND_RULE
+type CalendarWindow: build/limiter.chunk.d.ts#CalendarWindow
 type CallContext: build/call-context.chunk.d.ts#CallContext
 type Cancel: @mark1russell7/algebra/clock#Cancel (external)
 type CapacityRefused: build/policy.chunk.d.ts#CapacityRefused
@@ -75,6 +76,7 @@ type JobSettle: build/queue.chunk.d.ts#JobSettle
 type JobSource: build/queue.chunk.d.ts#JobSource
 type KeyState: build/policy.chunk.d.ts#KeyState
 type KeyedLimiter: build/store.chunk.d.ts#KeyedLimiter
+type KeyedQuota: build/limiter.chunk.d.ts#KeyedQuota
 LATCH_MACHINE: build/index.d.ts#LATCH_MACHINE
 LAW_STATISTIC: build/index.d.ts#LAW_STATISTIC
 LIMITER_RULES: build/index.d.ts#LIMITER_RULES
@@ -98,6 +100,7 @@ type LogLevel: build/logger.chunk.d.ts#LogLevel
 type Logger: build/logger.chunk.d.ts#Logger
 MACHINES: build/index.d.ts#MACHINES
 type MachineName: build/logger.chunk.d.ts#MachineName
+type MemoryQuotaStore: build/limiter.chunk.d.ts#MemoryQuotaStore
 type MemoryStore: build/store.chunk.d.ts#MemoryStore
 type MessageShape: build/logger.chunk.d.ts#MessageShape
 type MessageTrigger: build/logger.chunk.d.ts#MessageTrigger
@@ -129,6 +132,25 @@ type ProgressMarks: build/logger.chunk.d.ts#ProgressMarks
 type QueueDrain: build/queue.chunk.d.ts#QueueDrain
 type QueueDrainOptions: build/queue.chunk.d.ts#QueueDrainOptions
 type QueueKnobs: build/queue.chunk.d.ts#QueueKnobs
+type QuotaAllowed: build/limiter.chunk.d.ts#QuotaAllowed
+type QuotaAnswer: build/limiter.chunk.d.ts#QuotaAnswer
+type QuotaCapacityRefused: build/limiter.chunk.d.ts#QuotaCapacityRefused
+type QuotaChange: build/limiter.chunk.d.ts#QuotaChange
+type QuotaEvent: build/limiter.chunk.d.ts#QuotaEvent
+type QuotaPart: build/limiter.chunk.d.ts#QuotaPart
+type QuotaReading: build/limiter.chunk.d.ts#QuotaReading
+type QuotaRecord: build/limiter.chunk.d.ts#QuotaRecord
+type QuotaRefused: build/limiter.chunk.d.ts#QuotaRefused
+type QuotaRule: build/limiter.chunk.d.ts#QuotaRule
+type QuotaSpec: build/limiter.chunk.d.ts#QuotaSpec
+type QuotaState: build/limiter.chunk.d.ts#QuotaState
+type QuotaStep: build/limiter.chunk.d.ts#QuotaStep
+type QuotaStore: build/limiter.chunk.d.ts#QuotaStore
+type QuotaTakeStep: build/limiter.chunk.d.ts#QuotaTakeStep
+type QuotaVerdict: build/limiter.chunk.d.ts#QuotaVerdict
+type QuotaWaitRefused: build/limiter.chunk.d.ts#QuotaWaitRefused
+type QuotaWindow: build/limiter.chunk.d.ts#QuotaWindow
+type QuotasVerdict: build/limiter.chunk.d.ts#QuotasVerdict
 type Recorder: build/logger.chunk.d.ts#Recorder
 type RedeliveryPolicy: build/queue.chunk.d.ts#RedeliveryPolicy
 type RefusalCause: build/policy.chunk.d.ts#RefusalCause
@@ -145,6 +167,7 @@ type Result: build/lifecycle.chunk.d.ts#Result
 type Retrier: build/index.d.ts#Retrier
 type RetrierOptions: build/index.d.ts#RetrierOptions
 type RetryOptions: build/index.d.ts#RetryOptions
+type RollingWindow: build/limiter.chunk.d.ts#RollingWindow
 type RoutePattern: build/logger.chunk.d.ts#RoutePattern
 type RouteRequest: build/logger.chunk.d.ts#RouteRequest
 type Rule: build/rules.chunk.d.ts#Rule
@@ -227,6 +250,7 @@ isExitCode: build/logger.chunk.d.ts#isExitCode
 isExitSignal: build/logger.chunk.d.ts#isExitSignal
 isMessageShape: build/logger.chunk.d.ts#isMessageShape
 keyedLimiter: build/store.chunk.d.ts#keyedLimiter
+keyedQuota: build/limiter.chunk.d.ts#keyedQuota
 kubernetes: build/builder.chunk.d.ts#kubernetes
 limitRule: build/policy.chunk.d.ts#limitRule
 limiterMachine: build/limiter.chunk.d.ts#limiterMachine
@@ -239,12 +263,16 @@ logEvents: build/logger.chunk.d.ts#logEvents
 longestRetryAfter: build/policy.chunk.d.ts#longestRetryAfter
 matchesMessage: build/logger.chunk.d.ts#matchesMessage
 mayReissue: build/logger.chunk.d.ts#mayReissue
+memoryQuotaStore: build/limiter.chunk.d.ts#memoryQuotaStore
 memoryStore: build/store.chunk.d.ts#memoryStore
 nodeProcess: build/logger.chunk.d.ts#nodeProcess
 overCapacity: build/policy.chunk.d.ts#overCapacity
 platformClock: @mark1russell7/algebra/clock#platformClock (external)
 processPortOf: build/logger.chunk.d.ts#processPortOf
 queueDrain: build/queue.chunk.d.ts#queueDrain
+quotaProblems: build/limiter.chunk.d.ts#quotaProblems
+quotaRule: build/limiter.chunk.d.ts#quotaRule
+quotaStep: build/limiter.chunk.d.ts#quotaStep
 realClock: @mark1russell7/algebra/clock#realClock (external)
 recoverSpan: build/logger.chunk.d.ts#recoverSpan
 redact: build/lifecycle.chunk.d.ts#redact
@@ -258,6 +286,7 @@ service: build/builder.chunk.d.ts#service
 serviceBindings: build/index.d.ts#serviceBindings
 stageRank: build/lifecycle.chunk.d.ts#stageRank
 symbolsOf: build/rules.chunk.d.ts#symbolsOf
+takeQuotas: build/limiter.chunk.d.ts#takeQuotas
 unitsOf: build/policy.chunk.d.ts#unitsOf
 verdictOf: build/rules.chunk.d.ts#verdictOf
 watchdog: build/builder.chunk.d.ts#watchdog
@@ -783,10 +812,12 @@ writeOutcome: build/http.d.ts#writeOutcome
 ## ./limiter (build/limiter.d.ts): names
 
 type Allowed: build/policy.chunk.d.ts#Allowed
+type CalendarWindow: build/limiter.chunk.d.ts#CalendarWindow
 type CapacityRefused: build/policy.chunk.d.ts#CapacityRefused
 type Decision: build/policy.chunk.d.ts#Decision
 type KeyState: build/policy.chunk.d.ts#KeyState
 type KeyedLimiter: build/store.chunk.d.ts#KeyedLimiter
+type KeyedQuota: build/limiter.chunk.d.ts#KeyedQuota
 type LimitPolicy: build/policy.chunk.d.ts#LimitPolicy
 type LimitRule: build/policy.chunk.d.ts#LimitRule
 type Limiter: build/policy.chunk.d.ts#Limiter
@@ -796,9 +827,30 @@ type LimiterState: build/limiter.chunk.d.ts#LimiterState
 type LimiterStore: build/store.chunk.d.ts#LimiterStore
 type LimiterStoreSpec: build/policy.chunk.d.ts#LimiterStoreSpec
 type LocalLimiter: build/store.chunk.d.ts#LocalLimiter
+type MemoryQuotaStore: build/limiter.chunk.d.ts#MemoryQuotaStore
 type MemoryStore: build/store.chunk.d.ts#MemoryStore
+type QuotaAllowed: build/limiter.chunk.d.ts#QuotaAllowed
+type QuotaAnswer: build/limiter.chunk.d.ts#QuotaAnswer
+type QuotaCapacityRefused: build/limiter.chunk.d.ts#QuotaCapacityRefused
+type QuotaChange: build/limiter.chunk.d.ts#QuotaChange
+type QuotaEvent: build/limiter.chunk.d.ts#QuotaEvent
+type QuotaPart: build/limiter.chunk.d.ts#QuotaPart
+type QuotaReading: build/limiter.chunk.d.ts#QuotaReading
+type QuotaRecord: build/limiter.chunk.d.ts#QuotaRecord
+type QuotaRefused: build/limiter.chunk.d.ts#QuotaRefused
+type QuotaRule: build/limiter.chunk.d.ts#QuotaRule
+type QuotaSpec: build/limiter.chunk.d.ts#QuotaSpec
+type QuotaState: build/limiter.chunk.d.ts#QuotaState
+type QuotaStep: build/limiter.chunk.d.ts#QuotaStep
+type QuotaStore: build/limiter.chunk.d.ts#QuotaStore
+type QuotaTakeStep: build/limiter.chunk.d.ts#QuotaTakeStep
+type QuotaVerdict: build/limiter.chunk.d.ts#QuotaVerdict
+type QuotaWaitRefused: build/limiter.chunk.d.ts#QuotaWaitRefused
+type QuotaWindow: build/limiter.chunk.d.ts#QuotaWindow
+type QuotasVerdict: build/limiter.chunk.d.ts#QuotasVerdict
 type RefusalCause: build/policy.chunk.d.ts#RefusalCause
 type Refused: build/policy.chunk.d.ts#Refused
+type RollingWindow: build/limiter.chunk.d.ts#RollingWindow
 SLIDING_WINDOW_MACHINE: build/limiter.chunk.d.ts#SLIDING_WINDOW_MACHINE
 type SlidingWindow: build/policy.chunk.d.ts#SlidingWindow
 type StoreFailure: build/policy.chunk.d.ts#StoreFailure
@@ -813,14 +865,20 @@ decide: build/policy.chunk.d.ts#decide
 freeAt: build/policy.chunk.d.ts#freeAt
 idleSpan: build/policy.chunk.d.ts#idleSpan
 keyedLimiter: build/store.chunk.d.ts#keyedLimiter
+keyedQuota: build/limiter.chunk.d.ts#keyedQuota
 limitRule: build/policy.chunk.d.ts#limitRule
 limiterMachine: build/limiter.chunk.d.ts#limiterMachine
 limiterProblems: build/policy.chunk.d.ts#limiterProblems
 limiterStateOf: build/limiter.chunk.d.ts#limiterStateOf
 longestRetryAfter: build/policy.chunk.d.ts#longestRetryAfter
+memoryQuotaStore: build/limiter.chunk.d.ts#memoryQuotaStore
 memoryStore: build/store.chunk.d.ts#memoryStore
 overCapacity: build/policy.chunk.d.ts#overCapacity
+quotaProblems: build/limiter.chunk.d.ts#quotaProblems
+quotaRule: build/limiter.chunk.d.ts#quotaRule
+quotaStep: build/limiter.chunk.d.ts#quotaStep
 retryAfterSeconds: build/policy.chunk.d.ts#retryAfterSeconds
+takeQuotas: build/limiter.chunk.d.ts#takeQuotas
 unitsOf: build/policy.chunk.d.ts#unitsOf
 
 ## ./rules (build/rules.d.ts): names
@@ -2887,8 +2945,178 @@ declare const redact: (cause: string) => string;
 ### build/lifecycle.chunk.d.ts#stageRank
 declare const stageRank: (name: string) => number;
 
+### build/limiter.chunk.d.ts#CalendarWindow
+interface CalendarWindow {
+  readonly kind: "calendar";
+  readonly unit: "day" | "month";
+  readonly zone: string;
+  readonly start: Quantity;
+}
+
+### build/limiter.chunk.d.ts#KeyedQuota
+interface KeyedQuota<Sync extends boolean = boolean> {
+  readonly name: string;
+  readonly spec: QuotaSpec;
+  readonly rule: QuotaRule;
+  readonly sync: Sync;
+  take(key: string, units?: number): QuotaAnswer<Sync, QuotaVerdict>;
+  note(key: string, reading: QuotaReading): QuotaAnswer<Sync, QuotaState>;
+  giveBack(key: string, units: number, at: number): QuotaAnswer<Sync, QuotaState>;
+  state(key: string): QuotaAnswer<Sync, QuotaState>;
+}
+
 ### build/limiter.chunk.d.ts#LimiterState
 type LimiterState = "new" | "open" | "limited";
+
+### build/limiter.chunk.d.ts#MemoryQuotaStore
+interface MemoryQuotaStore extends QuotaStore<true> {
+  size(quota: string): number;
+}
+
+### build/limiter.chunk.d.ts#QuotaAllowed
+interface QuotaAllowed {
+  readonly allowed: true;
+  readonly state: QuotaState;
+}
+
+### build/limiter.chunk.d.ts#QuotaAnswer
+type QuotaAnswer<Sync extends boolean, T> = Sync extends true ? T : Promise<T>;
+
+### build/limiter.chunk.d.ts#QuotaCapacityRefused
+interface QuotaCapacityRefused {
+  readonly allowed: false;
+  readonly cause: "capacity";
+  readonly units: number;
+  readonly capacity: number;
+  readonly state: QuotaState;
+}
+
+### build/limiter.chunk.d.ts#QuotaChange
+interface QuotaChange<T> {
+  readonly record: QuotaRecord;
+  readonly result: T;
+}
+
+### build/limiter.chunk.d.ts#QuotaEvent
+type QuotaEvent = {
+  readonly type: "take";
+  readonly units: number;
+} | {
+  readonly type: "note";
+  readonly reading: QuotaReading;
+} | {
+  readonly type: "give-back";
+  readonly units: number;
+  readonly at: number;
+} | {
+  readonly type: "read";
+};
+
+### build/limiter.chunk.d.ts#QuotaPart
+interface QuotaPart<Sync extends boolean = boolean> {
+  readonly quota: KeyedQuota<Sync>;
+  readonly key: string;
+  readonly units: number;
+}
+
+### build/limiter.chunk.d.ts#QuotaReading
+interface QuotaReading {
+  readonly remaining?: number | undefined;
+  readonly resetAt?: number | undefined;
+}
+
+### build/limiter.chunk.d.ts#QuotaRecord
+interface QuotaRecord {
+  readonly spent: readonly (readonly [start: number, units: number])[];
+  readonly blockedUntil?: number | undefined;
+  readonly readAt?: number | undefined;
+}
+
+### build/limiter.chunk.d.ts#QuotaRefused
+type QuotaRefused = QuotaWaitRefused | QuotaCapacityRefused;
+
+### build/limiter.chunk.d.ts#QuotaRule
+interface QuotaRule {
+  readonly limit: number;
+  readonly reserve: number;
+  readonly window: {
+    readonly kind: "rolling";
+    readonly span: number;
+    readonly buckets: number;
+  } | {
+    readonly kind: "calendar";
+    readonly unit: "day" | "month";
+    readonly zone: string;
+    readonly start: number;
+  };
+}
+
+### build/limiter.chunk.d.ts#QuotaSpec
+interface QuotaSpec {
+  readonly limit: Quantity;
+  readonly reserve: Quantity;
+  readonly window: QuotaWindow;
+}
+
+### build/limiter.chunk.d.ts#QuotaState
+interface QuotaState {
+  readonly at: number;
+  readonly used: number;
+  readonly left: number;
+  readonly resetAt?: number | undefined;
+  readonly blockedUntil?: number | undefined;
+}
+
+### build/limiter.chunk.d.ts#QuotaStep
+interface QuotaStep {
+  readonly record: QuotaRecord;
+  readonly state: QuotaState;
+  readonly verdict?: QuotaVerdict | undefined;
+}
+
+### build/limiter.chunk.d.ts#QuotaStore
+interface QuotaStore<Sync extends boolean = boolean> {
+  readonly sync: Sync;
+  change<T>(quota: string, key: string, step: (stored: unknown) => QuotaChange<T>): QuotaAnswer<Sync, T>;
+}
+
+### build/limiter.chunk.d.ts#QuotaTakeStep
+interface QuotaTakeStep extends QuotaStep {
+  readonly verdict: QuotaVerdict;
+}
+
+### build/limiter.chunk.d.ts#QuotaVerdict
+type QuotaVerdict = QuotaAllowed | QuotaRefused;
+
+### build/limiter.chunk.d.ts#QuotaWaitRefused
+interface QuotaWaitRefused {
+  readonly allowed: false;
+  readonly cause: "limit" | "provider";
+  readonly resetAt: number;
+  readonly retryAfter: Quantity;
+  readonly state: QuotaState;
+}
+
+### build/limiter.chunk.d.ts#QuotaWindow
+type QuotaWindow = RollingWindow | CalendarWindow;
+
+### build/limiter.chunk.d.ts#QuotasVerdict
+type QuotasVerdict = {
+  readonly allowed: true;
+  readonly states: readonly QuotaState[];
+} | {
+  readonly allowed: false;
+  readonly index: number;
+  readonly refusal: QuotaRefused;
+  readonly states: readonly QuotaState[];
+};
+
+### build/limiter.chunk.d.ts#RollingWindow
+interface RollingWindow {
+  readonly kind: "rolling";
+  readonly span: Quantity;
+  readonly buckets: Quantity;
+}
 
 ### build/limiter.chunk.d.ts#SLIDING_WINDOW_MACHINE
 declare const SLIDING_WINDOW_MACHINE: Machine;
@@ -2896,11 +3124,33 @@ declare const SLIDING_WINDOW_MACHINE: Machine;
 ### build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
 declare const TOKEN_BUCKET_MACHINE: Machine;
 
+### build/limiter.chunk.d.ts#keyedQuota
+declare function keyedQuota<Sync extends boolean>(name: string, spec: QuotaSpec, store: QuotaStore<Sync>, clock: Pick<WallClock, "time" | "now">): KeyedQuota<Sync>;
+
 ### build/limiter.chunk.d.ts#limiterMachine
 declare const limiterMachine: (policy: LimitPolicy) => Machine;
 
 ### build/limiter.chunk.d.ts#limiterStateOf
 declare const limiterStateOf: (rule: LimitRule, state: KeyState | undefined, now: number) => LimiterState;
+
+### build/limiter.chunk.d.ts#memoryQuotaStore
+declare const memoryQuotaStore: () => MemoryQuotaStore;
+
+### build/limiter.chunk.d.ts#quotaProblems
+declare const quotaProblems: (name: string, spec: Partial<QuotaSpec> | undefined) => string[];
+
+### build/limiter.chunk.d.ts#quotaRule
+declare const quotaRule: (name: string, spec: QuotaSpec) => QuotaRule;
+
+### build/limiter.chunk.d.ts#quotaStep
+declare function quotaStep(rule: QuotaRule, stored: unknown, instant: number, event: Extract<QuotaEvent, {
+  type: "take";
+}>): QuotaTakeStep;
+declare function quotaStep(rule: QuotaRule, stored: unknown, instant: number, event: QuotaEvent): QuotaStep;
+
+### build/limiter.chunk.d.ts#takeQuotas
+declare function takeQuotas(parts: readonly QuotaPart<true>[]): QuotasVerdict;
+declare function takeQuotas(parts: readonly QuotaPart[]): QuotasVerdict | Promise<QuotasVerdict>;
 
 ### build/logger.chunk.d.ts#Check
 interface Check {

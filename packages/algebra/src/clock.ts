@@ -14,9 +14,29 @@ export type Cancel = (() => void) & { readonly unref?: (() => void) | undefined 
  * the runtime is then exact and repeatable.
  */
 export interface Clock {
+  /**
+   * This mark tells the time of `now()`. A clock gives the monotonic time, thus the mark is
+   * `"monotonic"` or absent. A `WallClock` has the mark `"wall"`, thus it is not a `Clock`.
+   */
+  readonly time?: "monotonic" | undefined;
   /** This method gives the monotonic time, in milliseconds. A step of the wall clock does not move it. */
   now(): number;
   /** This method starts `run` after `ms` milliseconds, and gives the function that stops it. */
+  after(ms: number, run: () => void): Cancel;
+}
+
+/**
+ * A wall clock gives the instant: the time in milliseconds from 1970-01-01T00:00:00Z, as `Date.now()`
+ * gives it. Civil time, a calendar and a time that another computer sends need the instant. A step
+ * of the wall clock moves `now()`, also back. Each timer waits on the monotonic time, thus a step
+ * does not move a timer. The mark `"wall"` keeps the two clocks apart: a function that needs the
+ * monotonic time does not get a wall clock, and the reverse.
+ */
+export interface WallClock {
+  readonly time: "wall";
+  /** This method gives the instant, in milliseconds from the epoch. A step of the wall clock moves it. */
+  now(): number;
+  /** This method starts `run` after `ms` milliseconds of monotonic time, and gives the function that stops it. */
   after(ms: number, run: () => void): Cancel;
 }
 
@@ -63,6 +83,16 @@ export const platformClock = (options: PlatformClockOptions = {}): Clock => ({
  * process alive, thus a timer that is not stopped cannot stop the exit of the process.
  */
 export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });
+
+/**
+ * This function makes the wall clock of the platform: `Date.now()`, and the timers of
+ * `platformClock`. The options are the options of `platformClock`.
+ */
+export const wallClock = (options: PlatformClockOptions = {}): WallClock => ({
+  time: "wall",
+  now: () => Date.now(),
+  after: platformClock(options).after,
+});
 
 /**
  * This function gives a promise that resolves after `ms` milliseconds on the clock. When the signal
@@ -153,13 +183,49 @@ export const fakeClock = (start = 0): FakeClock => {
   };
 };
 
+/** A fake wall clock moves only when a test tells it to. A test can also step its instant, as a wall clock steps. */
+export interface FakeWallClock extends WallClock {
+  /** This method moves the instant and the monotonic time forward by `ms`, and it starts each timer that comes due, in sequence. */
+  advance(ms: number): Promise<void>;
+  /** This method moves the instant and the monotonic time forward by `ms`, and starts no timer, as a blocked event loop does. */
+  block(ms: number): void;
+  /** This method steps the instant to `instant`, forward or back. The monotonic time does not move, thus no timer comes due. */
+  set(instant: number): void;
+  /** This count is the number of timers that are not stopped and not called. */
+  readonly pending: number;
+}
+
+/**
+ * This function makes a fake wall clock. Its instant starts at `start`, in milliseconds from the
+ * epoch. Its timers are the timers of a `fakeClock`, thus a step of the instant moves no timer.
+ */
+export const fakeWallClock = (start: number): FakeWallClock => {
+  const monotonicTime = fakeClock(0);
+  let offset = start;
+  return {
+    time: "wall",
+    now: () => monotonicTime.now() + offset,
+    after: (ms, run) => monotonicTime.after(ms, run),
+    advance: (ms) => monotonicTime.advance(ms),
+    block(ms) {
+      monotonicTime.block(ms);
+    },
+    set(instant) {
+      offset = instant - monotonicTime.now();
+    },
+    get pending() {
+      return monotonicTime.pending;
+    },
+  };
+};
+
 // Civil time: the wall-clock time of an instant in a time zone, and windows of local time. A clock
 // gives instants, and civil time maps an instant to the time on the wall of a zone. It uses only
 // `Intl.DateTimeFormat`, thus this entry still imports nothing.
 
 /**
  * The wall-clock time of an instant in a time zone. An instant is a time in milliseconds from
- * 1970-01-01T00:00:00Z, as `Date.now()` gives. It is not the monotonic time of `Clock.now()`.
+ * 1970-01-01T00:00:00Z, as `Date.now()` and `WallClock.now()` give. It is not the monotonic time of `Clock.now()`.
  */
 export interface LocalTime {
   readonly year: number;
@@ -396,6 +462,45 @@ const changesOf = (from: number, to: number, zone: string): number[] => {
   }
   return found;
 };
+
+/**
+ * This function gives the first instant at which the wall clock of `zone` shows `wall` or a later
+ * wall-clock time. The wall-clock time is in milliseconds with the arithmetic of UTC, as for
+ * `instantsOf`. Thus a time on the wall, for example the start of a day, always has an instant.
+ *
+ * - A wall-clock time that occurs one time gives its instant.
+ * - A wall-clock time in the hour of a change back gives the first of its two instants.
+ * - A wall-clock time in the gap of a change forward gives the instant of the change: the end of the gap.
+ * - A name that is not a time zone, or a wall-clock time that is not a date, gives `undefined`.
+ *
+ * The search reads the offset one day before and one day after `wall`, as `instantsOf` does. A gap
+ * that is not in these 2 days also gives `undefined`.
+ */
+export function firstInstantOf(wall: number, zone: string): number | undefined {
+  const instants = instantsOf(wall, zone);
+  if (instants === undefined) return undefined;
+  if (instants.length > 0) return instants[0];
+  const whole = Math.floor(wall / 1000) * 1000;
+  const offsets: number[] = [];
+  for (const probe of [whole - DAY_MS, whole, whole + DAY_MS]) {
+    const local = localTime(probe, zone);
+    if (local !== undefined) offsets.push(Math.round(local.offset * MINUTE_MS));
+  }
+  // A change at the instant c, from the offset o1 to the larger offset o2, skips the wall-clock times
+  // from c + o1 to c + o2, without the end. Thus c is after wall - o2, and at or before wall - o1.
+  const from = wall - Math.max(...offsets);
+  const to = wall - Math.min(...offsets);
+  const offsetAt = (instant: number): number | undefined => {
+    const local = localTime(instant, zone);
+    return local === undefined ? undefined : Math.round(local.offset * MINUTE_MS);
+  };
+  for (const change of changesOf(from, to, zone)) {
+    const before = offsetAt(change - 1);
+    const after = offsetAt(change);
+    if (before !== undefined && after !== undefined && change + before <= wall && wall < change + after) return change;
+  }
+  return undefined;
+}
 
 /**
  * This function gives the next change of the window after `instant`: the first later instant at

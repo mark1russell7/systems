@@ -2283,6 +2283,24 @@ A heartbeat from a program tells only that the program sends. A consumer needs a
 - The test: tests on the test clock and the fake host, and unit tests of the read of a text with no network. The net port of Node has tests against a local server.
 - Service `0.8.11` is on npm with provenance since 2026-11-14.
 
+### SYS-115 · The quota of a key: a calendar window and a rolling window
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+An API provider gives a quota: a limit in each day or month of a time zone, or in each rolling span. Before this item, polite-crawler counted these windows in its own code. The count of a window is a limiter, thus its home is `@mark1russell7/service/limiter`. Its civil time comes from `@mark1russell7/algebra/clock`.
+
+- **The clock.** `firstInstantOf(wall, zone)` gives the first instant whose local time is `wall` or later. A gap of the zone gives the end of the gap. `wallClock()` gives the instant from the epoch, with the type `WallClock`. Its mark `time: "wall"` keeps it apart from a monotonic `Clock` in the type system. `fakeWallClock` is its test clock.
+- **The step.** `quotaStep(rule, stored, instant, event)` is pure. The events are a take, a note of a reading of the provider, a give-back and a read. A note can only make the count larger. A give-back changes nothing when a reading with a count came at or after its take.
+- **The runtime.** `keyedQuota` applies the step in one atomic change of a store. A store answers at once or with a promise. `takeQuotas` takes from several quotas, all or none. Its refusal is the first capacity refusal, else the refusal with the latest reset.
+- Each change adds an export. Thus the releases are algebra `0.8.9` and service `0.8.15` (PATCH versions before 1.0).
+- The test of the calendar: each change of the clocks of 2026 in Chicago, Santiago and Berlin. A zone with a half-hour offset, and a step back of the clock.
+- The test of the rolling window: a seeded walk against the true count of each window.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
