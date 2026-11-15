@@ -8,8 +8,8 @@ import { cycleOf, rounded } from "./writes.ts";
 
 /**
  * This module holds the cells of SYS-62. The group and the records are the ones of T12, and each
- * write is `RPUSH w <n>`, thus the list keeps each copy. The question: does the resend of ioredis
- * 6.0.0 at a reconnect duplicate a write?
+ * write is `RPUSH w <n>`, thus the list keeps each copy. The cells measure the copies that the resend
+ * of ioredis 6.0.0 adds at a reconnect.
  *
  * Each term comes from the source of ioredis at the tag v6.0.0, in lib/:
  * - `sendCommand` writes a command to the socket, then pushes it on `commandQueue` (Redis.ts:630-637).

@@ -10,8 +10,8 @@ import { HOLD, NODE_STAMPS, PARTS, clusterCell, heartbeatEnd } from "./t11.ts";
 
 /**
  * This module holds the cells of SYS-60. The cluster and the records are the ones of T11. The final
- * read of the harness drains the quorum queue, thus it keeps each copy. The question: does a confirmed
- * publish survive a failure, and does a republish duplicate it?
+ * read of the harness drains the quorum queue, thus it keeps each copy. The cells measure two outcomes:
+ * the loss of a confirmed publish at a failure, and the copies that a republish adds.
  *
  * Each term comes from the source of rabbitmq-server v4.3.6, ra v3.1.10 and amqplib v2.2.0. The
  * document docs/S3.md gives each term with its lines.
