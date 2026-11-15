@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { imageOf, type BuildImage } from "@mark1russell7/harness";
+import { buildRecordOf, imageOf, type BuildImage, type BuildRecord } from "@mark1russell7/harness";
 
 /** This folder is the root of the package, and its `image/` folder has the files of the image. */
 const PACKAGE = fileURLToPath(new URL("../", import.meta.url));
@@ -95,21 +95,25 @@ export const labSource = (context: string): BuildImage => ({
   files: [...FILES.map(([at]) => at), PACKED],
 });
 
-let built: Promise<string> | null = null;
+/** A lab build is the tag of the lab image, and the build record of that tag. */
+interface LabBuild {
+  readonly tag: string;
+  readonly build: BuildRecord | undefined;
+}
 
-/**
- * This function gives the tag of the lab image, one time for each process. It stages the context,
- * and the resolver of the harness builds it with a tag from its content (`imageOf`). The stage
- * builds and packs packages, thus a tag that passed stays. A stage or a build that fails leaves
- * the cache. Thus a later call stages and builds again after a fault of Docker or of the network.
- */
-export const labImage = (): Promise<string> => {
+let built: Promise<LabBuild> | null = null;
+
+/** This function builds the lab image one time for each process, and it gives its tag and its build record. */
+const labBuilt = (): Promise<LabBuild> => {
   if (built !== null) return built;
-  const building = (async () => {
+  const building = (async (): Promise<LabBuild> => {
     const context = stageLabImage();
     try {
+      // the record reads the lockfiles of the context, thus it comes before the context goes
+      const source = labSource(context);
+      const build = buildRecordOf(source);
       // the resolver copies the files into a context of its own before it builds
-      return await imageOf(labSource(context));
+      return { tag: await imageOf(source), build };
     } finally {
       rmSync(context, { recursive: true, force: true });
     }
@@ -121,3 +125,17 @@ export const labImage = (): Promise<string> => {
   built = building;
   return building;
 };
+
+/**
+ * This function gives the tag of the lab image, one time for each process. It stages the context,
+ * and the resolver of the harness builds it with a tag from its content (`imageOf`). The stage
+ * builds and packs packages, thus a tag that passed stays. A stage or a build that fails leaves
+ * the cache. Thus a later call stages and builds again after a fault of Docker or of the network.
+ */
+export const labImage = async (): Promise<string> => (await labBuilt()).tag;
+
+/**
+ * This function gives the build record of the lab image (SYS-99). The record has its bases by digest,
+ * the sha256 of each lockfile and the versions of the packages. It builds the image as `labImage` does.
+ */
+export const labBuildRecord = async (): Promise<BuildRecord | undefined> => (await labBuilt()).build;
