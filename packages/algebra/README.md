@@ -136,6 +136,34 @@ clock.after(30_000, () => cache.sweep());
 await clock.advance(30_000); // the sweep runs, at 30 s exactly
 ```
 
+### Civil time
+
+The entry also gives civil time: the time on the wall of a time zone at an instant, and windows of local time. An instant is in milliseconds from 1970, as `Date.now()` gives. Civil time uses only `Intl.DateTimeFormat`.
+
+| Export | What it does |
+| --- | --- |
+| `localTime(instant, zone)` | It gives the year, the month, the day, the hour, the minute, the second, the day of the week and the offset of the zone, or `undefined` for a bad zone. |
+| `TimeWindow` | A window as data: `{ zone, start, end, days? }`. The start and the end are local times `HH:MM`. |
+| `inWindow(instant, window)` | It tells if the instant is in the window. A bad window gives `false`. |
+| `nextBoundary(instant, window)` | It gives the next instant at which the window opens or closes, as `{ at, opens }`. A timer can wait for it. It looks 9 days ahead at most. It gives `undefined` for a window with no change in that time. |
+| `windowProblems(window)` | It gives the problems of a window: a bad zone, a bad local time or a bad day. |
+
+These rules apply to a window:
+
+- The start is in the window, and the end is not. An end before the start crosses midnight. An end equal to the start gives the full day.
+- `days` are the days of the week on which the window starts, from 0 (Sunday) to 6. A window across midnight continues into the next day.
+- The window follows the time on the wall when the clock changes. A start or an end in a gap moves to the end of the gap. A local time that occurs two times is in the window two times.
+- An example: on 2026-10-25 in Berlin, a window from 22:00 to 02:30 closes at 00:30Z. It opens again at 01:00Z and closes at 01:30Z.
+
+```ts
+import { inWindow, nextBoundary, realClock } from "@mark1russell7/algebra/clock";
+
+const night = { zone: "Europe/Berlin", start: "22:00", end: "07:00" };
+inWindow(Date.now(), night); // true from 22:00 to 06:59 in Berlin, in summer time and in winter time
+const next = nextBoundary(Date.now(), night); // { at, opens }: the next change of the window
+if (next !== undefined) realClock.after(next.at - Date.now(), () => console.log(next.opens ? "quiet" : "loud"));
+```
+
 ## Installation
 
 ```sh
@@ -149,7 +177,7 @@ The root entry has the machine types, the consistency checks and the algebra. It
 | Entry | What it has | `zod` |
 | --- | --- | --- |
 | `@mark1russell7/algebra` | The machine types, the consistency checks, the algebra, `replay` and `runMachine` | No |
-| `@mark1russell7/algebra/clock` | The clock of a runtime and a fake clock for tests | No |
+| `@mark1russell7/algebra/clock` | The clock of a runtime, a fake clock for tests, and civil time | No |
 | `@mark1russell7/algebra/replay` | The replay of a trace against a machine document | No |
 | `@mark1russell7/algebra/run` | The run of a live instance of a machine document | No |
 | `@mark1russell7/algebra/schema` | `machineSchema`, the schema of a machine document | Yes |
