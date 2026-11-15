@@ -213,6 +213,105 @@ const oracleIn = (window: TimeWindow & { zone: Zone }, at: number): boolean => {
   return (minute >= start && startsOn(local.weekday)) || (minute < end && startsOn((local.weekday + 6) % 7));
 };
 
+describe("the scaled clock", () => {
+  // the fake timers also fake performance, as the doc of platformClock asks
+  const fake = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance", "Date"] });
+
+  it("moves speed times faster from its start, and a timer of ms ends after ms / speed real milliseconds", () => {
+    fake();
+    try {
+      const clock = platformClock({ speed: 60, start: 1000 });
+      expect(clock.now()).toBe(1000);
+      vi.advanceTimersByTime(10);
+      expect(clock.now()).toBe(1600);
+      const runs: number[] = [];
+      clock.after(60_000, () => runs.push(clock.now()));
+      vi.advanceTimersByTime(999);
+      expect(runs).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(runs).toEqual([61_600]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives whole milliseconds on a wall clock, the fractions on a monotonic clock, and starts at the time of the platform", () => {
+    fake();
+    try {
+      const start = Date.UTC(2026, 10, 15, 12);
+      const wall = wallClock({ speed: 1.5, start });
+      const monotonicClock = platformClock({ speed: 1.5, start: 0 });
+      const instant = Date.now();
+      const fromNow = wallClock({ speed: 2 });
+      const origin = performance.now();
+      const fromOrigin = platformClock({ speed: 2 });
+      vi.advanceTimersByTime(1);
+      expect(wall.time).toBe("wall");
+      expect(wall.now()).toBe(start + 1);
+      expect(monotonicClock.now()).toBe(1.5);
+      expect(fromNow.now()).toBe(instant + 2);
+      expect(fromOrigin.now()).toBe(origin + 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits ms / speed real milliseconds at a slow speed, in steps above the longest delay of setTimeout", () => {
+    fake();
+    try {
+      const clock = platformClock({ speed: 0.5, start: 0, unref: true });
+      const runs: number[] = [];
+      clock.after(2 ** 31, () => runs.push(clock.now()));
+      vi.advanceTimersByTime(2 ** 32 - 1);
+      expect(runs).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(runs).toEqual([2 ** 31]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits again when the platform starts a timer before its due time on the clock", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let real = 0;
+    vi.stubGlobal("performance", { now: () => real });
+    try {
+      const clock = platformClock({ speed: 10, start: 0 });
+      const runs: number[] = [];
+      clock.after(100, () => runs.push(clock.now()));
+      // the platform starts the timer of 10 real ms while performance.now reads 9 ms: the clock reads 90
+      real = 9;
+      vi.advanceTimersByTime(10);
+      expect(runs).toEqual([]);
+      // the rest of 10 ms on the clock is 1 real ms
+      real = 11;
+      vi.advanceTimersByTime(1);
+      expect(runs).toEqual([110]);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts a timer on the real timers, and its cancel stops the timer and has unref", async () => {
+    const clock = wallClock({ speed: 1000, unref: true });
+    const runs: string[] = [];
+    const kept = clock.after(5000, () => runs.push("kept"));
+    clock.after(5000, () => runs.push("stopped"))();
+    expect(typeof kept.unref).toBe("function");
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(runs).toEqual(["kept"]);
+  });
+
+  it("refuses a speed that is not a finite number above 0, and a start that is not finite", () => {
+    for (const make of [platformClock, wallClock]) {
+      for (const speed of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "60" as unknown as number]) expect(() => make({ speed })).toThrow(RangeError);
+      for (const start of [Number.NaN, Number.NEGATIVE_INFINITY, "0" as unknown as number]) expect(() => make({ start })).toThrow(RangeError);
+      expect(() => make({ speed: 0.25, start: -5 })).not.toThrow();
+    }
+  });
+});
+
 describe("localTime", () => {
   it("gives the wall-clock time, the day of the week and the offset", () => {
     const at = Date.UTC(2026, 0, 15, 12, 34, 56, 789);
@@ -592,5 +691,18 @@ describe("delay", () => {
     await clock.advance(10);
     await Promise.all(waits);
     expect(order).toEqual(["-5", "10"]);
+  });
+
+  it("waits on the timers of a wall clock", async () => {
+    const clock = fakeWallClock(Date.UTC(2026, 10, 15));
+    let done = false;
+    const waited = delay(clock, 1000).then(() => {
+      done = true;
+    });
+    await clock.advance(999);
+    expect(done).toBe(false);
+    await clock.advance(1);
+    await waited;
+    expect(done).toBe(true);
   });
 });

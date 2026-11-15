@@ -348,6 +348,10 @@ try {
       fake.after(5, () => (fired = fake.now()));
       await fake.advance(5);
       check(typeof clockEntry.realClock.now() === "number" && fired === 15, "algebra/clock gives the clock of the platform and a fake clock");
+      // a scaled wall clock: a timer of 600 ms on the clock ends after 10 real ms at the speed 60
+      const scaled = clockEntry.wallClock({ speed: 60, start: 1000 });
+      const due = await new Promise((resolve) => scaled.after(600, () => resolve(scaled.now())));
+      check(scaled.time === "wall" && Number.isInteger(due) && due >= 1600, "algebra/clock gives a scaled wall clock");
       // the run of a live instance without zod, on the fake clock
       const runEntry = await load("@mark1russell7/algebra/run");
       const lock = {

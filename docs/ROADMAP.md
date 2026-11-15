@@ -2324,6 +2324,23 @@ A sender of alerts gives each send a time limit. The `timeout` channel of servic
 - The release is service `0.8.16`, a PATCH version: a new export before 1.0.
 - The test: a seeded walk of 200 works, late exactly when the work ends after the limit, with no timer left.
 
+### SYS-117 · A scaled clock: speed and start
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+A test of a source of alerts runs 80 minutes of the source in 80 s of real time. A fake clock cannot drive a server, a proxy or a socket, because these wait on real time. The consumer had a local copy of a fast clock. The options `speed` and `start` of `platformClock` and `wallClock` of `@mark1russell7/algebra/clock` give a scaled clock.
+
+- `now()` is the start plus the monotonic time since the call, times the speed. A wall clock gives whole milliseconds.
+- A timer of `ms` waits `ms / speed` real milliseconds. When the platform starts it before its due time on the clock, it waits again for the rest.
+- A speed that is not a finite number above 0, or a start that is not finite, throws a `RangeError`.
+- `delay` also takes a `WallClock`, because it uses only the timers.
+- The release is algebra `0.8.10`, a PATCH version: new options before 1.0.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
