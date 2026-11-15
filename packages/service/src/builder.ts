@@ -15,7 +15,7 @@ import type {
   Transport,
 } from "./description.ts";
 import { FORMAT } from "./description.ts";
-import { realClock } from "./clock.ts";
+import { realClock, unrefClock } from "./clock.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
 import type { Limiter, LimiterSpec } from "./limiter/policy.ts";
 import { limiterProblems } from "./limiter/policy.ts";
@@ -307,7 +307,8 @@ export const service = (name: string): ServiceBuilder => {
     const dogs: Watchdog[] = [];
     const all = new Map(runs);
     for (const spec of watchdogs) {
-      const dog = watchdog(clock, spec, (from, to, on) =>
+      // the tick only watches the event loop: the work of the service keeps the process alive (SYS-126)
+      const dog = watchdog(unrefClock(clock), spec, (from, to, on) =>
         options.record?.({ at: clock.now(), machine: "watchdog", instance: spec.name, from, to, on }),
       );
       dogs.push(dog);

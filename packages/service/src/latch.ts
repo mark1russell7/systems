@@ -74,6 +74,7 @@ export const latch = (
   let passingSince: number | null = null;
   let failTimer: Cancel | null = null;
   let passTimer: Cancel | null = null;
+  // the owner gives the clock: a check of a service gives a clock whose timers do not keep the process alive (SYS-126)
 
   /** This function gives the name of the state, as the machine documents name it. */
   const named = (): string =>

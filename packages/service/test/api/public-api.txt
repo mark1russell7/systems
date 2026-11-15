@@ -289,6 +289,7 @@ stageRank: build/lifecycle.d.ts#stageRank
 symbolsOf: build/law.d.ts#symbolsOf
 takeQuotas: build/limiter/quota.d.ts#takeQuotas
 unitsOf: build/limiter/policy.d.ts#unitsOf
+unrefClock: @mark1russell7/algebra/clock#unrefClock (external)
 verdictOf: build/law.d.ts#verdictOf
 watchdog: build/watchdog.d.ts#watchdog
 workerLoop: build/worker.d.ts#workerLoop
@@ -727,6 +728,7 @@ type Clock: @mark1russell7/algebra/clock#Clock (external)
 type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
 platformClock: @mark1russell7/algebra/clock#platformClock (external)
 realClock: @mark1russell7/algebra/clock#realClock (external)
+unrefClock: @mark1russell7/algebra/clock#unrefClock (external)
 
 ## ./channel (build/channel.d.ts): names
 

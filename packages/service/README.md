@@ -317,11 +317,15 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 
 | Entry | Exports |
 | --- | --- |
-| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock` |
+| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock`, `unrefClock` |
 | `@mark1russell7/service/heartbeat` | `heartbeat`, `detectionTime` |
 | `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
 
-- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
+- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is `platformClock()`: its timers keep the process alive, as `setTimeout` does. Each cancel also has `unref`, for one timer.
+- **The rule of `unref`.** The service uses the `unref` of a timer only when a socket, a child process or the hold of the lifecycle keeps the process alive. Each other timer stays referenced. Thus a wait that a caller awaits, for example `retry` or `within`, ends before the process exits.
+- **The timers that do not keep the process alive.** These timers only watch other work. Examples are the heartbeat of a connection, the checks and the watchdog of a service, and the sweep of a listener. The timers of a supervisor for a live child are also examples. `unrefClock(clock)` gives a part such a clock.
+- **The timers that keep the process alive.** These timers are work, or they bound work that a caller awaits. Examples are a retry, a ticker, the sleeps of a worker loop and the polls of `watchTargets`. The owner stops each one.
+- **Before 0.9.0.** The default clock did not keep the process alive. Thus a command-line tool ended in the wait of a retry, with the code 0 and lost work.
 - **The home of the clock.** The clock lives in `@mark1russell7/algebra/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
 - **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
 - **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.

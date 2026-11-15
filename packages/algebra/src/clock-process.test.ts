@@ -30,4 +30,8 @@ describe("a wait on realClock keeps the process alive (SYS-126)", () => {
   it("exits in the delay on a clock with unref, with the code of a top-level await that does not settle (the control)", async () => {
     expect(await start(["unref"])).toEqual({ code: 13, out: "" });
   }, 20_000);
+
+  it("exits in the delay on unrefClock(realClock): its timers do not keep the process alive", async () => {
+    expect(await start(["unrefClock"])).toEqual({ code: 13, out: "" });
+  }, 20_000);
 });

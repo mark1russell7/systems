@@ -56,6 +56,7 @@ export const retrierOn = (clock: Clock, backoff: Backoff, random: () => number, 
       tries += 1;
       const delay = Math.round(backoffDelay(backoff, tries, random));
       timer?.();
+      // the next try is work, thus the timer keeps the process alive. The owner stops the retrier (SYS-126)
       timer = clock.after(delay, () => {
         timer = null;
         run();

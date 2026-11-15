@@ -125,7 +125,8 @@ An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake 
 | --- | --- |
 | `Clock` | `now()` gives the monotonic time in milliseconds. `after(ms, run)` starts `run` after `ms` and gives its `Cancel`. |
 | `platformClock({ unref, speed, start })` | A clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. With a speed or a start, the clock is scaled. |
-| `realClock` | The clock of the platform with `unref: true`. |
+| `realClock` | `platformClock()`: its timers keep a Node process alive, as `setTimeout` does. |
+| `unrefClock(clock)` | A clock with the time of `clock`, whose timers do not keep a Node process alive. A wall clock stays a wall clock. |
 | `wallClock({ unref, speed, start })` | A `WallClock`: `now()` gives the instant of `Date.now()`, and its timers are the timers of `platformClock`. With a speed or a start, the clock is scaled. |
 | `fakeClock(start)` | A clock that moves only on `advance(ms)`. `block(ms)` moves it and starts no timer, as a blocked event loop does. `pending` counts the live timers. |
 | `fakeWallClock(start)` | A fake `WallClock`. `set(instant)` steps its instant forward or back, and no timer moves. |
@@ -141,6 +142,16 @@ await clock.advance(30_000); // the sweep runs, at 30 s exactly
 // a wait before the next try, which the drain stops
 await delay(realClock, retryAfter, controller.signal);
 ```
+
+### The rule of `unref`
+
+Each timer of `realClock` keeps a Node process alive, as `setTimeout` does. Thus a process does not end in a wait that a caller awaits, for example the wait of a retry.
+
+- The owner of a timer uses the `unref` of its cancel only when a socket, a child process or another hold keeps the process alive. Examples are the heartbeat of a connection and the health checks of a service.
+- Each other timer stays referenced, a ticker too. Its caller stops it.
+- `unrefClock(clock)` gives a part a clock whose timers do not keep the process alive. The owner of the part gives it only when another hold keeps the process alive.
+- `platformClock({ unref: true })` makes each timer of a new clock an exception, with the same condition.
+- A hang shows. A silent exit with the code 0 and lost work does not. Before algebra 0.9.0, the timers of `realClock` did not keep the process alive, and a command-line tool ended in the wait of a retry.
 
 ### A scaled clock
 

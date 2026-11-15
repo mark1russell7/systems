@@ -55,6 +55,11 @@ jobs:
             packages/service/src/conformance.ts
             packages/service/src/host/node.ts
             packages/service/src/host-it.test.ts
+            packages/algebra/src/clock.ts
+            packages/algebra/src/clock-process.test.ts
+            packages/algebra/test/clock/wait.ts
+            packages/service/src/process-it.test.ts
+            packages/service/test/ipc/wait.ts
 
   redis:
     needs: changes
@@ -398,6 +403,29 @@ jobs:
           to: "AbortSignal.timeout(timeout * 20), redirect"
           test: pnpm --filter @mark1russell7/service exec vitest run src/host-it.test.ts -t "null at a closed port and at a timeout"
           fails: expected [0-9.]+ to be less than 15000
+      # SYS-126: with the timers of realClock in unref, a child ends in its wait with the code 13 and no line
+      - name: Process OK, a delay on realClock (the timers of realClock in unref)
+        uses: ./.github/actions/flip
+        with:
+          what: Process OK, a delay on realClock, the timers of realClock in unref
+          file: packages/algebra/src/clock.ts
+          from: "export const realClock: Clock = /* @__PURE__ */ platformClock();"
+          to: "export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });"
+          test: pnpm --filter @mark1russell7/algebra exec vitest run src/clock-process.test.ts -t "ends the delay of a child"
+          fails: |
+            expected \{ code: 13, out: '' \} to deeply equal
+      - name: Process OK, retry, a retrier and within on realClock (the timers of realClock in unref)
+        uses: ./.github/actions/flip
+        env:
+          PROCESS_IT: "1"
+        with:
+          what: Process OK, retry, a retrier and within on realClock, the timers of realClock in unref
+          file: packages/algebra/src/clock.ts
+          from: "export const realClock: Clock = /* @__PURE__ */ platformClock();"
+          to: "export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });"
+          test: pnpm --filter @mark1russell7/service exec vitest run src/process-it.test.ts -t "ends retry, a retrier and within"
+          fails: |
+            expected \{ code: 13, signal: null \} to deeply equal
 
   flip-ok:
     name: Flip OK
