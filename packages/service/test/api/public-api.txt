@@ -194,6 +194,7 @@ type Stop: build/index.d.ts#Stop
 type StopWay: build/index.d.ts#StopWay
 type StoreFailure: build/policy.chunk.d.ts#StoreFailure
 TOKEN_BUCKET_MACHINE: build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
+type TakeQuotasOptions: build/limiter.chunk.d.ts#TakeQuotasOptions
 type TakeRequest: build/store.chunk.d.ts#TakeRequest
 type TakeStep: build/policy.chunk.d.ts#TakeStep
 type Term: build/rules.chunk.d.ts#Term
@@ -859,6 +860,7 @@ SLIDING_WINDOW_MACHINE: build/limiter.chunk.d.ts#SLIDING_WINDOW_MACHINE
 type SlidingWindow: build/policy.chunk.d.ts#SlidingWindow
 type StoreFailure: build/policy.chunk.d.ts#StoreFailure
 TOKEN_BUCKET_MACHINE: build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
+type TakeQuotasOptions: build/limiter.chunk.d.ts#TakeQuotasOptions
 type TakeRequest: build/store.chunk.d.ts#TakeRequest
 type TakeStep: build/policy.chunk.d.ts#TakeStep
 type TokenBucket: build/policy.chunk.d.ts#TokenBucket
@@ -3152,6 +3154,11 @@ declare const SLIDING_WINDOW_MACHINE: Machine;
 ### build/limiter.chunk.d.ts#TOKEN_BUCKET_MACHINE
 declare const TOKEN_BUCKET_MACHINE: Machine;
 
+### build/limiter.chunk.d.ts#TakeQuotasOptions
+interface TakeQuotasOptions {
+  readonly onGiveBackError?: ((error: unknown, index: number) => void) | undefined;
+}
+
 ### build/limiter.chunk.d.ts#keyedQuota
 declare function keyedQuota<Sync extends boolean>(name: string, spec: QuotaSpec, store: QuotaStore<Sync>, clock: Pick<WallClock, "time" | "now">): KeyedQuota<Sync>;
 
@@ -3177,8 +3184,8 @@ declare function quotaStep(rule: QuotaRule, stored: unknown, instant: number, ev
 declare function quotaStep(rule: QuotaRule, stored: unknown, instant: number, event: QuotaEvent): QuotaStep;
 
 ### build/limiter.chunk.d.ts#takeQuotas
-declare function takeQuotas(parts: readonly QuotaPart<true>[]): QuotasVerdict;
-declare function takeQuotas(parts: readonly QuotaPart[]): QuotasVerdict | Promise<QuotasVerdict>;
+declare function takeQuotas(parts: readonly QuotaPart<true>[], options?: TakeQuotasOptions): QuotasVerdict;
+declare function takeQuotas(parts: readonly QuotaPart[], options?: TakeQuotasOptions): QuotasVerdict | Promise<QuotasVerdict>;
 
 ### build/logger.chunk.d.ts#Check
 interface Check {

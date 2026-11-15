@@ -2300,6 +2300,8 @@ An API provider gives a quota: a limit in each day or month of a time zone, or i
 - Each change adds an export. Thus the releases are algebra `0.8.9` and service `0.8.15` (PATCH versions before 1.0).
 - The test of the calendar: each change of the clocks of 2026 in Chicago, Santiago and Berlin. A zone with a half-hour offset, and a step back of the clock.
 - The test of the rolling window: a seeded walk against the true count of each window.
+- **A failed give-back.** In service `0.8.15`, a failed give-back of a refused take threw the error of the store. The refusal was lost, and the next parts kept their units. In service `0.8.17`, a failed give-back keeps the verdict, and the other give-backs still occur. The units of its part stay counted, thus its quota refuses sooner, not later. The new option `onGiveBackError` gets each error after the last give-back. This is a PATCH: a fix and an optional parameter before 1.0.
+- **The cases of polite-crawler.** The tests of `quota.test.ts` at 56207b9 in polite-crawler give the cases of a list of gates and of a give-back. Service holds each case that applies to it, and the five new tests fail on the code of `0.8.15`. Two do not apply: service reads no HTTP header, and it has no `read` callback for each gate.
 
 ### SYS-116 · A time limit on one work: within
 

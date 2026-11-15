@@ -319,6 +319,8 @@ describe("the quota of a key", () => {
       expect(() => quota.giveBack("k", units, 0)).toThrow(RangeError);
     }
     expect(() => quota.giveBack("k", 1, Number.NaN)).toThrow(RangeError);
+    // an instant after the last date of a Date
+    expect(() => quota.giveBack("k", 1, 9e15)).toThrow(RangeError);
     const rule = quotaRule("example", rolling(10, 1000));
     for (const instant of [Number.NaN, 1e20]) expect(() => quotaStep(rule, undefined, instant, { type: "read" })).toThrow(RangeError);
     expect(quota.state("k")).toMatchObject({ used: 0 });
@@ -401,6 +403,17 @@ describe("a give-back", () => {
     quota.take("k", 1);
     quota.note("k", { resetAt: 1_000_000 });
     expect(quota.giveBack("k", 1, 1_000)).toMatchObject({ used: 4 });
+  });
+
+  it("keeps the latest instant of a reading after a step back of the clock", () => {
+    const { quota, set } = quotaAt(rolling(10, 60_000), "1970-01-01T00:00:08Z");
+    quota.take("k");
+    set("1970-01-01T00:00:10Z");
+    quota.note("k", { remaining: 9 });
+    // the clock goes back to before the take: the reading of 10 s still holds its unit
+    set("1970-01-01T00:00:05Z");
+    quota.note("k", { remaining: 9 });
+    expect(quota.giveBack("k", 1, 8_000)).toMatchObject({ used: 1, left: 9 });
   });
 
   it("gives back into a calendar window, in its own window", () => {
@@ -534,5 +547,129 @@ describe("a take of several quotas, all or none", () => {
     await expect(answer).resolves.toMatchObject({ allowed: false, index: 1, states: [{ used: 0 }, { used: 2 }] });
     expect(local.state("k").used).toBe(0);
     await expect(remote.giveBack("k", 2, clock.now())).resolves.toMatchObject({ used: 0 });
+  });
+
+  it("gives back the parts before a capacity refusal", () => {
+    const { minute, day } = two();
+    const verdict = takeQuotas([
+      { quota: minute, key: "k", units: 3 },
+      { quota: day, key: "k", units: 25 },
+    ]);
+    expect(verdict).toMatchObject({ allowed: false, index: 1, refusal: { cause: "capacity", units: 25, capacity: 20 }, states: [{ used: 0 }, { used: 0 }] });
+    expect(minute.state("k").used).toBe(0);
+  });
+
+  it("gives back nothing for a refused take of one part", () => {
+    const { store, changes } = failingStore({});
+    const day = keyedQuota("day", calendar("day", "UTC", 0, 1), store, fakeWallClock(at("2026-11-14T12:00:00Z")));
+    day.take("k");
+    expect(takeQuotas([{ quota: day, key: "k", units: 1 }])).toMatchObject({
+      allowed: false,
+      index: 0,
+      refusal: { cause: "limit", resetAt: at("2026-11-15T00:00:00Z") },
+    });
+    // two changes of the store: the two takes, and no give-back
+    expect(changes.get("day")).toBe(2);
+  });
+});
+
+/**
+ * This function gives a memory store that fails change `n` of each quota in `fails`, and counts the
+ * changes of each quota. A quota gives one change for each take, give-back and read.
+ */
+const failingStore = (fails: Readonly<Record<string, number>>) => {
+  const memory = memoryQuotaStore();
+  const changes = new Map<string, number>();
+  const store: QuotaStore<true> = {
+    sync: true,
+    change<T>(quota: string, key: string, step: (stored: unknown) => QuotaChange<T>): T {
+      const count = (changes.get(quota) ?? 0) + 1;
+      changes.set(quota, count);
+      if (fails[quota] === count) throw new Error(`the database is locked (${quota}, change ${count})`);
+      return memory.change(quota, key, step);
+    },
+  };
+  return { store, changes };
+};
+
+describe("a take of several quotas when a give-back fails", () => {
+  /** This function gives the quotas a and b (limit 10) and c (limit 1, full) on a store that fails as `fails` tells. */
+  const three = (fails: Readonly<Record<string, number>>) => {
+    const { store } = failingStore(fails);
+    const clock = fakeWallClock(0);
+    const a = keyedQuota("a", rolling(10, 60_000), store, clock);
+    const b = keyedQuota("b", rolling(10, 60_000), store, clock);
+    const c = keyedQuota("c", rolling(1, 60_000), store, clock);
+    const parts = [
+      { quota: a, key: "k", units: 2 },
+      { quota: b, key: "k", units: 2 },
+      { quota: c, key: "k", units: 1 },
+    ];
+    return { a, b, c, parts };
+  };
+
+  it("keeps the refusal, gives back the other parts, and gives the error to the option", () => {
+    // change 1 of c fills it, and change 2 of a is its give-back
+    const { a, b, c, parts } = three({ a: 2 });
+    c.take("k");
+    const errors: (readonly [string, number])[] = [];
+    const verdict = takeQuotas(parts, { onGiveBackError: (error, index) => errors.push([(error as Error).message, index]) });
+    expect(verdict).toMatchObject({ allowed: false, index: 2, refusal: { cause: "limit" }, states: [{ used: 2 }, { used: 0 }, { used: 1 }] });
+    expect(errors).toEqual([["the database is locked (a, change 2)", 0]]);
+    // the units of a stay counted: its quota refuses sooner, not later
+    expect(a.state("k").used).toBe(2);
+    expect(b.state("k").used).toBe(0);
+  });
+
+  it("gives the same verdict with no option", () => {
+    const { b, c, parts } = three({ a: 2 });
+    c.take("k");
+    expect(takeQuotas(parts)).toMatchObject({ allowed: false, index: 2, states: [{ used: 2 }, { used: 0 }, { used: 1 }] });
+    expect(b.state("k").used).toBe(0);
+  });
+
+  it("throws the error of a failed take, and gives the errors of its give-backs to the option", () => {
+    // change 1 of c is its take, and change 2 of b is its give-back
+    const { a, b, parts } = three({ b: 2, c: 1 });
+    const errors: number[] = [];
+    expect(() => takeQuotas(parts, { onGiveBackError: (_error, index) => errors.push(index) })).toThrow("the database is locked (c, change 1)");
+    expect(errors).toEqual([1]);
+    expect(a.state("k").used).toBe(0);
+    expect(b.state("k").used).toBe(2);
+  });
+
+  it("ends the take with an error of the option after the last give-back", () => {
+    const { b, c, parts } = three({ a: 2 });
+    c.take("k");
+    const fail = (): void => {
+      throw new Error("the option failed");
+    };
+    expect(() => takeQuotas(parts, { onGiveBackError: fail })).toThrow("the option failed");
+    expect(b.state("k").used).toBe(0);
+  });
+
+  it("gives the same verdict and errors with a store that answers with a promise", async () => {
+    const { store } = failingStore({ a: 2 });
+    const shared: QuotaStore<false> = {
+      sync: false,
+      change: async <T>(quota: string, key: string, step: (stored: unknown) => QuotaChange<T>): Promise<T> => {
+        await Promise.resolve();
+        return store.change(quota, key, step);
+      },
+    };
+    const clock = fakeWallClock(0);
+    const a = keyedQuota("a", rolling(10, 60_000), shared, clock);
+    const c = keyedQuota("c", rolling(1, 60_000), shared, clock);
+    await c.take("k");
+    const errors: number[] = [];
+    const answer = takeQuotas(
+      [
+        { quota: a, key: "k", units: 2 },
+        { quota: c, key: "k", units: 1 },
+      ],
+      { onGiveBackError: (_error, index) => errors.push(index) },
+    );
+    await expect(answer).resolves.toMatchObject({ allowed: false, index: 1, states: [{ used: 2 }, { used: 1 }] });
+    expect(errors).toEqual([0]);
   });
 });

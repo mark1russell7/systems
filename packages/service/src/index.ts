@@ -98,6 +98,7 @@ export type {
   QuotaWindow,
   QuotasVerdict,
   RollingWindow,
+  TakeQuotasOptions,
 } from "./limiter.ts";
 export { keyedQuota, memoryQuotaStore, quotaProblems, quotaRule, quotaStep, takeQuotas } from "./limiter.ts";
 export {
