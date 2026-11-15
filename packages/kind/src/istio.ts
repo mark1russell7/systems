@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Quantity } from "@mark1russell7/quantity";
@@ -188,7 +189,7 @@ export const setZtunnelEnv = async (cluster: Cluster, env: Readonly<Record<strin
     };
     if (listed.items.every((item) => item.metadata.deletionTimestamp === undefined)) return;
     if (Date.now() > until) throw new Error("an old ztunnel pod is still going 120 s after the rollout");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await sleep(2000);
   }
 };
 

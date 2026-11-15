@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, Drill, DrillRoom, ProbeEvent, Run, RunBackup } from "./cell.ts";
 import type { GroupClient, Stamp } from "./group.ts";
@@ -17,7 +18,7 @@ import {
   stopScript,
 } from "./recovery.ts";
 import type { ReplicaSetLab } from "./replset.ts";
-import { STEADY, TAIL_MS, clockOffsetOf, droppedSoFar, initiateScript, onMonotonic, replicaSetArgs, sleep, waitFor } from "./replset.ts";
+import { STEADY, TAIL_MS, clockOffsetOf, droppedSoFar, initiateScript, onMonotonic, replicaSetArgs, waitFor } from "./replset.ts";
 
 /**
  * This module does one run of a recovery drill on the lab of a replica set. A drill stops the store
