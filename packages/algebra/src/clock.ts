@@ -189,12 +189,19 @@ const DAY_MS = 86_400_000;
 const WEEKDAYS: Readonly<Record<string, number>> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 const LOCAL_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-/** The cache has one format for each zone, and `null` for a name that is not a time zone. */
-const ZONE_FORMATS = new Map<string, Intl.DateTimeFormat | null>();
+/**
+ * The cache has one format for each good zone name. It keeps no bad name, and it starts again at
+ * `ZONE_CACHE_MAX` names. Thus names from configuration input cannot make it grow without a limit.
+ */
+const ZONE_FORMATS = new Map<string, Intl.DateTimeFormat>();
+const ZONE_CACHE_MAX = 512;
+/** The longest IANA name has 32 characters. A longer name than this limit is not a zone. */
+const ZONE_NAME_MAX = 100;
 
 const zoneFormat = (zone: string): Intl.DateTimeFormat | undefined => {
   let format = ZONE_FORMATS.get(zone);
   if (format === undefined) {
+    if (typeof zone !== "string" || zone.length > ZONE_NAME_MAX) return undefined;
     try {
       format = new Intl.DateTimeFormat("en-US", {
         timeZone: zone,
@@ -209,11 +216,12 @@ const zoneFormat = (zone: string): Intl.DateTimeFormat | undefined => {
         weekday: "short",
       });
     } catch {
-      format = null;
+      return undefined;
     }
+    if (ZONE_FORMATS.size >= ZONE_CACHE_MAX) ZONE_FORMATS.clear();
     ZONE_FORMATS.set(zone, format);
   }
-  return format ?? undefined;
+  return format;
 };
 
 /**

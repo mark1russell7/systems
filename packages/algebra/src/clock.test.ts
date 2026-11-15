@@ -164,6 +164,9 @@ describe("localTime", () => {
   it("gives undefined for a name that is not a time zone, and for an instant that is not a date", () => {
     expect(localTime(0, "Mars/Olympus")).toBeUndefined();
     expect(localTime(0, "")).toBeUndefined();
+    expect(localTime(0, `Europe/${"x".repeat(200)}`)).toBeUndefined();
+    // A bad name is not kept, thus it gives undefined each time.
+    expect(localTime(0, "Mars/Olympus")).toBeUndefined();
     expect(localTime(Number.NaN, "UTC")).toBeUndefined();
     expect(localTime(Number.POSITIVE_INFINITY, "UTC")).toBeUndefined();
     expect(localTime(1e20, "UTC")).toBeUndefined();
@@ -249,6 +252,17 @@ describe("inWindow", () => {
 });
 
 describe("nextBoundary", () => {
+  it("closes, opens and closes again when the end is in the hour that occurs two times", () => {
+    // On 2026-10-25 in Berlin, 02:30 occurs at 00:30Z (summer time) and at 01:30Z (winter time).
+    const night: TimeWindow = { zone: "Europe/Berlin", start: "22:00", end: "02:30" };
+    const at = (hour: number, minute: number) => Date.UTC(2026, 9, 25, hour, minute);
+    expect(nextBoundary(at(0, 0), night)).toEqual({ at: at(0, 30), opens: false });
+    expect(nextBoundary(at(0, 30), night)).toEqual({ at: at(1, 0), opens: true });
+    expect(nextBoundary(at(1, 0), night)).toEqual({ at: at(1, 30), opens: false });
+    expect(inWindow(at(0, 45), night)).toBe(false);
+    expect(inWindow(at(1, 15), night)).toBe(true);
+  });
+
   it("opens a window at the end of the gap when its start does not occur", () => {
     const gap: TimeWindow = { zone: "Europe/Berlin", start: "02:30", end: "04:00" };
     expect(nextBoundary(utc(3, 29, 0), gap)).toEqual({ at: utc(3, 29, 1), opens: true });
