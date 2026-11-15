@@ -75,10 +75,19 @@ const CONFIRM_MS = 10_000;
  */
 export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack" | "silence";
 
-/** These are the options of a network fault: the direction of a black hole, the code of a reject, the length of an MTU drop. */
+/** These are the options of a network fault: its direction, its protocol, the code of a reject, the length of an MTU drop. */
 export interface FaultOptions {
-  /** This direction is relative to the namespace of the rule: `in` drops what comes from the peer, `out` what goes to it. */
+  /**
+   * This direction is relative to the namespace of the rule: `in` acts on what comes from the peer,
+   * `out` on what goes to it. A black hole without it acts on both. A reject without it acts on `in`.
+   * At a router, `out` acts on what the router forwards through its device to the peer.
+   */
   readonly direction?: "in" | "out";
+  /**
+   * This protocol limits a black hole or a reject. A black hole without it drops each protocol. A
+   * reject without it rejects only TCP. The value `all` acts on each protocol.
+   */
+  readonly protocol?: "tcp" | "udp" | "icmp" | "all";
   readonly code?: "host" | "net" | "port" | "admin";
   /** This length is the longest segment in bytes that an MTU drop lets through. */
   readonly above?: number;
@@ -89,6 +98,7 @@ export interface FaultOptions {
 /** This function gives the arguments of the injector for the options of a fault. */
 export const optionArgs = (options: FaultOptions): string[] => [
   ...(options.direction === undefined ? [] : ["--direction", options.direction]),
+  ...(options.protocol === undefined ? [] : ["--protocol", options.protocol]),
   ...(options.code === undefined ? [] : ["--code", options.code]),
   ...(options.above === undefined ? [] : ["--above", String(options.above)]),
 ];

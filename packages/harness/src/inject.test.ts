@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIFT, faultArgs } from "./lab.ts";
+import { LIFT, faultArgs, optionArgs } from "./lab.ts";
 
 const INJECT = "/opt/harness/inject";
 const PEER = "10.0.0.2";
@@ -24,5 +24,40 @@ describe("the arguments of the injector for a network fault", () => {
     expect(() => faultArgs("silence", "target", PEER, [])).toThrow("namespace of a hop");
     expect(() => faultArgs("silence", "client", PEER, [])).toThrow("namespace of a hop");
     expect(() => faultArgs("silence", GW, PEER, VIA, { direction: "in" })).toThrow("no options");
+  });
+
+  it("gives no option that the caller did not set, so each default of the injector holds", () => {
+    expect(optionArgs({})).toEqual([]);
+    expect(optionArgs({ code: "host" })).toEqual(["--code", "host"]);
+  });
+
+  it("limits a black hole or a reject to a protocol, and turns a reject at a router toward the peer", () => {
+    expect(optionArgs({ protocol: "udp" })).toEqual(["--protocol", "udp"]);
+    expect(faultArgs("blackhole", "target", PEER, [], { direction: "in", protocol: "icmp" })).toEqual([
+      INJECT,
+      "blackhole",
+      PEER,
+      "--direction",
+      "in",
+      "--protocol",
+      "icmp",
+    ]);
+    // a host that is down behind the gateway: the gateway answers each packet that it forwards to the host
+    const toward = { hop: "gw", toward: "target" } as const;
+    const host = { direction: "out", protocol: "all", code: "host", peers: ["10.0.1.2"] } as const;
+    expect(faultArgs("reject", toward, "10.0.1.3", ["--via", "eth1"], host)).toEqual([
+      INJECT,
+      "reject",
+      "10.0.1.2",
+      "--direction",
+      "out",
+      "--protocol",
+      "all",
+      "--code",
+      "host",
+      "--via",
+      "eth1",
+    ]);
+    expect(faultArgs("reject", toward, "10.0.1.3", ["--via", "eth1"], host, true)[1]).toBe("clear-reject");
   });
 });
