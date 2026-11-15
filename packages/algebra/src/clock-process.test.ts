@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
  * the delay. The promise does not settle, and the line does not come.
  */
 
-const CHILD = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "clock", "wait.mjs");
+const CHILD = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "clock", "wait.ts");
 
 /** This function starts the child with its arguments, and gives its exit code and its stdout. */
 const start = (args: readonly string[]): Promise<{ readonly code: number | null; readonly out: string }> =>

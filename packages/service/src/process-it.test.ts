@@ -20,7 +20,7 @@ const RUN = process.env["PROCESS_IT"] === "1";
 const here = dirname(fileURLToPath(import.meta.url));
 const IPC_CHILD = join(here, "..", "test", "ipc", "child.mjs");
 const HELD_CHILD = join(here, "..", "test", "ipc", "hold.mjs");
-const WAIT_CHILD = join(here, "..", "test", "ipc", "wait.mjs");
+const WAIT_CHILD = join(here, "..", "test", "ipc", "wait.ts");
 const STAGES = ["start", "ready", "stop intake", "drain", "close"];
 const WINDOWS = process.platform === "win32";
 

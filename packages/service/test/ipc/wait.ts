@@ -5,22 +5,22 @@
 // clock whose timers do not keep the process alive: this is the control of the test.
 
 import { within } from "../../src/channel.ts";
-import { platformClock, retrier, retry } from "../../src/index.ts";
+import { type Clock, platformClock, retrier, retry } from "../../src/index.ts";
 
-const line = (text) => void process.stdout.write(`${text}\n`);
-const given = process.argv[2] === "unref" ? { clock: platformClock({ unref: true }) } : {};
+const line = (text: string): void => void process.stdout.write(`${text}\n`);
+const clock: Clock | undefined = process.argv[2] === "unref" ? platformClock({ unref: true }) : undefined;
 
 const value = await retry(
   async (attempt) => {
     if (attempt < 2) throw new Error("the first try fails");
     return `retry ended at the try ${attempt}`;
   },
-  { tries: 2, base: 200, ...given },
+  { tries: 2, base: 200, clock },
 );
 line(value);
 
-await new Promise((resolve) => retrier({ base: 200, ...given }).schedule(resolve));
+await new Promise<void>((resolve) => retrier({ base: 200, clock }).schedule(() => resolve()));
 line("the retrier started its try");
 
-const result = await within(new Promise(() => {}), 200, given.clock);
+const result = await within(new Promise<never>(() => {}), 200, clock);
 line(result.ok ? "within ended" : result.late ? "within is late" : "within failed");
