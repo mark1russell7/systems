@@ -3536,6 +3536,7 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 - `queue.yml` uses `reusable-queue.yml` of the template. It merges `main` into each pull request that is behind, and it starts the workflows of its checks again.
 - The conventions option `versionEachChange` is on. A change of the shipped files at a version that npm has breaks the check.
 - Each workflow of a check of the ruleset starts on `workflow_dispatch`.
+- Part 1: a dispatch of Cells or Kind that names no cells is the gate of a pull request. The gate of Cells is its probe. The gate of Kind is its smoke and its capture. A catalog starts only on a schedule or on a dispatch that names its cells. The gate dispatches of one branch share a cancel group, thus a newer dispatch cancels the older run. The test `gate-dispatch.test.ts` of the cells package holds these rules.
 - With conventions `0.41.13`, a run that the queue starts examines the change of the pull request against the new base.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service

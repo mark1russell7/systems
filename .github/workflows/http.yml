@@ -29,9 +29,11 @@ on:
 permissions:
   contents: read
 
+# A pull request and a dispatch share a group with the newer runs of their ref, which cancel them. The queue
+# dispatches this gate on each pull request that is behind main (SYS-118). A push to main keeps each run.
 concurrency:
-  group: http-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: http-${{ github.event_name != 'push' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   changes:
