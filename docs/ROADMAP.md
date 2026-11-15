@@ -2343,12 +2343,12 @@ A test of a source of alerts puts 80 minutes of the source into 80 s of real tim
 
 ### SYS-125 · A smaller limiter for a browser: the entry of the times
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-115
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-15
+- **Links:** [#543](https://github.com/mark1russell7/systems/pull/543), [the release run](https://github.com/mark1russell7/systems/actions/runs/43746178529)
 
 The entry `polite-crawler/api` is for a browser, and its quotas come from `keyedQuota`, `takeQuotas` and `quotaProblems` of `@mark1russell7/service/limiter`. In service `0.8.19`, these three imports were 11155 B after gzip. The limiter converts only times and counts, but its bundle had the full table of units and all of the rational arithmetic.
 
@@ -2358,7 +2358,8 @@ The entry `polite-crawler/api` is for a browser, and its quotas come from `keyed
 - **One file for each module.** The build of quantity and service makes one file for each module of `src/`. Before, a shared chunk joined modules into one file, and a bundle kept all of the chunk.
 - The measure: esbuild bundles the three imports for a browser with minify, and gzip compresses the result. The same three imports are 7699 B after gzip.
 - The rest is mostly `quota.ts` (8510 B before gzip) and the unit system of quantity (4224 B).
-- The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API.
+- The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API. Both are on npm with their provenance.
+- The size of 2.1 kB is not possible without a loss. `quota.ts` alone is approximately 3 kB after gzip. The exact conversion of units is the quantity law. Thus `polite-crawler/api` keeps the limiter. Only its two functions of quotas bundle the limiter. A caller that does not import them does not get it.
 
 ## The private corpus
 
@@ -3638,12 +3639,12 @@ The state-machine package publishes as `@mark1russell7/algebra`, and that name c
 
 ### SYS-118 · The queue: a pull request that is behind main passes its checks again
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** program
-- **Depends on:** conventions `0.41.13` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
+- **Depends on:** conventions `0.41.14` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538), [part 1, #539](https://github.com/mark1russell7/systems/pull/539)
+- **Shipped:** 2026-11-15
+- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538), [part 1, #539](https://github.com/mark1russell7/systems/pull/539), [part 2, #546](https://github.com/mark1russell7/systems/pull/546)
 
 On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependencies merged first, and the release published its `0.8.18`. Then #535 merged with the same version and other files. The two version lines had the same text, thus the merge had no conflict. The release check of #535 operated before `0.8.18` was on npm. Thus the pack step of `main` stopped, and #538 set `0.8.19`.
 
@@ -3652,7 +3653,9 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 - The conventions option `versionEachChange` is on. A change of the shipped files at a version that npm has breaks the check.
 - Each workflow of a check of the ruleset starts on `workflow_dispatch`.
 - Part 1: a dispatch of Cells or Kind that names no cells is the gate of a pull request. The gate of Cells is its probe. The gate of Kind is its smoke and its capture. A catalog starts only on a schedule or on a dispatch that names its cells. The gate dispatches of one branch share a cancel group, thus a newer dispatch cancels the older run. The test `gate-dispatch.test.ts` of the cells package holds these rules.
-- With conventions `0.41.13`, a run that the queue starts examines the change of the pull request against the new base.
+- With conventions `0.41.14`, a run that the queue starts examines the change of the pull request against the new base.
+- Part 2: the job `checks` of `ci.yml` does `check:conventions` with the shared CI of the template. On a dispatched run, the shared job finds the pull request of the branch. Then it gives its base and its text to the check. `queue.yml` and `versionEachChange` are on.
+- The last step: the ruleset of `main` has strict status checks since 2026-11-15. The first job of `queue.yml` on `main` passed.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
