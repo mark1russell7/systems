@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
@@ -431,7 +432,7 @@ export const buildOnce = (
             const wait = waits[attempt];
             if (wait === undefined) throw error;
             process.stderr.write(`the build of ${plan.tag} failed (${error instanceof Error ? error.message : String(error)}): try ${attempt + 2} after ${wait} ms\n`);
-            await new Promise((resolve) => setTimeout(resolve, wait));
+            await sleep(wait);
           }
         }
       } finally {

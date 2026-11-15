@@ -2283,6 +2283,43 @@ A heartbeat from a program tells only that the program sends. A consumer needs a
 - The test: tests on the test clock and the fake host, and unit tests of the read of a text with no network. The net port of Node has tests against a local server.
 - Service `0.8.11` is on npm with provenance since 2026-11-14.
 
+### SYS-115 · The quota of a key: a calendar window and a rolling window
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+An API provider gives a quota: a limit in each day or month of a time zone, or in each rolling span. Before this item, polite-crawler counted these windows in its own code. The count of a window is a limiter, thus its home is `@mark1russell7/service/limiter`. Its civil time comes from `@mark1russell7/algebra/clock`.
+
+- **The clock.** `firstInstantOf(wall, zone)` gives the first instant whose local time is `wall` or later. A gap of the zone gives the end of the gap. `wallClock()` gives the instant from the epoch, with the type `WallClock`. Its mark `time: "wall"` keeps it apart from a monotonic `Clock` in the type system. `fakeWallClock` is its test clock.
+- **The step.** `quotaStep(rule, stored, instant, event)` is pure. The events are a take, a note of a reading of the provider, a give-back and a read. A note can only make the count larger. A give-back changes nothing when a reading with a count came at or after its take.
+- **The runtime.** `keyedQuota` applies the step in one atomic change of a store. A store answers at once or with a promise. `takeQuotas` takes from several quotas, all or none. Its refusal is the first capacity refusal, else the refusal with the latest reset.
+- Each change adds an export. Thus the releases are algebra `0.8.9` and service `0.8.15` (PATCH versions before 1.0).
+- The test of the calendar: each change of the clocks of 2026 in Chicago, Santiago and Berlin. A zone with a half-hour offset, and a step back of the clock.
+- The test of the rolling window: a seeded walk against the true count of each window.
+- **A failed give-back.** In service `0.8.15`, a failed give-back of a refused take threw the error of the store. The refusal was lost, and the next parts kept their units. In service `0.8.17`, a failed give-back keeps the verdict, and the other give-backs still occur. The units of its part stay counted, thus its quota refuses sooner, not later. The new option `onGiveBackError` gets each error after the last give-back. This is a PATCH: a fix and an optional parameter before 1.0.
+- **The cases of polite-crawler.** The tests of `quota.test.ts` at 56207b9 in polite-crawler give the cases of a list of gates and of a give-back. Service holds each case that applies to it, and the five new tests fail on the code of `0.8.15`. Two do not apply: service reads no HTTP header, and it has no `read` callback for each gate.
+
+### SYS-116 · A time limit on one work: within
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-115
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+A sender of alerts gives each send a time limit. The `timeout` channel of service is a time limit for `select`, but its timer stays after the work ends. The new function `within(work, ms, clock)` of `@mark1russell7/service/channel` gives a result and does not reject.
+
+- The result is `{ ok: true, value }`, `{ ok: false, late: true }` or `{ ok: false, late: false, error }`.
+- At the time limit, the function aborts the signal of the work with a `LateError`. The end of the work stops the timer.
+- The work starts before the timer. Thus a work whose own timer ends at the time limit is in time.
+- The release is service `0.8.16`, a PATCH version: a new export before 1.0.
+- The test: a seeded walk of 200 works, late exactly when the work ends after the limit, with no timer left.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
@@ -3098,6 +3135,8 @@ The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for e
 
 The first slice narrows this text. It has one guest, and that guest holds the whole lab, in place of one VM for each node. A bridge cell has no fault that needs a second kernel, and each node costs memory that a runner does not have in quantity. The second node comes with the first fault that needs a second kernel (SYS-83, SYS-84, SYS-85). The disk of a guest is an overlay on one root image, thus that node needs no other build.
 
+Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The workflow `vm.yml` has no record yet, thus the bridge has no result. The first dispatch operates the default arms `e1 e4 e4 e1`. The pair `e4 e4` gives the noise of the layer.
+
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 
 - **Status:** later
@@ -3279,6 +3318,22 @@ The intended send time comes from the record. The form `first + n × interval` i
 - **Links:**
 
 `Topology` is a chain of hops, thus it cannot name two paths. The first fabric gives its paths in `Topology.fabric`, apart from the chain. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
+
+### SYS-114 · A Proxmox VE guest: a real API for the provider of runner-dispatch
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The provider of [`@mark1russell7/runner-dispatch`](https://www.npmjs.com/package/@mark1russell7/runner-dispatch) makes one machine for each job through the API of Proxmox VE. A fake of that API tests only the fake. A guest of the VM tier can operate Proxmox VE, and its API listens on port 8006. Thus the test of the provider meets the real API on a public runner.
+
+- **The guest as data.** The guest of SYS-81 boots one pinned kernel from the runner, with no boot loader. Proxmox VE has its own kernel. Thus a guest becomes data: a kernel and a root disk, each pinned by digest. The guest of SYS-81 is the first value, and Proxmox VE is the second.
+- **The disk.** The packages of Proxmox VE install on Debian, at a pinned version. The kernel of the guest comes from that disk.
+- **The machines in the guest.** The guest gives no KVM to its own machines. Thus a machine that the provider makes is a container of LXC, or a VM with the emulation of QEMU.
+- **The test.** The provider asks for a machine, waits until it starts, and removes it. A fault cell stops the API in the middle of a request, and the provider must leave no machine behind.
 
 ## The items of the scale ladder
 
@@ -3560,7 +3615,7 @@ Rung 10,000 has an RPO of 10 s and an RTO of 5 min, on k3s with shards of synthe
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
 - **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456)
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456), [#522](https://github.com/mark1russell7/systems/pull/522)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
@@ -3574,6 +3629,8 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate. A dispatch of the selection `night` on 4 shards, or of the selection `drills` on 1 shard, is that schedule by hand. Its step operates as on the schedule. Before this fix, only the expression of `only` started the step. Thus a rerun of a red Sunday by its selection was green with no check.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
+- **What is left.** The step of the night reads each cell, and the step of the Sunday reads only the budgets of the rungs. The pull request #383 gives each drill of the Sunday the read of the night. The pull request #399 gives the same read to `kind.yml`. This item is done when the two merge.
+- **The run of 2026-11-15.** The run 43699733340 failed in one run of 6 of `RD.100.restore`. After `rs.initiate`, the old primary did not accept writes in 60 s. The run before it took 14.8 s. The error gave no state of the set, thus its cause is not known. From harness `0.16.1`, the error of that wait gives the view of the old primary and its last 8 log lines of the election. The next run of the drills tells the cause.
 
 This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
 

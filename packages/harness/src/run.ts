@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
 import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
@@ -216,8 +217,6 @@ const observerError = (
     };
     look();
   });
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * This time is the pause between the client's first reply and the fault. It is more than Linux's

@@ -6,8 +6,24 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { PreemptedError, channel, fanIn, fanOut, merge, pipeline, preemptivePool, select, ticker, timeout, unbuffered, workerPool, type Channel } from "./channel.ts";
-import { fakeClock, seeded } from "./testing.ts";
+import {
+  LateError,
+  PreemptedError,
+  channel,
+  fanIn,
+  fanOut,
+  merge,
+  pipeline,
+  preemptivePool,
+  select,
+  ticker,
+  timeout,
+  unbuffered,
+  within,
+  workerPool,
+  type Channel,
+} from "./channel.ts";
+import { fakeClock, seeded, type FakeClock } from "./testing.ts";
 
 /** This function lets the ready promises continue, `turns` times. */
 const flush = async (turns = 100): Promise<void> => {
@@ -552,6 +568,107 @@ describe("preemptivePool", () => {
         expect(pool.size).toBe(open.length);
         expect(pool.size).toBeLessThanOrEqual(max);
       }
+    }
+  });
+});
+
+describe("within: the result of a work, or the end at a time limit", () => {
+  /** This work ends after `ms` on `clock` with `value`, or fails with `failure`. */
+  const workOf =
+    <T>(clock: FakeClock, ms: number, value: T, failure?: Error) =>
+    (signal: AbortSignal): Promise<T> =>
+      new Promise<T>((resolve, reject) => {
+        expect(signal.aborted).toBe(false);
+        clock.after(ms, () => (failure === undefined ? resolve(value) : reject(failure)));
+      });
+
+  it("gives the value of a work that ends in time, and stops its timer", async () => {
+    const clock = fakeClock();
+    let signal: AbortSignal | undefined;
+    const result = within((s) => ((signal = s), workOf(clock, 40, "done")(s)), 100, clock);
+    expect(clock.pending).toBe(2);
+    await clock.advance(40);
+    await expect(result).resolves.toEqual({ ok: true, value: "done" });
+    expect(clock.pending).toBe(0);
+    expect(signal?.aborted).toBe(false);
+  });
+
+  it("gives the failure of a work that fails in time, as a result", async () => {
+    const clock = fakeClock();
+    const failure = new Error("refused");
+    const result = within(workOf(clock, 10, 0, failure), 100, clock);
+    await clock.advance(10);
+    await expect(result).resolves.toEqual({ ok: false, late: false, error: failure });
+    expect(clock.pending).toBe(0);
+  });
+
+  it("gives late at the time limit, aborts the signal with a LateError, and drops the end after it", async () => {
+    const clock = fakeClock();
+    let signal: AbortSignal | undefined;
+    const result = within((s) => ((signal = s), workOf(clock, 150, "slow", new Error("after the limit"))(s)), 100, clock);
+    await clock.advance(100);
+    await expect(result).resolves.toEqual({ ok: false, late: true });
+    expect(signal?.aborted).toBe(true);
+    expect(signal?.reason).toBeInstanceOf(LateError);
+    expect((signal?.reason as Error).message).toBe("The work did not end within 100 ms");
+    // The failure after the limit is caught: the test fails on an unhandled rejection
+    await clock.advance(50);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("a work that ends at the limit on the same clock is in time: the work starts before the timer", async () => {
+    const clock = fakeClock();
+    const result = within(workOf(clock, 100, "edge"), 100, clock);
+    await clock.advance(100);
+    await expect(result).resolves.toEqual({ ok: true, value: "edge" });
+  });
+
+  it("takes a promise, a plain value and a limit of 0", async () => {
+    const clock = fakeClock();
+    const ready = within(Promise.resolve(7), 0, clock);
+    await clock.advance(0);
+    await expect(ready).resolves.toEqual({ ok: true, value: 7 });
+    const plain = within(() => "now", 0, clock);
+    await clock.advance(0);
+    await expect(plain).resolves.toEqual({ ok: true, value: "now" });
+    const never = within(new Promise<number>(() => undefined), 0, clock);
+    await clock.advance(0);
+    await expect(never).resolves.toEqual({ ok: false, late: true });
+    expect(clock.pending).toBe(0);
+  });
+
+  it("gives the error of a work that throws, and starts no timer", async () => {
+    const clock = fakeClock();
+    const failure = new TypeError("bad input");
+    const result = within(
+      () => {
+        throw failure;
+      },
+      100,
+      clock,
+    );
+    expect(clock.pending).toBe(0);
+    await expect(result).resolves.toEqual({ ok: false, late: false, error: failure });
+  });
+
+  it("refuses a limit that is not a finite number of 0 or more, and starts no work", () => {
+    const clock = fakeClock();
+    let calls = 0;
+    for (const ms of [-1, Number.NaN, Number.POSITIVE_INFINITY]) expect(() => within(() => (calls += 1), ms, clock)).toThrow(RangeError);
+    expect(calls).toBe(0);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("is late exactly when the work ends after the limit (a seeded walk)", async () => {
+    const random = seeded(0x5eed0115);
+    for (let n = 0; n < 200; n += 1) {
+      const clock = fakeClock(Math.floor(random() * 1e6));
+      const limit = Math.floor(random() * 50);
+      const end = Math.floor(random() * 100);
+      const result = within(workOf(clock, end, n), limit, clock);
+      await clock.advance(100);
+      expect(await result, `end ${end}, limit ${limit}`).toEqual(end <= limit ? { ok: true, value: n } : { ok: false, late: true });
+      expect(clock.pending).toBe(0);
     }
   });
 });

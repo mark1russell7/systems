@@ -58,6 +58,7 @@ ISTIO_VERSION: build/index.d.ts#ISTIO_VERSION
 type Judged: build/judge.chunk.d.ts#Judged
 KEPT_KERNEL: build/index.d.ts#KEPT_KERNEL
 KIND: build/index.d.ts#KIND
+KIND_FAULT_OUTCOME: build/index.d.ts#KIND_FAULT_OUTCOME
 KIND_NOISE: build/judge.chunk.d.ts#KIND_NOISE
 KUBECTL: build/index.d.ts#KUBECTL
 KUBE_PROXY_MODES: build/judge.chunk.d.ts#KUBE_PROXY_MODES
@@ -76,6 +77,7 @@ type KindCellV1: build/judge.chunk.d.ts#KindCellV1
 type KindConfig: build/judge.chunk.d.ts#KindConfig
 type KindDecision: build/judge.chunk.d.ts#KindDecision
 type KindLab: build/index.d.ts#KindLab
+type KindPinnable: build/index.d.ts#KindPinnable
 type KindRun: build/judge.chunk.d.ts#KindRun
 type KindScenario: build/judge.chunk.d.ts#KindScenario
 type KindVerdict: build/judge.chunk.d.ts#KindVerdict
@@ -264,6 +266,7 @@ estimatedTime: build/index.d.ts#estimatedTime
 factsOf: build/judge.chunk.d.ts#factsOf
 failuresOf: build/judge.chunk.d.ts#failuresOf
 faultSpan: build/index.d.ts#faultSpan
+faultedKind: build/index.d.ts#faultedKind
 followsZtunnel: build/index.d.ts#followsZtunnel
 goDuration: build/judge.chunk.d.ts#goDuration
 helmInstall: build/index.d.ts#helmInstall
@@ -289,11 +292,13 @@ kernelCounts: build/judge.chunk.d.ts#kernelCounts
 kindCellRecordSchema: build/judge.chunk.d.ts#kindCellRecordSchema
 kindCellRecordV1Schema: build/judge.chunk.d.ts#kindCellRecordV1Schema
 kindConfig: build/judge.chunk.d.ts#kindConfig
+kindRecordProblems: build/index.d.ts#kindRecordProblems
 kubeProxyPatch: build/judge.chunk.d.ts#kubeProxyPatch
 kubeVipObjects: build/index.d.ts#kubeVipObjects
 kubeVipPods: build/index.d.ts#kubeVipPods
 kubeVipReady: build/index.d.ts#kubeVipReady
 kubeletBand: build/index.d.ts#kubeletBand
+labBuildRecord: build/index.d.ts#labBuildRecord
 labImage: build/index.d.ts#labImage
 labSource: build/index.d.ts#labSource
 latchBand: build/index.d.ts#latchBand
@@ -732,6 +737,9 @@ export declare const KEPT_KERNEL: ReadonlySet<string>;
 ### build/index.d.ts#KIND
 export declare const KIND: Tool;
 
+### build/index.d.ts#KIND_FAULT_OUTCOME
+export declare const KIND_FAULT_OUTCOME = "timeout";
+
 ### build/index.d.ts#KUBECTL
 export declare const KUBECTL: Tool;
 
@@ -799,6 +807,9 @@ interface KindLab {
   forgetHandshakes(ip: string, port: number): Promise<Record<string, number>>;
   close(): Promise<void>;
 }
+
+### build/index.d.ts#KindPinnable
+type KindPinnable = Pick<KindCellRecord, "code" | "manifests">;
 
 ### build/index.d.ts#KubeVipPod
 interface KubeVipPod {
@@ -1059,6 +1070,7 @@ interface RunOptions {
   readonly environments?: number;
   readonly idle?: number;
   readonly work?: string;
+  readonly code?: RecordCode | undefined;
 }
 
 ### build/index.d.ts#SESSION
@@ -1296,6 +1308,9 @@ export declare const estimatedTime: (cell: KindCell, environments?: number) => Q
 ### build/index.d.ts#faultSpan
 export declare const faultSpan: (trigger: Pick<KindCell["trigger"], "hold" | "flaps">) => Quantity;
 
+### build/index.d.ts#faultedKind
+export declare const faultedKind: (cell: KindCell, runs: readonly KindRun[]) => KindRun[];
+
 ### build/index.d.ts#followsZtunnel
 export declare const followsZtunnel: (cell: Pick<KindCell, "mesh">) => boolean;
 
@@ -1343,6 +1358,9 @@ export declare const istioOperator: (flavor: MeshFlavor, images: MeshImages) => 
 ### build/index.d.ts#keptKernel
 export declare const keptKernel: (record: Readonly<Record<string, unknown>>) => boolean;
 
+### build/index.d.ts#kindRecordProblems
+export declare const kindRecordProblems: (record: KindPinnable) => string[];
+
 ### build/index.d.ts#kubeVipObjects
 export declare const kubeVipObjects: (image: string) => unknown[];
 
@@ -1354,6 +1372,9 @@ export declare const kubeVipReady: (cluster: Pick<Cluster, "kubectl">) => Promis
 
 ### build/index.d.ts#kubeletBand
 export declare const kubeletBand: (probe: KubeletProbe, hangs: boolean) => Band;
+
+### build/index.d.ts#labBuildRecord
+export declare const labBuildRecord: () => Promise<BuildRecord | undefined>;
 
 ### build/index.d.ts#labImage
 export declare const labImage: () => Promise<string>;
@@ -1558,7 +1579,7 @@ export declare const vipServed: (cluster: Pick<Cluster, "kubectl">, namespace: s
 export declare const vipService: (namespace: string, vip: string, ports: readonly unknown[], service?: VipService) => unknown;
 
 ### build/index.d.ts#writeResult
-export declare const writeResult: (out: string, result: KindCellResult) => void;
+export declare const writeResult: (out: string, result: KindCellResult, code?: RecordCode) => void;
 
 ### build/index.d.ts#ztunnelCertificates
 export declare const ztunnelCertificates: (cluster: Cluster) => Promise<LeafCertificate[]>;
@@ -1680,6 +1701,7 @@ interface EnvironmentManifest {
   readonly scenario: KindScenario;
   readonly cluster: ClusterManifest;
   readonly images: Readonly<Record<string, string>>;
+  readonly builds?: Readonly<Record<string, BuildRecord>> | undefined;
   readonly substrate?: Substrate;
 }
 
@@ -1739,6 +1761,7 @@ interface KindCell<A = Quantity> {
 ### build/judge.chunk.d.ts#KindCellRecord
 interface KindCellRecord extends KindCellResult {
   readonly format: typeof FORMAT;
+  readonly code?: RecordCode | undefined;
 }
 
 ### build/judge.chunk.d.ts#KindCellRecordV1

@@ -39,6 +39,16 @@ const pinProblems = (what: string, image: string, id: string | undefined, build:
 };
 
 /**
+ * This function gives each problem of one image of a run outside a manifest of the harness, as the
+ * kind lab records its images. A pulled image needs its digest. An image that a build makes needs
+ * its build record, with each base by digest. The build record must have the tag of the image.
+ */
+export const imagePinProblems = (what: string, image: string, build: BuildRecord | undefined): string[] =>
+  build !== undefined && !PINNED.test(image) && build.tag !== image
+    ? [`${what}: the build record has the tag ${build.tag}, not the tag of the image ${image}`]
+    : pinProblems(what, image, undefined, build, true);
+
+/**
  * This function gives each problem of a manifest that stops it from pinning the programs of its
  * run. An empty list means that the manifest pins each program.
  * - the target: an image by its digest, or the build of a subject with its build record and its base

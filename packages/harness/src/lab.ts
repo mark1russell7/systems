@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import type * as Testcontainers from "testcontainers";
@@ -62,8 +63,6 @@ const OUTPUT_LINES = 2000;
 
 /** This time is how long a write of a hop waits for the line that confirms it, in milliseconds. */
 const CONFIRM_MS = 10_000;
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both
