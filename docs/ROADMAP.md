@@ -2450,8 +2450,8 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 
 - **Status:** in progress
 - **Area:** site
-- **Depends on:**
-- **Waiting on:** Mark: choose the next page of the item (the first page, the path of one request, shipped 2026-11-02)
+- **Depends on:** SYS-119, SYS-120, SYS-121, SYS-122, SYS-123, SYS-124
+- **Waiting on:**
 - **Started:** 2026-11-02
 - **Shipped:**
 - **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
@@ -2473,7 +2473,103 @@ The second step moved the documents and the arithmetic of the two labs into the 
 - A test compares the two labs with the results of the code before the move. It has 87 cases of the page and 92 cases of the detection lab, and the results are the same.
 - The source changed one value. A probe that takes longer than its period starts the next probe at once. Thus the interval of the probes is the longer of the period and the timeout. At a period of 2 s and a timeout of 5 s, the pod is unready at 17 s, not 11 s.
 
-The next step: Mark's next page of the item.
+**The four next pages (Mark, 2026-11-15).** Mark chose all four pages: the accept queue, the port range, the memory of a process and the NIC. Each visual is one part of a whole. A reader sees each visual on its own page, and all of them together on one page.
+
+- **The contract.** Each visual is a lens: a set of named knobs, a pure model and its lanes. A lane has a band, marks on a timeline, facts and the measured values of cells. A knob has one name in all lenses, thus the page of all lenses has one control for each knob.
+- **One home for each law.** Each lens computes with `@mark1russell7/algebra` on the documents of `@mark1russell7/machines`, and the cells use the same functions. Before a lens ships, its law moves from the cells package into those packages. A test shows that the predictions of the cells do not change.
+
+Each step is an item, in this order:
+
+1. SYS-119: the contract and the shared timeline.
+2. SYS-120: the accept queue.
+3. SYS-121: the port range.
+4. SYS-122: the page of all lenses.
+5. SYS-123: the memory of a process.
+6. SYS-124: the NIC.
+
+The next step: SYS-119.
+
+### SYS-119 · The visuals: a lens contract and one shared timeline
+
+- **Status:** in progress
+- **Area:** site
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
+
+Each visual of the site is a lens: a set of named knobs, a pure model and its lanes. A lane has a verdict, a band, marks on a timeline, facts and the measured values of cells.
+
+- A knob has one name in all lenses, for example `rtt` and `hz`. Thus a page of many lenses has one control for each knob.
+- The timeline, the lanes, the marks and the player of the request page become generic over lanes.
+- The path of one request becomes five lenses: the program, the socket, TCP, Kubernetes and the NIC.
+
+The test: the 87 golden cases of the request page and the 92 cases of the detection lab do not change.
+
+### SYS-120 · The accept queue: a lens and its page
+
+- **Status:** blocked
+- **Area:** site
+- **Depends on:** SYS-119
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A listener that does not accept fills its queue. The page shows each step of a new connection at a full queue. The kernel drops the SYN, and the client sends it again on its ladder. The target drops the final ACK and sends the SYN-ACK again on its own ladder. After the expiry at 63 s, a segment of the client gets a reset.
+
+- The knobs are the backlog, `somaxconn`, `tcp_abort_on_overflow`, the count of connections, the time of the accept and the delay of the path.
+- The law of SYS-63 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
+
+The test: the predictions of the cells `AQ.1` to `AQ.10` do not change. The page shows the measured median of each cell next to its band.
+
+### SYS-121 · The port range: a lens and its page
+
+- **Status:** blocked
+- **Area:** site
+- **Depends on:** SYS-119
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A client that opens many connections to one destination uses up its local ports. The page shows the search of a free port, the ports in `TIME_WAIT` and the connect that fails with `EADDRNOTAVAIL`.
+
+- The knobs are `ip_local_port_range`, the count of connections, the side that closes first and `tcp_tw_reuse`.
+- The law of SYS-64 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
+
+The test: the predictions of the cells `PR.1` to `PR.7` do not change. The page shows the measured value of each cell next to its band.
+
+### SYS-122 · The whole path: all lenses on one timeline
+
+- **Status:** blocked
+- **Area:** site
+- **Depends on:** SYS-120, SYS-121
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+One page shows all lenses on one timeline, with one control for each shared knob. A reader follows one connection from the port of the client, through the SYN and the accept queue, to the request and the fault. Each lens keeps its own page, and the whole page uses the same lenses.
+
+### SYS-123 · The memory of a process: a lens, its law and its cells
+
+- **Status:** blocked
+- **Area:** site
+- **Depends on:** SYS-119
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
+
+### SYS-124 · The NIC: a lens, its law and its cells
+
+- **Status:** blocked
+- **Area:** site
+- **Depends on:** SYS-119
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A packet goes from the socket through the queue discipline and the ring of the NIC to the wire. The page shows the queues, the drops and the time of each step. The law comes from the sources of Linux and of the driver. New cells measure it in CI first, and then the lens ships with the measured values.
 
 ## The items of S3
 
