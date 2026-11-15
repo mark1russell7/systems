@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, KernelRecord, MiddleboxEvent, ProbeEvent, Run } from "./cell.ts";
-import { deviceOf, endpointAfter, routesOf, templated, toxicBody } from "./lab.ts";
+import { deviceOf, endpointAfter, routesOf, runTopologyOf, templated, toxicBody } from "./lab.ts";
 import { measure, socketOf } from "./observe.ts";
 import { judge } from "./run.ts";
 import { quantileOf, verdictOf } from "./verdict.ts";
@@ -312,6 +312,30 @@ describe("the chain of a topology", () => {
     expect(deviceOf("172.21.0.3 dev eth0 src 172.21.0.2 uid 0 \\    cache ")).toBe("eth0");
     expect(deviceOf("172.22.0.2 via 172.21.0.4 dev eth1 src 172.21.0.2 uid 0")).toBe("eth1");
     expect(() => deviceOf("RTNETLINK answers: Network is unreachable")).toThrow("no device");
+  });
+
+  it("gives each hop of a run topology its peer and its own address on each side", () => {
+    const hop = (name: string, netns: number, peer: readonly [string, string], ip: readonly [string, string]) => ({
+      hop: { name },
+      netns,
+      peer: { client: peer[0], target: peer[1] },
+      ip: { client: ip[0], target: ip[1] },
+    });
+    expect(runTopologyOf("172.21.0.2", [])).toBeNull();
+    // client 172.20.0.2 → proxy edge → router gw → target 172.22.0.3: the address of gw toward the client is the gateway of the proxy
+    const placed = runTopologyOf("172.22.0.2", [
+      hop("edge", HOP, ["172.20.0.2", "172.22.0.3:443"], ["172.20.0.3", "172.21.0.2"]),
+      hop("gw", HOP + 1, ["172.21.0.2", "172.22.0.3:443"], ["172.21.0.3", "172.22.0.2"]),
+    ]);
+    expect(placed).toEqual({
+      targetPeer: "172.22.0.2",
+      hops: {
+        edge: { netns: HOP, client: "172.20.0.2", target: "172.22.0.3:443", address: { client: "172.20.0.3", target: "172.21.0.2" } },
+        gw: { netns: HOP + 1, client: "172.21.0.2", target: "172.22.0.3:443", address: { client: "172.21.0.3", target: "172.22.0.2" } },
+      },
+    });
+    // the address of the last hop toward the target is the peer that the target sees
+    expect(placed?.hops["gw"]?.address?.target).toBe(placed?.targetPeer);
   });
 
   it("writes the next hop into the files of a proxy, and a toxic as the API of Toxiproxy takes it", () => {

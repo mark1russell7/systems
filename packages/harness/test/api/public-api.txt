@@ -59,6 +59,7 @@ type FabricLab: build/index.d.ts#FabricLab
 type FabricManifest: build/cell.chunk.d.ts#FabricManifest
 type FabricParts: build/index.d.ts#FabricParts
 type Fault: build/cell.chunk.d.ts#Fault
+type FaultOptions: build/index.d.ts#FaultOptions
 type FaultPlace: build/cell.chunk.d.ts#FaultPlace
 type FaultSide: build/index.d.ts#FaultSide
 GIVES_AWAY: build/index.d.ts#GIVES_AWAY
@@ -1253,6 +1254,10 @@ interface RunTopology {
     readonly netns: number;
     readonly client: string;
     readonly target: string;
+    readonly address?: {
+      readonly client: string;
+      readonly target: string;
+    };
   }>>;
 }
 
@@ -1590,6 +1595,16 @@ interface FabricParts {
   readonly injector: StartedTestContainer;
   readonly opened: StartedTestContainer[];
   readonly output: (container: StartedTestContainer, argv: string[]) => Promise<string>;
+}
+
+### build/index.d.ts#FaultOptions
+interface FaultOptions {
+  readonly direction?: "in" | "out";
+  readonly protocol?: "tcp" | "udp" | "icmp" | "all";
+  readonly code?: "host" | "net" | "port" | "admin";
+  readonly above?: number;
+  readonly handshake?: "pass";
+  readonly peers?: readonly string[];
 }
 
 ### build/index.d.ts#FaultSide
@@ -2059,7 +2074,7 @@ export declare const NODE_MARKS: Readonly<Record<Exclude<ClusterStage, "first-wr
 export declare const NOISE: Quantity;
 
 ### build/index.d.ts#NetworkFault
-type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack";
+type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack" | "silence";
 
 ### build/index.d.ts#NodeLine
 interface NodeLine extends SentinelEvent {

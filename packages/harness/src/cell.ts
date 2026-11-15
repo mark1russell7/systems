@@ -1809,10 +1809,21 @@ export interface DrillRoom {
  *   the last hop.
  * - `hops` are the network namespaces of the hops, by their names, with the address of the peer of
  *   each hop on each side.
+ * - `address` of a hop is its own address on the network of each side. The address of a router on
+ *   the side of the client is the gateway of the element before it.
  */
 export interface RunTopology {
   readonly targetPeer: string;
   readonly hops: Readonly<
-    Record<string, { readonly netns: number; readonly client: string; readonly target: string }>
+    Record<
+      string,
+      {
+        readonly netns: number;
+        readonly client: string;
+        readonly target: string;
+        /** This record is the address of the hop on each side. A lab gives it from 0.16.2. A record from before has none. */
+        readonly address?: { readonly client: string; readonly target: string };
+      }
+    >
   >;
 }

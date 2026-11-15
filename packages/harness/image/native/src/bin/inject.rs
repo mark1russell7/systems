@@ -8,15 +8,20 @@
 //!
 //! The actions, each with its lift:
 //!
-//! - `blackhole PEER [--direction both|in|out]` / `clear PEER [--direction …]`: the peer's
-//!   segments drop, in both directions or one. `in` drops what comes from the peer, `out` what
-//!   goes to it: a simplex partition.
-//! - `rst PEER` / `clear-rst PEER`: the peer's next segment is answered with a reset, so its next
-//!   send fails at once. A REJECT resets only the sender of the matched segment: the target's
-//!   process never hears of it.
-//! - `reject PEER --code host|net|port|admin` / `clear-reject PEER --code …`: each segment from the
-//!   peer is answered with that ICMP unreachable. On an established socket Linux keeps it as a
-//!   soft error (tcp_v4_err) and goes on retransmitting.
+//! - `blackhole PEER [--direction both|in|out] [--protocol tcp|udp|icmp|all]` / `clear PEER […]`:
+//!   the peer's packets drop, in both directions or one, of each protocol or of one. `in` drops
+//!   what comes from the peer, `out` what goes to it: a simplex partition.
+//! - `rst PEER [--handshake pass]` / `clear-rst PEER […]`: the peer's next segment is answered with
+//!   a reset, so its next send fails at once. A REJECT resets only the sender of the matched
+//!   segment: the target's process never hears of it. With `--handshake pass` a SYN passes
+//!   (`! --syn`), so a connect succeeds and the first segment after the SYN gets the reset: the
+//!   last ACK of the handshake, or the first data.
+//! - `reject PEER --code host|net|port|admin [--direction in|out|both] [--protocol …]` /
+//!   `clear-reject PEER --code …`: each segment from the peer is answered with that ICMP
+//!   unreachable. On an established socket Linux keeps it as a soft error (tcp_v4_err) and goes on
+//!   retransmitting. By default it acts on TCP from the peer (`in`). `out` answers each packet that
+//!   goes to the peer, and `--protocol all` each protocol: at a router, as a host that is down
+//!   behind it.
 //! - `mtu PEER --above N` / `clear-mtu PEER --above N`: each segment from the peer longer than N
 //!   bytes drops, as a path MTU black hole does, in the namespace that receives it. It acts on
 //!   segments only when the sender's TSO and GSO and the receiver's GRO are off (`offload`).
@@ -61,7 +66,7 @@
 //! what the router itself sends and receives. The rule faces one side by the device toward it:
 //! what comes from the peer arrives on DEV (`-i DEV -s PEER`), and what goes to it leaves on DEV
 //! (`-o DEV -d PEER`). A REJECT then answers from the router: a reset spoofs the address the
-//! segment was going to, and an ICMP error comes from the router's own address on DEV.
+//! segment was going to, and an ICMP error comes from the router's own address toward the sender.
 
 use prober::monotonic_ns;
 use serde_json::json;
@@ -119,15 +124,48 @@ fn commit(body: &str, at: Option<u64>) -> Result<(u64, u64), Box<dyn Error>> {
     Ok((t0, t1))
 }
 
-/// The options after the positional arguments: `--at NS`, `--direction D`, `--code C`, `--above N`,
-/// `--via DEV`.
+/// The options after the positional arguments: `--at NS`, `--direction D`, `--protocol P`,
+/// `--code C`, `--above N`, `--handshake pass`, `--via DEV`.
 #[derive(Default)]
 struct Options {
     at: Option<u64>,
     direction: Option<String>,
+    protocol: Option<String>,
     code: Option<String>,
     above: Option<u32>,
+    handshake: Option<String>,
     via: Option<String>,
+}
+
+/// The match of the handshake in a reset: nothing, or ` ! --syn` when the SYN passes.
+fn handshake_match(handshake: Option<&str>) -> Result<&'static str, Box<dyn Error>> {
+    Ok(match handshake {
+        None => "",
+        Some("pass") => " ! --syn",
+        Some(other) => return Err(format!("unknown handshake {other}: say pass").into()),
+    })
+}
+
+/// The match of a protocol in a rule: ` -p tcp`, ` -p udp`, ` -p icmp`, or nothing for `all`.
+fn protocol_match(protocol: &str) -> Result<&'static str, Box<dyn Error>> {
+    Ok(match protocol {
+        "tcp" => " -p tcp",
+        "udp" => " -p udp",
+        "icmp" => " -p icmp",
+        "all" => "",
+        other => return Err(format!("unknown protocol {other}").into()),
+    })
+}
+
+/// The lines of a rule in one direction or both: `in` faces what comes from the peer, `out` what
+/// goes to it.
+fn directed(direction: &str, input: String, output: String) -> Result<String, Box<dyn Error>> {
+    Ok(match direction {
+        "both" => format!("{input}{output}"),
+        "in" => input,
+        "out" => output,
+        other => return Err(format!("unknown direction {other}").into()),
+    })
 }
 
 fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
@@ -138,8 +176,10 @@ fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
         match flag.as_str() {
             "--at" => out.at = Some(value.parse()?),
             "--direction" => out.direction = Some(value.clone()),
+            "--protocol" => out.protocol = Some(protocol_match(value).map(|_| value.clone())?),
             "--code" => out.code = Some(value.clone()),
             "--above" => out.above = Some(value.parse()?),
+            "--handshake" => out.handshake = Some(handshake_match(Some(value.as_str())).map(|_| value.clone())?),
             "--via" => out.via = Some(device(value)?.to_string()),
             other => return Err(format!("unknown option {other}").into()),
         }
@@ -156,23 +196,33 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
         None => (format!("INPUT -s {peer}/32"), format!("OUTPUT -d {peer}/32")),
         Some(dev) => (format!("FORWARD -i {dev} -s {peer}/32"), format!("FORWARD -o {dev} -d {peer}/32")),
     };
+    // a protocol limits only a black hole and a reject: the other rules match TCP by their nature
+    if opts.protocol.is_some() && !matches!(action, "blackhole" | "clear" | "reject" | "clear-reject") {
+        return Err(format!("--protocol acts on a blackhole or a reject, not on {action}").into());
+    }
+    if opts.handshake.is_some() && !matches!(action, "rst" | "clear-rst") {
+        return Err(format!("--handshake acts on a rst, not on {action}").into());
+    }
     Ok(match action {
+        // by default, each protocol in both directions
         "blackhole" | "clear" => {
             let op = op("blackhole");
-            let direction = opts.direction.as_deref().unwrap_or("both");
-            let input = format!("{op} {from} -j DROP\n");
-            let output = format!("{op} {to} -j DROP\n");
-            match direction {
-                "both" => format!("{input}{output}"),
-                "in" => input,
-                "out" => output,
-                other => return Err(format!("unknown direction {other}").into()),
-            }
+            let p = protocol_match(opts.protocol.as_deref().unwrap_or("all"))?;
+            directed(
+                opts.direction.as_deref().unwrap_or("both"),
+                format!("{op} {from}{p} -j DROP\n"),
+                format!("{op} {to}{p} -j DROP\n"),
+            )?
         }
+        // with the handshake that passes, a SYN goes through and the reset answers the segment
+        // after it: the connect succeeds, and the first exchange on it fails
         "rst" | "clear-rst" => {
             let op = op("rst");
-            format!("{op} {from} -p tcp -j REJECT --reject-with tcp-reset\n")
+            let syn = handshake_match(opts.handshake.as_deref())?;
+            format!("{op} {from} -p tcp{syn} -j REJECT --reject-with tcp-reset\n")
         }
+        // by default, TCP from the peer. `out` at a router answers what it forwards to the peer, as
+        // a router whose next hop is down answers
         "reject" | "clear-reject" => {
             let op = op("reject");
             let with = match opts.code.as_deref().ok_or("--code host|net|port|admin")? {
@@ -182,7 +232,12 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
                 "admin" => "icmp-admin-prohibited",
                 other => return Err(format!("unknown code {other}").into()),
             };
-            format!("{op} {from} -p tcp -j REJECT --reject-with {with}\n")
+            let p = protocol_match(opts.protocol.as_deref().unwrap_or("tcp"))?;
+            directed(
+                opts.direction.as_deref().unwrap_or("in"),
+                format!("{op} {from}{p} -j REJECT --reject-with {with}\n"),
+                format!("{op} {to}{p} -j REJECT --reject-with {with}\n"),
+            )?
         }
         // the long segments drop where they arrive. In the namespace of the sender, an OUTPUT drop
         // fails its sends with EPERM, and it does not lose them on the way
@@ -676,6 +731,74 @@ mod tests {
     }
 
     #[test]
+    fn a_protocol_limits_a_black_hole_or_a_reject_and_a_reject_faces_one_direction() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let with = |direction: Option<&str>, protocol: Option<&str>| Options {
+            direction: direction.map(Into::into),
+            protocol: protocol.map(Into::into),
+            code: Some("host".into()),
+            ..Options::default()
+        };
+        // the defaults keep the rules from before the option: a black hole of each protocol, a reject of TCP from the peer
+        assert_eq!(rules("blackhole", peer, &with(None, None)).unwrap(), rules("blackhole", peer, &with(None, Some("all"))).unwrap());
+        assert_eq!(
+            rules("reject", peer, &with(None, None)).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p tcp -j REJECT --reject-with icmp-host-unreachable\n"
+        );
+        assert_eq!(
+            rules("blackhole", peer, &with(None, Some("udp"))).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p udp -j DROP\n-I OUTPUT -d 10.0.0.2/32 -p udp -j DROP\n"
+        );
+        assert_eq!(rules("clear", peer, &with(Some("in"), Some("icmp"))).unwrap(), "-D INPUT -s 10.0.0.2/32 -p icmp -j DROP\n");
+        assert_eq!(
+            rules("reject", peer, &with(Some("out"), Some("all"))).unwrap(),
+            "-I OUTPUT -d 10.0.0.2/32 -j REJECT --reject-with icmp-host-unreachable\n"
+        );
+        assert_eq!(
+            rules("clear-reject", peer, &with(Some("both"), Some("udp"))).unwrap(),
+            "-D INPUT -s 10.0.0.2/32 -p udp -j REJECT --reject-with icmp-host-unreachable\n\
+             -D OUTPUT -d 10.0.0.2/32 -p udp -j REJECT --reject-with icmp-host-unreachable\n"
+        );
+        assert!(rules("reject", peer, &with(Some("up"), None)).is_err());
+        // a protocol is one of four words, and only a black hole or a reject takes it
+        assert!(options(&["--protocol".into(), "sctp".into()]).is_err());
+        assert!(options(&["--protocol".into(), "tcp;x".into()]).is_err());
+        assert_eq!(options(&["--protocol".into(), "all".into()]).unwrap().protocol.as_deref(), Some("all"));
+        let tcp = Options { protocol: Some("tcp".into()), above: Some(1200), ..Options::default() };
+        for action in ["rst", "clear-rst", "mtu", "fin-ack"] {
+            assert!(rules(action, peer, &tcp).is_err(), "{action}");
+        }
+    }
+
+    #[test]
+    fn a_reset_after_the_handshake_lets_each_syn_pass() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let pass = Options { handshake: Some("pass".into()), ..Options::default() };
+        // without the option, the rule is the one from before: the SYN gets the reset too
+        assert_eq!(
+            rules("rst", peer, &Options::default()).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p tcp -j REJECT --reject-with tcp-reset\n"
+        );
+        assert_eq!(
+            rules("rst", peer, &pass).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p tcp ! --syn -j REJECT --reject-with tcp-reset\n"
+        );
+        assert_eq!(rules("clear-rst", peer, &pass).unwrap(), rules("rst", peer, &pass).unwrap().replace("-I ", "-D "));
+        let via = Options { handshake: Some("pass".into()), via: Some("eth0".into()), ..Options::default() };
+        assert_eq!(
+            rules("rst", peer, &via).unwrap(),
+            "-I FORWARD -i eth0 -s 10.0.0.2/32 -p tcp ! --syn -j REJECT --reject-with tcp-reset\n"
+        );
+        // the one value is pass, and only a reset takes it
+        assert!(options(&["--handshake".into(), "drop".into()]).is_err());
+        assert_eq!(options(&["--handshake".into(), "pass".into()]).unwrap().handshake.as_deref(), Some("pass"));
+        let host = Options { handshake: Some("pass".into()), code: Some("host".into()), above: Some(1200), ..Options::default() };
+        for action in ["blackhole", "clear", "reject", "mtu", "fin-ack"] {
+            assert!(rules(action, peer, &host).is_err(), "{action}");
+        }
+    }
+
+    #[test]
     fn a_fin_takes_one_step_of_the_mark_and_only_the_first_ack_drops() {
         let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
         let set = rules("fin-ack", peer, &Options::default()).unwrap();
@@ -722,6 +845,13 @@ mod tests {
         assert_eq!(
             rules("clear-reject", peer, &host).unwrap(),
             "-D FORWARD -i eth0 -s 10.0.0.2/32 -p tcp -j REJECT --reject-with icmp-host-unreachable\n"
+        );
+        // a host that is down behind the router: each packet that it forwards to the host gets the
+        // unreachable, from the router
+        let down = Options { direction: Some("out".into()), protocol: Some("all".into()), ..host };
+        assert_eq!(
+            rules("reject", peer, &down).unwrap(),
+            "-I FORWARD -o eth0 -d 10.0.0.2/32 -j REJECT --reject-with icmp-host-unreachable\n"
         );
         // a device name is letters, digits, dots and dashes: nothing else reaches the rules
         assert!(options(&["--via".into(), "eth0;x".into()]).is_err());

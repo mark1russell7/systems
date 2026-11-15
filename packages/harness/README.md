@@ -62,6 +62,8 @@ A topology (`Topology`) is the chain of hops from the client to the target, as d
 
 The element before a router reaches the networks after the router through it. Its privileged sidecar, or the router itself, adds each route. A router translates the address of the side of the client, thus the target and each later hop see the router as the peer.
 
+`Lab.topology` (`RunTopology`) gives each hop its namespace and its peer on each side. From 0.16.2, it also gives the own address of the hop on each side (`address`). The address of a router on the side of the client is the gateway of the element before it. A record from before 0.16.2 has no `address`.
+
 A lookup treats an expired conntrack entry as gone, thus the router forgets a flow at its timeout, to the jiffy. The DESTROY event of the entry waits for the garbage collector or a list of the table. Thus `ctwatch.py` in the router lists the table each `pump` (`PUMP`, 0.1 s by default). A DESTROY then follows an expiry within the pump and two lists of the table.
 
 `LISTING` (20 ms) is the longest list of the table that a prediction assumes. A longer list writes a `pump-slow` line, and a run with one near a detection by a timer of conntrack is void. `PUMP_SLACK` (5 ms) is how late the pump can be after its interval and two lists. Its sleep can end late, and the read of the event takes time. Thus a DESTROY follows an expiry within the interval of the pump, two lists and that slack.
@@ -212,7 +214,7 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - `client`, the TCP client of a cell. Rust's `std::net` sets no socket option by itself, thus the measurement gets the timers of the namespace. The client also samples `TCP_INFO` each 2 ms, a second vantage on its socket. It waits in `poll()`, which does not lock the socket. A keepalive timer that finds its socket held tries again HZ/20 later.
   - In a stream, a reply of the `client` is whole at its CRLF, or after the length of a bulk string. The client then writes a `replied` line.
   - `load`, the open-loop driver of an HTTP/1.1 server (SYS-93). Its plan (`systems-load/1`) is a list of streams, each with a key, a schedule (`rigor-schedule/1`) and its requests. Each stream has its own connection, thus a slow reply delays only its own stream. A send does not wait for a reply. A response is whole after its `Content-Length` or its last chunk. The `sent` and `replied` lines name the stream (`k`) and the arrival (`i`), and a `replied` line names the status.
-  - `inject`, which applies a fault in one `iptables-restore` commit, with monotonic stamps around the commit. Thus the start of a fault is known in the VM. A `docker exec` from Windows comes 190 ms late at the median. With `--via DEV`, the rules go in the FORWARD chain, on the device toward one side.
+  - `inject`, which applies a fault in one `iptables-restore` commit, with monotonic stamps around the commit. Thus the start of a fault is known in the VM. A `docker exec` from Windows comes 190 ms late at the median. With `--via DEV`, the rules go in the FORWARD chain, on the device toward one side. `--protocol` and `--handshake pass` change the match of a rule, and `inject silence` drops each packet of its namespace.
   - `inject` also sends a signal to a process by its name (`signal`), and one command to a server of the Redis protocol (`resp`). Stamps bracket each.
 - **The Node client image** (`image/node`) is a driver client: ioredis 6.0.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-ioredis.mjs` prints the lines of the TCP client on the same clock, and it adds the status changes of ioredis as `status` lines. The same image holds the client of a group in Sentinel mode (`client-sentinel.mjs`) and the observer of its Sentinels (`observer.mjs`).
 - **The Go HTTP image** (`image/go-http`) is the `http.Transport` of Go 1.27.2 at its defaults (`client-go`). The program uses the standard library only, thus the digest of the Go builder pins all of its code. The build does `gofmt` and `go vet` first. A wrapper on each connection writes what the read loop of the transport reads. The trace of the transport writes each try of a request.
@@ -311,6 +313,25 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 A length match and netem act on GSO super-packets of up to 64 KB, not on segments, while TSO, GSO and GRO are on. Thus the cells of `mtu-blackhole` and `netem` turn them off on the two ends (`lab.offload`). They also turn them off on the two devices of a hop where the fault is.
 
 Each run starts from kernels that keep nothing from the run before it (`lab.forget()`). When a connection closes, each kernel keeps TCP metrics for the address of its peer. These metrics set the first round trip of the next connection, and thus its RTO. The harness removes the `tcp_metrics` of the two namespaces before each run.
+
+### The faults of a lab
+
+A cell applies its fault with `Lab.fault` and removes it with `Lab.lift`. A program that drives a lab itself can also use them. The fault (`NetworkFault`) acts at a place (`FaultPlace`): the target, the client, or a hop toward one side. Its options (`FaultOptions`) are data. Each default keeps the rules from before its option:
+
+| Option | Fault | Rule | Default |
+| --- | --- | --- | --- |
+| `direction`: `in`, `out` | `blackhole`, `reject` | `in` faces what comes from the peer, `out` what goes to it. At a router, `out` is `-o DEV -d PEER`. | both for a black hole, `in` for a reject |
+| `protocol`: `tcp`, `udp`, `icmp`, `all` | `blackhole`, `reject` | `-p` and the protocol, or no match for `all` | `all` for a black hole, `tcp` for a reject |
+| `code`: `host`, `net`, `port`, `admin` | `reject` | the ICMP unreachable of the answer | none: a reject needs a code |
+| `above` | `mtu` | the longest segment that passes, in bytes | none: an MTU drop needs a length |
+| `handshake`: `pass` | `rst` | `! --syn`: each SYN passes, and the next segment gets the reset | the SYN also gets the reset |
+| `peers` | each fault except `silence` | the addresses that the rules face, in one commit | the peer of the place |
+
+The injector refuses `protocol` on a fault other than a black hole or a reject. It refuses `handshake` on a fault other than a reset.
+
+- **A silence** (`silence`) at a hop drops each packet of the namespace of the hop, in INPUT, OUTPUT and FORWARD, in one commit. The links stay up and ARP continues. Thus a connect through a silent router times out, and the router sends no answer. A silence names no peer and takes no option. It acts only at a hop, and the side of the hop has no effect.
+- **A host that is down behind a router** is a reject at the router toward the target, with `direction: "out"` and `protocol: "all"`. The router answers each packet that it forwards to the host with the ICMP unreachable of `code`.
+- **A reset after the handshake** is a reset with `handshake: "pass"`. The connect succeeds, and the first segment after it gets the reset. Thus a TLS client sees `ECONNRESET` in its handshake.
 
 ## The measurement
 
@@ -483,6 +504,8 @@ The tests of a cluster read the console log of RabbitMQ. They test the views tha
 The tests of `image.ts` plan the build of each image that the harness ships, and of a build context of a caller. They test the rules of a build, the problems of a source and of a subject, and the schemas.
 
 The tests of `application.ts` measure a heartbeat of a program from test lines and records. They find the first ping without an answer, the drop, the waits of the reconnect and the call in flight. They also test a report of the kernel before the drop, a VM that stopped, the heartbeat of a server, and an idle stall.
+
+The tests of `inject.test.ts` examine the arguments that a lab gives to the injector for each fault and its options. The unit tests of `inject.rs` examine its rules. The `native` job of CI starts them with `cargo test`.
 
 The tests of `delivery.ts` read a stream from test lines of the two programs. They count the lost events, the extra copies and the unknown events, and they test each finding of the law.
 
