@@ -1,7 +1,25 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Drill, DrillRoom, ProbeEvent, ReplicaSet, Run } from "./cell.ts";
+import type { MemberLine } from "./replset.ts";
 import type { Writes } from "./timeline.ts";
+
+/** This count is the number of log lines of the election that `electionStateText` gives. */
+export const ELECTION_LINES = 8;
+
+/**
+ * This function gives the state of a set that did not elect a primary after a restore. The text has
+ * the view of the old primary (the output of `STATUS_SCRIPT`). It also has the last `ELECTION_LINES`
+ * lines of the components ELECTION and REPL, from index `from` of the log.
+ */
+export const electionStateText = (primary: string, status: string, log: readonly Pick<MemberLine, "member" | "c" | "msg">[], from: number): string => {
+  const lines = log
+    .slice(from)
+    .filter((line) => line.c === "ELECTION" || line.c === "REPL")
+    .slice(-ELECTION_LINES)
+    .map((line) => `${line.member} ${line.c} ${line.msg}`);
+  return `The view of ${primary}: ${status.trim()}. Its last lines of the election: ${lines.length === 0 ? "none" : lines.join(" | ")}`;
+};
 
 /**
  * This module holds the pure parts of a recovery drill. These are the scripts of the shell, the reader

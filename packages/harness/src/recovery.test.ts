@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, Drill, ProbeEvent, ReplicaSet, Run, RunDrill } from "./cell.ts";
 import {
+  ELECTION_LINES,
   LOSS_MARGIN,
   drillSpan,
+  electionStateText,
   hashOf,
   highestHeld,
   memAvailableOf,
@@ -197,5 +199,34 @@ describe("the findings of a drill", () => {
   it("allows the writes in flight, and no more", () => {
     expect(recoveryFindings({ ...clean, afterBackup: 3 + LOSS_MARGIN }, WRITES)).toEqual([]);
     expect(recoveryFindings({ ...clean, afterBackup: 3 + LOSS_MARGIN + 1 }, WRITES)[0]).toContain("came after the last backup");
+  });
+});
+
+describe("electionStateText: the state of a set with no primary after a restore", () => {
+  const line = (member: string, c: string, msg: string) => ({ member, c, msg });
+
+  it("gives the view of the old primary and its last lines of ELECTION and REPL after the start of the restore", () => {
+    const log = [
+      line("m1", "ELECTION", "before the restore"),
+      line("m1", "NETWORK", "connection accepted"),
+      ...Array.from({ length: ELECTION_LINES + 2 }, (_, at) => line(at % 2 === 0 ? "m1" : "m2", at % 3 === 0 ? "REPL" : "ELECTION", `step ${at}`)),
+      line("m3", "STORAGE", "checkpoint"),
+    ];
+    const text = electionStateText("m1", '  {"me":"10.0.0.2:27017","writable":false}\n', log, 1);
+    expect(text.startsWith('The view of m1: {"me":"10.0.0.2:27017","writable":false}. Its last lines of the election: ')).toBe(true);
+    const lines = text.split(": ").slice(2).join(": ").split(" | ");
+    expect(lines).toHaveLength(ELECTION_LINES);
+    // Steps 0 to 9: the text keeps the last 8 (steps 2 to 9). Each third step is a REPL line.
+    expect(lines[0]).toBe("m1 ELECTION step 2");
+    expect(lines.at(-1)).toBe(`m2 REPL step ${ELECTION_LINES + 1}`);
+    expect(text).not.toContain("before the restore");
+    expect(text).not.toContain("NETWORK");
+    expect(text).not.toContain("STORAGE");
+  });
+
+  it("says none when the log has no line of the election after the start", () => {
+    expect(electionStateText("m2", "no status (refused)", [line("m2", "ELECTION", "old")], 1)).toBe(
+      "The view of m2: no status (refused). Its last lines of the election: none",
+    );
   });
 });

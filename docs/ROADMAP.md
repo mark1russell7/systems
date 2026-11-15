@@ -3609,6 +3609,7 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
 - **What is left.** The step of the night reads each cell, and the step of the Sunday reads only the budgets of the rungs. The pull request #383 gives each drill of the Sunday the read of the night. The pull request #399 gives the same read to `kind.yml`. This item is done when the two merge.
+- **The run of 2026-11-15.** The run 43699733340 failed in one run of 6 of `RD.100.restore`. After `rs.initiate`, the old primary did not accept writes in 60 s. The run before it took 14.8 s. The error gave no state of the set, thus its cause is not known. From harness `0.16.1`, the error of that wait gives the view of the old primary and its last 8 log lines of the election. The next run of the drills tells the cause.
 
 This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
 
