@@ -322,6 +322,22 @@ const synGiveUpEarly = (retries: bigint, linear: bigint, hz: Rational): Rational
 export const synGiveUpSends = (retries: number, linear: number): number =>
   synGiveUpWaits(BigInt(retries), BigInt(linear)).length;
 
+/**
+ * This function gives the wait of the SYN-ACK of a listener after `fired` firings (`reqsk_timeout` in
+ * `include/net/inet_connection_sock.h`, lines 290-296 at v6.6). The timer of the request starts at
+ * `TCP_TIMEOUT_INIT`. Each firing that sends the SYN-ACK again doubles the wait, up to `TCP_RTO_MAX`.
+ */
+const synAckWait = (fired: bigint): Rational => capped(TCP_TIMEOUT_INIT, fired, TCP_RTO_MAX);
+
+/**
+ * This function gives each wait of the SYN-ACK of a listener, up to the expiry of the request
+ * (`reqsk_timer_handler` in `net/ipv4/inet_connection_sock.c` at v6.6). A firing sends the SYN-ACK again
+ * while `num_timeout` is less than `max_syn_ack_retries` (line 1022, `syn_ack_recalc` at line 858). The
+ * next firing drops the request. Thus `retries` + 1 waits come before the expiry: 63 s at the default 5.
+ */
+const synAckWaits = (retries: bigint): Rational[] =>
+  Array.from({ length: Number(retries + 1n) }, (_, fired) => synAckWait(BigInt(fired)));
+
 /** This function gives the whole jiffies of a time at HZ, rounded up, as `msecs_to_jiffies` and `usecs_to_jiffies` round. */
 const jiffiesOf = (seconds: Rational, hz: Rational): bigint => r.ceil(r.mul(seconds, hz)).n;
 
@@ -575,6 +591,52 @@ const MODELS: Readonly<Record<string, Model>> = {
         hz!,
       ),
     source: "net/ipv4/tcp_timer.c tcp_retransmit_timer and kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // one wait of the SYN-ACK of a listener, after `fired` firings: 1 s doubled at each firing, up to
+  // TCP_RTO_MAX. The young pruning of a crowded queue and TCP_DEFER_ACCEPT change the count of
+  // firings, not the wait, and these models do not hold them
+  "linux.synack-wait": {
+    knobs: [null],
+    seconds: ([fired]) => synAckWait(integer(fired!, FIRED)),
+    source:
+      "include/net/inet_connection_sock.h reqsk_timeout (lines 290-296) and net/ipv4/inet_connection_sock.c reqsk_timer_handler (line 1062) at v6.6",
+  },
+  // the rounding of that wait on the timer wheel: 64 jiffies for a wait of 1 s at HZ 1000
+  "linux.synack-wait-lateness": {
+    knobs: [null, "Hz"],
+    seconds: ([fired, hz]) => r.div(whole(granularity(jiffiesOf(synAckWait(integer(fired!, FIRED)), hz!))), hz!),
+    source: "net/ipv4/inet_connection_sock.c reqsk_timer_handler and kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // the expiry of a request at a listener: the waits 0 to tcp_synack_retries, 63 s at the default 5.
+  // The firing after the last wait drops the request, and a later segment of the client gets a reset
+  "linux.synack-giveup": {
+    knobs: [null],
+    seconds: ([retries]) =>
+      synAckWaits(integer(retries!, "tcp_synack_retries")).reduce((total, wait) => r.add(total, wait), whole(0n)),
+    source:
+      "net/ipv4/inet_connection_sock.c reqsk_timer_handler at v6.6 (lines 1022, 1053-1062 and 1095-1096) and syn_ack_recalc (line 858)",
+  },
+  // the rounding of each of those waits on the timer wheel: 1.728 s in all at the default 5 and HZ 1000
+  "linux.synack-giveup-lateness": {
+    knobs: [null, "Hz"],
+    seconds: ([retries, hz]) =>
+      r.div(
+        whole(
+          synAckWaits(integer(retries!, "tcp_synack_retries")).reduce(
+            (total, wait) => total + granularity(jiffiesOf(wait, hz!)),
+            0n,
+          ),
+        ),
+        hz!,
+      ),
+    source: "net/ipv4/inet_connection_sock.c reqsk_timer_handler and kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // how early the expiry can come: each wait is a whole count of jiffies from the jiffy of its arming,
+  // thus each one can end up to one jiffy early
+  "linux.synack-giveup-early": {
+    knobs: [null, "Hz"],
+    seconds: ([retries, hz]) => r.div(whole(integer(retries!, "tcp_synack_retries") + 1n), hz!),
+    source: "net/ipv4/inet_connection_sock.c reqsk_timer_handler (mod_timer from jiffies) at v6.6",
   },
   // the default retryStrategy of ioredis 6: min(2^(times - 1) × 50, 5000) ms, plus a jitter of up
   // to 199 ms, which the lateness of the timer carries. Its times counts attempts from 1 after the

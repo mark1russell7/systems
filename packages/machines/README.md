@@ -25,7 +25,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 
 | Export | Identifier | System and version | Layer | Sources, by rung |
 | --- | --- | --- | --- | --- |
-| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 4 normative, 8 implemented |
+| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 4 normative, 10 implemented |
 | `NF_CONNTRACK_TCP` | `nf-conntrack-tcp` | The TCP state machine of conntrack on Linux 6.6.87.2 | middlebox | 4 implemented |
 | `REDIS_CLIENT` | `redis-client` | One client connection of the Redis 8.10.2 server | server | 3 implemented, 1 documented |
 | `IOREDIS_STATUS` | `ioredis-status` | The connection status of ioredis 6.0.0, standalone | driver | 5 implemented |
@@ -123,6 +123,13 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.4.0
+
+- **The SYN-ACK timer of Linux TCP** (`synack_retransmit` and `synack_giveup`). The target sends the SYN-ACK of a request in `SYN_RECV` again at each firing. The wait doubles from 1 s up to `TCP_RTO_MAX`. The request expires after `tcp_synack_retries` + 1 waits: 63 s at the default 5. The sources are `reqsk_timeout` and `reqsk_timer_handler` of 6.6.
+  - The new knobs are `tcp_synack_retries`, `somaxconn` and `tcp_abort_on_overflow`. A new source cites the cap of the backlog at `somaxconn` and the test of a full accept queue.
+  - The expiry has the new transition `tcp.synrecv-expiry`. Before, `tcp.synrecv-reset` took the reset and the expiry. A program that reads the id of a transition sees the new id, thus this change is a MINOR.
+  - The models are `linux.synack-wait`, `linux.synack-giveup` and their bounds, from the algebra 0.9.1. The cells `AQ.1` to `AQ.10` take their SYN-ACK bands from these timers, and no prediction of the snapshot moves.
 
 ### 0.3.28
 

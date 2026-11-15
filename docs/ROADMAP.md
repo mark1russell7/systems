@@ -2526,16 +2526,16 @@ Each step is an item, in this order:
 5. SYS-123: the memory of a process.
 6. SYS-124: the NIC.
 
-The next step: SYS-119.
+The next step: SYS-120.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
+- **Shipped:** 2026-11-15
+- **Links:** [#549](https://github.com/mark1russell7/systems/pull/549), [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
 
 Each visual of the site is a lens: a set of named knobs, a pure model and its lanes. A lane has a verdict, a band, marks on a timeline, facts and the measured values of cells.
 
@@ -2545,12 +2545,14 @@ Each visual of the site is a lens: a set of named knobs, a pure model and its la
 
 The test: the 87 golden cases of the request page and the 92 cases of the detection lab do not change.
 
+The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/lens.ts` has the names of the lens, its knobs and a function from the settings to the lanes. The request page draws five lenses with one timeline, and the golden cases stayed the same.
+
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
 
@@ -2560,6 +2562,8 @@ A listener that does not accept fills its queue. The page shows each step of a n
 - The law of SYS-63 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
 
 The test: the predictions of the cells `AQ.1` to `AQ.10` do not change. The page shows the measured median of each cell next to its band.
+
+Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra give the count of the queue. The timers `synack_retransmit` and `synack_giveup` of `linux-tcp` give the waits of the SYN-ACK and the expiry. The cells use them, and the predictions of `AQ.1` to `AQ.10` did not change. Part 2 is the lens and its page.
 
 ### SYS-121 · The port range: a lens and its page
 
