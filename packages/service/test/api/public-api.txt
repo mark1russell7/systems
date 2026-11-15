@@ -834,21 +834,25 @@ type Rule: build/rules.chunk.d.ts#Rule
 
 ## ./host (build/host.d.ts): names
 
+type AliveSpec: build/host.d.ts#AliveSpec
 type ChildHandle: build/ports.chunk.d.ts#ChildHandle
 type CommandOptions: build/ports.chunk.d.ts#CommandOptions
 type CommandPort: build/ports.chunk.d.ts#CommandPort
 type CommandRecord: build/host.d.ts#CommandRecord
 type CommandResult: build/ports.chunk.d.ts#CommandResult
 DEFAULT_RESTART: build/host.d.ts#DEFAULT_RESTART
+DEFAULT_VERDICT: build/host.d.ts#DEFAULT_VERDICT
 type Discovery: build/host.d.ts#Discovery
 type DiscoveryFields: build/host.d.ts#DiscoveryFields
 type DiscoveryRead: build/host.d.ts#DiscoveryRead
 type EnvFile: build/host.d.ts#EnvFile
 type FilePort: build/ports.chunk.d.ts#FilePort
+type FreshnessBound: build/host.d.ts#FreshnessBound
 type GroupOptions: build/host.d.ts#GroupOptions
 type GroupSpec: build/host.d.ts#GroupSpec
 type GroupSupervisor: build/host.d.ts#GroupSupervisor
 type HostPorts: build/ports.chunk.d.ts#HostPorts
+type HttpAnswer: build/ports.chunk.d.ts#HttpAnswer
 type InstallOptions: build/host.d.ts#InstallOptions
 type InstanceLock: build/host.d.ts#InstanceLock
 type InstanceOptions: build/host.d.ts#InstanceOptions
@@ -859,6 +863,7 @@ type LockState: build/host.d.ts#LockState
 type LogSpec: build/host.d.ts#LogSpec
 type NetPort: build/ports.chunk.d.ts#NetPort
 type NodeHostOptions: build/host.d.ts#NodeHostOptions
+PROBE_BODY_LIMIT: build/host.d.ts#PROBE_BODY_LIMIT
 type ProbeResult: build/host.d.ts#ProbeResult
 type ProcessMark: build/ports.chunk.d.ts#ProcessMark
 type ProcessesPort: build/ports.chunk.d.ts#ProcessesPort
@@ -880,8 +885,16 @@ type ServiceStatus: build/host.d.ts#ServiceStatus
 type SpawnRequest: build/ports.chunk.d.ts#SpawnRequest
 type StopSignal: build/ports.chunk.d.ts#StopSignal
 type StopSpec: build/host.d.ts#StopSpec
+type TargetChange: build/host.d.ts#TargetChange
+type TargetHealth: build/host.d.ts#TargetHealth
+type TargetState: build/host.d.ts#TargetState
+type TargetVerdict: build/host.d.ts#TargetVerdict
+type TargetWatch: build/host.d.ts#TargetWatch
 type TaskContext: build/host.d.ts#TaskContext
 type TreeStopOutcome: build/host.d.ts#TreeStopOutcome
+type WatchOptions: build/host.d.ts#WatchOptions
+type WatchSpec: build/host.d.ts#WatchSpec
+type WatchTarget: build/host.d.ts#WatchTarget
 acquireInstanceLock: build/host.d.ts#acquireInstanceLock
 discoveryOf: build/host.d.ts#discoveryOf
 groupProblems: build/host.d.ts#groupProblems
@@ -913,6 +926,8 @@ superviseGroup: build/host.d.ts#superviseGroup
 systemdArg: build/host.d.ts#systemdArg
 uninstallService: build/host.d.ts#uninstallService
 utf16le: build/host.d.ts#utf16le
+watchProblems: build/host.d.ts#watchProblems
+watchTargets: build/host.d.ts#watchTargets
 windowsArg: build/host.d.ts#windowsArg
 writeDiscovery: build/host.d.ts#writeDiscovery
 
@@ -1537,6 +1552,14 @@ export declare const detectionTime: (interval: number, timeout: number, misses: 
 ### build/heartbeat.d.ts#heartbeat
 export declare const heartbeat: (options: HeartbeatOptions) => Heartbeat;
 
+### build/host.d.ts#AliveSpec
+interface AliveSpec {
+  readonly probe: ReadyProbe;
+  readonly interval: Quantity;
+  readonly timeout: Quantity;
+  readonly failures: number;
+}
+
 ### build/host.d.ts#CommandRecord
 interface CommandRecord {
   readonly file: string;
@@ -1547,6 +1570,9 @@ interface CommandRecord {
 
 ### build/host.d.ts#DEFAULT_RESTART
 export declare const DEFAULT_RESTART: ProgramRestart;
+
+### build/host.d.ts#DEFAULT_VERDICT
+export declare const DEFAULT_VERDICT: TargetVerdict;
 
 ### build/host.d.ts#Discovery
 interface Discovery {
@@ -1583,6 +1609,12 @@ type DiscoveryRead = {
 interface EnvFile {
   readonly env: Readonly<Record<string, string>>;
   readonly problems: readonly string[];
+}
+
+### build/host.d.ts#FreshnessBound
+interface FreshnessBound {
+  readonly pointer: string;
+  readonly within: Quantity;
 }
 
 ### build/host.d.ts#GroupOptions
@@ -1675,6 +1707,9 @@ interface NodeHostOptions {
   readonly clock?: Clock | undefined;
 }
 
+### build/host.d.ts#PROBE_BODY_LIMIT
+export declare const PROBE_BODY_LIMIT = 1048576;
+
 ### build/host.d.ts#ProbeResult
 type ProbeResult = {
   readonly ok: true;
@@ -1702,6 +1737,7 @@ interface ProgramSpec {
   readonly envFile?: string | undefined;
   readonly after?: readonly string[] | undefined;
   readonly ready?: ReadySpec | undefined;
+  readonly alive?: AliveSpec | undefined;
   readonly restart?: ProgramRestart | null | undefined;
   readonly log?: LogSpec | null | undefined;
   readonly ipc?: boolean | undefined;
@@ -1731,6 +1767,8 @@ type ReadyProbe = {
   readonly kind: "http";
   readonly url: string;
   readonly status?: number | undefined;
+  readonly fresh?: readonly FreshnessBound[] | undefined;
+  readonly now?: string | undefined;
 } | {
   readonly kind: "tcp";
   readonly port: number;
@@ -1797,13 +1835,14 @@ interface ServiceSpec {
   readonly cwd?: string | undefined;
   readonly start: ServiceStart;
   readonly restart: RestartPolicy | null;
+  readonly background?: boolean | undefined;
   readonly stateDir: string;
   readonly console?: "hidden" | "visible" | undefined;
   readonly timeLimit?: Quantity | undefined;
 }
 
 ### build/host.d.ts#ServiceStart
-type ServiceStart = "logon" | {
+type ServiceStart = "logon" | "boot" | {
   readonly daily: string;
 };
 
@@ -1822,6 +1861,46 @@ interface StopSpec {
   readonly signal?: "SIGINT" | "SIGTERM" | undefined;
 }
 
+### build/host.d.ts#TargetChange
+interface TargetChange {
+  readonly target: string;
+  readonly from: TargetHealth;
+  readonly to: "up" | "down";
+  readonly at: number;
+  readonly why: string | null;
+}
+
+### build/host.d.ts#TargetHealth
+type TargetHealth = "unknown" | "up" | "down";
+
+### build/host.d.ts#TargetState
+interface TargetState {
+  readonly name: string;
+  readonly health: TargetHealth;
+  readonly since: number;
+  readonly last: ProbeResult | null;
+  readonly lastAt: number | null;
+  readonly failures: number;
+}
+
+### build/host.d.ts#TargetVerdict
+type TargetVerdict = {
+  readonly type: "debounce";
+  readonly failAfter: number;
+  readonly recoverAfter: number;
+} | {
+  readonly type: "window";
+  readonly failAfter: Quantity;
+  readonly recoverAfter?: Quantity | undefined;
+};
+
+### build/host.d.ts#TargetWatch
+interface TargetWatch {
+  states(): TargetState[];
+  pollNow(): Promise<TargetState[]>;
+  stop(): void;
+}
+
 ### build/host.d.ts#TaskContext
 interface TaskContext {
   readonly user: string;
@@ -1837,6 +1916,28 @@ type TreeStopOutcome = {
   readonly kind: "failed";
   readonly problem: string;
 };
+
+### build/host.d.ts#WatchOptions
+interface WatchOptions {
+  readonly onChange: (change: TargetChange) => void;
+  readonly random?: (() => number) | undefined;
+  readonly trace?: ((target: string, from: string, to: string, on: string) => void) | undefined;
+}
+
+### build/host.d.ts#WatchSpec
+interface WatchSpec {
+  readonly targets: readonly WatchTarget[];
+}
+
+### build/host.d.ts#WatchTarget
+interface WatchTarget {
+  readonly name: string;
+  readonly probe: ReadyProbe;
+  readonly interval: Quantity;
+  readonly timeout: Quantity;
+  readonly jitter?: number | undefined;
+  readonly verdict?: TargetVerdict | undefined;
+}
 
 ### build/host.d.ts#acquireInstanceLock
 export declare const acquireInstanceLock: (path: string, ports: HostPorts, options?: LockOptions) => Promise<LockResult>;
@@ -1927,6 +2028,12 @@ export declare const uninstallService: (spec: ServiceSpec, ports: HostPorts, opt
 
 ### build/host.d.ts#utf16le
 export declare const utf16le: (text: string) => Uint8Array;
+
+### build/host.d.ts#watchProblems
+export declare const watchProblems: (spec: WatchSpec) => string[];
+
+### build/host.d.ts#watchTargets
+export declare const watchTargets: (spec: WatchSpec, ports: HostPorts, options: WatchOptions) => TargetWatch;
 
 ### build/host.d.ts#windowsArg
 export declare const windowsArg: (arg: string) => string;
@@ -3621,9 +3728,17 @@ interface HostPorts {
   readonly logger?: Logger | undefined;
 }
 
+### build/ports.chunk.d.ts#HttpAnswer
+interface HttpAnswer {
+  readonly status: number;
+  readonly body: string;
+  readonly complete: boolean;
+}
+
 ### build/ports.chunk.d.ts#NetPort
 interface NetPort {
   httpStatus(url: string, timeout: number): Promise<number | null>;
+  httpText?(url: string, timeout: number, limit: number): Promise<HttpAnswer | null>;
   tcpConnect(host: string, port: number, timeout: number): Promise<boolean>;
 }
 
@@ -4249,6 +4364,7 @@ interface FakeHost {
   readonly children: FakeChild[];
   readonly processes: Map<number, number | null>;
   readonly http: Map<string, number | null>;
+  readonly bodies: Map<string, string>;
   readonly tcp: Set<string>;
   polite: boolean;
   failFiles: ((operation: string, path: string) => boolean) | null;

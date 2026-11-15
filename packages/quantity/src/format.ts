@@ -98,7 +98,7 @@ export const format = (amount: Extent | Unknown, options: FormatOptions = {}): s
   const magnitude = Math.abs(amount.value);
   const lead = parsed.components[0];
   // money leads with its symbol, whatever it is per: $500/mo, $42.49
-  if (parsed.kind === "money" || parsed.kind === "money-rate") {
+  if (parsed.kind === "money" || parsed.kind === "money-rate" || parsed.kind === "energy-price") {
     const cents = lead?.atom?.decimals ?? 2;
     const whole = q.isInteger(roundExact(q.fromNumber(magnitude), cents));
     const digits = options.digits ?? (whole ? 0 : cents);

@@ -1609,7 +1609,7 @@ The work:
 2. Calibrate the gate from the baseline of the cell, and write the prediction before the first run. The gate must still refuse a loaded VM. An A/A pair with a planned load proves that.
 3. Run the 2 missing runs of the pauses of 500 ms × 2, under the new gate.
 
-This item changes a gate, thus the strategist reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
+This item changes a gate, thus the maintainer reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
 
 **The first step has a first answer.** The cause is the read of the conntrack table by the agent of the lab. The clients fill the table, and each agent reads the whole table each second. In one record of the re-dispatch, the table grows from 9,600 to 22,000 lines in the first 75 s. In that time, the read on each of the 3 nodes grows from 91 ms to 205 ms. This is approximately 0.35 of a core, or 9 of the 12 points of idle share. The other 3 points have no name yet. The calibration reads all 9 records.
 
@@ -2249,6 +2249,40 @@ release.yml publishes each later version from main, as for the other packages.
 
 The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forget of a router counts from the ACK of the last reply, at once or up to 41 ms later.
 
+### SYS-111 · A start at boot and a liveness probe in the host of service
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-14
+- **Shipped:** 2026-11-14
+- **Links:** [#507](https://github.com/mark1russell7/systems/pull/507), [npm 0.8.10](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.10)
+
+A consumer runs a pipeline under `superviseGroup` of `@mark1russell7/service/host`, and it must stay up without a person. Two gaps stopped that. A task or a unit started only at logon, thus nothing started after a power cut until a logon. The supervisor also used its probe only until a program was ready, thus a hung program stayed hung.
+
+- **The start at boot.** `start: "boot"` gives a `BootTrigger` on Windows. A spec in the background gets the S4U logon on Windows and `loginctl enable-linger` on Linux. Task Scheduler refuses both from a shell that is not elevated. Thus the problem of a failed outcome tells the user to elevate.
+- **The liveness probe.** The optional `alive` of a program uses a probe each interval after ready. After its count of failures in sequence, the supervisor stops the program in stages and starts it again after the backoff.
+- Each new field is optional, and the old specs give the same task, unit and behavior. Thus the release is `0.8.10` (a PATCH before 1.0).
+- The test: tests on the test clock and the task XML as data, with no real task.
+- Service `0.8.10` is on npm with provenance since 2026-11-14.
+
+### SYS-112 · An outside watcher of targets in the host of service
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:** SYS-111
+- **Started:** 2026-11-14
+- **Shipped:** 2026-11-14
+- **Links:** [#510](https://github.com/mark1russell7/systems/pull/510), [service 0.8.11 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.11), [the release run](https://github.com/mark1russell7/systems/actions/runs/43655214184)
+
+A heartbeat from a program tells only that the program sends. A consumer needs a second watcher on a second computer. It must find a program that answers while its work stopped, and a failure of the provider of the heartbeat.
+
+- **The watcher.** `watchTargets` of `@mark1russell7/service/host` polls each target on its own loop, with the poller and the latch of the package. A debounce or a window turns the polls into up or down. Each change has the reason of the latest failed poll.
+- **The freshness bounds.** An HTTP probe can read its JSON answer. Each bound names a time with a JSON Pointer and gives its largest age. The probe reads up to 1 MiB.
+- Each change adds an export or an optional field. Thus the release is `0.8.11` (a PATCH before 1.0).
+- The test: tests on the test clock and the fake host, and unit tests of the read of a text with no network. The net port of Node has tests against a local server.
+- Service `0.8.11` is on npm with provenance since 2026-11-14.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
@@ -2664,14 +2698,22 @@ The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of th
 
 ### SYS-102 · The port that LAST_ACK holds
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-64
-- **Started:**
+- **Started:** 2026-11-09
 - **Shipped:**
 - **Links:** [the result of SYS-64](#sys-64--the-port-range-its-count-and-its-error)
 
 The side that closes second holds its port in `LAST_ACK` until its FIN has an ACK. One run of `PR.7` showed this hold, and the law of `PR.7` has no term for it. This item writes that term into the law, with the bound of the retransmission timeout. A new cell then drops the ACK on purpose, thus each run shows the hold. A new prediction comes before its dispatch, and `PR.7` keeps its old record.
+
+**The term.** The socket in `LAST_ACK` [is done at the ACK of its FIN](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L7377-L7383). If that ACK drops, the FIN goes again when [the loss probe](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_output.c#L3128-L3146) or the retransmission timer fires, at the RTO at the latest. The peer in TIME_WAIT [answers the second FIN with an ACK](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L272-L283).
+
+**The cell.** `PR.8` has a range of 4 and one round, and the target closes first.
+
+- The new fault `fin-ack` operates in the namespace of the client. The mark of each connection in conntrack counts the FINs of the client. A pure ACK from the target drops at mark 1, thus only the ACK of the first FIN drops.
+- The client starts its round after the fault (`--mode inflight`). After each FIN of the target, it writes `closing`, closes each connection, and connects again each 10 ms (`--reclaim`).
+- The law: 4 ports, 4 retransmissions, and each port comes back in the band of the RTO from the `closing` line. At HZ 250 the band is 0.196 s to 0.264 s.
 
 ### SYS-65 · A pool at its limit
 
@@ -3113,14 +3155,19 @@ A cell that holds on the two distributions tests a law. A cell that holds on one
 
 ### SYS-87 · Socket.IO: detection, reconnect and recovery
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** 
-- **Started:**
+- **Started:** 2026-11-09
 - **Shipped:**
 - **Links:**
 
 Socket.IO is a target on E1, and it needs no new layer. Its documents give a ping each 25 s, a timeout of 20 s and a reconnect delay of 1 to 5 s. The cells test these under the faults of T01. They also test the delivery of each mode, and the connection state recovery of each adapter.
+
+The work has two slices:
+
+- **Slice 1: detection and the reconnect.** The documents `socketio-client` and `socketio-server` of the machines package, from the tarballs of socket.io 4.8.4, socket.io-client 4.8.4, engine.io 6.6.11, engine.io-client 6.6.7 and ws 8.21.3. The subject image of `packages/cells/targets/socketio`. The 5 cells `SIO` of `packages/cells/src/socketio.ts`: a black hole (idle, and with a call in flight), a frozen server, a FIN, and the ping timeout of the server. The FIN cell has three tries of the reconnect. A dispatch of `^SIO` in CI holds each band.
+- **Slice 2: recovery and delivery.** The connection state recovery of the server, and the delivery of each mode. The modes are at most once, and at least once with an acknowledgement and a retry. The harness counts the lost and the repeated events (#475). The 6 cells `SIO D1` to `SIO U3` cross a stall of 5.6 s, and `deliveryOf` derives their bands from the documents (`docs/S7.md`). The dispatch [42663578929](https://github.com/mark1russell7/systems/actions/runs/42663578929) of `^SIO [DU]` holds each band in 11 of 11 runs of each cell. D3 and the repeats of a stall in one direction stay for later.
 
 ### SYS-88 · Loro: a merge after a long partition
 
@@ -3170,14 +3217,14 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 347 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 353 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
-| Timer | 224 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
-| Open loop | 8 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
+| Timer | 230 | The cells of kind, and the 6 delivery cells `SIO` of SYS-87, each send started by a timer | No send waits for a reply. The record keeps no planned time. A delivery cell gives counts of events, not times. |
+| Open loop | 10 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
 
-The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band.
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band. The 2 cells `SB` of SYS-69 are in the same row. Each cell gives a distribution with a band, on one side of the border of a stable system.
 
 The 13 cells of reply times on the stream client of the harness (`T01`, `CAL`, `E3.F1` and `OL`) also give an estimate of the open loop. The client waits its interval after each reply. Thus `closedLoopPlan` of `rigor-chaos` puts back each send that a stall hid, with that interval as the pause of the driver. The verdict gives the hidden sends, the pauses of the client and the spread of the estimate. The estimate is not a measure: the open-loop twin of SYS-68 stays the better measure. The 5 cells `K2.pause` have their own verdict of a pause.
 
@@ -3396,7 +3443,7 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 - **Shipped:**
 - **Links:** [#453](https://github.com/mark1russell7/systems/pull/453)
 
-The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The strategist agreed on the new name `@mark1russell7/automata` on 2026-11-09. The draft #453 has the rename. It merges after the npm sitting. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The strategist does the publish and the trust. Cells, machines, service and site import the package. Other repositories use it too, for example client and collections. Each changes its imports after the release. If the declarations of a public package name its types, that package also gets a MINOR. The test: only the history and the registry entries of the locks name the old package. The API report of each public package shows only the new name.
+The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The maintainer agreed on the new name `@mark1russell7/automata` on 2026-11-09. The draft #453 has the rename. It merges after the npm sitting. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The maintainer does the publish and the trust. Cells, machines, service and site import the package. Other repositories use it too, for example client and collections. Each changes its imports after the release. If the declarations of a public package name its types, that package also gets a MINOR. The test: only the history and the registry entries of the locks name the old package. The API report of each public package shows only the new name.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
@@ -3477,19 +3524,34 @@ The work:
 - Write the prediction first. It gives the ratio to the 1 GB restore, and the fixed part from a fit of the three sizes.
 - Add the drill to the Sunday cells, if the job stays within its time limit.
 
-### SYS-98 · Recovery rungs 10 and 10,000
+### SYS-98 · Recovery rung 10
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-94
+- **Started:** 2026-11-14
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [SYS-113](#sys-113--recovery-rung-10000)
+
+SYS-94 holds rungs 1, 100 and 1,000. Rung 10 is one process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it operates on one runner. It needs only SYS-94. The milestone of the recovery rungs counts it as rung 4.
+
+- A drill case of rung 10 in the catalog of the recovery drills, with its budgets.
+- One cells dispatch of the case, and the read of its verdict. A rung counts only when it holds.
+
+The item was one item with rung 10,000 until 2026-11-14. The two rungs have different costs and different dates, thus rung 10,000 is SYS-113.
+
+A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
+
+### SYS-113 · Recovery rung 10,000
 
 - **Status:** later
 - **Area:** catalogs
-- **Depends on:** SYS-94, SYS-97, SYS-85
+- **Depends on:** SYS-97, SYS-85
 - **Started:**
 - **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+- **Links:** [SYS-98](#sys-98--recovery-rung-10)
 
-SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, thus they have different dates.
-
-- **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
-- **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+Rung 10,000 has an RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
 
 ### SYS-99 · The scheduled cells can fail on a failing cell
 
@@ -3509,7 +3571,7 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 - **The void of a slow commit.** A fault starts in its commit, thus a time from the start of the commit is too long by the commit or less. Before this change, a commit longer than the noise of 4 ms voided each run. The harness voids a run only when that shift can move a time across an edge of its band. A restore of 16 s in a band of 180 s keeps its run. A toxic of 2 s in a band of 1 ms with a commit of 13.3 ms stays void. With this rule, the records of 2026-11-08 hold each of the 3 rungs, and the flip passes on them.
 - **The drills of the Sunday hold.** The band of a restore is a tenth of its budget. Thus the cell fault of 1.5 x the top of a band is 0.15 x the RTO, and a drill can leave its band while its rung holds. The step `held.ts --flip --cells drills` gives the drills the read and the flip of the night, with the pins of SYS-101. A run by hand takes the selection `drills` on one shard, because a run of `^RD[.]` also starts the drill of 8 GB. That run starts the two steps of the Sunday: the locked rungs and the drills.
 - **A red read names its cause.** A crash also exits with 1. Thus each red read of a flip must name its cause in its output, or the flip fails. The cause is the line `not held` of the night and of the drills, or the refused pin or the lost record of the rungs. The function `rightFor` of `packages/site/scripts/flip.ts` gives this rule to each flip.
-- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate. A dispatch of the selection `night` on 4 shards, or of the selection `drills` on 1 shard, is that schedule by hand. Its step operates as on the schedule. Before this fix, only the expression of `only` started the step. Thus a rerun of a red Sunday by its selection was green with no check.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
 
@@ -3518,8 +3580,6 @@ This is the read of false blocks, before the check blocks. The code and the cata
 - Seven of these nights came before the wider bound of the section WS, thus they do not test it. Two failing cells of these nights hold only through that bound.
 - The 12 nights after the run 40123441278 have no failing cell as written. Zero of 12 bound the rate of false blocks only near 22 percent, at 95 percent confidence.
 - A slowdown of 1.5 x from the slowest run turns 22 of the 27 timed cells red. The 5 other cells read 0.04 ms to 0.12 ms against a band top near 5 ms. Their slack is approximately 5 ms, thus they hide no large slowdown.
-
-A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
 ### SYS-100 · A flip test for each gate check of a measure
 
@@ -3625,6 +3685,10 @@ The order of the work:
 
 - The runner hours come from the seconds of each cell in the original runs (`refresh-cost.json`). A test simulates each shard of each round with these seconds, and each shard stays below 300 minutes.
 - The job `export` starts the exporter of each study of the round on the records of all its shards. It uploads the new data files as the artifact `refresh`. A pull request then moves each page to its new copy.
+- **The move of the pages.** A token of a workflow cannot open a pull request that starts the checks. Thus a session downloads the artifact `refresh` and starts `packages/site/scripts/adopt.ts` on it. The script puts each copy into `src/data`, and each source of a page then names the new copy. The old file and its tests stay.
+  - The first sentence of the page of the study gets the day of the copy. The report of the script lists each other line with the old day, for the body of the pull request.
+  - A copy that no page shows stops the script. A test reads the page of each study of the plan, and the name that its exporter writes.
+  - A key of a GitHub App lets the job open the pull request itself. The repository has no such key, and a key is a choice for Mark.
 - The page `results/refresh` gives the limit and the rounds in public text. A test compares its table with the plan.
 - Seven pages with a limit have no round yet: `results/r3`, `results/kind`, `results/mesh`, `results/calibration`, `results/timers`, `lab/detection` and the home page. `refresh.ts` gives what each one needs first. A test of the site fails for a page with a limit that has no round and no such entry.
 

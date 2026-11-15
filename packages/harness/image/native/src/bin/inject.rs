@@ -20,6 +20,10 @@
 //! - `mtu PEER --above N` / `clear-mtu PEER --above N`: each segment from the peer longer than N
 //!   bytes drops, as a path MTU black hole does, in the namespace that receives it. It acts on
 //!   segments only when the sender's TSO and GSO and the receiver's GRO are off (`offload`).
+//! - `fin-ack PEER` / `clear-fin-ack PEER`: the first ACK of each FIN that this end sends to the
+//!   peer drops. The FIN goes again when its retransmission timer fires, and the ACK of the second
+//!   FIN passes. Thus a connection that this end closes second stays in `LAST_ACK` until its timer
+//!   fires. The count of the FINs is the mark of the connection in conntrack.
 //! - `netem DEV SPEC…` / `clear-netem DEV`: tc netem on the device's egress, for example
 //!   `netem eth0 delay 100ms 10ms` or `netem eth0 loss 5%`.
 //! - `offload DEV on|off`: the device's TSO, GSO and GRO, so that netem and length matches act on
@@ -186,6 +190,22 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
             let op = op("mtu");
             let above = opts.above.ok_or("--above N")?;
             format!("{op} {from} -p tcp -m length --length {}:65535 -j DROP\n", above + 1)
+        }
+        // the mark of the connection counts the FINs that this end sent: 1 after the first FIN, 2
+        // after the second. A pure ACK from the peer drops at mark 1. Each -I goes to the top of
+        // its chain, thus the line for the step from 1 to 2 comes last and is evaluated first. A
+        // FIN thus takes one step only
+        "fin-ack" | "clear-fin-ack" => {
+            if opts.via.is_some() {
+                return Err("fin-ack acts at an end of the connection, not at a router".into());
+            }
+            let op = op("fin-ack");
+            let fin = format!("{to} -p tcp --tcp-flags FIN FIN -m connmark");
+            format!(
+                "{op} {fin} --mark 0 -j CONNMARK --set-mark 1\n\
+                 {op} {fin} --mark 1 -j CONNMARK --set-mark 2\n\
+                 {op} {from} -p tcp --tcp-flags SYN,FIN,RST,ACK ACK -m connmark --mark 1 -j DROP\n"
+            )
         }
         other => return Err(format!("unknown action {other}").into()),
     })
@@ -653,6 +673,26 @@ mod tests {
             "-I INPUT -s 10.0.0.2/32 -p tcp -m length --length 1201:65535 -j DROP\n"
         );
         assert!(rules("reject", peer, &Options::default()).is_err());
+    }
+
+    #[test]
+    fn a_fin_takes_one_step_of_the_mark_and_only_the_first_ack_drops() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let set = rules("fin-ack", peer, &Options::default()).unwrap();
+        let lines: Vec<&str> = set.lines().collect();
+        // -I puts the last line at the top. Thus the step from 1 to 2 is evaluated before the step from 0 to 1.
+        assert_eq!(
+            lines,
+            [
+                "-I OUTPUT -d 10.0.0.2/32 -p tcp --tcp-flags FIN FIN -m connmark --mark 0 -j CONNMARK --set-mark 1",
+                "-I OUTPUT -d 10.0.0.2/32 -p tcp --tcp-flags FIN FIN -m connmark --mark 1 -j CONNMARK --set-mark 2",
+                "-I INPUT -s 10.0.0.2/32 -p tcp --tcp-flags SYN,FIN,RST,ACK ACK -m connmark --mark 1 -j DROP",
+            ]
+        );
+        let clear = rules("clear-fin-ack", peer, &Options::default()).unwrap();
+        assert_eq!(clear, set.replace("-I ", "-D "));
+        let via = Options { via: Some("eth0".into()), ..Options::default() };
+        assert!(rules("fin-ack", peer, &via).is_err());
     }
 
     #[test]

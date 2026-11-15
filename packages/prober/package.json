@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/prober",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "description": "An eBPF prober for TCP: a CO-RE kernel program and its Rust collector, which record what the kernel did to each socket, with the record contract in TypeScript.",
   "keywords": [
     "ebpf",
@@ -65,7 +65,7 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.3",
-    "tsdown": "^0.23.4",
+    "tsdown": "^0.23.7",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3",
     "zod": "^4.6.6"

@@ -190,7 +190,7 @@ interface Atom {
 }
 
 ### build/quantity.chunk.d.ts#BASES
-declare const BASES: readonly ["time", "length", "mass", "temperature", "data", "money"];
+declare const BASES: readonly ["time", "length", "mass", "temperature", "data", "money", "current"];
 
 ### build/quantity.chunk.d.ts#Base
 type Base = (typeof BASES)[number];
@@ -205,7 +205,7 @@ declare const KINDS: Readonly<Record<Kind, Vector>>;
 declare const KIND_NAMES: readonly Kind[];
 
 ### build/quantity.chunk.d.ts#Kind
-type Kind = "time" | "length" | "mass" | "temperature" | "data" | "money" | "count" | "ratio" | "level" | "frequency" | "transfer-rate" | "data-rate" | "speed" | "area" | "volume" | "energy" | "power" | "specific-power" | "specific-volume-rate" | "money-rate";
+type Kind = "time" | "length" | "mass" | "temperature" | "data" | "money" | "count" | "ratio" | "level" | "frequency" | "transfer-rate" | "data-rate" | "speed" | "area" | "volume" | "energy" | "power" | "current" | "voltage" | "charge" | "resistance" | "specific-power" | "specific-volume-rate" | "money-rate" | "energy-price";
 
 ### build/quantity.chunk.d.ts#MeasuredOn
 interface MeasuredOn {

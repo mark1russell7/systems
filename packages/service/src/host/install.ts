@@ -4,7 +4,7 @@ import type { HostPorts } from "./ports.ts";
 import { joinPath } from "./ports.ts";
 import { stopTree } from "./processes.ts";
 import type { ServiceSpec } from "./render.ts";
-import { renderSystemdTimer, renderSystemdUnit, renderTaskXml, serviceProblems, utf16le } from "./render.ts";
+import { inBackground, renderSystemdTimer, renderSystemdUnit, renderTaskXml, runsUntilStop, serviceProblems, utf16le } from "./render.ts";
 
 /** A command record is one command that a service operation started, and its result. */
 export interface CommandRecord {
@@ -72,11 +72,18 @@ const unitDir = (ports: HostPorts): string => {
 export const servicePaths = (spec: ServiceSpec, ports: HostPorts): ServicePaths => {
   if (ports.platform === "win32") return { unit: joinPath("win32", spec.stateDir, `${spec.name}.task.xml`), timer: null };
   const dir = unitDir(ports);
-  return { unit: joinPath("linux", dir, `${spec.name}.service`), timer: spec.start === "logon" ? null : joinPath("linux", dir, `${spec.name}.timer`) };
+  return { unit: joinPath("linux", dir, `${spec.name}.service`), timer: runsUntilStop(spec.start) ? null : joinPath("linux", dir, `${spec.name}.timer`) };
 };
 
 /** This function gives the unit that `systemctl` enables: the timer of a daily job, or the service. */
-const enabledUnit = (spec: ServiceSpec): string => (spec.start === "logon" ? `${spec.name}.service` : `${spec.name}.timer`);
+const enabledUnit = (spec: ServiceSpec): string => (runsUntilStop(spec.start) ? `${spec.name}.service` : `${spec.name}.timer`);
+
+/**
+ * This text goes with a failure of `schtasks` for a spec in the background. Task Scheduler refuses a boot trigger
+ * and an S4U logon from a shell that is not elevated: `Access is denied`, with the code 1 (Windows 11, 2026-11).
+ */
+const ELEVATION =
+  "Task Scheduler refuses a boot trigger and an S4U logon from a shell that is not elevated: start the same operation in a shell of an administrator";
 
 /** This function gives the path of `conhost.exe` from `SystemRoot`. Without it, Task Scheduler expands `%SystemRoot%` at the start. */
 const conhostPath = (ports: HostPorts): string => joinPath("win32", ports.env["SystemRoot"] ?? "%SystemRoot%", "System32", "conhost.exe");
@@ -106,11 +113,15 @@ const runner = (ports: HostPorts): Runner => {
   };
 };
 
-const failed = (commands: readonly CommandRecord[], record: CommandRecord): ServiceOutcome => ({
+const failed = (commands: readonly CommandRecord[], record: CommandRecord, note: string | null): ServiceOutcome => ({
   kind: "failed",
   commands,
-  problem: `${record.file} ${record.args.join(" ")} gave the code ${record.code}${record.out === "" ? "" : `: ${record.out}`}`,
+  problem: `${record.file} ${record.args.join(" ")} gave the code ${record.code}${record.out === "" ? "" : `: ${record.out}`}${note === null ? "" : ` (${note})`}`,
 });
+
+/** This function gives the note of a failed command: the elevation of Task Scheduler for a spec in the background, or null. */
+const noteOf = (spec: ServiceSpec, ports: HostPorts, record: CommandRecord): string | null =>
+  ports.platform === "win32" && record.file === "schtasks" && inBackground(spec) ? ELEVATION : null;
 
 const problemOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -130,7 +141,7 @@ const operate = async (
   const files: string[] = [];
   try {
     const failure = await steps(run, files);
-    if (failure !== null) return failed(run.commands, failure);
+    if (failure !== null) return failed(run.commands, failure, noteOf(spec, ports, failure));
   } catch (error) {
     return { kind: "failed", commands: run.commands, problem: `the file system failed: ${problemOf(error)}` };
   }
@@ -144,7 +155,9 @@ const firstFailure = (...records: readonly CommandRecord[]): CommandRecord | nul
  * This function installs a service of the user, and by default starts it. It does not throw.
  * - On Windows, it writes the task file in UTF-16 to `stateDir`, and starts `schtasks /Create /XML <file> /F`, then `schtasks /Run`.
  * - On Linux, it writes the unit (and the timer of a daily job), then starts `systemctl --user daemon-reload` and `enable`.
+ *   For a spec in the background, it first starts `loginctl enable-linger` for the user.
  * A second install replaces the first. Give it the ports of a test, thus no test installs a real task.
+ * On Windows, Task Scheduler refuses a spec in the background from a shell that is not elevated: the problem then tells so.
  */
 export const installService = (spec: ServiceSpec, ports: HostPorts, options: InstallOptions = {}): Promise<ServiceOutcome> =>
   operate(spec, ports, async (run, files) => {
@@ -163,6 +176,11 @@ export const installService = (spec: ServiceSpec, ports: HostPorts, options: Ins
     if (paths.timer !== null && timer !== null) {
       await ports.files.write(paths.timer, timer);
       files.push(paths.timer);
+    }
+    if (inBackground(spec)) {
+      // the linger starts the user manager at boot and keeps it after the logout. The removal keeps the linger, because other units can need it
+      const lingered = await run.run("loginctl", ["enable-linger"]);
+      if (lingered.code !== 0) return lingered;
     }
     const reloaded = await run.run("systemctl", ["--user", "daemon-reload"]);
     if (reloaded.code !== 0) return reloaded;
@@ -223,8 +241,8 @@ export const startService = (spec: ServiceSpec, ports: HostPorts): Promise<Servi
  * This function stops a service, and keeps it stopped until `startService`. It does not throw.
  * - On Windows, it disables the task, thus its time trigger does not start it again, and ends the task.
  *   With a discovery file, it then stops the process tree of the instance. Windows has no signal that a child can catch.
- * - On Linux, it disables the unit of a logon service, or the timer of a daily job, and stops it.
- *   Thus the next login or the next calendar time does not start it again. The stop sends SIGTERM,
+ * - On Linux, it disables the unit of a service at logon or at boot, or the timer of a daily job, and stops it.
+ *   Thus the next login, the next boot or the next calendar time does not start it again. The stop sends SIGTERM,
  *   thus `run()` stops in its stages. A daily job that operates stops too.
  */
 export const stopService = (spec: ServiceSpec, ports: HostPorts, options: InstanceOptions = {}): Promise<ServiceOutcome> =>
@@ -237,7 +255,7 @@ export const stopService = (spec: ServiceSpec, ports: HostPorts, options: Instan
       return null;
     }
     const disabled = await run.run("systemctl", ["--user", "disable", "--now", enabledUnit(spec)]);
-    if (disabled.code !== 0 || spec.start === "logon") return firstFailure(disabled);
+    if (disabled.code !== 0 || runsUntilStop(spec.start)) return firstFailure(disabled);
     return firstFailure(await run.run("systemctl", ["--user", "stop", `${spec.name}.service`]));
   });
 

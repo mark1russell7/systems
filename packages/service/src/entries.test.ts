@@ -431,6 +431,8 @@ describe("the host entry: Node only, and its effects go through ports (SYS-36)",
   it("gives its functions, and the root does not give them", () => {
     expect(Object.keys(hostEntry).sort()).toEqual([
       "DEFAULT_RESTART",
+      "DEFAULT_VERDICT",
+      "PROBE_BODY_LIMIT",
       "START_MARGIN_MS",
       "acquireInstanceLock",
       "discoveryOf",
@@ -463,6 +465,8 @@ describe("the host entry: Node only, and its effects go through ports (SYS-36)",
       "systemdArg",
       "uninstallService",
       "utf16le",
+      "watchProblems",
+      "watchTargets",
       "windowsArg",
       "writeDiscovery",
     ]);

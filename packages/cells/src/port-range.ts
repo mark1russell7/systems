@@ -2,7 +2,7 @@ import { timerOf } from "@mark1russell7/algebra";
 import type { Cell, PortsPrediction, QueueBand, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { wheelOf } from "./accept-queue.ts";
-import { given, HZ, LINUX_66, seconds, s } from "./catalog.ts";
+import { given, HZ, LINUX_66, ms, RTT_MS, seconds, s } from "./catalog.ts";
 
 /**
  * The cells of the port range (SYS-64): one client in a small `ip_local_port_range`, one target that
@@ -29,6 +29,11 @@ import { given, HZ, LINUX_66, seconds, s } from "./catalog.ts";
  *   (`net/ipv4/tcp_ipv4.c`, lines 168-171). The default of 2 applies to loopback only (lines 130-154).
  * - Other ways to close. A reset holds nothing. If the target closes first, the client holds no
  *   port, and a new SYN passes the TIME_WAIT of the target (`net/ipv4/tcp_minisocks.c`, lines 253-262).
+ * - LAST_ACK. The side that closes second holds its port until the ACK of its FIN arrives
+ *   (`net/ipv4/tcp_input.c`, lines 7377-7383). If that ACK drops, the FIN goes again when the loss
+ *   probe or the retransmission timer fires, at the RTO at the latest (`net/ipv4/tcp_output.c`, lines
+ *   3128-3146). The peer in TIME_WAIT answers the second FIN with an ACK (`net/ipv4/tcp_minisocks.c`,
+ *   lines 272-283), and the port is free.
  */
 
 /** This image is the stock base of the image of the harness, for the record. */
@@ -153,6 +158,17 @@ const freedAfter = (wait: number, late: number): QueueBand =>
 /** This time is how long a port stays in TIME_WAIT, from the document of Linux TCP. */
 const timeWait = (): number => seconds(timerOf(LINUX_TCP, "time_wait", LINUX).duration, "TIME_WAIT");
 
+/**
+ * This function gives the band of a port in LAST_ACK whose first ACK drops. The band starts at
+ * the FIN of the client and ends at the first connect after the FIN goes again. The loss probe
+ * fires at the RTO at the latest, thus the early bound of the retransmission timer holds it.
+ */
+export const lastAck = (): QueueBand => {
+  const rto = timerOf(LINUX_TCP, "retransmit", given({ ...LINUX_66, hz: { value: HZ, unit: "Hz" }, rtt: ms(RTT_MS) }), 0);
+  const duration = seconds(rto.duration, "the RTO");
+  return freedAfter(duration - seconds(rto.early, "the early bound of the RTO"), seconds(rto.lateness, "the lateness of the RTO"));
+};
+
 /** These are the settings of a cell: the size of the range, how the client closes, and the sysctls. */
 export interface PortsSpec {
   readonly plan: string;
@@ -162,6 +178,8 @@ export interface PortsSpec {
   readonly rounds: number;
   readonly destinations: number;
   readonly reuse: 1 | 2;
+  /** The fault drops the first ACK of each FIN of the client. It acts from the first round. */
+  readonly fault?: "fin-ack";
   readonly window: number;
   readonly why: string;
   readonly ports: Omit<PortsPrediction, "low" | "size" | "rounds" | "destinations" | "refusedWithin">;
@@ -192,10 +210,13 @@ const portsCell = (spec: PortsSpec): Cell => ({
       String(RETRY),
       "--wait-s",
       String(spec.window),
+      // the client of a target that closes first connects again only when a port has a time to measure
+      ...(spec.close === "target" && spec.ports.freed !== undefined ? ["--reclaim"] : []),
     ],
   },
-  probe: { mode: "idle", keepalive: false },
-  fault: "none",
+  // a client in flight starts its rounds after the fault, thus the fault acts on each connection
+  probe: { mode: spec.fault === undefined ? "idle" : "inflight", keepalive: false },
+  ...(spec.fault === undefined ? { fault: "none" } : { fault: spec.fault, faultAt: "client" }),
   prediction: {
     detects: null,
     window: s(spec.window + 10),
@@ -307,6 +328,19 @@ export const PORT_RANGE_SPECS: readonly PortsSpec[] = [
     window: 30,
     why: "TIME_WAIT is at the side that closes first, here the target. A new SYN with a newer timestamp passes that TIME_WAIT, thus no connect waits and no SYN is sent again.",
     ports: { counts: [4], seen: everyOffset(4), retransmissions: 0 },
+  },
+  {
+    plan: "PR.8",
+    name: "the target closes first and the first ACK of each FIN of the client drops: each port comes back one RTO after that FIN",
+    size: 4,
+    close: "target",
+    rounds: 1,
+    destinations: 1,
+    reuse: 2,
+    fault: "fin-ack",
+    window: 30,
+    why: "The side that closes second holds its port in LAST_ACK until the ACK of its FIN. The FIN goes again at the RTO at the latest, and the target in TIME_WAIT answers it. Thus each port makes one retransmission.",
+    ports: { counts: [4], seen: everyOffset(4), retransmissions: 4, freed: lastAck() },
   },
 ];
 

@@ -26,13 +26,18 @@ export const pacingOf = (cell: Cell): Pacing => {
   if (cell.probe.mode === "schedule") return "open loop";
   if (cell.probe.mode === "idle" || cell.probe.mode === "inflight") return "one request";
   if (cell.probe.mode === "gap") return "one gap";
+  // a stream with a sender is a delivery cell: a timer sends each event (`every` of the Socket.IO targets)
+  if (cell.probe.sender !== undefined) return "timer";
   return "group" in cell.prediction ? "closed loop, first write" : "closed loop, reply times";
 };
 
 /** This function gives the family of a cell: the first two parts of its plan identifier, or the first word of its name. */
 const familyOf = (cell: Cell): string => cell.name.split(/[ ,]/)[0]!.split(".").slice(0, 2).join(".");
 
-/** This function counts the cells of each pacing. Each cell of kind has a timer: `Workload.every` starts each request. */
+/**
+ * This function counts the cells of each pacing. Each cell of kind has a timer: `Workload.every`
+ * starts each request. The delivery cells of the harness add to the same row.
+ */
 export const pacingCounts = (cells: readonly Cell[], kind: readonly KindCell[]): Readonly<Record<Pacing, number>> => {
   const count = (pacing: Pacing): number => cells.filter((cell) => pacingOf(cell) === pacing).length;
   return {
@@ -40,7 +45,7 @@ export const pacingCounts = (cells: readonly Cell[], kind: readonly KindCell[]):
     "one gap": count("one gap"),
     "closed loop, reply times": count("closed loop, reply times"),
     "closed loop, first write": count("closed loop, first write"),
-    timer: kind.length,
+    timer: kind.length + count("timer"),
     "open loop": count("open loop"),
   };
 };
