@@ -2301,6 +2301,23 @@ An API provider gives a quota: a limit in each day or month of a time zone, or i
 - The test of the calendar: each change of the clocks of 2026 in Chicago, Santiago and Berlin. A zone with a half-hour offset, and a step back of the clock.
 - The test of the rolling window: a seeded walk against the true count of each window.
 
+### SYS-116 · A time limit on one work: within
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-115
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+A sender of alerts gives each send a time limit. The `timeout` channel of service is a time limit for `select`, but its timer stays after the work ends. The new function `within(work, ms, clock)` of `@mark1russell7/service/channel` gives a result and does not reject.
+
+- The result is `{ ok: true, value }`, `{ ok: false, late: true }` or `{ ok: false, late: false, error }`.
+- At the time limit, the function aborts the signal of the work with a `LateError`. The end of the work stops the timer.
+- The work starts before the timer. Thus a work whose own timer ends at the time limit is in time.
+- The release is service `0.8.16`, a PATCH version: a new export before 1.0.
+- The test: a seeded walk of 200 works, late exactly when the work ends after the limit, with no timer left.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents

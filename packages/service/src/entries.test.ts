@@ -328,6 +328,7 @@ describe("the channel entry: a client in a browser can import it (collections C2
   it("gives the channels, and the root does not give them", () => {
     expect(Object.keys(channelEntry).sort()).toEqual([
       "Channel",
+      "LateError",
       "PreemptedError",
       "buffered",
       "channel",
@@ -340,6 +341,7 @@ describe("the channel entry: a client in a browser can import it (collections C2
       "ticker",
       "timeout",
       "unbuffered",
+      "within",
       "workerPool",
     ]);
     for (const name of Object.keys(channelEntry)) expect(root, name).not.toHaveProperty(name);
