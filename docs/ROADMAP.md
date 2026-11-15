@@ -3528,7 +3528,7 @@ The state-machine package publishes as `@mark1russell7/algebra`, and that name c
 - **Depends on:** conventions `0.41.13` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
 - **Started:** 2026-11-15
 - **Shipped:**
-- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538)
+- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538), [part 1, #539](https://github.com/mark1russell7/systems/pull/539)
 
 On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependencies merged first, and the release published its `0.8.18`. Then #535 merged with the same version and other files. The two version lines had the same text, thus the merge had no conflict. The release check of #535 operated before `0.8.18` was on npm. Thus the pack step of `main` stopped, and #538 set `0.8.19`.
 
@@ -3536,6 +3536,7 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 - `queue.yml` uses `reusable-queue.yml` of the template. It merges `main` into each pull request that is behind, and it starts the workflows of its checks again.
 - The conventions option `versionEachChange` is on. A change of the shipped files at a version that npm has breaks the check.
 - Each workflow of a check of the ruleset starts on `workflow_dispatch`.
+- Part 1: a dispatch of Cells or Kind that names no cells is the gate of a pull request. The gate of Cells is its probe. The gate of Kind is its smoke and its capture. A catalog starts only on a schedule or on a dispatch that names its cells. The gate dispatches of one branch share a cancel group, thus a newer dispatch cancels the older run. The test `gate-dispatch.test.ts` of the cells package holds these rules.
 - With conventions `0.41.13`, a run that the queue starts examines the change of the pull request against the new base.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
