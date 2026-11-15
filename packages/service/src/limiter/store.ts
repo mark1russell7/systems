@@ -1,5 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
-import { convertExact, rationals as r } from "@mark1russell7/quantity";
+import { convertExact } from "@mark1russell7/quantity/time";
+import { fromNumber, toNumber } from "@mark1russell7/rational";
 import type { Clock } from "../clock.ts";
 import type { Decision, KeyState, LimiterSpec, LimitRule } from "./policy.ts";
 import { decide, freeAt, limitRule, limiterProblems, longestRetryAfter, overCapacity, unitsOf } from "./policy.ts";
@@ -166,7 +167,7 @@ export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStor
   if (store.kind !== spec.store.kind)
     throw new Error(`limiter ${name} declares a ${spec.store.kind} store, but the store that it got is ${store.kind}`);
   const rule = limitRule(spec.policy);
-  const maxKeys = r.toNumber(convertExact(r.fromNumber(spec.evict.maxKeys.value), spec.evict.maxKeys.unit, "count"));
+  const maxKeys = toNumber(convertExact(fromNumber(spec.evict.maxKeys.value), spec.evict.maxKeys.unit, "count"));
   const onStoreFailure = spec.store.kind === "shared" ? spec.store.onStoreFailure : undefined;
   const closedAfter = longestRetryAfter(spec.policy);
   const take = async (key: string, units?: number): Promise<Decision> => {

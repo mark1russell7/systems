@@ -504,6 +504,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rational':
+        specifier: ^0.1.2
+        version: 0.1.2
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.0
         version: 0.1.16

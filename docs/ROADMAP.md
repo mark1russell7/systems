@@ -2341,6 +2341,25 @@ A test of a source of alerts puts 80 minutes of the source into 80 s of real tim
 - `delay` also takes a `WallClock`, because it uses only the timers.
 - The release is algebra `0.8.10`, a PATCH version: new options before 1.0.
 
+### SYS-125 · A smaller limiter for a browser: the entry of the times
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-115
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+The entry `polite-crawler/api` is for a browser, and its quotas come from `keyedQuota`, `takeQuotas` and `quotaProblems` of `@mark1russell7/service/limiter`. In service `0.8.19`, these three imports were 11155 B after gzip. The limiter converts only times and counts, but its bundle had the full table of units and all of the rational arithmetic.
+
+- **The entry of the times.** `@mark1russell7/quantity/time` has the times, the frequencies and the units with no dimension. It converts them exactly, as the root entry does. A test holds that it does not load the full table.
+- **The unit system.** `unitSystem(atoms, spellings)` makes the functions of the units over a table. `UNITS` is the system of the full table, and `TIME_UNITS` is the system of the times.
+- **Named imports.** The limiter imports the functions of `@mark1russell7/rational` by name. A namespace import kept all of the package in each bundle.
+- **One file for each module.** The build of quantity and service makes one file for each module of `src/`. Before, a shared chunk joined modules into one file, and a bundle kept all of the chunk.
+- The measure: esbuild bundles the three imports for a browser with minify, and gzip compresses the result. The same three imports are 7699 B after gzip.
+- The rest is mostly `quota.ts` (8510 B before gzip) and the unit system of quantity (4224 B).
+- The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents

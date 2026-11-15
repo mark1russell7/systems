@@ -6,66 +6,72 @@
 
 ## . (build/index.d.ts): names
 
-ATOMS: build/quantity.chunk.d.ts#ATOMS
-type Atom: build/quantity.chunk.d.ts#Atom
-BASES: build/quantity.chunk.d.ts#BASES
-BYTES_1000: build/index.d.ts#BYTES_1000
-BYTES_1024: build/index.d.ts#BYTES_1024
-type Base: build/quantity.chunk.d.ts#Base
-type Component: build/index.d.ts#Component
-DURATION_MS: build/index.d.ts#DURATION_MS
-type Extent: build/quantity.chunk.d.ts#Extent
-type FormatOptions: build/index.d.ts#FormatOptions
-KINDS: build/quantity.chunk.d.ts#KINDS
-KIND_NAMES: build/quantity.chunk.d.ts#KIND_NAMES
-type Kind: build/quantity.chunk.d.ts#Kind
-type MeasuredOn: build/quantity.chunk.d.ts#MeasuredOn
-type Quantity: build/quantity.chunk.d.ts#Quantity
+ATOMS: build/units.d.ts#ATOMS
+type Atom: build/dimensions.d.ts#Atom
+BASES: build/dimensions.d.ts#BASES
+BYTES_1000: build/format.d.ts#BYTES_1000
+BYTES_1024: build/format.d.ts#BYTES_1024
+type Base: build/dimensions.d.ts#Base
+type Component: build/system.d.ts#Component
+DIMENSIONLESS_ATOMS: build/time-atoms.d.ts#DIMENSIONLESS_ATOMS
+DURATION_MS: build/format.d.ts#DURATION_MS
+type Extent: build/quantity.d.ts#Extent
+FREQUENCY_ATOMS: build/time-atoms.d.ts#FREQUENCY_ATOMS
+type FormatOptions: build/format.d.ts#FormatOptions
+KINDS: build/dimensions.d.ts#KINDS
+KIND_NAMES: build/dimensions.d.ts#KIND_NAMES
+type Kind: build/dimensions.d.ts#Kind
+type MeasuredOn: build/system.d.ts#MeasuredOn
+type Quantity: build/quantity.d.ts#Quantity
 type Rational: @mark1russell7/rational#Rational (external)
-SPELLINGS: build/quantity.chunk.d.ts#SPELLINGS
-STATISTICS: build/quantity.chunk.d.ts#STATISTICS
-type Scale: build/index.d.ts#Scale
-type ScaleCompound: build/index.d.ts#ScaleCompound
-type ScaleStep: build/index.d.ts#ScaleStep
-type Statistic: build/quantity.chunk.d.ts#Statistic
-type Unbounded: build/quantity.chunk.d.ts#Unbounded
-type Unit: build/index.d.ts#Unit
-UnitError: build/index.d.ts#UnitError
-type Unknown: build/quantity.chunk.d.ts#Unknown
-type Vector: build/quantity.chunk.d.ts#Vector
-add: build/quantity.chunk.d.ts#add
-atomBySymbol: build/quantity.chunk.d.ts#atomBySymbol
-canonicalUnit: build/index.d.ts#canonicalUnit
-compare: build/quantity.chunk.d.ts#compare
-convert: build/quantity.chunk.d.ts#convert
-convertExact: build/quantity.chunk.d.ts#convertExact
-convertible: build/quantity.chunk.d.ts#convertible
-format: build/index.d.ts#format
-formatDuration: build/index.d.ts#formatDuration
-formatOnScale: build/index.d.ts#formatOnScale
-formatUnit: build/index.d.ts#formatUnit
-isCanonicalUnit: build/index.d.ts#isCanonicalUnit
-isQuantity: build/quantity.chunk.d.ts#isQuantity
-isUnbounded: build/quantity.chunk.d.ts#isUnbounded
-kindOf: build/index.d.ts#kindOf
-kindOfQuantity: build/quantity.chunk.d.ts#kindOfQuantity
-lookupAtom: build/quantity.chunk.d.ts#lookupAtom
-max: build/quantity.chunk.d.ts#max
-mean: build/quantity.chunk.d.ts#mean
-min: build/quantity.chunk.d.ts#min
-parseUnit: build/index.d.ts#parseUnit
-quantity: build/quantity.chunk.d.ts#quantity
+SPELLINGS: build/units.d.ts#SPELLINGS
+STATISTICS: build/quantity.d.ts#STATISTICS
+type Scale: build/format.d.ts#Scale
+type ScaleCompound: build/format.d.ts#ScaleCompound
+type ScaleStep: build/format.d.ts#ScaleStep
+type Statistic: build/quantity.d.ts#Statistic
+TIME_ATOMS: build/time-atoms.d.ts#TIME_ATOMS
+UNITS: build/units.d.ts#UNITS
+type Unbounded: build/quantity.d.ts#Unbounded
+type Unit: build/system.d.ts#Unit
+UnitError: build/system.d.ts#UnitError
+type UnitSystem: build/system.d.ts#UnitSystem
+type Unknown: build/quantity.d.ts#Unknown
+type Vector: build/dimensions.d.ts#Vector
+add: build/quantity.d.ts#add$1
+atomBySymbol: build/units.d.ts#atomBySymbol
+canonicalUnit: build/parse.d.ts#canonicalUnit
+compare: build/quantity.d.ts#compare
+convert: build/quantity.d.ts#convert
+convertExact: build/parse.d.ts#convertExact
+convertible: build/parse.d.ts#convertible
+format: build/format.d.ts#format
+formatDuration: build/format.d.ts#formatDuration
+formatOnScale: build/format.d.ts#formatOnScale
+formatUnit: build/format.d.ts#formatUnit
+isCanonicalUnit: build/parse.d.ts#isCanonicalUnit
+isQuantity: build/quantity.d.ts#isQuantity
+isUnbounded: build/quantity.d.ts#isUnbounded
+kindOf: build/parse.d.ts#kindOf
+kindOfQuantity: build/quantity.d.ts#kindOfQuantity
+lookupAtom: build/units.d.ts#lookupAtom
+max: build/quantity.d.ts#max
+mean: build/quantity.d.ts#mean
+min: build/quantity.d.ts#min
+parseUnit: build/parse.d.ts#parseUnit
+quantity: build/quantity.d.ts#quantity
 rationals: @mark1russell7/rational#* (external)
-round: build/quantity.chunk.d.ts#round
-sameVector: build/index.d.ts#sameVector
-scale: build/quantity.chunk.d.ts#scale
-sub: build/quantity.chunk.d.ts#sub
-sum: build/quantity.chunk.d.ts#sum
-toNanoseconds: build/quantity.chunk.d.ts#toNanoseconds
-tryParseUnit: build/index.d.ts#tryParseUnit
-unbounded: build/quantity.chunk.d.ts#unbounded
-valueIn: build/quantity.chunk.d.ts#valueIn
-whyNotConvertible: build/quantity.chunk.d.ts#whyNotConvertible
+round: build/quantity.d.ts#round
+sameVector: build/system.d.ts#sameVector
+scale: build/quantity.d.ts#scale
+sub: build/quantity.d.ts#sub$1
+sum: build/quantity.d.ts#sum
+toNanoseconds: build/quantity.d.ts#toNanoseconds
+tryParseUnit: build/parse.d.ts#tryParseUnit
+unbounded: build/quantity.d.ts#unbounded
+unitSystem: build/system.d.ts#unitSystem
+valueIn: build/quantity.d.ts#valueIn
+whyNotConvertible: build/parse.d.ts#whyNotConvertible
 
 ## ./schema (build/schema.d.ts): names
 
@@ -78,103 +84,40 @@ statisticSchema: build/schema.d.ts#statisticSchema
 unitSchema: build/schema.d.ts#unitSchema
 unknownSchema: build/schema.d.ts#unknownSchema
 
+## ./time (build/time.d.ts): names
+
+type Atom: build/dimensions.d.ts#Atom
+type Base: build/dimensions.d.ts#Base
+type Component: build/system.d.ts#Component
+DIMENSIONLESS_ATOMS: build/time-atoms.d.ts#DIMENSIONLESS_ATOMS
+FREQUENCY_ATOMS: build/time-atoms.d.ts#FREQUENCY_ATOMS
+type Kind: build/dimensions.d.ts#Kind
+type MeasuredOn: build/system.d.ts#MeasuredOn
+type Quantity: build/quantity.d.ts#Quantity
+type Rational: @mark1russell7/rational#Rational (external)
+TIME_ATOMS: build/time-atoms.d.ts#TIME_ATOMS
+TIME_SPELLINGS: build/time-atoms.d.ts#TIME_SPELLINGS
+TIME_UNITS: build/time.d.ts#TIME_UNITS
+type Unit: build/system.d.ts#Unit
+UnitError: build/system.d.ts#UnitError
+type UnitSystem: build/system.d.ts#UnitSystem
+type Vector: build/dimensions.d.ts#Vector
+canonicalUnit: build/time.d.ts#canonicalUnit
+convertExact: build/time.d.ts#convertExact
+convertible: build/time.d.ts#convertible
+isCanonicalUnit: build/time.d.ts#isCanonicalUnit
+kindOf: build/time.d.ts#kindOf
+parseUnit: build/time.d.ts#parseUnit
+rationals: @mark1russell7/rational#* (external)
+sameVector: build/system.d.ts#sameVector
+tryParseUnit: build/time.d.ts#tryParseUnit
+unitSystem: build/system.d.ts#unitSystem
+whyNotConvertible: build/time.d.ts#whyNotConvertible
+
 ## Declarations
 
-### build/index.d.ts#BYTES_1000
-export declare const BYTES_1000: Scale;
-
-### build/index.d.ts#BYTES_1024
-export declare const BYTES_1024: Scale;
-
-### build/index.d.ts#Component
-interface Component {
-  readonly atom?: Atom;
-  readonly annotation?: string;
-  readonly exponent: number;
-}
-
-### build/index.d.ts#DURATION_MS
-export declare const DURATION_MS: Scale;
-
-### build/index.d.ts#FormatOptions
-interface FormatOptions {
-  readonly digits?: number;
-  readonly signed?: boolean;
-}
-
-### build/index.d.ts#Scale
-interface Scale {
-  readonly steps: readonly ScaleStep[];
-  readonly compound?: ScaleCompound;
-}
-
-### build/index.d.ts#ScaleCompound
-interface ScaleCompound {
-  readonly units: readonly string[];
-  readonly parts?: number;
-}
-
-### build/index.d.ts#ScaleStep
-interface ScaleStep {
-  readonly unit: string;
-  readonly digits?: number;
-  readonly significant?: number;
-  readonly fixed?: boolean;
-}
-
-### build/index.d.ts#Unit
-interface Unit {
-  readonly symbol: string;
-  readonly components: readonly Component[];
-  readonly vector: Vector;
-  readonly factor: Rational$1;
-  readonly offset?: Rational$1;
-  readonly kind: Kind | "derived";
-  readonly counts: Readonly<Record<string, number>>;
-  readonly log: boolean;
-  readonly param?: "hz";
-}
-
-### build/index.d.ts#UnitError
-export declare class UnitError extends Error {
-  override readonly name = "UnitError";
-}
-
-### build/index.d.ts#canonicalUnit
-export declare const canonicalUnit: (spelling: string) => string;
-
-### build/index.d.ts#format
-export declare const format: (amount: Extent | Unknown, options?: FormatOptions) => string;
-
-### build/index.d.ts#formatDuration
-export declare const formatDuration: (amount: Quantity, parts?: number) => string;
-
-### build/index.d.ts#formatOnScale
-export declare const formatOnScale: (amount: Quantity, scale: Scale) => string;
-
-### build/index.d.ts#formatUnit
-export declare const formatUnit: (unit: string, many?: boolean) => string;
-
-### build/index.d.ts#isCanonicalUnit
-export declare const isCanonicalUnit: (spelling: string) => boolean;
-
-### build/index.d.ts#kindOf
-export declare const kindOf: (spelling: string) => Kind | "derived";
-
-### build/index.d.ts#parseUnit
-export declare const parseUnit: (spelling: string) => Unit;
-
-### build/index.d.ts#sameVector
-export declare const sameVector: (a: Vector, b: Vector) => boolean;
-
-### build/index.d.ts#tryParseUnit
-export declare const tryParseUnit: (spelling: string) => Unit | undefined;
-
-### build/quantity.chunk.d.ts#ATOMS
-declare const ATOMS: readonly Atom[];
-
-### build/quantity.chunk.d.ts#Atom
-interface Atom {
+### build/dimensions.d.ts#Atom
+export interface Atom {
   readonly symbol: string;
   readonly name: string;
   readonly display?: string;
@@ -189,124 +132,172 @@ interface Atom {
   readonly aliases?: readonly string[];
 }
 
-### build/quantity.chunk.d.ts#BASES
-declare const BASES: readonly ["time", "length", "mass", "temperature", "data", "money", "current"];
+### build/dimensions.d.ts#BASES
+export declare const BASES: readonly ["time", "length", "mass", "temperature", "data", "money", "current"];
 
-### build/quantity.chunk.d.ts#Base
-type Base = (typeof BASES)[number];
+### build/dimensions.d.ts#Base
+export type Base = (typeof BASES)[number];
 
-### build/quantity.chunk.d.ts#Extent
-type Extent = Quantity | Unbounded;
+### build/dimensions.d.ts#KINDS
+export declare const KINDS: Readonly<Record<Kind, Vector>>;
 
-### build/quantity.chunk.d.ts#KINDS
-declare const KINDS: Readonly<Record<Kind, Vector>>;
+### build/dimensions.d.ts#KIND_NAMES
+export declare const KIND_NAMES: readonly Kind[];
 
-### build/quantity.chunk.d.ts#KIND_NAMES
-declare const KIND_NAMES: readonly Kind[];
+### build/dimensions.d.ts#Kind
+export type Kind = "time" | "length" | "mass" | "temperature" | "data" | "money" | "count" | "ratio" | "level" | "frequency" | "transfer-rate" | "data-rate" | "speed" | "area" | "volume" | "energy" | "power" | "current" | "voltage" | "charge" | "resistance" | "specific-power" | "specific-volume-rate" | "money-rate" | "energy-price";
 
-### build/quantity.chunk.d.ts#Kind
-type Kind = "time" | "length" | "mass" | "temperature" | "data" | "money" | "count" | "ratio" | "level" | "frequency" | "transfer-rate" | "data-rate" | "speed" | "area" | "volume" | "energy" | "power" | "current" | "voltage" | "charge" | "resistance" | "specific-power" | "specific-volume-rate" | "money-rate" | "energy-price";
+### build/dimensions.d.ts#Vector
+export type Vector = Readonly<Partial<Record<Base, number>>>;
 
-### build/quantity.chunk.d.ts#MeasuredOn
-interface MeasuredOn {
-  readonly hz?: number | undefined;
+### build/format.d.ts#BYTES_1000
+export declare const BYTES_1000: Scale;
+
+### build/format.d.ts#BYTES_1024
+export declare const BYTES_1024: Scale;
+
+### build/format.d.ts#DURATION_MS
+export declare const DURATION_MS: Scale;
+
+### build/format.d.ts#FormatOptions
+export interface FormatOptions {
+  readonly digits?: number;
+  readonly signed?: boolean;
 }
 
-### build/quantity.chunk.d.ts#Quantity
-interface Quantity {
+### build/format.d.ts#Scale
+export interface Scale {
+  readonly steps: readonly ScaleStep[];
+  readonly compound?: ScaleCompound;
+}
+
+### build/format.d.ts#ScaleCompound
+export interface ScaleCompound {
+  readonly units: readonly string[];
+  readonly parts?: number;
+}
+
+### build/format.d.ts#ScaleStep
+export interface ScaleStep {
+  readonly unit: string;
+  readonly digits?: number;
+  readonly significant?: number;
+  readonly fixed?: boolean;
+}
+
+### build/format.d.ts#format
+export declare const format: (amount: Extent | Unknown, options?: FormatOptions) => string;
+
+### build/format.d.ts#formatDuration
+export declare const formatDuration: (amount: Quantity, parts?: number) => string;
+
+### build/format.d.ts#formatOnScale
+export declare const formatOnScale: (amount: Quantity, scale: Scale) => string;
+
+### build/format.d.ts#formatUnit
+export declare const formatUnit: (unit: string, many?: boolean) => string;
+
+### build/parse.d.ts#canonicalUnit
+export declare const canonicalUnit: (spelling: string) => string;
+
+### build/parse.d.ts#convertExact
+export declare const convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+
+### build/parse.d.ts#convertible
+export declare const convertible: (from: string, to: string) => boolean;
+
+### build/parse.d.ts#isCanonicalUnit
+export declare const isCanonicalUnit: (spelling: string) => boolean;
+
+### build/parse.d.ts#kindOf
+export declare const kindOf: (spelling: string) => Kind | "derived";
+
+### build/parse.d.ts#parseUnit
+export declare const parseUnit: (spelling: string) => Unit;
+
+### build/parse.d.ts#tryParseUnit
+export declare const tryParseUnit: (spelling: string) => Unit | undefined;
+
+### build/parse.d.ts#whyNotConvertible
+export declare const whyNotConvertible: (from: string, to: string) => string | undefined;
+
+### build/quantity.d.ts#Extent
+export type Extent = Quantity | Unbounded;
+
+### build/quantity.d.ts#Quantity
+export interface Quantity {
   readonly value: number;
   readonly unit: string;
 }
 
-### build/quantity.chunk.d.ts#SPELLINGS
-declare const SPELLINGS: Readonly<Record<string, string>>;
+### build/quantity.d.ts#STATISTICS
+export declare const STATISTICS: readonly ["exact", "at-least", "at-most", "mean", "p50", "p90", "p99", "p999", "min", "max"];
 
-### build/quantity.chunk.d.ts#STATISTICS
-declare const STATISTICS: readonly ["exact", "at-least", "at-most", "mean", "p50", "p90", "p99", "p999", "min", "max"];
+### build/quantity.d.ts#Statistic
+export type Statistic = (typeof STATISTICS)[number];
 
-### build/quantity.chunk.d.ts#Statistic
-type Statistic = (typeof STATISTICS)[number];
-
-### build/quantity.chunk.d.ts#Unbounded
-interface Unbounded {
+### build/quantity.d.ts#Unbounded
+export interface Unbounded {
   readonly value: "infinite";
   readonly unit: string;
 }
 
-### build/quantity.chunk.d.ts#Unknown
-interface Unknown {
+### build/quantity.d.ts#Unknown
+export interface Unknown {
   readonly unknown: string;
   readonly unit?: string | undefined;
 }
 
-### build/quantity.chunk.d.ts#Vector
-type Vector = Readonly<Partial<Record<Base, number>>>;
+### build/quantity.d.ts#add$1
+declare const add$1: (a: Quantity, b: Quantity) => Quantity;
 
-### build/quantity.chunk.d.ts#add
-declare const add: (a: Quantity, b: Quantity) => Quantity;
+### build/quantity.d.ts#compare
+export declare const compare: (a: Extent, b: Extent) => number;
 
-### build/quantity.chunk.d.ts#atomBySymbol
-declare const atomBySymbol: ReadonlyMap<string, Atom>;
+### build/quantity.d.ts#convert
+export declare const convert: (amount: Quantity, to: string, on?: MeasuredOn) => Quantity;
 
-### build/quantity.chunk.d.ts#compare
-declare const compare: (a: Extent, b: Extent) => number;
+### build/quantity.d.ts#isQuantity
+export declare const isQuantity: (value: unknown) => value is Quantity;
 
-### build/quantity.chunk.d.ts#convert
-declare const convert: (amount: Quantity, to: string, on?: MeasuredOn) => Quantity;
+### build/quantity.d.ts#isUnbounded
+export declare const isUnbounded: (extent: Extent) => extent is Unbounded;
 
-### build/quantity.chunk.d.ts#convertExact
-declare const convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+### build/quantity.d.ts#kindOfQuantity
+export declare const kindOfQuantity: (amount: Quantity | Unbounded) => Kind | "derived";
 
-### build/quantity.chunk.d.ts#convertible
-declare const convertible: (from: string, to: string) => boolean;
+### build/quantity.d.ts#max
+export declare const max: <T extends Extent>(a: T, b: T) => T;
 
-### build/quantity.chunk.d.ts#isQuantity
-declare const isQuantity: (value: unknown) => value is Quantity;
+### build/quantity.d.ts#mean
+export declare const mean: (amounts: readonly Quantity[], unit?: string) => Quantity;
 
-### build/quantity.chunk.d.ts#isUnbounded
-declare const isUnbounded: (extent: Extent) => extent is Unbounded;
+### build/quantity.d.ts#min
+export declare const min: <T extends Extent>(a: T, b: T) => T;
 
-### build/quantity.chunk.d.ts#kindOfQuantity
-declare const kindOfQuantity: (amount: Quantity | Unbounded) => Kind | "derived";
+### build/quantity.d.ts#quantity
+export declare const quantity: (value: number, unit: string) => Quantity;
 
-### build/quantity.chunk.d.ts#lookupAtom
-declare const lookupAtom: (spelling: string) => Atom | undefined;
+### build/quantity.d.ts#round
+export declare const round: (amount: Quantity, decimals?: number) => Quantity;
 
-### build/quantity.chunk.d.ts#max
-declare const max: <T extends Extent>(a: T, b: T) => T;
+### build/quantity.d.ts#scale
+export declare const scale: (amount: Quantity, by: number) => Quantity;
 
-### build/quantity.chunk.d.ts#mean
-declare const mean: (amounts: readonly Quantity[], unit?: string) => Quantity;
+### build/quantity.d.ts#sub$1
+declare const sub$1: (a: Quantity, b: Quantity) => Quantity;
 
-### build/quantity.chunk.d.ts#min
-declare const min: <T extends Extent>(a: T, b: T) => T;
+### build/quantity.d.ts#sum
+export declare const sum: (amounts: readonly Quantity[], unit?: string) => Quantity;
 
-### build/quantity.chunk.d.ts#quantity
-declare const quantity: (value: number, unit: string) => Quantity;
+### build/quantity.d.ts#toNanoseconds
+export declare const toNanoseconds: (amount: Quantity, on?: MeasuredOn) => number;
 
-### build/quantity.chunk.d.ts#round
-declare const round: (amount: Quantity, decimals?: number) => Quantity;
+### build/quantity.d.ts#unbounded
+export declare const unbounded: (unit: string) => Unbounded;
 
-### build/quantity.chunk.d.ts#scale
-declare const scale: (amount: Quantity, by: number) => Quantity;
-
-### build/quantity.chunk.d.ts#sub
-declare const sub: (a: Quantity, b: Quantity) => Quantity;
-
-### build/quantity.chunk.d.ts#sum
-declare const sum: (amounts: readonly Quantity[], unit?: string) => Quantity;
-
-### build/quantity.chunk.d.ts#toNanoseconds
-declare const toNanoseconds: (amount: Quantity, on?: MeasuredOn) => number;
-
-### build/quantity.chunk.d.ts#unbounded
-declare const unbounded: (unit: string) => Unbounded;
-
-### build/quantity.chunk.d.ts#valueIn
-declare const valueIn: (amount: Quantity, unit: string, on?: MeasuredOn) => number;
-
-### build/quantity.chunk.d.ts#whyNotConvertible
-declare const whyNotConvertible: (from: string, to: string) => string | undefined;
+### build/quantity.d.ts#valueIn
+export declare const valueIn: (amount: Quantity, unit: string, on?: MeasuredOn) => number;
 
 ### build/schema.d.ts#KindOrDerived
 export type KindOrDerived = Kind | "derived";
@@ -334,3 +325,108 @@ export declare const unitSchema: (kinds?: Kinds) => z.ZodType<string, string>;
 
 ### build/schema.d.ts#unknownSchema
 export declare const unknownSchema: z.ZodType<Unknown, Unknown>;
+
+### build/system.d.ts#Component
+export interface Component {
+  readonly atom?: Atom;
+  readonly annotation?: string;
+  readonly exponent: number;
+}
+
+### build/system.d.ts#MeasuredOn
+export interface MeasuredOn {
+  readonly hz?: number | undefined;
+}
+
+### build/system.d.ts#Unit
+export interface Unit {
+  readonly symbol: string;
+  readonly components: readonly Component[];
+  readonly vector: Vector;
+  readonly factor: Rational;
+  readonly offset?: Rational;
+  readonly kind: Kind | "derived";
+  readonly counts: Readonly<Record<string, number>>;
+  readonly log: boolean;
+  readonly param?: "hz";
+}
+
+### build/system.d.ts#UnitError
+export declare class UnitError extends Error {
+  override readonly name = "UnitError";
+}
+
+### build/system.d.ts#UnitSystem
+export interface UnitSystem {
+  readonly atoms: readonly Atom[];
+  readonly atomBySymbol: ReadonlyMap<string, Atom>;
+  readonly lookupAtom: (spelling: string) => Atom | undefined;
+  readonly parseUnit: (spelling: string) => Unit;
+  readonly tryParseUnit: (spelling: string) => Unit | undefined;
+  readonly isCanonicalUnit: (spelling: string) => boolean;
+  readonly canonicalUnit: (spelling: string) => string;
+  readonly kindOf: (spelling: string) => Kind | "derived";
+  readonly whyNotConvertible: (from: string, to: string) => string | undefined;
+  readonly convertible: (from: string, to: string) => boolean;
+  readonly convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+}
+
+### build/system.d.ts#sameVector
+export declare const sameVector: (a: Vector, b: Vector) => boolean;
+
+### build/system.d.ts#unitSystem
+export declare const unitSystem: (atoms: readonly Atom[], spellings?: Readonly<Record<string, string>>) => UnitSystem;
+
+### build/time-atoms.d.ts#DIMENSIONLESS_ATOMS
+export declare const DIMENSIONLESS_ATOMS: readonly Atom[];
+
+### build/time-atoms.d.ts#FREQUENCY_ATOMS
+export declare const FREQUENCY_ATOMS: readonly Atom[];
+
+### build/time-atoms.d.ts#TIME_ATOMS
+export declare const TIME_ATOMS: readonly Atom[];
+
+### build/time-atoms.d.ts#TIME_SPELLINGS
+export declare const TIME_SPELLINGS: Readonly<Record<string, string>>;
+
+### build/time.d.ts#TIME_UNITS
+export declare const TIME_UNITS: UnitSystem;
+
+### build/time.d.ts#canonicalUnit
+export declare const canonicalUnit: (spelling: string) => string;
+
+### build/time.d.ts#convertExact
+export declare const convertExact: (value: Rational$1, from: string, to: string, on?: MeasuredOn) => Rational$1;
+
+### build/time.d.ts#convertible
+export declare const convertible: (from: string, to: string) => boolean;
+
+### build/time.d.ts#isCanonicalUnit
+export declare const isCanonicalUnit: (spelling: string) => boolean;
+
+### build/time.d.ts#kindOf
+export declare const kindOf: (spelling: string) => Kind | "derived";
+
+### build/time.d.ts#parseUnit
+export declare const parseUnit: (spelling: string) => Unit;
+
+### build/time.d.ts#tryParseUnit
+export declare const tryParseUnit: (spelling: string) => Unit | undefined;
+
+### build/time.d.ts#whyNotConvertible
+export declare const whyNotConvertible: (from: string, to: string) => string | undefined;
+
+### build/units.d.ts#ATOMS
+export declare const ATOMS: readonly Atom[];
+
+### build/units.d.ts#SPELLINGS
+export declare const SPELLINGS: Readonly<Record<string, string>>;
+
+### build/units.d.ts#UNITS
+export declare const UNITS: UnitSystem;
+
+### build/units.d.ts#atomBySymbol
+export declare const atomBySymbol: ReadonlyMap<string, Atom>;
+
+### build/units.d.ts#lookupAtom
+export declare const lookupAtom: (spelling: string) => Atom | undefined;
