@@ -324,30 +324,54 @@ export function inWindow(instant: number, window: TimeWindow): boolean {
 }
 
 /**
- * The instants at which the wall clock of the zone shows `wall`, a wall-clock time as an instant in
- * UTC. A gap gives none, and an overlap gives two.
+ * This function gives the instants at which the wall clock of `zone` shows `wall`, in order. It is
+ * the inverse of `localTime`. The wall-clock time is in milliseconds with the arithmetic of UTC: the
+ * UTC fields of `new Date(wall)` are the fields of the wall clock.
+ *
+ * - A wall-clock time in the gap of a change forward gives no instant.
+ * - A wall-clock time in the hour of a change back gives two instants.
+ * - A name that is not a time zone, or a wall-clock time that is not a date, gives `undefined`.
+ *
+ * The rule for a gap or for two instants is a choice of the caller. For example, RFC 5545 takes the
+ * first of two instants, and in a gap it takes the offset before the gap. The search reads the
+ * offset one day before and one day after `wall`. Thus it finds each instant when the offset
+ * changes at most one time in these 2 days.
  */
-const instantsOf = (wall: number, zone: string): number[] => {
+export function instantsOf(wall: number, zone: string): number[] | undefined {
+  if (zoneFormat(zone) === undefined || !Number.isFinite(wall)) return undefined;
+  // localTime gives whole seconds: the search uses the whole second, and adds the milliseconds at the end
+  const whole = Math.floor(wall / 1000) * 1000;
   const offsets = new Set<number>();
-  for (const probe of [wall - DAY_MS, wall, wall + DAY_MS]) {
+  for (const probe of [whole - DAY_MS, whole, whole + DAY_MS]) {
     const local = localTime(probe, zone);
     if (local !== undefined) offsets.add(local.offset);
   }
+  // no offset: the wall-clock time is out of the range of a date
+  if (offsets.size === 0) return undefined;
   const found: number[] = [];
   for (const offset of offsets) {
-    const instant = wall - offset * MINUTE_MS;
+    // an old offset of local mean time has seconds, thus the product is rounded to the millisecond
+    const instant = whole - Math.round(offset * MINUTE_MS);
     const local = localTime(instant, zone);
     if (local === undefined) continue;
     const back = wallOf(local.year, local.month, local.day, local.hour, local.minute, local.second);
-    if (back === wall && !found.includes(instant)) found.push(instant);
+    if (back === whole && !found.includes(instant)) found.push(instant);
   }
-  return found;
-};
+  return found.sort((a, b) => a - b).map((instant) => instant + (wall - whole));
+}
 
 /**
- * The instants in (from, to] at which the offset of the zone changes, each one exact to the
- * millisecond. The search reads the offset each 6 hours. No zone changes its offset two times in 6 hours.
+ * This function gives the instants in `(from, to]` at which the offset of `zone` changes, in order
+ * and exact to the millisecond. At each instant, the new offset starts. The search reads the offset
+ * each 6 hours of the range, thus a long range costs more reads. No zone changes its offset two
+ * times in 6 hours. A name that is not a time zone, or a bound that is not a date, gives `undefined`.
  */
+export function offsetChanges(from: number, to: number, zone: string): number[] | undefined {
+  if (localTime(from, zone) === undefined || localTime(to, zone) === undefined) return undefined;
+  return changesOf(from, to, zone);
+}
+
+/** The instants in (from, to] at which the offset of the zone changes. `offsetChanges` tells the rule. */
 const changesOf = (from: number, to: number, zone: string): number[] => {
   const offsetAt = (instant: number): number | undefined => localTime(instant, zone)?.offset;
   const found: number[] = [];
@@ -389,7 +413,7 @@ export function nextBoundary(instant: number, window: TimeWindow): WindowBoundar
   const candidates = changesOf(instant, horizon, window.zone);
   const midnight = wallOf(local.year, local.month, local.day, 0, 0, 0);
   for (let day = -1; day <= 10; day += 1) {
-    for (const minutes of [valid.start, valid.end]) candidates.push(...instantsOf(midnight + day * DAY_MS + minutes * MINUTE_MS, window.zone));
+    for (const minutes of [valid.start, valid.end]) candidates.push(...(instantsOf(midnight + day * DAY_MS + minutes * MINUTE_MS, window.zone) ?? []));
   }
   candidates.sort((a, b) => a - b);
   for (const at of candidates) {

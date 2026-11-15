@@ -147,6 +147,8 @@ The entry also gives civil time: the time on the wall of a time zone at an insta
 | Export | What it does |
 | --- | --- |
 | `localTime(instant, zone)` | It gives the year, the month, the day, the hour, the minute, the second, the day of the week and the offset of the zone, or `undefined` for a bad zone. |
+| `instantsOf(wall, zone)` | The inverse of `localTime`: the instants at which the clock of the zone shows the wall-clock time `wall`, in order. A gap gives none, and an hour that occurs two times gives two. The caller chooses the rule for these two cases. |
+| `offsetChanges(from, to, zone)` | It gives the instants in `(from, to]` at which the offset of the zone changes, exact to the millisecond. |
 | `TimeWindow` | A window as data: `{ zone, start, end, days? }`. The start and the end are local times `HH:MM`. |
 | `inWindow(instant, window)` | It tells if the instant is in the window. A bad window gives `false`. |
 | `nextBoundary(instant, window)` | It gives the next instant at which the window opens or closes, as `{ at, opens }`. A timer can wait for it. It looks 9 days ahead at most. It gives `undefined` for a window with no change in that time. |
@@ -158,6 +160,16 @@ These rules apply to a window:
 - `days` are the days of the week on which the window starts, from 0 (Sunday) to 6. A window across midnight continues into the next day.
 - The window follows the time on the wall when the clock changes. A start or an end in a gap moves to the end of the gap. A local time that occurs two times is in the window two times.
 - An example: on 2026-10-25 in Berlin, a window from 22:00 to 02:30 closes at 00:30Z. It opens again at 01:00Z and closes at 01:30Z.
+
+A wall-clock time for `instantsOf` is in milliseconds with the arithmetic of UTC: the UTC fields of `new Date(wall)` are the fields of the clock. Thus `Date.UTC(2026, 9, 25, 2, 30)` is 02:30 on the wall.
+
+```ts
+import { instantsOf, offsetChanges } from "@mark1russell7/algebra/clock";
+
+instantsOf(Date.UTC(2026, 9, 25, 2, 30), "Europe/Berlin"); // two instants: 00:30Z and 01:30Z
+instantsOf(Date.UTC(2026, 2, 29, 2, 30), "Europe/Berlin"); // []: the clock goes from 02:00 to 03:00
+offsetChanges(Date.UTC(2026, 0, 1), Date.UTC(2027, 0, 1), "Europe/Berlin"); // 2026-03-29T01:00Z and 2026-10-25T01:00Z
+```
 
 ```ts
 import { inWindow, nextBoundary, realClock } from "@mark1russell7/algebra/clock";

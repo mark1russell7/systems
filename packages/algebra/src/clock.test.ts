@@ -1,6 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { type TimeWindow, delay, fakeClock, inWindow, localTime, nextBoundary, platformClock, realClock, windowProblems } from "./clock.ts";
+import {
+  type TimeWindow,
+  delay,
+  fakeClock,
+  inWindow,
+  instantsOf,
+  localTime,
+  nextBoundary,
+  offsetChanges,
+  platformClock,
+  realClock,
+  windowProblems,
+} from "./clock.ts";
 
 describe("the clock entry: a client in a browser can import it", () => {
   it("imports nothing: no node: module, no zod and no other package", () => {
@@ -359,6 +371,67 @@ describe("windowProblems", () => {
       "The day 1.5 is not a day of the week from 0 (Sunday) to 6.",
     ]);
     expect(windowProblems({ zone: "UTC", start: "06:00", end: "07:00", days: [] })).toEqual(["The window has no day, thus it does not open."]);
+  });
+});
+
+/** The instants of a wall-clock time, from the table: each offset of the zone whose instant shows the wall-clock time. */
+const oracleInstants = (zone: Zone, wall: number): number[] => {
+  const { standard, summer } = ZONES[zone];
+  const found = [...new Set<number>([standard, summer])].map((offset) => wall - offset * MINUTE).filter((at) => at + oracleOffset(zone, at) * MINUTE === wall);
+  return found.sort((a, b) => a - b);
+};
+
+describe("instantsOf", () => {
+  it("gives the instants of the table near each change of 2026, also for a time with milliseconds", () => {
+    for (const zone of Object.keys(ZONES) as Zone[]) {
+      for (const change of ZONES[zone].changes) {
+        const near = change + ZONES[zone].standard * MINUTE;
+        for (let wall = near - 3 * HOUR; wall <= near + 3 * HOUR; wall += 10 * MINUTE + 1234) {
+          expect(instantsOf(wall, zone), `${zone} ${new Date(wall).toISOString()}`).toEqual(oracleInstants(zone, wall));
+        }
+      }
+    }
+  });
+
+  it("gives no instant in a gap and two in the hour that occurs two times, and it is the inverse of localTime", () => {
+    // Berlin on 2026-03-29: the clock goes from 02:00 to 03:00
+    expect(instantsOf(utc(3, 29, 2, 30), "Europe/Berlin")).toEqual([]);
+    // Berlin on 2026-10-25: the clock shows the hour from 02:00 two times
+    expect(instantsOf(utc(10, 25, 2, 30), "Europe/Berlin")).toEqual([utc(10, 25, 0, 30), utc(10, 25, 1, 30)]);
+    expect(instantsOf(utc(7, 1, 12) + 250, "Europe/Berlin")).toEqual([utc(7, 1, 10) + 250]);
+    const at = utc(1, 15, 20, 34, 56) + 789;
+    const local = localTime(at, "Australia/Adelaide")!;
+    const wall = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second) + 789;
+    expect(instantsOf(wall, "Australia/Adelaide")).toEqual([at]);
+  });
+
+  it("gives undefined for a name that is not a time zone, and for a wall-clock time that is not a date", () => {
+    expect(instantsOf(0, "Mars/Olympus")).toBeUndefined();
+    expect(instantsOf(Number.NaN, "UTC")).toBeUndefined();
+    expect(instantsOf(1e20, "UTC")).toBeUndefined();
+  });
+});
+
+describe("offsetChanges", () => {
+  it("gives the changes of the table in 2026, exact to the millisecond", () => {
+    for (const zone of Object.keys(ZONES) as Zone[]) {
+      const { standard, summer, changes } = ZONES[zone];
+      expect(offsetChanges(utc(1, 1, 0), utc(12, 31, 0), zone), zone).toEqual(standard === summer ? [] : [...changes]);
+    }
+    expect(offsetChanges(utc(1, 1, 0), utc(12, 31, 0), "UTC")).toEqual([]);
+  });
+
+  it("gives the changes in (from, to]: the bound to is in the range, the bound from is not", () => {
+    const [march] = ZONES["Europe/Berlin"].changes;
+    expect(offsetChanges(march - 1, march, "Europe/Berlin")).toEqual([march]);
+    expect(offsetChanges(march, march + HOUR, "Europe/Berlin")).toEqual([]);
+    expect(offsetChanges(march + HOUR, march - HOUR, "Europe/Berlin")).toEqual([]);
+  });
+
+  it("gives undefined for a name that is not a time zone, and for a bound that is not a date", () => {
+    expect(offsetChanges(0, 24 * HOUR, "Mars/Olympus")).toBeUndefined();
+    expect(offsetChanges(Number.NaN, 0, "UTC")).toBeUndefined();
+    expect(offsetChanges(0, 1e20, "UTC")).toBeUndefined();
   });
 });
 
