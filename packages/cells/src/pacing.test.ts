@@ -15,11 +15,11 @@ describe("the pacing of each cell", () => {
 
   it("keeps the counts of the table of SYS-91", () => {
     expect(pacingCounts(ALL, KIND_CATALOG), TABLE).toEqual({
-      "one request": 347,
+      "one request": 353,
       "one gap": 64,
       "closed loop, reply times": 18,
       "closed loop, first write": 73,
-      timer: 224,
+      timer: 230,
       "open loop": 10,
     });
   });

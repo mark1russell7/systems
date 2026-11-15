@@ -98,7 +98,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+        uses: mark1russell7/template/.github/actions/changes@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -128,8 +128,8 @@ jobs:
         with:
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -247,8 +247,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -271,13 +271,16 @@ jobs:
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
             echo "image: $ImageOS $ImageVersion"
           } | tee "$RUNNER_TEMP/cells/runner.txt"
+      - name: The conntrack tool
+        uses: ./.github/actions/apt-install
+        with:
+          packages: conntrack
       # The router of a middlebox lists the conntrack table each 50 to 100 ms to evict its expired
       # flows. A listing walks each bucket of the table of the kernel with the softirqs off, and a
       # segment that comes in that walk waits for its end. A runner of 16 GB has 262144 buckets: in
       # the run 39057994070, one reply through the router waited 6.8 ms. The table gets 16384.
       - name: A small conntrack table
         run: |
-          sudo apt-get install -y -qq conntrack >/dev/null
           sudo modprobe nf_conntrack
           # the client of the conntrack cells reads the field drop over ctnetlink
           sudo modprobe nf_conntrack_netlink
@@ -370,7 +373,7 @@ jobs:
         if: steps.needs.outputs.containerlab == 'true'
         run: |
           deb=containerlab_0.82.0_linux_amd64.deb
-          curl -fsSL -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
           echo "770e18f19ef75732eb9f4e362541f509abb2b6eeadde2d5c98140190b19b519a  $RUNNER_TEMP/$deb" | sha256sum -c -
           sudo apt-get install -y -qq "$RUNNER_TEMP/$deb"
           echo "containerlab: $(containerlab version | sed -n 's/^ *version: *//p')" | tee -a "$RUNNER_TEMP/cells/runner.txt"
@@ -397,18 +400,20 @@ jobs:
       # A failing cell of a manual run is a finding, thus it does not fail this workflow. The night claims
       # that its cells hold: this step judges each record again, and it fails unless each cell of the shard
       # has a record and holds. In the same job, its flip test turns the check red with an injected fault
-      # and with a record gone, and the clean copy stays green.
+      # and with a record gone, and the clean copy stays green. A dispatch of the selection night is the night
+      # by hand, thus this step operates on it too.
       - name: The cells of the night hold
-        if: ${{ github.event.schedule == '30 3 * * *' || (inputs.only == '^WS' && inputs.shards == '4') }}
+        if: ${{ github.event.schedule == '30 3 * * *' || ((inputs.only == '^WS' || inputs.selection == 'night') && inputs.shards == '4') }}
         env:
           SHARD: ${{ matrix.shard }}
         run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
       # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
       # when a rung is not within its budgets, when a drill has no record, or when a record has no pin.
       # Its flip (SYS-99): a fault of 1.5 x the limit of each budget turns each rung beyond, and the copies
-      # with a record gone, a tag with no digest or a checkout with changes each exit with 1.
+      # with a record gone, a tag with no digest or a checkout with changes each exit with 1. A dispatch of the
+      # selection drills is the Sunday run by hand, thus this step operates on it too.
       - name: The locked rungs of recovery
-        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        if: ${{ github.event.schedule == '30 9 * * 0' || ((inputs.only == '^RD[.]' || inputs.selection == 'drills') && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
@@ -423,7 +428,7 @@ jobs:
             fi
           done
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cells-${{ matrix.shard }}
           path: ${{ runner.temp }}/cells/
@@ -442,8 +447,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -457,7 +462,7 @@ jobs:
           SELECTION: ${{ needs.plan.outputs.selection }}
         run: pnpm exec tsx packages/site/scripts/refresh.ts "$SELECTION" "$RUNNER_TEMP/copies" "$RUNNER_TEMP"/records/cells-*
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: refresh
           path: ${{ runner.temp }}/copies/
@@ -472,7 +477,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells export

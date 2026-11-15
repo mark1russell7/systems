@@ -122,6 +122,7 @@ export interface QuietServer {
   speak(): void;
   /** This count is the number of open connections. */
   readonly connections: number;
+  /** This method closes each connection and the server. At the end of the promise, `connections` is 0. */
   close(): Promise<void>;
 }
 
@@ -156,10 +157,12 @@ export const quietServer = async (): Promise<QuietServer> => {
     get connections() {
       return sockets.size;
     },
-    close: () =>
-      new Promise<void>((resolve) => {
-        for (const socket of sockets) socket.destroy();
-        server.close(() => resolve());
-      }),
+    close: async () => {
+      // A destroyed socket leaves the set at its close event, after the close of the server.
+      // Thus the promise also waits for the close event of each socket.
+      const closed = [...sockets].map((socket) => new Promise<void>((resolve) => socket.once("close", () => resolve())));
+      for (const socket of sockets) socket.destroy();
+      await Promise.all([...closed, new Promise<void>((resolve) => server.close(() => resolve()))]);
+    },
   };
 };

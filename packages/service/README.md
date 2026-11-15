@@ -608,22 +608,28 @@ Each effect goes through a port (`HostPorts`): the commands, the files, the proc
 | `writeDiscovery`, `readDiscovery`, `removeDiscovery` | The discovery file: the process ID, the port, the address and the start time |
 | `stopTree(pid, ports)` | The stop of a process tree by its process ID |
 | `probeOnce`, `parseEnvFile`, `rotatingLog` | A ready probe, an env file and a log file with rotation |
+| `watchTargets(spec, ports, { onChange })` | The outside watcher: the health of each target, from a probe on its own loop |
+| `watchProblems` | The problems of a watch spec |
 
-- **The task.** On Windows, `installService` writes the XML of a scheduled task and gives it to `schtasks /Create`. The task starts at logon or each day, as the user, without a window. It starts the program again after a failure.
+- **The task.** On Windows, `installService` writes the XML of a scheduled task and gives it to `schtasks /Create`. The task starts at logon, at boot or each day, as the user, without a window. It starts the program again after a failure.
 - **The unit.** On Linux, `installService` writes a systemd user unit in `$XDG_CONFIG_HOME/systemd/user` and enables it. A daily start also gets a timer. Other platforms get `unsupported`, and nothing changes.
+- **The start at boot.** `start: "boot"` starts the program when the computer starts, before a logon. Thus a program starts again after a power cut, and it does not wait for the user. A boot start is in the background.
+- **The background.** `background: true` runs the program when the user is not logged on. On Windows, the task gets an S4U logon, and Windows keeps no password. Thus the task has no access to a network share that needs the credentials of the user. On Linux, the install starts `loginctl enable-linger`. Thus the user manager of systemd starts at boot and stays after the logout. The removal keeps the linger, because other units can need it.
+- **The elevation.** Task Scheduler refuses a boot trigger and an S4U logon from a shell that is not elevated (`Access is denied`). Thus the owner of the computer starts the install of a task in the background one time, in a shell of an administrator. The problem of the outcome tells so.
 - **The outcomes.** Each operation gives data, not a throw: `done`, `failed` with each command and its output, `refused` with the problems of the spec, or `unsupported`.
 - **The lock.** The lock file has the process ID and its start time. Thus a new process with the same ID does not hold the lock. A lock whose process stopped is stale, and the next take removes it.
 - **The discovery file.** A client reads the port and the address of a running instance from it. `readDiscovery` tells `running`, `absent`, `stale` or `malformed`, and it does not throw.
-- **The sequence of a group.** A program starts when each program of its `after` is ready. A ready probe is an HTTP status, a TCP connection or a command that gives 0. The times of a probe are quantities.
+- **The sequence of a group.** A program starts when each program of its `after` is ready. A ready probe is an HTTP status, a TCP connection or a command that gives 0. An HTTP probe can also examine the times in its JSON answer (`fresh`). The times of a probe are quantities.
 - **A program that stops.** It starts again after the backoff of its `retrier`. The count of tries goes back to 0 after the program is ready for `resetAfter`. A program also waits until its `after` programs are ready again.
 - **A program that is not ready in its time.** The supervisor stops it after `within`, and starts it again after the backoff. The state of the program tells the reason.
+- **A program that hangs.** A hung program does not exit, thus only a probe finds it. With `alive`, the supervisor uses a liveness probe each `interval` after the program is ready. After `failures` failures in sequence, it stops the program in stages and starts it again after the backoff. A pass sets the count to 0. Without `alive`, only an exit starts a program again.
 - **One instance of each program.** Each program has its own lock. The supervisor holds the lock for its child, thus a second supervisor of the same group gets `held` and starts nothing.
 - **The files of a program.** Its output goes to `<stateDir>/logs/<name>.log`, which rotates at its size. Its environment is the host, then its env file, then its `env`. It also gets its own `cwd`.
 - **The staged stop.** The supervisor stops the programs in the reverse sequence. A program with an IPC channel gets the message `"shutdown"`, which `svc.trigger("ipc-message", …)` matches. Else Linux sends SIGTERM, and Windows starts `taskkill /T /PID` without `/F`.
 - **The stop of the tree.** After the grace, Windows starts `taskkill /T /F /PID <pid>`. Linux sends SIGKILL to the process group of the child. The host does not stop a process by its name or its command line at any time.
 
 ```ts
-// group.js: the logon task starts this supervisor as the user
+// group.js: the boot task starts this supervisor as the user
 import { daemon, service } from "@mark1russell7/service";
 import { nodeHostPorts, superviseGroup } from "@mark1russell7/service/host";
 
@@ -643,7 +649,9 @@ const group = superviseGroup(
         envFile: "/var/lib/stack/api.env",
         after: ["db"],
         ipc: true,
-        ready: { probe: { kind: "http", url: "http://127.0.0.1:8080/health" }, interval: ms(500), timeout: ms(250), within: s(30) },
+        ready: { probe: { kind: "http", url: "http://127.0.0.1:8080/readiness" }, interval: ms(500), timeout: ms(250), within: s(30) },
+        // three failures in sequence, 10 s apart, stop a hung api, and the supervisor starts it again
+        alive: { probe: { kind: "http", url: "http://127.0.0.1:8080/liveness" }, interval: s(10), timeout: s(2), failures: 3 },
         listen: { port: 8080, url: "http://127.0.0.1:8080/" },
       },
     ],
@@ -661,17 +669,54 @@ await host.run();
 ```
 
 ```ts
-// install.js: the owner of the computer starts this one time
+// install.js: the owner of the computer starts this one time, in a shell of an administrator on Windows
 import { installService, nodeHostPorts } from "@mark1russell7/service/host";
 
 const outcome = await installService(
-  { name: "stack", description: "The stack", program: process.execPath, args: ["group.js"], start: "logon", restart: { after: { value: 1, unit: "min" } }, stateDir: "/var/lib/stack" },
+  { name: "stack", description: "The stack", program: process.execPath, args: ["group.js"], start: "boot", restart: { after: { value: 1, unit: "min" } }, stateDir: "/var/lib/stack" },
   nodeHostPorts(),
 );
-console.log(outcome.kind);
+console.log(outcome.kind === "failed" ? outcome.problem : outcome.kind);
 ```
 
 - **The stop of the group.** The phase `tear down dependencies` caps `group.stop()`. Give that phase a cap above the sum of the graces of the programs.
+
+### The outside watcher
+
+A heartbeat from a program tells only that the program sends. `watchTargets` probes the targets from a second computer. Thus it also finds a program that answers while its work stopped. It also finds a failure of the provider of the heartbeat.
+
+- **The targets.** Each target has a probe, an interval, a timeout and a jitter. Each target polls on its own loop, on the clock of the ports.
+- **The verdict.** The default is a debounce: 3 failed polls in sequence make a target down, and 2 passed polls make it up. A window measures the time of the failures.
+- **The health.** A target is `unknown` at the start. Its first pass makes it `up`, and its verdict makes it `down`. `onChange` gets each change, with the reason of the latest failed poll.
+- **The freshness bounds.** With `fresh`, an HTTP probe also reads its answer as JSON. Each bound names a time with a JSON Pointer (RFC 6901), and it gives the largest age.
+- **The times.** A time is epoch milliseconds or an ISO 8601 text. A missing time fails. The age is from the wall clock of the watcher, or from the time of the target at `now`.
+- **The size.** The probe reads up to 1 MiB of the answer. A larger answer fails.
+- **The alerts.** The watcher sends no message. The `onChange` handler sends the alert on a path that does not go through the target.
+
+```ts
+// watch.js: the outside watcher of the stack, on a second computer
+import { nodeHostPorts, watchTargets } from "@mark1russell7/service/host";
+
+const s = (value: number) => ({ value, unit: "s" });
+const watcher = watchTargets(
+  {
+    targets: [
+      { name: "api", probe: { kind: "http", url: "http://stack.internal:8080/liveness" }, interval: s(30), timeout: s(5) },
+      {
+        name: "pipeline",
+        // the newest test delivery is 26 h old or younger
+        probe: { kind: "http", url: "http://stack.internal:8080/freshness", fresh: [{ pointer: "/delivery/lastTestSendAt", within: { value: 26, unit: "h" } }] },
+        interval: { value: 5, unit: "min" },
+        timeout: s(10),
+        verdict: { type: "debounce", failAfter: 2, recoverAfter: 1 },
+      },
+    ],
+  },
+  nodeHostPorts(),
+  // notify: the path of the alert, outside the stack
+  { onChange: (change) => notify(`${change.target} is ${change.to}: ${change.why ?? "it passes again"}`) },
+);
+```
 
 ## The testing subpath
 
@@ -681,7 +726,7 @@ console.log(outcome.kind);
 - `fakeProcess({ flush, clock })` gives a process port that takes signals and process triggers from a test (`signal(name)`, `trigger(name)`). It keeps each exit code in place of an exit. `flush` is its flush of the output, and `log` gives the time of each flush and each exit. `holds` is the count of holds of the process, and `heldAtExit` gives that count at each exit. `message(value)` sends a message of the IPC channel.
 - `seeded(seed)` gives a seeded random number generator for the jitter (`start({ random })`).
 - `scriptedCheck(behavior)` gives a check whose behavior a test sets: `"ok"`, `"error"`, `"indeterminate"`, `"throw"`, `"timeout"` or `"hang"`.
-- `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer.
+- `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer. `close()` resolves after the close of each connection, thus `connections` is 0 at that time.
 - `detachedLifecycle()` gives a lifecycle with no service, for the start of a transport in a test.
 - `fakeHost(options)` gives the ports of the host entry on a fake clock, a fake file system and fake processes. It records each command and each signal. A test ends a child with `exit(code)`, and `polite` makes each child obey a staged stop.
 - `transportConformance(make, options)` generates the conformance test of a transport. `make` gives a subject: the transport, a way to offer new work and a way to hold work in flight. The cases check that `stopIntake` refuses new work, and that the count is correct and comes from events. They also check that `drain` holds to its deadline and gives the cooperative abort, and that `close` is idempotent and bounded. The fake clock makes the cases fast, and the real clock measures them. The option `streams` adds six cases of the streams (S6 D4). Then the subject also gives `call`, which sends the work of the kit through `life.request`. A unary call gives one value and its status. A stream stays in flight until its end, and a failure after its first item is an error line, not a status. The drain waits for an open stream, and its cooperative abort and its cut end the stream with an end that the caller gets.
