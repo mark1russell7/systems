@@ -77,7 +77,11 @@ describe("the ladder of recovery", () => {
   it("adds the interval of the rung to the excess of a drill", () => {
     const [record] = recordsOf();
     expect(record?.evidence.find((each) => each.measure === RPO)).toMatchObject({ kind: "worst", values: [82_800.1, 82_800.1, 82_800.1, 82_800.1] });
-    expect(recordsOf().map((each) => [each.rung, each.evidence.find((one) => one.measure === RPO)?.values[0]])).toEqual([
+    const firstLoss = (each: RungRecord): number | undefined => {
+      const found = each.evidence.find((one) => one.measure === RPO);
+      return found !== undefined && "values" in found ? found.values[0] : undefined;
+    };
+    expect(recordsOf().map((each) => [each.rung, firstLoss(each)])).toEqual([
       ["1", 82_800.1],
       ["10", 3_300.1],
       ["100", 240.1],
