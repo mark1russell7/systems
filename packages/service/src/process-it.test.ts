@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * SYS-21 and A14: child processes under run() on the process of Node, opt-in with PROCESS_IT=1.
+ * SYS-21, A14 and SYS-126: child processes on the process of Node, opt-in with PROCESS_IT=1.
  * - The parent sends the IPC message "shutdown", and the child stops through its staged shutdown,
  *   as at SIGTERM.
  * - A child whose only part is a worker on the real clock stays alive through the hold of its
- *   lifecycle, because its timers do not keep it alive.
+ *   lifecycle. The timers of the worker do not keep it alive.
+ * - A child whose only work is a wait that it awaits (retry, a retrier, within) ends each wait.
+ *   The default clock of each wait keeps the process alive.
  * These tests start real processes, thus only CI starts them (.github/workflows/process.yml), on
  * Linux and on Windows. The same parts on the fake process run in the unit tests (runner.test.ts).
  */
@@ -18,6 +20,7 @@ const RUN = process.env["PROCESS_IT"] === "1";
 const here = dirname(fileURLToPath(import.meta.url));
 const IPC_CHILD = join(here, "..", "test", "ipc", "child.mjs");
 const HELD_CHILD = join(here, "..", "test", "ipc", "hold.mjs");
+const WAIT_CHILD = join(here, "..", "test", "ipc", "wait.mjs");
 const STAGES = ["start", "ready", "stop intake", "drain", "close"];
 const WINDOWS = process.platform === "win32";
 
@@ -92,5 +95,20 @@ describe.skipIf(!RUN)("the hold of the process: a child whose only part is a wor
       expect(end).toEqual({ code: 143, signal: null });
       expect(run.lines).toEqual(["ready", "iteration", "teardown"]);
     }
+  }, 30_000);
+});
+
+describe.skipIf(!RUN)("the waits that a caller awaits keep the process alive", () => {
+  it("ends retry, a retrier and within in a child whose only work is each wait", async () => {
+    // no socket, no IPC channel and no other timer: only the timer of each wait keeps the child alive
+    const run = watch(spawn(process.execPath, [WAIT_CHILD], { stdio: ["ignore", "pipe", "inherit"] }));
+    expect(await run.closed).toEqual({ code: 0, signal: null });
+    expect(run.lines).toEqual(["retry ended at the try 2", "the retrier started its try", "within is late"]);
+  }, 30_000);
+
+  it("exits in the first wait on a clock with unref, with the code of a top-level await that does not settle (the control)", async () => {
+    const run = watch(spawn(process.execPath, [WAIT_CHILD, "unref"], { stdio: ["ignore", "pipe", "ignore"] }));
+    expect(await run.closed).toEqual({ code: 13, signal: null });
+    expect(run.lines).toEqual([]);
   }, 30_000);
 });
