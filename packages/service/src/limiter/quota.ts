@@ -625,8 +625,24 @@ export type QuotasVerdict =
   | { readonly allowed: true; readonly states: readonly QuotaState[] }
   | { readonly allowed: false; readonly index: number; readonly refusal: QuotaRefused; readonly states: readonly QuotaState[] };
 
+/** The options of `takeQuotas`. */
+export interface TakeQuotasOptions {
+  /**
+   * This function gets each error of a give-back, with the index of its part. The units of that
+   * part stay counted, thus its quota refuses sooner, not later. It gets the errors after the last
+   * give-back, thus its own error stops no give-back. An error that it throws ends the take.
+   */
+  readonly onGiveBackError?: ((error: unknown, index: number) => void) | undefined;
+}
+
 /** A request of the walk of a multi-quota take: a call of one method of a quota. */
 type Request = () => unknown;
+
+/** A walk gives a verdict or the error of a failed take, and the errors of the give-backs. */
+type Walked = { readonly failures: readonly { readonly index: number; readonly error: unknown }[] } & (
+  | { readonly verdict: QuotasVerdict }
+  | { readonly error: unknown }
+);
 
 /** This function tells which refusal decides: a capacity refusal, else the latest `resetAt`. The first part wins a tie. */
 const decisive = (verdicts: readonly QuotaVerdict[]): number => {
@@ -642,38 +658,48 @@ const decisive = (verdicts: readonly QuotaVerdict[]): number => {
   return best;
 };
 
-/** This walk takes each part in order, then gives back the counted parts of a refused take. The driver answers each request. */
-function* walk(parts: readonly QuotaPart[]): Generator<Request, QuotasVerdict, unknown> {
+/**
+ * This walk takes each part in order, then gives back the counted parts of a refused or failed
+ * take. The driver answers each request. A failed give-back does not stop the next give-backs.
+ * The walk keeps its error, and the state of its part is the state after the take.
+ */
+function* walk(parts: readonly QuotaPart[]): Generator<Request, Walked, unknown> {
   const verdicts: QuotaVerdict[] = [];
+  const failures: { readonly index: number; readonly error: unknown }[] = [];
+  /** This walk gives back the units of a part, and gives the state after the give-back, or after the take when the give-back fails. */
+  function* giveBack(index: number): Generator<Request, QuotaState, unknown> {
+    const verdict = verdicts[index]!;
+    const part = parts[index]!;
+    if (!verdict.allowed || part.units === 0) return verdict.state;
+    try {
+      return (yield () => part.quota.giveBack(part.key, part.units, verdict.state.at)) as QuotaState;
+    } catch (error) {
+      failures.push({ index, error });
+      return verdict.state;
+    }
+  }
   try {
     for (const part of parts) verdicts.push((yield () => part.quota.take(part.key, part.units)) as QuotaVerdict);
   } catch (error) {
     // a failed take of a part: give back the parts before it, then give its error
-    for (let index = 0; index < verdicts.length; index += 1) {
-      const verdict = verdicts[index]!;
-      const part = parts[index]!;
-      if (!verdict.allowed || part.units === 0) continue;
-      try {
-        yield () => part.quota.giveBack(part.key, part.units, verdict.state.at);
-      } catch {
-        // the first error tells why the take failed: a later error of a give-back does not hide it
-      }
-    }
-    throw error;
+    for (let index = 0; index < verdicts.length; index += 1) yield* giveBack(index);
+    return { error, failures };
   }
   const index = decisive(verdicts);
-  if (index < 0) return { allowed: true, states: verdicts.map((verdict) => verdict.state) };
+  if (index < 0) return { verdict: { allowed: true, states: verdicts.map((verdict) => verdict.state) }, failures };
   const states: QuotaState[] = [];
-  for (let at = 0; at < parts.length; at += 1) {
-    const verdict = verdicts[at]!;
-    const part = parts[at]!;
-    if (!verdict.allowed || part.units === 0) states.push(verdict.state);
-    else states.push((yield () => part.quota.giveBack(part.key, part.units, verdict.state.at)) as QuotaState);
-  }
-  return { allowed: false, index, refusal: verdicts[index] as QuotaRefused, states };
+  for (let at = 0; at < parts.length; at += 1) states.push(yield* giveBack(at));
+  return { verdict: { allowed: false, index, refusal: verdicts[index] as QuotaRefused, states }, failures };
 }
 
-const driveSync = (parts: readonly QuotaPart[]): QuotasVerdict => {
+/** This function gives each error of a give-back to the option, then gives the verdict or throws the error of the take. */
+const finish = (walked: Walked, options: TakeQuotasOptions | undefined): QuotasVerdict => {
+  for (const failure of walked.failures) options?.onGiveBackError?.(failure.error, failure.index);
+  if ("error" in walked) throw walked.error;
+  return walked.verdict;
+};
+
+const driveSync = (parts: readonly QuotaPart[], options: TakeQuotasOptions | undefined): QuotasVerdict => {
   const steps = walk(parts);
   let next = steps.next();
   while (!next.done) {
@@ -686,10 +712,10 @@ const driveSync = (parts: readonly QuotaPart[]): QuotasVerdict => {
     }
     next = failure === undefined ? steps.next(value) : steps.throw(failure.error);
   }
-  return next.value;
+  return finish(next.value, options);
 };
 
-const driveAsync = async (parts: readonly QuotaPart[]): Promise<QuotasVerdict> => {
+const driveAsync = async (parts: readonly QuotaPart[], options: TakeQuotasOptions | undefined): Promise<QuotasVerdict> => {
   const steps = walk(parts);
   let next = steps.next();
   while (!next.done) {
@@ -702,7 +728,7 @@ const driveAsync = async (parts: readonly QuotaPart[]): Promise<QuotasVerdict> =
     }
     next = failure === undefined ? steps.next(value) : steps.throw(failure.error);
   }
-  return next.value;
+  return finish(next.value, options);
 };
 
 /**
@@ -711,10 +737,13 @@ const driveAsync = async (parts: readonly QuotaPart[]): Promise<QuotasVerdict> =
  * the refusal tells the latest instant at which all parts can have room. When a take fails, the
  * parts before it give back their units, and the error throws.
  *
+ * A failed give-back does not change the verdict and does not stop the other give-backs. The units
+ * of its part stay counted, and `options.onGiveBackError` gets its error.
+ *
  * With quotas that answer at once, it answers at once. Else it gives a promise.
  */
-export function takeQuotas(parts: readonly QuotaPart<true>[]): QuotasVerdict;
-export function takeQuotas(parts: readonly QuotaPart[]): QuotasVerdict | Promise<QuotasVerdict>;
-export function takeQuotas(parts: readonly QuotaPart[]): QuotasVerdict | Promise<QuotasVerdict> {
-  return parts.every((part) => part.quota.sync) ? driveSync(parts) : driveAsync(parts);
+export function takeQuotas(parts: readonly QuotaPart<true>[], options?: TakeQuotasOptions): QuotasVerdict;
+export function takeQuotas(parts: readonly QuotaPart[], options?: TakeQuotasOptions): QuotasVerdict | Promise<QuotasVerdict>;
+export function takeQuotas(parts: readonly QuotaPart[], options?: TakeQuotasOptions): QuotasVerdict | Promise<QuotasVerdict> {
+  return parts.every((part) => part.quota.sync) ? driveSync(parts, options) : driveAsync(parts, options);
 }
