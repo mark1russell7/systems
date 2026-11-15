@@ -7,7 +7,7 @@ import { dirname } from "node:path";
 import type { Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { Logger } from "../logger.ts";
-import type { ChildHandle, CommandPort, FilePort, HostPorts, NetPort, ProcessesPort, SpawnRequest, StopSignal } from "./ports.ts";
+import type { ChildHandle, CommandPort, FilePort, HostPorts, HttpAnswer, NetPort, ProcessesPort, SpawnRequest, StopSignal } from "./ports.ts";
 
 /** These options go with the ports of Node. */
 export interface NodeHostOptions {
@@ -94,12 +94,19 @@ const nodeFiles: FilePort = {
 /** This difference is the time from the start of the Windows file time (1601) to the start of the epoch (1970), in milliseconds. */
 const FILETIME_EPOCH_MS = 11_644_473_600_000n;
 
+/**
+ * This limit is the longest time of the query of a start time on Windows, in milliseconds. A cold start of PowerShell
+ * on a loaded host can take more than 10 seconds (SYS-47). After the limit the start time is null, and the lock then
+ * counts a live process ID as its owner. Thus a short limit can hold a stale lock, and the limit is wide.
+ */
+const WINDOWS_START_LIMIT_MS = 30_000;
+
 /** This function gives the start time of a Windows process from PowerShell, in milliseconds after the epoch, or null. */
 const windowsStart = async (pid: number): Promise<number | null> => {
   const result = await nodeCommands.run(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToFileTimeUtc()`],
-    { timeout: 10_000 },
+    { timeout: WINDOWS_START_LIMIT_MS },
   );
   const text = result.out.trim();
   if (result.code !== 0 || !/^\d+$/.test(text)) return null;
@@ -200,12 +207,49 @@ const nodeProcesses: ProcessesPort = {
   spawn: nodeSpawn,
 };
 
+/**
+ * This function sends a GET request that does not follow a redirect. The timeout also stops the
+ * read of the body. The status read and the text read use it, thus they have one timeout.
+ */
+const get = (url: string, timeout: number): Promise<Response> => fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
+
+/**
+ * This function reads the body of an answer up to `limit` bytes, and gives the status and the text.
+ * At the limit, it cancels the body, and `complete` is false. The decoder keeps the bytes of a
+ * character that two parts of the body split. The unit tests give it answers with no network.
+ */
+export const answerText = async (response: Response, limit: number): Promise<HttpAnswer> => {
+  const reader = response.body?.getReader();
+  if (reader === undefined) return { status: response.status, body: "", complete: true };
+  const decoder = new TextDecoder();
+  let body = "";
+  let size = 0;
+  for (;;) {
+    const read = await reader.read();
+    if (read.done) return { status: response.status, body: body + decoder.decode(), complete: true };
+    if (size + read.value.byteLength > limit) {
+      body += decoder.decode(read.value.subarray(0, limit - size));
+      await reader.cancel();
+      return { status: response.status, body, complete: false };
+    }
+    body += decoder.decode(read.value, { stream: true });
+    size += read.value.byteLength;
+  }
+};
+
 const nodeNet: NetPort = {
   async httpStatus(url, timeout) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "manual" });
+      const response = await get(url, timeout);
       await response.body?.cancel();
       return response.status;
+    } catch {
+      return null;
+    }
+  },
+  async httpText(url, timeout, limit) {
+    try {
+      return await answerText(await get(url, timeout), limit);
     } catch {
       return null;
     }

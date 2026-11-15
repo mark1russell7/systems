@@ -43,7 +43,7 @@ describe("tryTakeSync: the decision of a memory store at once (SYS-46)", () => {
     const local = keyedLimiter("writes", WINDOW, memoryStore(fakeClock()));
     expectTypeOf(local).toEqualTypeOf<LocalLimiter>();
     expectTypeOf(local.tryTakeSync).returns.toEqualTypeOf<Decision>();
-    expectTypeOf<KeyedLimiter["tryTakeSync"]>().toEqualTypeOf<((key: string) => Decision) | undefined>();
+    expectTypeOf<KeyedLimiter["tryTakeSync"]>().toEqualTypeOf<((key: string, units?: number) => Decision) | undefined>();
   });
 
   it("throws a clear error for a shared store, before the store takes", () => {

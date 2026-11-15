@@ -1,19 +1,25 @@
 import { describe, expect, it } from "vitest";
-import type { Drill, ProbeEvent, ReplicaSet, Run, RunDrill } from "./cell.ts";
+import type { Cell, Drill, ProbeEvent, ReplicaSet, Run, RunDrill } from "./cell.ts";
 import {
+  ELECTION_LINES,
   LOSS_MARGIN,
   drillSpan,
+  electionStateText,
   hashOf,
   highestHeld,
+  memAvailableOf,
   readOplog,
   recoveryFindings,
   recoveryOf,
+  roomNeeded,
+  roomVoidOf,
   seedScript,
   sliceQuery,
   standaloneCommand,
   stopScript,
 } from "./recovery.ts";
 import type { Writes } from "./timeline.ts";
+import { measureGroup } from "./timeline.ts";
 
 const DRILL: Drill = {
   tenants: 2,
@@ -100,6 +106,44 @@ describe("the pure parts of a drill", () => {
   });
 });
 
+describe("the room of a drill on its runner", () => {
+  const MB = 1_048_576;
+  const GB = 1_073_741_824;
+  const big: Drill = { ...DRILL, tenants: 8_000, perTenant: { value: MB, unit: "B" } };
+  const data = 8_000 * MB;
+
+  it("needs the data on each member and the dump, and an oplog of 5% of the disk on each member, up to the data", () => {
+    // 5% of 100 GB is 5 GB, thus each oplog is smaller than the data
+    expect(roomNeeded(big, 3, { value: 100 * GB, unit: "B" })).toEqual({ value: 4 * data + 3 * 5 * GB, unit: "B" });
+    // an oplog has at least 990 MB, and the seed fills it only up to the data
+    expect(roomNeeded(DRILL, 1, { value: GB, unit: "B" })).toEqual({ value: 2 * 262_144 + 262_144, unit: "B" });
+    expect(roomNeeded(big, 3, { value: 10 * GB, unit: "B" })).toEqual({ value: 4 * data + 3 * 990 * MB, unit: "B" });
+    // with no limit on the disk, each oplog holds the whole data: the bound of the needs of a shard
+    expect(roomNeeded(big, 3, { value: Infinity, unit: "B" })).toEqual({ value: 7 * data, unit: "B" });
+  });
+
+  it("reads MemAvailable from /proc/meminfo, and refuses a text with no such line", () => {
+    expect(memAvailableOf("MemTotal:       16374028 kB\nMemFree:         1000 kB\nMemAvailable:   12000000 kB\n")).toEqual({ value: 12_000_000 * 1024, unit: "B" });
+    expect(() => memAvailableOf("MemTotal: 1 kB")).toThrow("no line MemAvailable");
+  });
+
+  it("is void only when the disk is under the need, and a record with no room is not void for this reason", () => {
+    const room = { disk: { value: 30e9, unit: "B" }, memory: { value: 12e9, unit: "B" }, need: { value: 42e9, unit: "B" } } as const;
+    expect(roomVoidOf(room)).toBe("the runner has 30.0 GB of disk for the drill, and the drill needs 42.0 GB: the data on each member, the dump and the oplogs");
+    expect(roomVoidOf({ ...room, disk: { value: 42e9, unit: "B" } })).toBeNull();
+    expect(roomVoidOf(undefined)).toBeNull();
+  });
+
+  it("makes the run of a drill with no room void with its reason, before it reads the client", () => {
+    const room = { disk: { value: 1e9, unit: "B" }, memory: { value: 1e9, unit: "B" }, need: { value: 2e9, unit: "B" } } as const;
+    const cell = { drill: big, prediction: { group: undefined } } as unknown as Cell;
+    const run = { events: [], kernel: [], fault: null, lost: 0, group: { primary: "m0", drill: { backups: [], room } } } as unknown as Run;
+    expect(measureGroup(cell, run).void).toBe("the runner has 1.0 GB of disk for the drill, and the drill needs 2.0 GB: the data on each member, the dump and the oplogs");
+    const before = { ...run, group: { primary: "m0", drill: { backups: [] } } } as unknown as Run;
+    expect(measureGroup(cell, before).void).toBe("the client never became ready");
+  });
+});
+
 describe("the measurement of a drill", () => {
   it("counts the writes after the backup, and it reads the age of the last kept write", () => {
     const measured = recoveryOf(DRILL, runOf([1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5]), 16 * SECOND);
@@ -155,5 +199,34 @@ describe("the findings of a drill", () => {
   it("allows the writes in flight, and no more", () => {
     expect(recoveryFindings({ ...clean, afterBackup: 3 + LOSS_MARGIN }, WRITES)).toEqual([]);
     expect(recoveryFindings({ ...clean, afterBackup: 3 + LOSS_MARGIN + 1 }, WRITES)[0]).toContain("came after the last backup");
+  });
+});
+
+describe("electionStateText: the state of a set with no primary after a restore", () => {
+  const line = (member: string, c: string, msg: string) => ({ member, c, msg });
+
+  it("gives the view of the old primary and its last lines of ELECTION and REPL after the start of the restore", () => {
+    const log = [
+      line("m1", "ELECTION", "before the restore"),
+      line("m1", "NETWORK", "connection accepted"),
+      ...Array.from({ length: ELECTION_LINES + 2 }, (_, at) => line(at % 2 === 0 ? "m1" : "m2", at % 3 === 0 ? "REPL" : "ELECTION", `step ${at}`)),
+      line("m3", "STORAGE", "checkpoint"),
+    ];
+    const text = electionStateText("m1", '  {"me":"10.0.0.2:27017","writable":false}\n', log, 1);
+    expect(text.startsWith('The view of m1: {"me":"10.0.0.2:27017","writable":false}. Its last lines of the election: ')).toBe(true);
+    const lines = text.split(": ").slice(2).join(": ").split(" | ");
+    expect(lines).toHaveLength(ELECTION_LINES);
+    // Steps 0 to 9: the text keeps the last 8 (steps 2 to 9). Each third step is a REPL line.
+    expect(lines[0]).toBe("m1 ELECTION step 2");
+    expect(lines.at(-1)).toBe(`m2 REPL step ${ELECTION_LINES + 1}`);
+    expect(text).not.toContain("before the restore");
+    expect(text).not.toContain("NETWORK");
+    expect(text).not.toContain("STORAGE");
+  });
+
+  it("says none when the log has no line of the election after the start", () => {
+    expect(electionStateText("m2", "no status (refused)", [line("m2", "ELECTION", "old")], 1)).toBe(
+      "The view of m2: no status (refused). Its last lines of the election: none",
+    );
   });
 });

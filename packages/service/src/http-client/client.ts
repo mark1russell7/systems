@@ -1,4 +1,5 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
+import type { CallContext } from "../call-context.ts";
 import type { Cancel } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
@@ -98,7 +99,13 @@ export interface HttpClientSpec extends ClientSpec<HttpClientKnobs> {
 }
 
 /** These options make a client. Without them, it uses the agent of Node, the real clock, and a dial with `OPTIONS *`. */
-export type HttpClientOptions = ClientOptions<AgentFactory>;
+export interface HttpClientOptions extends ClientOptions<AgentFactory> {
+  /**
+   * With this call context, each request gets the headers of the active context of its caller, for
+   * example `traceparent`. A header of the call with the same name stays. `callContext` of the entry `/otel` gives one.
+   */
+  readonly callContext?: CallContext | undefined;
+}
 
 /** An HTTP call is one request. A string body goes as UTF-8, with its `content-length`. */
 export interface HttpCall {
@@ -346,7 +353,9 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
     );
   };
 
-  const request = (call: HttpCall, sendOptions: SendOptions = {}): Promise<Sent<HttpResponse>> => {
+  const request = (given: HttpCall, sendOptions: SendOptions = {}): Promise<Sent<HttpResponse>> => {
+    // the headers of the context of the caller, read now: each try of the call sends the same ones
+    const call = options.callContext === undefined ? given : { ...given, headers: { ...options.callContext.headers(), ...given.headers } };
     const method = call.method.toUpperCase();
     const named = call.operation ?? method;
     return sendWithReissue({

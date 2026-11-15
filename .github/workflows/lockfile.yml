@@ -1,0 +1,20 @@
+# Makes the pnpm-lock.yaml of a pull request branch again, on a runner, when a merge of main conflicts in it.
+# Start it on the branch of the pull request: gh workflow run lockfile.yml -R mark1russell7/systems --ref <branch>.
+# The steps after the run are in the header of the reusable workflow.
+name: Lockfile
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time on each branch: a second run waits for the first.
+concurrency:
+  group: lockfile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lockfile:
+    uses: mark1russell7/template/.github/workflows/reusable-lockfile.yml@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+    permissions:
+      contents: read

@@ -56,6 +56,18 @@ describe("the lockfiles of a build context", () => {
   it("reads the version of each jar from its file name", () => {
     const hex = "0".repeat(64);
     expect(jarVersions(`${hex}  HikariCP-7.1.0.jar\n${hex}  slf4j-api-2.0.17.jar\n`)).toEqual({ HikariCP: "7.1.0", "slf4j-api": "2.0.17" });
+    // the binary mark of sha256sum, a version with a suffix, and lines that are not jars of a list
+    expect(jarVersions(`${hex} *netty-codec-4.2.1-Final.jar\r\n${hex}  lib-1.4-beta.1.jar`)).toEqual({
+      "netty-codec": "4.2.1-Final",
+      lib: "1.4-beta.1",
+    });
+    expect(jarVersions(`${hex}HikariCP-7.1.0.jar\n${hex}  notes.txt\n${hex}  -1.0.jar\n${"g".repeat(64)}  a-1.jar`)).toEqual({});
+  });
+
+  it("reads a line with many spaces in linear time (code scanning alert 16)", () => {
+    const hex = "0".repeat(64);
+    expect(jarVersions(`${hex}${" ".repeat(200_000)}x`)).toEqual({});
+    expect(jarVersions(`${hex}  ${"1-".repeat(100_000)}.jar`)).toEqual({});
   });
 
   it("hashes each lockfile by its path, and reads the version of a workspace package that is not private", () => {

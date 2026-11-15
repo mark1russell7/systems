@@ -1,5 +1,6 @@
 import type { Clock } from "../clock.ts";
 import type { Decision } from "../limiter/policy.ts";
+import { overCapacity, unitsOf } from "../limiter/policy.ts";
 import type { LimiterStore } from "../limiter/store.ts";
 import type { RedisClient } from "./client.ts";
 
@@ -8,7 +9,9 @@ import type { RedisClient } from "./client.ts";
  * it reads `TIME` of the server, the one clock of all replicas. A test can give the time in its place.
  * - KEYS[1] is the state of the key. KEYS[2] is the index of the limiter, a sorted set of its keys
  *   by the time at which each key is free.
- * - ARGV is the type of the rule, its two numbers, the cap of keys, the key, and the time or "".
+ * - ARGV is the type of the rule, its two numbers, the cap of keys and the key. Then it has the
+ *   time or "", and the units of the take. The store refuses a take over the capacity before the script, thus the units
+ *   are at most the capacity.
  * - The state of a bucket is its full time. The state of a window is the time of each take in it.
  * - The state expires at its free time (PX), and the index lets the cap count only busy keys.
  * - The reply is `{1, remaining}`, or `{0, retryAfter, cause}` with the time as text. Redis gives
@@ -20,6 +23,7 @@ local a = tonumber(ARGV[2])
 local b = tonumber(ARGV[3])
 local cap = tonumber(ARGV[4])
 local member = ARGV[5]
+local units = tonumber(ARGV[7])
 local now
 if ARGV[6] == '' then
   local t = redis.call('TIME')
@@ -67,7 +71,7 @@ if kind == 'token-bucket' then
   local span = a * b
   local base = now
   if full and full > now then base = full end
-  local nxt = base + a
+  local nxt = base + a * units
   if nxt - now > span + TOL then
     return {0, num(nxt - span - now), 'limit'}
   end
@@ -80,10 +84,10 @@ else
   for _, stamp in ipairs(stamps or {}) do
     if stamp + b > now + TOL then live[#live + 1] = stamp end
   end
-  if #live >= a then
-    return {0, num(live[1] + b - now), 'limit'}
+  if #live + units > a then
+    return {0, num(live[#live + units - a] + b - now), 'limit'}
   end
-  live[#live + 1] = now
+  for _ = 1, units do live[#live + 1] = now end
   remaining = a - #live
   stamps = live
   local parts = {}
@@ -115,7 +119,8 @@ export type RedisSender = Pick<RedisClient, "send">;
 
 /**
  * This function makes a store that the replicas share, in Redis 7. Each take is one `EVAL` of
- * `LIMITER_SCRIPT`. The client does not send it again, because a second take counts two times.
+ * `LIMITER_SCRIPT`, with all of its units. The client does not send it again, because a second take
+ * counts two times.
  * - The names of the keys have the limiter in braces, a hash tag. Thus the state and the index of a
  *   limiter are in one slot of a Redis Cluster.
  * - Each state expires at the time that the key is free, thus the eviction is exact, as in the memory
@@ -129,7 +134,11 @@ export const redisLimiterStore = (client: RedisSender, options: RedisLimiterOpti
   if (/[{}]/.test(options.prefix)) throw new Error(`the prefix ${options.prefix} of a limiter store has a brace: the store puts the hash tag in it`);
   return {
     kind: "shared",
-    async take({ limiter, key, rule, maxKeys }): Promise<Decision> {
+    async take({ limiter, key, rule, maxKeys, units }): Promise<Decision> {
+      const n = unitsOf(units);
+      // a take over the capacity is refused at each time, thus it does not go to Redis
+      const over = overCapacity(rule, n);
+      if (over !== undefined) return over;
       const base = `${options.prefix}{${limiter}}`;
       const numbers = rule.type === "token-bucket" ? [rule.interval, rule.burst] : [rule.limit, rule.window];
       const now = options.clock === undefined ? "" : String(options.clock.now());
@@ -144,6 +153,7 @@ export const redisLimiterStore = (client: RedisSender, options: RedisLimiterOpti
         String(maxKeys),
         key,
         now,
+        String(n),
       ]);
       if (sent.outcome !== "ok") throw new Error(`the limiter store ${limiter} failed (${sent.outcome}): ${sent.error}`);
       return replyOf(limiter, sent.value);

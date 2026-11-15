@@ -1,3 +1,4 @@
+import { delay } from "@mark1russell7/algebra/clock";
 import type { Extent } from "@mark1russell7/quantity";
 import type { ServiceBuilder } from "./builder.ts";
 import { service } from "./builder.ts";
@@ -68,8 +69,8 @@ export const rig = (options: RigOptions = {}): Rig => {
   const write = (what: string): void => {
     log.push(`${clock.now()} ${what}`);
   };
-  const wait = (ms: number): Promise<void> =>
-    ms <= 0 ? Promise.resolve() : new Promise((resolve) => clock.after(ms, resolve));
+  // A wait of 0 ms resolves at once: a timer of the fake clock fires only at an advance.
+  const wait = (ms: number): Promise<void> => (ms <= 0 ? Promise.resolve() : delay(clock, ms));
   const checks = { db: scriptedCheck("ok"), cache: scriptedCheck("ok") };
   const handle = (name: "db" | "cache"): DependencyHandle => ({
     connect: async () => {

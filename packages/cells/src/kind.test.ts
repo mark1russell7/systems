@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { Judged, KindCell, KindCellRecord, KindCellRecordV1 } from "@mark1russell7/kind";
 import { FORMAT, FORMAT_V1, calibrationOf, cellsTable, judgeKind, runKindCells, shardOf, upgrade } from "@mark1russell7/kind";
 import { describe, expect, it } from "vitest";
+import { codeHere } from "./commit.ts";
 import { KIND_CATALOG } from "./kinds.ts";
 
 /**
@@ -54,14 +55,20 @@ const waiting = chosen.filter((cell) => whyWaiting(cell) !== null);
 describe.skipIf(!RUN)("the kind catalogs, in kind", () => {
   it(`runs ${selected.length} cells`, async () => {
     mkdirSync(OUT, { recursive: true });
+    // the held read takes the cells of this shard from this line, thus a runner that stops early leaves no gap (SYS-99)
+    const selection = { only: process.env["KIND_ONLY"] ?? ".", shard: `${shard}/${of}`, names: chosen.map((cell) => cell.name) };
+    writeFileSync(join(OUT, "selection.ndjson"), `${JSON.stringify(selection)}\n`);
     for (const cell of waiting) {
       const why = whyWaiting(cell)!;
       const line = { id: cell.id, name: cell.name, mode: cell.mode, trigger: cell.trigger.kind, prediction: cell.prediction.kind, decision: "waiting", why };
       appendFileSync(join(OUT, "summary.ndjson"), `${JSON.stringify(line)}\n`);
       console.log(`${cell.name}: waiting, ${why}`);
     }
+    // each raw record names the commit of this checkout, and if it had changes (SYS-101)
+    const code = codeHere();
     const results = await runKindCells(selected, {
       out: OUT,
+      ...(code === undefined ? {} : { code }),
       log: (line) => console.log(line),
       environments: ENVIRONMENTS,
       ...(process.env["KIND_WORK"] === undefined ? {} : { work: process.env["KIND_WORK"] }),

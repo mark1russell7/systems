@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -231,8 +232,6 @@ export const metallbVipOf = (subnet: string, owner: string, nodes: readonly stri
   }
   throw new Error(`the subnet ${subnet} has no VIP that ${owner} owns`);
 };
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** This function waits until a condition gives null, and gives null, or the last reason after `within` ms. */
 const until = async (within: number, check: () => Promise<string | null>): Promise<string | null> => {

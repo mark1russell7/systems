@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -439,7 +440,7 @@ export const openFabric = async (parts: FabricParts): Promise<FabricLab> => {
           }
           if (lacks.length === 0) return;
           if (Date.now() > deadline) throw new Error(`the fabric is not ready: ${lacks.join("; ")}`);
-          await new Promise((resolve) => setTimeout(resolve, READY_POLL_MS));
+          await sleep(READY_POLL_MS);
         }
       },
       async sessions() {

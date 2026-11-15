@@ -8,7 +8,7 @@
  * prints through the quantity package. The timeline plays the story: a cursor moves through the
  * time, and each layer lights when it finds the fault.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { spacedLabels } from "../lib/format.ts";
 import { link } from "./Ledger.tsx";
@@ -471,18 +471,45 @@ function MarkGlyph(props: { readonly mark: Mark; readonly x: number; readonly y:
 // the player
 // ---------------------------------------------------------------------------------------------
 
+/** The state of the player: its progress from 0 to 1, if it plays, and the count of its seeks. */
+export interface PlayerState {
+  readonly progress: number;
+  readonly playing: boolean;
+  readonly run: number;
+}
+
+/** An action of the player: a reader plays, pauses or seeks, and the loop gives the progress of a frame. */
+export type PlayerAction = { readonly type: "play" } | { readonly type: "pause" } | { readonly type: "seek"; readonly progress: number } | { readonly type: "frame"; readonly progress: number };
+
+/**
+ * This function gives the next state of the player. A seek stops the loop and counts one more run.
+ * The loop starts again on each run, thus a restart while the player plays starts from the seek.
+ */
+export const playerStep = (state: PlayerState, action: PlayerAction): PlayerState => {
+  switch (action.type) {
+    case "play":
+      return state.playing ? state : { ...state, playing: true };
+    case "pause":
+      return state.playing ? { ...state, playing: false } : state;
+    case "seek":
+      return { progress: action.progress, playing: false, run: state.run + 1 };
+    case "frame":
+      return action.progress >= 1 ? { ...state, progress: 1, playing: false } : { ...state, progress: action.progress };
+  }
+};
+
 /** This hook plays the timeline: a progress from 0 to 1 in PLAY milliseconds. */
 const usePlayer = (): { progress: number; playing: boolean; play: () => void; pause: () => void; seek: (p: number) => void } => {
-  const [progress, setProgress] = useState(1);
-  const [playing, setPlaying] = useState(false);
+  const [state, dispatch] = useReducer(playerStep, { progress: 1, playing: false, run: 0 });
+  const { progress, playing, run } = state;
   const start = useRef<{ at: number; from: number } | null>(null);
   useEffect(() => {
     // A reader who asks for less motion, and a browser under automation, for example the job of the
     // screenshots, see the whole story at once.
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || navigator.webdriver;
     if (!reduced) {
-      setProgress(0);
-      setPlaying(true);
+      dispatch({ type: "seek", progress: 0 });
+      dispatch({ type: "play" });
     }
   }, []);
   useEffect(() => {
@@ -491,9 +518,8 @@ const usePlayer = (): { progress: number; playing: boolean; play: () => void; pa
     const step = (time: number): void => {
       if (start.current === null) start.current = { at: time, from: progress >= 1 ? 0 : progress };
       const p = Math.min(start.current.from + (time - start.current.at) / PLAY, 1);
-      setProgress(p);
+      dispatch({ type: "frame", progress: p });
       if (p >= 1) {
-        setPlaying(false);
         start.current = null;
         return;
       }
@@ -504,14 +530,12 @@ const usePlayer = (): { progress: number; playing: boolean; play: () => void; pa
       cancelAnimationFrame(frame);
       start.current = null;
     };
-    // the loop reads the progress only at its start, thus the progress is not a dependency
-  }, [playing]);
-  const play = useCallback(() => setPlaying(true), []);
-  const pause = useCallback(() => setPlaying(false), []);
-  const seek = useCallback((p: number) => {
-    setPlaying(false);
-    setProgress(p);
-  }, []);
+    // The loop reads the progress only at its start, thus the progress is not a dependency. A seek
+    // changes the run, thus a restart while the player plays starts a new loop from the seek.
+  }, [playing, run]);
+  const play = useCallback(() => dispatch({ type: "play" }), []);
+  const pause = useCallback(() => dispatch({ type: "pause" }), []);
+  const seek = useCallback((p: number) => dispatch({ type: "seek", progress: p }), []);
   return { progress, playing, play, pause, seek };
 };
 

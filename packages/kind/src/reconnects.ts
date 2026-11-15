@@ -1,4 +1,5 @@
 import { valueIn } from "@mark1russell7/quantity";
+import { backoffDelay } from "@mark1russell7/service/backoff";
 import type { Backoff, ReconnectsPrediction } from "./cell.ts";
 import type { Line } from "./observe.ts";
 
@@ -28,6 +29,13 @@ interface Delays {
   readonly jitter: number;
 }
 
+/**
+ * This function gives the delay of the call `index`, from 0, before the floor, the stop and the
+ * jitter. It is the backoff of the service, with a factor of 2 and a cap of the most.
+ */
+export const nominalOf = (delays: Pick<Delays, "initial" | "max">, index: number): number =>
+  backoffDelay({ base: delays.initial, factor: 2, cap: delays.max }, index + 1);
+
 const delaysOf = (backoff: Backoff): Delays => ({
   initial: valueIn(backoff.initial, "ms"),
   max: valueIn(backoff.max, "ms"),
@@ -41,12 +49,10 @@ const delaysOf = (backoff: Backoff): Delays => ({
  */
 const pathOf = (delays: Delays, share: number, latency: number, until: number): number[] => {
   const tries: number[] = [];
-  let next = delays.initial;
   let call = 0;
   let made = false;
   for (let count = 0; count < 1000; count += 1) {
-    let current = next;
-    next = Math.min(2 * next, delays.max);
+    let current = nominalOf(delays, count);
     if (!made && call + current > delays.stop) {
       current = Math.max(delays.initial, delays.stop - call);
       made = true;
@@ -88,7 +94,7 @@ export const latestReturn = (prediction: ReconnectsPrediction): number => {
 
 /** This function gives the delay of each call of a backoff, as an interval, with `elapsed` from the first call to this one. */
 const delayBand = (delays: Delays, index: number, elapsed: number, made: boolean, noise: number): { lo: number; hi: number; made: boolean; either: boolean } => {
-  const nominal = Math.min(delays.initial * 2 ** index, delays.max);
+  const nominal = nominalOf(delays, index);
   const band = (current: number) => ({ lo: Math.max(delays.initial, current * (1 - delays.jitter)), hi: Math.max(delays.initial, current) });
   if (made) return { ...band(nominal), made, either: false };
   const clamped = band(Math.max(delays.initial, delays.stop - elapsed));
@@ -206,7 +212,7 @@ export const judgeReconnects = (
       if (schedule.delay < band.lo - 1 || schedule.delay > band.hi + 1)
         return no(`the delay ${index + 1} is ${schedule.delay} ms, not in ${band.lo.toFixed(0)}–${band.hi.toFixed(0)} ms of the backoff`);
       // near the stop, a delay below the plain band shows that the client took the rest to the stop
-      made = band.either ? schedule.delay < Math.min(delays.initial * 2 ** index, delays.max) * (1 - delays.jitter) - 1 : band.made;
+      made = band.either ? schedule.delay < nominalOf(delays, index) * (1 - delays.jitter) - 1 : band.made;
     }
     const tries = schedules.map((schedule) => schedule.t + schedule.delay);
     const last = tries.at(-1)!;

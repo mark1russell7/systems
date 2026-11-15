@@ -42,16 +42,19 @@ const OWNER = "pulsar-broker-1.pulsar-broker-headless.pulsar.svc.cluster.local";
 
 describe("the install of Pulsar", () => {
   it("pins the chart 4.8.0 and the image 5.0.0 by sha256", () => {
-    expect(PULSAR_CHART.url).toBe("https://downloads.apache.org/pulsar/helm-chart/4.8.0/pulsar-4.8.0.tgz");
+    expect(PULSAR_CHART.url).toBe("https://archive.apache.org/dist/pulsar/helm-chart/4.8.0/pulsar-4.8.0.tgz");
     expect(PULSAR_CHART.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(PULSAR_IMAGE).toMatch(/^apachepulsar\/pulsar:5\.0\.0@sha256:[0-9a-f]{64}$/);
   });
 
-  it("refuses a chart in the cache whose sha256 is not the pinned value", async () => {
+  it("downloads a chart in the cache whose sha256 is not the pinned value again, and refuses a wrong download", async () => {
     const cache = mkdtempSync(join(tmpdir(), "pulsar-chart-"));
     mkdirSync(join(cache, "charts"), { recursive: true });
     writeFileSync(join(cache, "charts", "pulsar-4.8.0.tgz"), "another chart");
-    await expect(ensurePinnedChart(PULSAR_CHART, cache)).rejects.toThrow(/not the pinned/);
+    const urls: string[] = [];
+    const get = async (url: string): Promise<Uint8Array> => (urls.push(url), new TextEncoder().encode("a third chart"));
+    await expect(ensurePinnedChart(PULSAR_CHART, cache, get)).rejects.toThrow(/not the pinned/);
+    expect(urls).toEqual([PULSAR_CHART.url]);
   });
 
   it("has one ZooKeeper, one bookie, two brokers, no other part, and the local image with no pull", () => {

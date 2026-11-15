@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Backoff, KindCell } from "./cell.ts";
@@ -32,11 +33,15 @@ import { LOG_LABEL } from "./names.ts";
 /** This version is the release of Pulsar of the lab. */
 export const PULSAR_VERSION = "5.0.0";
 
-/** This chart is the Helm chart 4.8.0 of Pulsar. The sha256 is of the file of the release. */
+/**
+ * This chart is the Helm chart 4.8.0 of Pulsar. The sha256 is of the file of the release. The URL is
+ * on the archive of Apache, which keeps each release. The mirror downloads.apache.org keeps only the
+ * latest releases.
+ */
 export const PULSAR_CHART: PinnedChart = {
   name: "pulsar",
   version: "4.8.0",
-  url: "https://downloads.apache.org/pulsar/helm-chart/4.8.0/pulsar-4.8.0.tgz",
+  url: "https://archive.apache.org/dist/pulsar/helm-chart/4.8.0/pulsar-4.8.0.tgz",
   sha256: "464f4a268463d187c9bc83b365b31de0b4a460533d948a04f846ba9b026068f5",
 };
 
@@ -329,8 +334,6 @@ export const ownerAtRest = (state: ProducerState, clients: number): { readonly o
   if (owners.size !== 1) return `the lookups name ${[...owners].join(" and ")}`;
   return { owner: [...owners][0]! };
 };
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * This function waits until each broker is ready and the producers are at rest (`ownerAtRest`). It

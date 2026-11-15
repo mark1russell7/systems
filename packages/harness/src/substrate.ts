@@ -8,10 +8,12 @@ import { join } from "node:path";
  * A lab in a guest of QEMU writes E4 (`substrateHere`). The other layers do not have a runner at this
  * time.
  */
-export type Layer = "E0" | "E1" | "E2" | "E3" | "E4" | "E5" | "E6";
+export const LAYERS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6"] as const;
+export type Layer = (typeof LAYERS)[number];
 
 /** A cloud is where the runner operates. GitHub can schedule a standard Linux job on Azure or on AWS. */
-export type Cloud = "azure" | "aws" | "unknown";
+export const CLOUDS = ["azure", "aws", "unknown"] as const;
+export type Cloud = (typeof CLOUDS)[number];
 
 /** A host is what a process reads about its own machine. */
 export interface Host {

@@ -63,6 +63,19 @@ describe("the reading of a conntrack cell", () => {
     expect(read.conntrack).toMatchObject({ flows: 1024, count: 1024, stall: { errno: "ETIMEDOUT", drops: 7, retransFail: 6 } });
   });
 
+  it("counts the retransmissions of the namespace of the client only", () => {
+    const record = (netns: number, ev: string) => ({ ev, netns, mono: 5 * NS }) as unknown as KernelRecord;
+    const kernel = [record(CLIENT, "retrans"), record(CLIENT, "retrans"), record(22, "retrans"), record(CLIENT, "tx")];
+    expect(measure(cellOf(REFUSED), runOf([FULL, STALL], { kernel })).retransmissions).toBe(2);
+  });
+
+  it("reads 0 for each counter that the line of the connect does not give", () => {
+    const bare = line("stall", 14 * NS, { errno: "ETIMEDOUT" });
+    const read = measure(cellOf(REFUSED), runOf([FULL, bare]));
+    expect(read.conntrack?.stall).toMatchObject({ errno: "ETIMEDOUT", time: s(0), drops: 0, retransFail: 0 });
+    expect(read.finding).toMatch(/took 0 s/);
+  });
+
   it("voids a run with no end, a dropped record, no fill, a table that did not empty, or an environment that cannot do the cell", () => {
     const run = runOf([FULL, STALL]);
     expect(measure(cellOf(REFUSED), { ...run, events: [FULL] }).void).toBe("the client did not reach its end");

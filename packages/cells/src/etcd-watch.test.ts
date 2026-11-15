@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { countsOf, fitsWindow, HELD, lawOf, LONG, QUOTA, SHORT, stopsSend, WATCH_CELLS, WATCH_SPECS, WINDOW, type Scenario, type Stall } from "./etcd-watch.ts";
 
@@ -67,5 +68,16 @@ describe("the cells of SYS-74", () => {
     const scenarioOf = (at: number) => JSON.parse(WATCH_CELLS[at]!.target.command!.at(-1)!) as Scenario;
     expect(scenarioOf(3)).toEqual({ kind: "stall", writes: 132, bytes: LONG, stopped: true, compact: true });
     expect(scenarioOf(4)).toEqual({ kind: "stall", writes: 133, bytes: LONG, stopped: true, compact: true });
+  });
+});
+
+describe("the targets of etcd", () => {
+  // Each target is one script in its image, thus the test reads the source of each one.
+  it("parse each line of etcdctl through `parsed`, thus a line that is not JSON is a failed line and not a stop", () => {
+    for (const file of ["etcd-watch/watch.ts", "etcd-lease/lease.ts"]) {
+      const source = readFileSync(new URL(`../targets/${file}`, import.meta.url), "utf8");
+      expect(source, file).toContain("const parsed = <Value>(line: string): Value | undefined => {");
+      expect(source.match(/JSON\.parse\(line\)/g) ?? [], file).toHaveLength(1);
+    }
   });
 });

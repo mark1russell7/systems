@@ -1,7 +1,9 @@
+import { fileURLToPath } from "node:url";
 import { evaluate, timerOf } from "@mark1russell7/algebra";
 import type { Cell, QueueBand, QueueConnection, QueuePrediction, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { given, HZ, LINUX_66, ms, seconds, s } from "./catalog.ts";
+import { NODE_IMAGE } from "./http/cells.ts";
 
 /**
  * The cells of the accept queue (SYS-63): one listener that does not accept, one client of many
@@ -114,9 +116,31 @@ export interface QueueSpec {
   readonly queue: QueuePrediction;
 }
 
-const queueCell = (spec: QueueSpec): Cell => ({
+/** This folder is the build context of the target of a declared backlog: its Dockerfile, its lockfile and its scripts. */
+const SERVICE_CONTEXT = fileURLToPath(new URL("../targets/service-backlog/", import.meta.url));
+/** These are the files of that build context. */
+const SERVICE_FILES = ["Dockerfile", "package.json", "npm-lock.json", "server.ts", "control.ts", "proc.ts", "emit.ts"];
+/** This is the version of the service in that target. The name of each cell has its MAJOR and MINOR. */
+export const BACKLOG_SERVICE = "0.7.3";
+const BACKLOG_LABEL = BACKLOG_SERVICE.split(".").slice(0, 2).join(".");
+
+/**
+ * This target is a server of the service (SYS-103): `httpTransport` with the knob
+ * `server_listen_backlog`, over the http.Server of Node. Its main thread blocks, thus Node accepts
+ * nothing. It serves the protocol of the native target, thus the client is the same.
+ */
+const SERVICE_TARGET: Target = {
+  image: NODE_IMAGE,
+  subject: { kind: "build", name: "service-backlog", context: SERVICE_CONTEXT, files: SERVICE_FILES },
+  command: ["node", "/srv/server.ts", "--port", String(PORT)],
+  port: PORT,
+  ready: '"ev":"listening"',
+  lines: true,
+};
+
+const queueCell = (spec: QueueSpec, target: Target = TARGET): Cell => ({
   name: `${spec.plan} ${spec.name}`,
-  target: TARGET,
+  target,
   sysctls: { "net.ipv4.tcp_syn_retries": "6", "net.ipv4.tcp_syn_linear_timeouts": "4" },
   targetSysctls: {
     "net.core.somaxconn": String(spec.somaxconn),
@@ -280,4 +304,22 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
 ];
 
 /** These are the cells of the accept queue, for the harness. */
-export const ACCEPT_QUEUE_CELLS: readonly Cell[] = ACCEPT_QUEUE_SPECS.map(queueCell);
+export const ACCEPT_QUEUE_CELLS: readonly Cell[] = ACCEPT_QUEUE_SPECS.map((spec) => queueCell(spec));
+
+/**
+ * These are the laws of `AQ.1` to `AQ.3` with a server of the service as the listener (SYS-103). The
+ * service gives the declared backlog to Node, and Node gives it to listen(2). Node calls listen(2)
+ * with `backlog || 511` (`lib/net.js` of Node 24.21.0, line 2325). Thus a declared backlog of 0
+ * gives 511 in service 0.7.3, and the queue holds 512.
+ */
+export const SERVICE_QUEUE_SPECS: readonly QueueSpec[] = [
+  countSpec("AQ.8", `the count of service ${BACKLOG_LABEL}: a declared backlog of 4 under a somaxconn of 4096 holds 5`, 4, 4096, 7, 4),
+  countSpec("AQ.9", `the count of service ${BACKLOG_LABEL}: somaxconn 8 clamps a declared backlog of 511, and the queue holds 9`, 511, 8, 11, 8),
+  {
+    ...countSpec("AQ.10", `the count of service ${BACKLOG_LABEL}: Node gives listen(2) 511 for a declared backlog of 0, and the queue holds 512`, 0, 4096, 514, 511),
+    why: "Node gives listen(2) 511 for a backlog of 0, thus the declared 0 of service 0.7.3 is a limit of 511. The queue holds the limit plus one, and each later SYN is one overflow.",
+  },
+];
+
+/** These are the cells of a declared backlog, for the harness. */
+export const SERVICE_QUEUE_CELLS: readonly Cell[] = SERVICE_QUEUE_SPECS.map((spec) => queueCell(spec, SERVICE_TARGET));

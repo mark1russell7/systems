@@ -204,12 +204,21 @@ export const scale = (amount: Quantity, by: number): Quantity => ({
   unit: amount.unit,
 });
 
+/**
+ * This function rounds a value to `places` decimal places, exactly, with a half going up, as `Math.round` does.
+ * It rounds the exact value and not a product of doubles: 1.005 is 100.5 hundredths and gives 1.01. The double
+ * 1.005 * 100 is 100.49999999999999, and `Math.round` of it gives 1.
+ */
+export const roundExact = (value: Rational, places: number): Rational => {
+  const factor = q.pow(q.rational(10n), places);
+  return q.div(q.floor(q.add(q.mul(value, factor), q.rational(1n, 2n))), factor);
+};
+
 /** This function rounds an amount to the decimals that its unit keeps (money to the cent), or to `decimals`. */
 export const round = (amount: Quantity, decimals?: number): Quantity => {
   const places = decimals ?? parseUnit(amount.unit).components[0]?.atom?.decimals ?? undefined;
   if (places === undefined) return amount;
-  const factor = 10 ** places;
-  return { value: Math.round(amount.value * factor) / factor, unit: amount.unit };
+  return { value: q.toNumber(roundExact(q.fromNumber(amount.value), places)), unit: amount.unit };
 };
 
 /**

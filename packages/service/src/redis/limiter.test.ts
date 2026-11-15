@@ -35,7 +35,7 @@ describe("the Redis store of a keyed limiter (SYS-28)", () => {
     expect(sent).toEqual([
       {
         command: "EVAL",
-        args: [LIMITER_SCRIPT, 2, "limit:{writes}:key:acme", "limit:{writes}:keys", "token-bucket", "100", "3", "50", "acme", ""],
+        args: [LIMITER_SCRIPT, 2, "limit:{writes}:key:acme", "limit:{writes}:keys", "token-bucket", "100", "3", "50", "acme", "", "1"],
       },
     ]);
     // the script reads TIME when the store has no clock
@@ -51,7 +51,25 @@ describe("the Redis store of a keyed limiter (SYS-28)", () => {
       retryAfter: { value: 100, unit: "ms" },
       cause: "limit",
     });
-    expect(sent[0]!.args.slice(4)).toEqual(["sliding-window", "2", "60000", "9", "k", "1234"]);
+    expect(sent[0]!.args.slice(4)).toEqual(["sliding-window", "2", "60000", "9", "k", "1234", "1"]);
+  });
+
+  it("sends the units of a take, and refuses a take over the capacity with no EVAL", async () => {
+    const { sender, sent } = scripted(ok([1, 0]));
+    const limiter = keyedLimiter("writes", SHARED, redisLimiterStore(sender, { prefix: "limit:" }));
+    expect(await limiter.take("acme", 3)).toEqual({ allowed: true, remaining: 0 });
+    expect(sent[0]!.args.at(-1)).toBe("3");
+    // the burst is 3: a take of 4 never fits, at each time
+    expect(await limiter.take("acme", 4)).toEqual({ allowed: false, cause: "capacity", units: 4, capacity: 3 });
+    const store = redisLimiterStore(sender, { prefix: "" });
+    expect(await store.take({ limiter: "w", key: "k", rule: { type: "sliding-window", limit: 2, window: 60_000 }, maxKeys: 9, units: 5 })).toEqual({
+      allowed: false,
+      cause: "capacity",
+      units: 5,
+      capacity: 2,
+    });
+    expect(sent).toHaveLength(1);
+    await expect(limiter.take("acme", 0)).rejects.toThrow(/whole number of 1 or more/);
   });
 
   it("reads a refusal at the cap", async () => {

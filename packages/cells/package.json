@@ -17,16 +17,22 @@
     "@mark1russell7/machines": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/rigor-bench": "^0.2.10",
-    "@mark1russell7/rigor-chaos": "^0.1.0",
-    "@mark1russell7/rigor-statistics": "^0.1.11",
+    "@mark1russell7/rigor-chaos": "^0.2.2",
+    "@mark1russell7/rigor-statistics": "^0.2.1",
     "@mark1russell7/service": "workspace:^",
     "zod": "^4.6.6"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@types/node": "^26.6.4",
+    "@types/ws": "8.18.2",
+    "@vitest/coverage-v8": "^5.0.3",
+    "engine.io-client": "6.6.8",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4",
     "typescript": "^7.0.2",
     "undici": "^8.12.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "ws": "8.21.3"
   }
 }

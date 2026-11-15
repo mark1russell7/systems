@@ -1,11 +1,12 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, GroupPlace, Kafka, KernelRecord, ProbeEvent, Run, RunPart } from "./cell.ts";
 import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.ts";
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
-import { harnessImage, kafkaClientImage } from "./image.ts";
+import { harnessImage, kafkaClientImage, shippedSource } from "./image.ts";
 import type { Manifest } from "./lab.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, buildOf, containers, harnessRecord, lines, netnsOf, output, withPid } from "./lab.ts";
 import { isFenceLine, namesGroup, pauseReady } from "./pause.ts";
 import type { Cut } from "./replset.ts";
 
@@ -20,6 +21,15 @@ import type { Cut } from "./replset.ts";
  * not in the namespace that the prober watches. The record of a run is the lines of the client and
  * the whole partition, read to its high watermark after the group converged.
  */
+
+/**
+ * This function gives the record of the Kafka client for a manifest: its image, its source and its
+ * build record. The pins check refuses a record of a built client without its build record.
+ */
+export const kafkaClientRecord = (image: string): Manifest["client"] => {
+  const source = shippedSource("kafka");
+  return { kind: "image", image, source, ...buildOf(source) };
+};
 
 /** This path is the class path of the Kafka image: the JVM expands the star itself. */
 const CLASS_PATH = "/opt/harness/kafka/classes:/opt/harness/kafka/lib/*";
@@ -162,8 +172,6 @@ export interface KafkaLab {
   manifest(sysctls: Readonly<Record<string, string>>): Promise<Manifest>;
   close(): Promise<void>;
 }
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** This count is the number of raw lines of the console of each node that a lab keeps. */
 export const RAW_TAIL = 400;
@@ -440,8 +448,9 @@ export const openKafkaLab = async (kafka: Kafka): Promise<KafkaLab> => {
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "image", image: clientImage },
+          client: kafkaClientRecord(clientImage),
           netns: { client: clientNetns, target: members[kafka.brokers[0]!]!.netns },
           sysctls,
           group: { members: brokers, sentinels: await list([kafka.controller]), observer: { image: clientImage } },

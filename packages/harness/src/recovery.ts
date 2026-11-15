@@ -1,7 +1,25 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { Drill, ProbeEvent, ReplicaSet, Run } from "./cell.ts";
+import type { Drill, DrillRoom, ProbeEvent, ReplicaSet, Run } from "./cell.ts";
+import type { MemberLine } from "./replset.ts";
 import type { Writes } from "./timeline.ts";
+
+/** This count is the number of log lines of the election that `electionStateText` gives. */
+export const ELECTION_LINES = 8;
+
+/**
+ * This function gives the state of a set that did not elect a primary after a restore. The text has
+ * the view of the old primary (the output of `STATUS_SCRIPT`). It also has the last `ELECTION_LINES`
+ * lines of the components ELECTION and REPL, from index `from` of the log.
+ */
+export const electionStateText = (primary: string, status: string, log: readonly Pick<MemberLine, "member" | "c" | "msg">[], from: number): string => {
+  const lines = log
+    .slice(from)
+    .filter((line) => line.c === "ELECTION" || line.c === "REPL")
+    .slice(-ELECTION_LINES)
+    .map((line) => `${line.member} ${line.c} ${line.msg}`);
+  return `The view of ${primary}: ${status.trim()}. Its last lines of the election: ${lines.length === 0 ? "none" : lines.join(" | ")}`;
+};
 
 /**
  * This module holds the pure parts of a recovery drill. These are the scripts of the shell, the reader
@@ -20,6 +38,38 @@ export const SEED_DOCUMENT = 65_536;
 export const LOSS_MARGIN = 2;
 /** This time is how long a script waits for a server to stop, in tenths of a second. */
 const STOP_TENTHS = 600;
+
+/** These are the bounds of the oplog that mongod makes at its first start with no `--oplogSize`. It is 5% of the free disk, from 990 MB to 50 GB. */
+const OPLOG_SHARE = 0.05;
+const OPLOG_FLOOR = 990 * 1_048_576;
+const OPLOG_CEILING = 50 * 1_073_741_824;
+
+/**
+ * This function gives the most disk that a drill needs, from the disk that it can use. The peak comes
+ * before the fault. Then each member holds the data and its oplog, and the backup host holds the
+ * dump. The seed goes through the oplog, thus each oplog holds the data up to its own size. The
+ * slices are small: the writes of one client in a few seconds.
+ */
+export const roomNeeded = (drill: Drill, members: number, disk: Quantity): Quantity => {
+  const data = drill.tenants * valueIn(drill.perTenant, "B");
+  const oplog = Math.min(OPLOG_CEILING, Math.max(OPLOG_FLOOR, OPLOG_SHARE * valueIn(disk, "B")));
+  return { value: Math.ceil((members + 1) * data + members * Math.min(data, oplog)), unit: "B" };
+};
+
+/** This function gives MemAvailable from the text of `/proc/meminfo`. */
+export const memAvailableOf = (meminfo: string): Quantity => {
+  const found = /^MemAvailable:\s+(\d+) kB$/m.exec(meminfo);
+  if (found === null) throw new Error("/proc/meminfo has no line MemAvailable");
+  return { value: Number(found[1]) * 1024, unit: "B" };
+};
+
+const gigabytes = (size: Quantity): string => `${(valueIn(size, "B") / 1e9).toFixed(1)} GB`;
+
+/** This function gives the reason that a drill has no room on its runner, or null. A record from before SYS-97 has no room, and it is not void for this reason. */
+export const roomVoidOf = (room: DrillRoom | undefined): string | null =>
+  room === undefined || valueIn(room.disk, "B") >= valueIn(room.need, "B")
+    ? null
+    : `the runner has ${gigabytes(room.disk)} of disk for the drill, and the drill needs ${gigabytes(room.need)}: the data on each member, the dump and the oplogs`;
 
 /** This function gives the time of a drill from the start of the backups to the fault, in seconds. */
 export const drillSpan = (drill: Drill): number => drill.slices * valueIn(drill.sliceEvery, "s") + valueIn(drill.age, "s");

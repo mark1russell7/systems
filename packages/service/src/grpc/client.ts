@@ -1,4 +1,5 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
+import type { CallContext } from "../call-context.ts";
 import { realClock } from "../clock.ts";
 import type {
   Attempt,
@@ -107,7 +108,13 @@ export interface GrpcClientSpec extends ClientSpec<GrpcKnobs> {
 }
 
 /** These options make a client. Without them, it uses grpc-js, the real clock, and a dial with the HTTP/2 preface. */
-export type GrpcClientOptions = ClientOptions<GrpcFactory>;
+export interface GrpcClientOptions extends ClientOptions<GrpcFactory> {
+  /**
+   * With this call context, each call gets the headers of the active context of its caller in its
+   * metadata, for example `traceparent`. The metadata of the spec and of the call stays. `callContext` of the entry `/otel` gives one.
+   */
+  readonly callContext?: CallContext | undefined;
+}
 
 /**
  * A join is one generation of the client: each time that its channel becomes READY (D1, D2). The
@@ -472,7 +479,8 @@ export const grpcClient = (name: string, spec: GrpcClientSpec, options: GrpcClie
 
   const call = (method: string, request: Buffer, callOptions: GrpcCallOptions = {}): Promise<Sent<Buffer>> => {
     const started = clock.now();
-    const metadata = { ...spec.metadata, ...callOptions.metadata };
+    // the headers of the context of the caller, read now: each try of the call sends the same ones
+    const metadata = { ...options.callContext?.headers(), ...spec.metadata, ...callOptions.metadata };
     return sendWithReissue({
       clock,
       bound: requestTimeout,

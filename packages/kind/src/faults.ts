@@ -216,7 +216,8 @@ export const dnsCommands = (on: boolean): string[][] => {
 
 /**
  * This function gives the commands of the injector that put a stateful middlebox in its network
- * namespace, with each peer, on the local port `port`. With `idle` null, they remove it.
+ * namespace, with each peer, on the local port `port`. With `idle` null, they remove the parts of these
+ * peers. A run removes what the table of the namespace holds (`middleboxRemoval`).
  *
  * The middlebox forgets a flow of the port after `idle` with no segment. Then it drops each later
  * segment of it: the silent-drop form of the router of the harness. Conntrack stays as it is. The
@@ -263,6 +264,26 @@ export const middleboxCommands = (peers: readonly string[], idle: Quantity | nul
     ];
   };
   return [...chains.map((chain) => ["iptables", "-N", chain]), ...rules(MIDDLEBOX.input, "--rsource"), ...rules(MIDDLEBOX.output, "--rdest"), ...jumps];
+};
+
+/**
+ * This function gives the commands that remove a middlebox from a network namespace, from the filter
+ * table that `iptables-save -c` gives for it. An empty list means that the namespace has no part of it.
+ *
+ * The commands remove each part that the table holds, and only those. The lab stops at the first
+ * command that fails. Thus a removal from a list of the peers stops at a jump that is not there, and
+ * its chains stay. For example, a set that failed half way added no jumps, or a client pod has a new
+ * address. Then the next set of the namespace fails at its `-N`.
+ */
+export const middleboxRemoval = (saved: string): string[][] => {
+  const chains = [MIDDLEBOX.input, MIDDLEBOX.output];
+  const lines = saved.split("\n").map((line) => line.trim().replace(/^\[\d+:\d+\]\s+/, ""));
+  const present = chains.filter((chain) => lines.some((line) => line.startsWith(`:${chain} `)));
+  const jumps = lines
+    .map((line) => line.split(/\s+/))
+    .filter((words) => words[0] === "-A" && (words[1] === "INPUT" || words[1] === "OUTPUT") && chains.some((chain) => words.at(-1) === chain && words.at(-2) === "-j"))
+    .map((words) => ["iptables", "-D", ...words.slice(1)]);
+  return [...present.map((chain) => ["iptables", "-F", chain]), ...jumps, ...present.map((chain) => ["iptables", "-X", chain])];
 };
 
 /**

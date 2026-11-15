@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, Kafka, Run, RunPart } from "./cell.ts";
-import { bootstrapOf, brokerEnv, controllerEnv, envOf, kafkaArgs, kafkaCutOf, kafkaViewOf, nodeIdOf, topicOf } from "./kafka.ts";
+import { bootstrapOf, brokerEnv, controllerEnv, envOf, kafkaArgs, kafkaClientRecord, kafkaCutOf, kafkaViewOf, nodeIdOf, topicOf } from "./kafka.ts";
+import type { Manifest } from "./lab.ts";
+import { harnessRecord } from "./lab.ts";
+import { manifestProblems } from "./pins.ts";
 import { measureGroup } from "./timeline.ts";
 
 const KAFKA: Kafka = {
@@ -18,6 +21,36 @@ const KAFKA: Kafka = {
 };
 
 const part = (ip: string): RunPart => ({ ip, netns: 1 });
+
+describe("the pins of a Kafka manifest", () => {
+  it("gives the harness and the client their build records, thus the pins check takes the manifest", () => {
+    const client = kafkaClientRecord("unused");
+    const tag = client.build?.tag ?? "no build";
+    const harness = harnessRecord();
+    const manifest: Manifest = {
+      kernel: "7.0.0-1001-azure",
+      architecture: "x86_64",
+      hz: "1000",
+      boot_id: "boot",
+      docker: "29.1.5 on Ubuntu 24.04",
+      target: { image: `apache/kafka:4.3.2@sha256:${"a".repeat(64)}`, id: `sha256:${"b".repeat(64)}`, settings: {}, sysctls: {} },
+      harness: { image: harness.build?.tag ?? "no build", id: `sha256:${"b".repeat(64)}`, packages: [], ...harness },
+      client: kafkaClientRecord(tag),
+      netns: { client: 1, target: 2 },
+      sysctls: {},
+    };
+    expect(client.source).toEqual({ kind: "shipped", name: "kafka" });
+    expect(tag).toMatch(/^loom-harness-kafka:[0-9a-f]{12}$/);
+    expect(manifestProblems(manifest)).toEqual([]);
+    // the record before this fix: no version and no build of the harness, and a client with no build
+    const old: Manifest = { ...manifest, harness: { image: manifest.harness.image, id: manifest.harness.id, packages: [] }, client: { kind: "image", image: tag } };
+    expect(manifestProblems(old)).toEqual([
+      "the harness: the manifest has no version of the harness",
+      "the harness: the image has no build record",
+      `the client: the image ${tag} is a build with no build record`,
+    ]);
+  });
+});
 
 describe("the nodes of a Kafka lab", () => {
   it("gives each broker its place from 1, and the controller the id after them", () => {

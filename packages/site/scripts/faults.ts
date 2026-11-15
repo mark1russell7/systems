@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { median } from "@mark1russell7/rigor-statistics";
 import type { Cell, Manifest, Measured, Run, Verdict } from "../../harness/src/index.ts";
 import { judge, NOISE } from "../../harness/src/index.ts";
+import { commitOf } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -206,6 +207,7 @@ const copy = {
   source: "the prober's eBPF records, judged again by the harness. A rerun replaces the first run of its cell",
   topology: "T01",
   ranAt: date,
+  ...commitOf(records),
   units: "s",
   noise: Number(only("the noise", records.map((record) => String(secondsOf(record.cell.noise ?? NOISE))))),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),

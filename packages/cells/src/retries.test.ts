@@ -108,3 +108,19 @@ describe("the cells of the retry count", () => {
     for (const cell of COUNT_CELLS) expect(ALL).toContain(cell);
   });
 });
+
+describe("the delays of undici: the backoff of the service", () => {
+  const old = (retries: number, first: number) => Array.from({ length: retries }, (_, at) => first * 2 ** at).reduce((sum, each) => sum + each, 0) / 1000;
+  it("gives the sum of the old formula while no delay reaches maxTimeout, within 1e-12", () => {
+    for (const minTimeout of [1, 100, 500, 937.5])
+      for (let maxRetries = 0; maxRetries <= 6; maxRetries += 1) {
+        if (minTimeout * 2 ** (maxRetries - 1) > 30_000) continue;
+        expect(Math.abs(delaysOf({ kind: "undici", maxRetries, minTimeout }) - old(maxRetries, minTimeout))).toBeLessThanOrEqual(1e-12);
+      }
+  });
+  it("caps each delay at the maxTimeout of undici, 30 s, as retry-handler.js:366 does", () => {
+    // 0.5 + 1 + 2 + 4 + 8 + 16 + 30 (not 32) s
+    expect(delaysOf({ kind: "undici", maxRetries: 7 })).toBe(61.5);
+    expect(old(7, 500)).toBe(63.5);
+  });
+});

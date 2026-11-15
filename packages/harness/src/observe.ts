@@ -12,12 +12,15 @@ import {
   leftAfter,
   jitterOfLines,
   pingsOf,
+  pongsOf,
   programLines,
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
 import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import { requestFirst } from "./cell.ts";
+import type { DeliveryReading } from "./delivery.ts";
+import { deliveryFinding, deliveryOf, streamOf } from "./delivery.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { ConntrackReading } from "./conntrack.ts";
@@ -32,7 +35,7 @@ import type { QueueReading } from "./queue.ts";
 import { measureQueue } from "./queue.ts";
 import { measureGroup } from "./timeline.ts";
 import type { Pairing } from "./verdict.ts";
-import { INJECT, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
+import { commitVoid, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -126,6 +129,8 @@ export interface Measured {
   readonly reconnect?: ReconnectReading;
   /** This record is what the call in flight of a WebSocket client met. */
   readonly call?: CallReading;
+  /** This record is what a stream that crossed the fault delivered, for a prediction with a delivery law. */
+  readonly delivery?: DeliveryReading;
   /**
    * This time is from the drop line of the program to the close of its socket by its own side: a
    * FIN or an abort. A prediction that says how the program drops (`drop`) gets it. It is null
@@ -221,7 +226,7 @@ const socketVantage = (
   request: ProbeEvent,
 ): Quantity | null => {
   const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
-  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent" || from === "last-data" || from === "last-reply") return null;
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "pong-sent" || from === "first-sent" || from === "last-data" || from === "last-reply") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     from === "last-received"
@@ -707,6 +712,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     if (from === "fault") return run.fault?.t0;
     if (from === "client-start") return (events.find((event) => event.ev === "connecting") ?? events[0])?.t;
     if (from === "ping-sent") return firstUnanswered(pings, socket, ended)?.at;
+    // the last pong before the fault starts the wait of the program for the next ping
+    if (from === "pong-sent") return pongsOf(lines, socket, named, paired).filter((pong) => pong.at <= before).at(-1)?.at;
     const record: KernelRecord | undefined =
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
@@ -1010,7 +1017,14 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       ? { left: closed, exited: undefined }
       : closeOrExit(drop.line, closed, exitOf(run, cookie), noiseOf(cell));
   const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, paired, exited);
-  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how].filter((each) => each !== null);
+  // the stream that crossed the fault, against its law: the events lost, the copies and `recovered`
+  const stream = prediction.delivery === undefined ? undefined : streamOf(cell);
+  const delivery = stream === undefined ? undefined : deliveryOf(run, stream);
+  const delivered =
+    prediction.delivery === undefined || stream === undefined || delivery === undefined
+      ? null
+      : deliveryFinding(prediction.delivery, stream, delivery);
+  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how, delivered].filter((each) => each !== null);
   const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
   // timers of its socket do not drive the measurement
@@ -1041,10 +1055,17 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   if (slow !== undefined)
     voided ??= `a listing of the router took ${Math.round(Number(slow["took"]) * 1e4) / 10} ms, longer than the bound of its prediction`;
   // a toxic starts somewhere in the commit of its request. A commit longer than the noise of the
-  // pipeline leaves its start unknown within δ_abs
-  const commit = run.fault === null ? 0 : (run.fault.t1 - run.fault.t0) / 1e6;
-  if (prediction.from === "fault" && commit > valueIn(INJECT, "ms"))
-    voided ??= `the commit of the fault took ${Math.round(commit * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+  // pipeline leaves its start unknown: the run is void when that can change the read of its band
+  const elapsed = between(reference, ended);
+  if (prediction.from === "fault" && run.fault !== null) {
+    const noise = valueIn(noiseOf(cell), "s");
+    const commit = quantity((run.fault.t1 - run.fault.t0) / 1e9, "s");
+    const times =
+      prediction.detects === true
+        ? [{ at: elapsed, low: quantity(valueIn(prediction.low, "s") - noise, "s"), high: quantity(valueIn(prediction.high, "s") + noise, "s") }]
+        : [];
+    voided ??= commitVoid(commit, times);
+  }
   // the view of the program of a heartbeat: from the line of its first ping without an answer to
   // the line of its drop, or to the line of the error that it saw
   const unanswered = prediction.from === "ping-sent" ? firstUnanswered(pings, socket, ended) : undefined;
@@ -1061,11 +1082,12 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     ...base,
     ...chain,
     outcome,
-    elapsed: between(reference, ended),
+    elapsed,
     socket: view,
     noticed,
     steps,
     ...(reconnect === undefined ? {} : { reconnect }),
+    ...(delivery === undefined ? {} : { delivery }),
     ...(left === undefined ? {} : { left }),
     ...(exited === undefined ? {} : { exited }),
     ...(cell.probe.ws !== undefined && inflight ? { call: callOf(events, request, ended) } : {}),

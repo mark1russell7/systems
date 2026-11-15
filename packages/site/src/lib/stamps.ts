@@ -14,7 +14,7 @@ const LAB_KERNEL = "6.6";
 const LAB_TARGET = "7.4";
 
 /** One data file of a page. */
-interface Source {
+export interface Source {
   readonly file: string;
   /** The words that the page shows in place of `run`. */
   readonly method: string;
@@ -100,6 +100,7 @@ const KIND_FIRST = "kind-2026-10-18.json";
 export const NOT_STAMPED: Readonly<Record<string, string>> = {
   "results/recovery": "A scheduled run replaces its data each Sunday, and its first scheduled run is on 2026-11-08. The limit of this page follows that run.",
   "results/ci": "The ledger counts the runs of the workflows, and it names no engine. The page says the period of its runs.",
+  "results/refresh": "The page gives the schedule of the refresh of the studies, and it names no engine.",
 };
 
 /** This function gives each name with its version in a text, for example `redis:7.4` or `grpc-go v1.84.0`. */
@@ -122,6 +123,8 @@ interface StudyData {
   readonly kernel?: string;
   readonly kubernetes?: string;
   readonly kind?: string;
+  /** The commit of the code that operated. An export writes it from the records, and a copy of old records has none. */
+  readonly commit?: string;
 }
 
 /**
@@ -153,8 +156,8 @@ export function dateInName(name: string): string {
 
 const read = (folder: string, name: string): StudyData => JSON.parse(readFileSync(join(folder, name), "utf8")) as StudyData;
 
-/** This function gives the run of one data file. */
-function runOf(folder: string, source: Source): DataRun {
+/** This function gives the run of one data file, with the commit of its code if the file names it. */
+export function runOf(folder: string, source: Source): DataRun {
   const data = read(folder, source.file);
   return {
     id: source.file,
@@ -162,6 +165,7 @@ function runOf(folder: string, source: Source): DataRun {
     date: data.ranAt ?? data.date ?? dateInName(source.file),
     engines: { ...enginesOf(data), ...source.engines },
     method: source.method,
+    ...(data.commit === undefined ? {} : { commit: data.commit }),
   };
 }
 

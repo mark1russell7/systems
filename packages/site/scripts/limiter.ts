@@ -20,7 +20,7 @@ import type { PairedLine, PairMeasure, PairSlot } from "../../cells/src/limiter.
 import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairedTimeOf, pairOf } from "../../cells/src/limiter.ts";
 import type { CellRecord, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
-import { dateOf, readFolders, round, stringify } from "./records.ts";
+import { commitOf, dateOf, readFolders, round, stringify } from "./records.ts";
 
 /** These options of timeVerdict are the defaults of rigor-bench, written out so that the copy names them. */
 export const OPTIONS = { rule: "difference", margin: 0.05 } as const;
@@ -124,6 +124,7 @@ const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness, and the time verdict of rigor-bench of each measure",
   workflow: run,
   date,
+  ...commitOf(records),
   pair: { control, candidate },
   only: selection,
   shards: folders.length,

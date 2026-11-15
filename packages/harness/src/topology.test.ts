@@ -197,6 +197,20 @@ describe("a run in a topology, measured from the records of each namespace", () 
     expect(at(13.3e6).void).toBe("the commit of the fault took 13.3 ms, longer than the noise of the pipeline: its start is not known");
   });
 
+  it("keeps a run with a long commit when no start in the commit moves its time across an edge of the band", () => {
+    const wide: Cell = {
+      ...ROUTER,
+      fault: "toxic",
+      prediction: { detects: true, timer: "toxic timeout", errno: "EOF", from: "fault", low: s(1), high: s(3) },
+    };
+    const kernel = [k("rx", T - 50_000), k("state", T + 2_101_500_000, { old: 1, new: 8 })];
+    const at = (commit: number) =>
+      measure(wide, run({ kernel, events: [...events, { ev: "eof", t: T + 2_101_600_000 }], fault: { t0: T + 100e6, t1: T + 100e6 + commit } }));
+    expect(at(13.3e6)).toMatchObject({ outcome: { kind: "eof" }, elapsed: s(2.0015), void: null });
+    // a commit of 1.5 s can start the fault at 0.5015 s before the end, below the low edge of 1 s
+    expect(at(1.5e9).void).toBe("the commit of the fault took 1500 ms, longer than the noise of the pipeline: its start is not known");
+  });
+
   it("measures a cell with no band from its reference, and judges no warm-up run", () => {
     const only: Cell = {
       ...ROUTER,

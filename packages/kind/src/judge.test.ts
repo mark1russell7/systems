@@ -394,7 +394,7 @@ describe("the entry ./judge", () => {
   it("loads no Docker, no Testcontainers, no child process and no node: module", () => {
     const { files, packages } = reach("judge.ts");
     expect(files).toEqual(["bands.ts", "judge.ts", "names.ts", "observe.ts", "reconnects.ts", "record.ts", "report.ts", "schema.ts", "stats.ts", "verdict.ts"]);
-    expect(packages).toEqual(["@mark1russell7/quantity", "@mark1russell7/quantity/schema", "@mark1russell7/rigor-statistics", "zod"]);
+    expect(packages).toEqual(["@mark1russell7/quantity", "@mark1russell7/quantity/schema", "@mark1russell7/rigor-statistics", "@mark1russell7/service/backoff", "zod"]);
   });
 
   it("loads none of them in a new process either", () => {

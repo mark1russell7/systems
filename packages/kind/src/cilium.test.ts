@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CILIUM_CHART, CILIUM_IMAGES, CILIUM_VERSION, ciliumMode, ciliumValues, ensureChart } from "./cilium.ts";
+import { CILIUM_CHART, CILIUM_IMAGES, CILIUM_VERSION, ciliumMode, ciliumValues } from "./cilium.ts";
+import { ensurePinnedChart } from "./helm.ts";
 
 describe("the install of Cilium", () => {
   it("pins the chart and each image of 1.20.4 by sha256", () => {
@@ -34,10 +35,13 @@ describe("the install of Cilium", () => {
     );
   });
 
-  it("uses a cached chart only when its sha256 is the pinned one", async () => {
+  it("uses a cached chart only when its sha256 is the pinned one, and downloads another chart again", async () => {
     const cache = mkdtempSync(join(tmpdir(), "kind-charts-"));
     mkdirSync(join(cache, "charts"), { recursive: true });
     writeFileSync(join(cache, "charts", `cilium-${CILIUM_VERSION}.tgz`), "another chart");
-    await expect(ensureChart(cache)).rejects.toThrow(/not the pinned/);
+    const urls: string[] = [];
+    const get = async (url: string): Promise<Uint8Array> => (urls.push(url), new TextEncoder().encode("a third chart"));
+    await expect(ensurePinnedChart(CILIUM_CHART, cache, get)).rejects.toThrow(/not the pinned/);
+    expect(urls).toEqual([CILIUM_CHART.url]);
   });
 });

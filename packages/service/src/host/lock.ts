@@ -1,3 +1,4 @@
+import { delay } from "@mark1russell7/algebra/clock";
 import type { HostPorts, ProcessMark } from "./ports.ts";
 import { sameProcess } from "./processes.ts";
 
@@ -79,14 +80,12 @@ export const lockText = (owner: LockOwner): string => `${JSON.stringify(owner)}\
 const ownerAlive = async (owner: LockOwner, ports: HostPorts): Promise<boolean> =>
   (await sameProcess(owner, ports)) || (owner.child !== undefined && (await sameProcess(owner.child, ports)));
 
-const sleep = (ports: HostPorts, ms: number): Promise<void> => new Promise((resolve) => ports.clock.after(ms, resolve));
-
 /**
- * This function removes a lock file only when it has this text. The removal holds the removal lock
- * `<path>.rm` for its read and its delete. Thus two processes that find the same stale lock do not
- * remove each other's new lock. A removal lock whose owner stopped goes first.
+ * This function removes a file only when it has this text: a lock file or a discovery file. The
+ * removal holds the removal lock `<path>.rm` for its read and its delete. Thus two processes that find
+ * the same stale file do not remove each other's new file. A removal lock whose owner stopped goes first.
  */
-const removeIfSame = async (path: string, text: string, ports: HostPorts): Promise<boolean> => {
+export const removeIfSame = async (path: string, text: string, ports: HostPorts): Promise<boolean> => {
   const removal = `${path}.rm`;
   const mine = lockText({ pid: ports.self.pid, startedAt: ports.self.startedAt });
   if (!(await ports.files.create(removal, mine))) {
@@ -145,7 +144,7 @@ export const acquireInstanceLock = async (path: string, ports: HostPorts, option
       if (other === null) {
         malformed += 1;
         if (malformed < tries) {
-          await sleep(ports, pause);
+          await delay(ports.clock, pause);
           continue;
         }
         if (await removeIfSame(path, found, ports)) recovered = "the lock file was not a lock record";

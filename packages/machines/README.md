@@ -38,6 +38,8 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `GO_TRANSPORT` | `go-nethttp-transport` | One connection of the `http.Transport` of Go 1.27.2 | driver | 7 implemented |
 | `PROCEDURES_WS_CLIENT` | `procedures-ws-client` | The WebSocket client of `@procedures/client` 0.22.0 (client 2408cea) | driver | 9 implemented, 1 documented |
 | `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.22.0 (client 2408cea) | server | 5 implemented |
+| `SOCKETIO_CLIENT` | `socketio-client` | The connection of the `Manager` of socket.io-client 4.8.4, on engine.io-client 6.6.7 and ws 8.21.3 | driver | 8 implemented |
+| `SOCKETIO_SERVER` | `socketio-server` | One connection of the `Server` of socket.io 4.8.4, on engine.io 6.6.11 and ws 8.21.3 | server | 6 implemented |
 | `MONGODB_NODE` | `mongodb-node` | The MongoDB Node driver 7.7.0, for one server of a replica set | driver | 19 implemented |
 | `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |

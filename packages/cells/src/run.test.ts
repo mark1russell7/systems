@@ -5,7 +5,7 @@ import { cloudOf, measure, noiseOf, pairingsOf, readHost, recordProblems, runCel
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
-import { catalogs, selectedOf } from "./all.ts";
+import { catalogs, selectedOf, selectionOf } from "./all.ts";
 import { codeHere } from "./commit.ts";
 import { environmentOf } from "./environments.ts";
 import type { BenchTime, PairCell, PairSlot } from "./limiter.ts";
@@ -13,7 +13,8 @@ import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./
 
 /**
  * The runner of the catalog. It starts only with CELLS=1, because it needs Docker and privileged
- * containers. CELLS_ONLY selects the cells whose names match a regular expression. CELLS_SHARD=i/n
+ * containers. CELLS_ONLY selects the cells whose names match a regular expression. CELLS_SELECTION
+ * selects them by the name of a scheduled selection (`SCHEDULED_CELLS`), for example `refresh-2`. CELLS_SHARD=i/n
  * takes every n-th cell from the i-th, so that two processes can share the catalog. Each cell
  * writes its raw record (the cell, the manifests and every run with its kernel records) to
  * CELLS_OUT, in the format that the private repository lands. It also writes one line of its verdict to
@@ -30,7 +31,7 @@ import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./
  * Each raw record of a pair cell has its slot. paired.ndjson gets the PairedTime lines of rigor-bench.
  */
 const RUN = process.env["CELLS"] === "1";
-const ONLY = new RegExp(process.env["CELLS_ONLY"] ?? ".");
+const ONLY = selectionOf(process.env["CELLS_SELECTION"] || undefined, process.env["CELLS_ONLY"] || undefined);
 const [shard, of] = (process.env["CELLS_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 const OUT = process.env["CELLS_OUT"] ?? fileURLToPath(new URL("../out/", import.meta.url));
 const FILE = process.env["CELLS_FILE"] || undefined;

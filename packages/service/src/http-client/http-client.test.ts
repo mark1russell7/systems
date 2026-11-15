@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "../index.ts";
 import { replay, service } from "../index.ts";
 import { fakeClock } from "../testing.ts";
-import type { HttpClientKnobs, HttpClientSpec } from "../http-client.ts";
+import type { CallContext } from "../call-context.ts";
+import type { HttpClientKnobs, HttpClientOptions, HttpClientSpec } from "../http-client.ts";
 import {
   HTTP_CLIENT_MACHINE,
   HTTP_CLIENT_STARTING_KNOBS,
@@ -51,18 +52,18 @@ const spec = (knobs: Partial<HttpClientKnobs> = {}, more: Partial<HttpClientSpec
 });
 
 /** a client on a fake server and a fake clock, and its events */
-const made = (knobs: Partial<HttpClientKnobs> = {}, more: Partial<HttpClientSpec> = {}) => {
+const made = (knobs: Partial<HttpClientKnobs> = {}, more: Partial<HttpClientSpec> = {}, extra: Partial<HttpClientOptions> = {}) => {
   const clock = fakeClock(1000);
   const events: LifecycleEvent[] = [];
   const server = fakeServer(clock);
-  const client = httpClient("api", spec(knobs, more), { clock, record: (event) => events.push(event), dial: async () => {}, create: server.create });
+  const client = httpClient("api", spec(knobs, more), { clock, record: (event) => events.push(event), dial: async () => {}, create: server.create, ...extra });
   const on = (name: string) => events.filter((event) => event.on === name);
   return { clock, client, events, server, on };
 };
 
 /** a connected client: the check request of the connect opened the first socket, and it is free */
-const connected = async (knobs: Partial<HttpClientKnobs> = {}, more: Partial<HttpClientSpec> = {}) => {
-  const all = made(knobs, more);
+const connected = async (knobs: Partial<HttpClientKnobs> = {}, more: Partial<HttpClientSpec> = {}, extra: Partial<HttpClientOptions> = {}) => {
+  const all = made(knobs, more, extra);
   await all.client.handle.connect(new AbortController().signal);
   return all;
 };
@@ -529,5 +530,36 @@ describe("the agent of Node on a loopback server: the driver that the entry load
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+});
+
+/** This call context gives fixed headers, and counts its reads. */
+const fixedContext = (headers: Record<string, string>) => {
+  let reads = 0;
+  const callContext: CallContext = {
+    run: (_headers, _trusted, fn) => fn(),
+    headers: () => {
+      reads += 1;
+      return { ...headers };
+    },
+  };
+  return { callContext, reads: () => reads };
+};
+
+describe("the call context: each request gets the headers of the context of its caller (C11)", () => {
+  it("adds the headers of the call context, and a header of the call stays", async () => {
+    const { callContext, reads } = fixedContext({ traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", "x-id": "context" });
+    const { client, server } = await connected({}, {}, { callContext });
+    const before = reads();
+    expect(await client.request({ method: "GET", path: "/a", headers: { "x-id": "call" } })).toMatchObject({ outcome: "ok" });
+    expect(server.calls.at(-1)?.headers).toEqual({ traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", "x-id": "call" });
+    // one read for each call, so each try of the call sends the same headers
+    expect(reads() - before).toBe(1);
+  });
+
+  it("sends the headers of the call only, without a call context", async () => {
+    const { client, server } = await connected();
+    await client.request({ method: "GET", path: "/a", headers: { "x-id": "call" } });
+    expect(server.calls.at(-1)?.headers).toEqual({ "x-id": "call" });
   });
 });

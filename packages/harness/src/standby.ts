@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, KernelRecord, Pair, Run } from "./cell.ts";
 import { targetImageOf } from "./image.ts";
@@ -33,8 +34,6 @@ const STOP_MS = 5_000;
 export const STANDBY_READY: string = "database system is ready to accept read-only connections";
 /** This text is the write of the client, with its sequence number. */
 export const INSERT: string = `INSERT INTO ${TABLE} VALUES ($n)`;
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** This function gives the argv of one statement in psql, on the server in the same container. */
 export const psql = (statement: string): string[] => ["psql", "-h", "127.0.0.1", "-U", "postgres", "-At", "-c", statement];

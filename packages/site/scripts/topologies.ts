@@ -19,6 +19,7 @@ import { median } from "@mark1russell7/rigor-statistics";
 import type { Cell, FaultPlace, Hop, Manifest, Measured, ProxyHop, Run, Verdict } from "../../harness/src/index.ts";
 import { judge, measure, NOISE } from "../../harness/src/index.ts";
 import { duration } from "../src/lib/format.ts";
+import { commitOf } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -444,6 +445,7 @@ const date = records.map((record) => record.at.ended.slice(0, 10)).sort().at(-1)
 const copy = {
   source: "the prober's eBPF records, judged again by the final measure of the harness. A re-run follows the first run of its cell",
   ranAt: date,
+  ...commitOf(records),
   units: "s",
   noise: Number(only("the noise", records.map((record) => String(secondsOf(record.cell.noise ?? NOISE))))),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),

@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import type * as Testcontainers from "testcontainers";
@@ -63,14 +64,13 @@ const OUTPUT_LINES = 2000;
 /** This time is how long a write of a hop waits for the line that confirms it, in milliseconds. */
 const CONFIRM_MS = 10_000;
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both
  * directions, or one), or a reset on the next segment. It can also be an ICMP unreachable for each
- * segment, or a drop of each segment that is longer than a length.
+ * segment, or a drop of each segment that is longer than a length. It can also be a drop of the
+ * first ACK of each FIN that the namespace sends.
  */
-export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu";
+export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack";
 
 /** These are the options of a network fault: the direction of a black hole, the code of a reject, the length of an MTU drop. */
 export interface FaultOptions {
@@ -96,6 +96,7 @@ export const LIFT: Readonly<Record<NetworkFault, string>> = {
   rst: "clear-rst",
   reject: "clear-reject",
   mtu: "clear-mtu",
+  "fin-ack": "clear-fin-ack",
 };
 
 /**

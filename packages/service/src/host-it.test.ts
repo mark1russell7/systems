@@ -246,6 +246,29 @@ describe.skipIf(!RUN)("the host entry on the real ports of Node (SYS-47)", () =>
         await Promise.all([close(server), close(silent)]);
       }
     }, 60_000);
+
+    it("gives the status and the text of an answer, stops at the limit, and gives null at a timeout", async () => {
+      const server = createHttpServer((request, response) => {
+        if (request.url === "/big") response.writeHead(200).end("x".repeat(100_000));
+        else response.writeHead(503, { "content-type": "application/json" }).end('{"now":1}');
+      });
+      const silent = createHttpServer(() => {});
+      const port = await listen(server);
+      const silentPort = await listen(silent);
+      const closed = await freePort();
+      try {
+        expect(await ports.net.httpText?.(`http://127.0.0.1:${port}/`, 5000, 1000)).toEqual({ status: 503, body: '{"now":1}', complete: true });
+        const big = await ports.net.httpText?.(`http://127.0.0.1:${port}/big`, 5000, 1000);
+        expect(big).toMatchObject({ status: 200, complete: false });
+        expect(big?.body.length).toBe(1000);
+        expect(await ports.net.httpText?.(`http://127.0.0.1:${closed}/`, 5000, 1000)).toBeNull();
+        expect(await ports.net.httpText?.(`http://127.0.0.1:${silentPort}/`, 1000, 1000)).toBeNull();
+      } finally {
+        server.closeAllConnections();
+        silent.closeAllConnections();
+        await Promise.all([close(server), close(silent)]);
+      }
+    }, 60_000);
   });
 
   describe("the instance lock and the discovery file", () => {
@@ -359,6 +382,12 @@ describe.skipIf(!RUN)("the host entry on the real ports of Node (SYS-47)", () =>
         expect(found.kind, JSON.stringify(found)).toBe("running");
         if (found.kind === "running") expect(found.record).toMatchObject({ pid: firstA, port, url });
         expect((await inspectInstanceLock(join(stateDir, "a.lock"), host)).kind).toBe("held");
+        // b has no ready probe, thus it is ready at its spawn, before its request to a. Wait for its
+        // start line, or the stop of a below can come before that request.
+        const bLogPath = join(stateDir, "logs", "b.log");
+        const bStarted = async () => (await readFile(bLogPath, "utf8").catch(() => "")).includes(`b start ${firstB} `);
+        await waitFor(bStarted, async () => `the start line of b (${JSON.stringify(await readFile(bLogPath, "utf8").catch(() => ""))})`);
+        expect(await readFile(bLogPath, "utf8")).toContain(`b start ${firstB} a=200 greeting=hello`);
 
         expect(host.processes.signal(firstA, "SIGKILL")).toBe(true);
         await waitFor(

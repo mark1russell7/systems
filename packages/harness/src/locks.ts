@@ -111,10 +111,31 @@ export const goVersions = (mod: string): Record<string, string> => {
 export const jarVersions = (list: string): Record<string, string> => {
   const found: Record<string, string> = {};
   for (const line of list.split(/\r?\n/)) {
-    const match = /^[0-9a-f]{64}\s+\*?(.+?)-(\d[^-]*(?:-[A-Za-z0-9.]+)?)\.jar$/.exec(line.trim());
-    if (match !== null) found[match[1]!] = match[2]!;
+    const jar = jarOf(line.trim());
+    if (jar !== undefined) found[jar[0]] = jar[1];
   }
   return found;
+};
+
+/** The version of a jar: a digit first, no hyphen, then one optional suffix after a hyphen (`2.0.17`, `1.4-beta.1`). */
+const JAR_VERSION = /^\d[^-]*(?:-[A-Za-z0-9.]+)?$/;
+
+/**
+ * This function gives the name and the version of one line `<hex>  <name>-<version>.jar`, or undefined. The name is the
+ * shortest that leaves a version. The work is with string positions: one regular expression with `\s+` and a lazy
+ * name took polynomial time on a line with many spaces (code scanning alert 16).
+ */
+const jarOf = (line: string): readonly [string, string] | undefined => {
+  if (!/^[0-9a-f]{64}$/.test(line.slice(0, 64))) return undefined;
+  const after = line.slice(64);
+  const file = after.trimStart();
+  if (file.length === after.length || !file.endsWith(".jar")) return undefined;
+  const stem = (file.startsWith("*") ? file.slice(1) : file).slice(0, -".jar".length);
+  for (let at = stem.indexOf("-", 1); at > 0; at = stem.indexOf("-", at + 1)) {
+    const version = stem.slice(at + 1);
+    if (JAR_VERSION.test(version)) return [stem.slice(0, at), version];
+  }
+  return undefined;
 };
 
 /**

@@ -16,7 +16,7 @@ import type { Cell, RequestPrediction } from "../../harness/src/index.ts";
 import { NOISE } from "../../harness/src/index.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { FROM, nameOf, read, resultOf } from "./judged.ts";
-import { dateOf, noiseOf, ofCatalog, only, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
+import { commitOf, dateOf, noiseOf, ofCatalog, only, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -157,6 +157,7 @@ const date = dateOf(records.map((record) => record.at.ended));
 const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
   ranAt: date,
+  ...commitOf(records),
   units: "s",
   noise: noiseOf(records.map((record) => record.cell), NOISE),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),

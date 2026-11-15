@@ -2,73 +2,12 @@
 // gives the same jitter on each run, and a fake process takes signals and keeps the exit codes.
 
 import { mulberry32 } from "@mark1russell7/rigor-generators";
-import type { Cancel, Clock } from "./clock.ts";
+import type { Clock } from "./clock.ts";
 import type { ExitSignal, ExitTrigger, ProcessPort, UncaughtOrigin } from "./process.ts";
 
-/** A fake clock moves only when a test tells it to. */
-export interface FakeClock extends Clock {
-  /** This method moves the clock forward by `ms`, and it starts each timer that comes due, in sequence. */
-  advance(ms: number): Promise<void>;
-  /**
-   * This method moves the clock forward by `ms` and starts no timer, as a blocked event loop does.
-   * The next `advance` then starts each timer that came due during the block, late.
-   */
-  block(ms: number): void;
-  /** This count is the number of timers that are not stopped and not called. */
-  readonly pending: number;
-}
-
-/** This function lets the promises that are ready continue, before the clock moves again. */
-const settle = async (): Promise<void> => {
-  for (let turn = 0; turn < 64; turn += 1) await Promise.resolve();
-};
-
-/** This function makes a fake clock. Its time starts at `start` milliseconds. */
-export const fakeClock = (start = 0): FakeClock => {
-  let now = start;
-  let sequence = 0;
-  const timers: Array<{ at: number; order: number; run: () => void; live: boolean }> = [];
-  const due = (end: number) => {
-    let best: (typeof timers)[number] | undefined;
-    for (const timer of timers)
-      if (timer.live && timer.at <= end && (best === undefined || timer.at < best.at || (timer.at === best.at && timer.order < best.order)))
-        best = timer;
-    return best;
-  };
-  return {
-    now: () => now,
-    after(ms, run): Cancel {
-      const timer = { at: now + Math.max(0, ms), order: sequence++, run, live: true };
-      timers.push(timer);
-      return () => {
-        timer.live = false;
-      };
-    },
-    async advance(ms) {
-      // a monotonic clock does not go back
-      const end = now + Math.max(0, ms);
-      await settle();
-      for (;;) {
-        const timer = due(end);
-        if (timer === undefined) break;
-        timer.live = false;
-        // a timer that came due during a block runs late, at the time of the clock
-        now = Math.max(now, timer.at);
-        timer.run();
-        await settle();
-      }
-      now = Math.max(now, end);
-      for (let at = timers.length - 1; at >= 0; at -= 1) if (!timers[at]!.live) timers.splice(at, 1);
-      await settle();
-    },
-    block(ms) {
-      now += Math.max(0, ms);
-    },
-    get pending() {
-      return timers.filter((timer) => timer.live).length;
-    },
-  };
-};
+// the fake clock lives beside the clock, in @mark1russell7/algebra/clock
+export type { FakeClock } from "@mark1russell7/algebra/clock";
+export { fakeClock } from "@mark1russell7/algebra/clock";
 
 /** A fake process receives triggers from a test, and keeps each exit code in place of an exit. */
 export interface FakeProcess extends ProcessPort {

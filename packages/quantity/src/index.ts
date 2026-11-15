@@ -1,7 +1,7 @@
 // @mark1russell7/quantity: amounts in typed units, and exact arithmetic on them.
 //
-// A unit resolves from its spelling into an exponent vector over six bases (time, length, mass,
-// temperature, data, money), an exact rational factor, and what it counts. A kind names a
+// A unit resolves from its spelling into an exponent vector over seven bases (time, length, mass,
+// temperature, data, money, current), an exact rational factor, and what it counts. A kind names a
 // dimension that a schema can ask for. Conversions are exact for decimal inputs, so money adds to
 // the cent and 7875 s is exactly 131.25 min.
 //
@@ -47,5 +47,5 @@ export {
   valueIn,
   whyNotConvertible,
 } from "./quantity.ts";
-export type { FormatOptions } from "./format.ts";
-export { format, formatDuration, formatUnit } from "./format.ts";
+export type { FormatOptions, Scale, ScaleCompound, ScaleStep } from "./format.ts";
+export { BYTES_1000, BYTES_1024, DURATION_MS, format, formatDuration, formatOnScale, formatUnit } from "./format.ts";

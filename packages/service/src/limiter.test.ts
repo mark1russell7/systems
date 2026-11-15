@@ -224,7 +224,7 @@ describe("the limiter reads the injected monotonic clock, never the wall clock",
     vi.spyOn(Date, "now").mockReturnValue(wall + 2 * 60_000);
     const decision = await limiter.take("t");
     expect(decision.allowed).toBe(false);
-    if (!decision.allowed) expect(decision.retryAfter.value).toBeGreaterThan(59_000);
+    if (!decision.allowed && decision.cause !== "capacity") expect(decision.retryAfter.value).toBeGreaterThan(59_000);
   });
 });
 
@@ -409,7 +409,7 @@ describe("the store is an interface: a shared store, or one store for each repli
     const decisions = [];
     for (let take = 0; take < 6; take += 1) decisions.push((await replicas[take % 2]!.take("t")).allowed);
     expect(decisions).toEqual([true, true, true, false, false, false]);
-    expect(store.requests[0]).toEqual({ limiter: "writes", key: "t", rule: { type: "sliding-window", limit: 3, window: 60_000 }, maxKeys: 100 });
+    expect(store.requests[0]).toEqual({ limiter: "writes", key: "t", rule: { type: "sliding-window", limit: 3, window: 60_000 }, maxKeys: 100, units: 1 });
   });
 
   it("lets each take in when the shared store fails and the spec declares open", async () => {

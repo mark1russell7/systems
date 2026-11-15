@@ -10,8 +10,9 @@ Amounts in typed units, with exact arithmetic. A `Quantity` is `{ value, unit }`
 
 ## What the package does
 
-- **Dimensions.** A dimension is an exponent vector over six bases: time, length, mass, temperature, data and money. Counts and ratios have no dimension, as in SI. Thus a duration times a count is still a duration.
+- **Dimensions.** A dimension is an exponent vector over seven bases: time, length, mass, temperature, data, money and electric current. Counts and ratios have no dimension, as in SI. Thus a duration times a count is still a duration.
 - **Kinds.** A kind names a dimension that a schema can ask for, for example `time`, `money`, `data-rate` and `transfer-rate`. A value of 8 GT/s is a transfer rate, not a clock.
+- **Electricity.** The kinds `current` (`A`), `voltage` (`V`), `charge` (`Ah`) and `resistance` (`ohm`) measure a circuit. A volt times an ampere is a watt, exactly. The kind `energy-price` is a price of energy, for example `USD/kWh`.
 - **Units.** The grammar of a unit is similar to UCUM, with easy symbols: `h`, `min`, `tbsp`, `fl oz`, `kcal/(h·kg)`. A unit has one `/` at most, and all that follows it divides.
 - **Annotations.** An annotation names what a unit counts: `{rep}` counts reps, and `%{1RM}` is a percentage of a one-rep max. A conversion joins only units that count the same thing: bpm is not Hz, and `{rep}` is not `count`.
 - **Exact conversions.** Each factor is a rational over bigint (`units.ts`). Thus a decimal input converts exactly, and money adds to the cent. `toNanoseconds` gives a whole number of nanoseconds, or it refuses the value. A jiffy depends on the HZ of the kernel, and the package does not guess it.
@@ -19,6 +20,7 @@ Amounts in typed units, with exact arithmetic. A `Quantity` is `{ value, unit }`
 - **Canonical spellings.** `unitSchema` and `quantitySchema` refuse an alias, and they give the spelling to write ("write h, not hr"). `canonicalUnit` reads the spellings of other systems, for example `kcal/hr·kg`, `mi/hr` and `dBASPL`.
 - **No limit, and unknown.** A value with no limit is `{ "value": "infinite", "unit": "s" }` (`extentSchema`). A value that nobody can give has its reason (`unknownSchema`). A sound level averages by its energy (`mean`).
 - **One way to print.** `format` and `formatDuration` print each amount: `$1,234.56`, `72°F`, `8 mph`, `12 reps`, `1 h 30 min`.
+- **Scales.** `formatOnScale` prints an amount in the unit of a scale that fits it: `1.5 KiB`, `3.5 ms`, `2 min 5 s`. A scale is data. `BYTES_1024`, `BYTES_1000` and `DURATION_MS` are three scales. The text shows the symbol of each unit, so 1024 bytes print as `KiB`, and `KB` is 1000 bytes.
 
 `isQuantitySchema` tells if a schema is the schema of a quantity. A generator of SQL can then give the value and the unit a column each.
 

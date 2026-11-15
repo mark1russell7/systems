@@ -1,4 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
+import { convertible, valueIn } from "@mark1russell7/quantity";
+import type { CallContext } from "../call-context.ts";
 import type { IncomingMessage, Server, ServerEventMap, ServerResponse } from "node:http";
 import type { Http2Server, Http2ServerResponse, Http2Session } from "node:http2";
 import type { ListenOptions, Socket } from "node:net";
@@ -30,6 +32,13 @@ export interface HttpKnobs {
   readonly server_idle_sweep_interval: Extent;
   /** This time goes in the `Retry-After` of each 503 that the transport gives after its intake stops. */
   readonly server_retry_after: Quantity;
+  /**
+   * This count is the backlog of listen(2), the limit of the accept queue that the server asks for (SYS-103). The
+   * kernel clamps it to `net.core.somaxconn`, and a full queue holds the limit plus one (SYS-63). Without this
+   * knob, the transport gives no backlog, and Node asks for 511. The knob needs the listen options of the transport.
+   * The knob is 1 or more: Node gives listen(2) 511 for a backlog of 0 (`lib/net.js` of Node 24.21.0, line 2325).
+   */
+  readonly server_listen_backlog?: Quantity;
   /** The other knobs of the server go to the declaration. The transport does not read them. */
   readonly [knob: string]: Extent;
 }
@@ -122,6 +131,16 @@ export interface HttpTransportOptions<S extends EdgeServer = Server> {
   readonly keepAlive?: (() => boolean) | undefined;
   /** This function receives each error of a handler. The transport then answers 500, or it destroys the response. */
   readonly onError?: ((error: unknown, req: IncomingMessage) => void) | undefined;
+  /**
+   * With this call context, each handler runs in the context of the headers of its request. The context
+   * has the trace of `traceparent`, and the baggage of a trusted request. `callContext` of the entry `/otel` gives one.
+   */
+  readonly callContext?: CallContext | undefined;
+  /**
+   * This function tells if the baggage of a request is trusted, for example after a token check. The
+   * default trusts no request: each request joins the trace of its caller, and its baggage is dropped.
+   */
+  readonly trustBaggage?: ((req: IncomingMessage) => boolean) | undefined;
 }
 
 /** An HTTP transport is a server of `node:http` or `node:http2` as a transport of the lifecycle, with a list of mounts on its listener. */
@@ -176,6 +195,23 @@ export const retryAfterOf = (knobs: Readonly<Record<string, Extent | undefined>>
   const retryAfter = millisecondsOf(knobs, "server_retry_after", owner);
   if (!Number.isFinite(retryAfter)) throw new Error("the knob server_retry_after has no bound: a Retry-After needs a time");
   return String(Math.ceil(retryAfter / 1000));
+};
+
+/**
+ * This function gives the backlog of listen(2) from the knob `server_listen_backlog`, or undefined without the
+ * knob. The backlog is a whole count of 0 or more. A backlog of 0 is valid: the queue then holds one connection.
+ */
+export const backlogOf = (knobs: Readonly<Record<string, Extent | undefined>>, owner: string): number | undefined => {
+  const amount = knobs["server_listen_backlog"];
+  if (amount === undefined) return undefined;
+  if (!convertible(amount.unit, "count")) throw new Error("the knob server_listen_backlog is not a count");
+  if (amount.value === "infinite") throw new Error(`the knob server_listen_backlog of ${owner} has no bound: listen(2) takes a whole count`);
+  const value = valueIn(amount, "count");
+  if (!(Number.isInteger(value) && value >= 0)) throw new Error(`the knob server_listen_backlog is ${value}, not a whole count of 0 or more`);
+  // Node calls listen(2) with `backlog || 511` (lib/net.js of Node 24.21.0, line 2325), thus a backlog of 0 is 511
+  if (value === 0)
+    throw new Error(`the knob server_listen_backlog of ${owner} is 0, and Node gives listen(2) 511 for 0: the transport cannot ask for 0`);
+  return value;
 };
 
 /** This function tells if the headers of a call of `writeHead` name a header, an object or a flat list of names and values. */
@@ -273,6 +309,11 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
   if (sweepEvery === 0)
     throw new Error("the knob server_idle_sweep_interval is zero: a sweep needs an interval above zero");
   const retryAfterHeader = retryAfterOf(knobs, "httpTransport");
+  const backlog = backlogOf(knobs, "httpTransport");
+  if (backlog !== undefined && (options.listen === undefined || typeof options.listen === "function"))
+    throw new Error("the knob server_listen_backlog needs the listen options of the transport: the transport does not make this server listen");
+  if (backlog !== undefined && typeof options.listen === "object" && options.listen.backlog !== undefined)
+    throw new Error("the backlog is in the knob server_listen_backlog and in the listen options: give it once, as the knob");
   for (const derived of ["server_idle_close_hint", "server_idle_close_buffer"])
     if ((knobs as Readonly<Record<string, Extent | undefined>>)[derived] !== undefined)
       throw new Error(`the knob ${derived} comes from the transport: give only server_idle_close`);
@@ -455,6 +496,11 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
     else refuse(res);
   };
 
+  // each handler runs in the context of the headers of its request, when the options give a call context
+  const callContext = options.callContext;
+  const trustBaggage = options.trustBaggage ?? (() => false);
+  const inCall = <T>(req: IncomingMessage, fn: () => T): T => (callContext === undefined ? fn() : callContext.run(req.headers, trustBaggage(req), fn));
+
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     responses.add(res);
     // the bytes of an answer went: a drain after its deadline can end
@@ -464,7 +510,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       settled();
     });
     watchHeaders(res);
-    void route(req, res);
+    void inCall(req, () => route(req, res));
   };
 
   const onUpgrade = (req: IncomingMessage, socket: UpgradeSocket, head: UpgradeArgs[2]): void => {
@@ -483,7 +529,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       settled();
     });
     try {
-      mount.handler(req, socket, head, context);
+      inCall(req, () => mount.handler(req, socket, head, context));
     } catch (error) {
       report(error, req);
       socket.destroy();
@@ -591,7 +637,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
         };
         server.once("error", failed);
         server.once("listening", listened);
-        server.listen(listen);
+        server.listen(backlog === undefined ? listen : { ...listen, backlog });
       });
     },
     stopIntake() {

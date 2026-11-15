@@ -1,0 +1,45 @@
+name: Apt install
+description: >-
+  Installs Ubuntu packages with apt-get. A runner can lose the name service of the archive for more than
+  a minute. The retries of apt end before the service comes back. In the scheduled run 43021405719
+  of Cells, five shards failed for this reason. Thus the action tries the install again after a wait.
+inputs:
+  packages:
+    description: The names of the packages, with a space between two names.
+    required: true
+  update:
+    description: With true, apt-get update starts before each try of the install.
+    required: false
+    default: "false"
+  tries:
+    description: The count of tries of the install.
+    required: false
+    default: "5"
+  wait:
+    description: The wait between two tries, in seconds.
+    required: false
+    default: "30"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        UPDATE: ${{ inputs.update }}
+        TRIES: ${{ inputs.tries }}
+        WAIT: ${{ inputs.wait }}
+      run: |
+        read -r -a packages <<< "$PACKAGES"
+        try=1
+        while true; do
+          if { [ "$UPDATE" != true ] || sudo apt-get update -qq; } && sudo apt-get install -y -qq "${packages[@]}"; then
+            exit 0
+          fi
+          if [ "$try" -ge "$TRIES" ]; then
+            echo "::error title=Apt install::the install of $PACKAGES failed $TRIES times"
+            exit 1
+          fi
+          echo "::warning title=Apt install::the install of $PACKAGES failed (try $try of $TRIES), thus the action waits $WAIT s"
+          sleep "$WAIT"
+          try=$((try + 1))
+        done

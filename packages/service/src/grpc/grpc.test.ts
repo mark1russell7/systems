@@ -1,7 +1,8 @@
 import { machineProblems } from "@mark1russell7/algebra";
 import { machineSchema } from "@mark1russell7/algebra/schema";
 import { describe, expect, it } from "vitest";
-import type { GrpcClientSpec, GrpcConnectOptions, GrpcKnobs, GrpcStatus } from "../grpc.ts";
+import type { CallContext } from "../call-context.ts";
+import type { GrpcClientOptions, GrpcClientSpec, GrpcConnectOptions, GrpcKnobs, GrpcStatus } from "../grpc.ts";
 import {
   GRPC_CLIENT_MACHINE,
   GRPC_CLIENT_STARTING_KNOBS,
@@ -65,7 +66,7 @@ const spec = (knobs: Partial<GrpcKnobs> = {}, more: Partial<GrpcClientSpec> = {}
 });
 
 /** a client on a fake server and a fake clock, its events, and the options of each channel */
-const made = (knobs: Partial<GrpcKnobs> = {}, more: Partial<GrpcClientSpec> = {}) => {
+const made = (knobs: Partial<GrpcKnobs> = {}, more: Partial<GrpcClientSpec> = {}, extra: Partial<GrpcClientOptions> = {}) => {
   const clock = fakeClock(1000);
   const events: LifecycleEvent[] = [];
   const server = fakeGrpcServer(clock);
@@ -78,14 +79,15 @@ const made = (knobs: Partial<GrpcKnobs> = {}, more: Partial<GrpcClientSpec> = {}
       given.push(options);
       return server.create(options);
     },
+    ...extra,
   });
   const on = (name: string) => events.filter((event) => event.on === name);
   return { clock, client, events, server, given, on };
 };
 
 /** a connected client: one READY channel */
-const connected = async (knobs: Partial<GrpcKnobs> = {}, more: Partial<GrpcClientSpec> = {}) => {
-  const all = made(knobs, more);
+const connected = async (knobs: Partial<GrpcKnobs> = {}, more: Partial<GrpcClientSpec> = {}, extra: Partial<GrpcClientOptions> = {}) => {
+  const all = made(knobs, more, extra);
   await all.client.handle.connect(new AbortController().signal);
   return all;
 };
@@ -706,5 +708,29 @@ describe("grpc-js on loopback: the real driver against a real server", () => {
       await new Promise<void>((resolve) => server.tryShutdown(() => resolve()));
     }
     expect(client.status).toBe("end");
+  });
+});
+
+/** This call context gives fixed headers, and counts its reads. */
+const fixedContext = (headers: Record<string, string>) => {
+  let reads = 0;
+  const callContext: CallContext = {
+    run: (_headers, _trusted, fn) => fn(),
+    headers: () => {
+      reads += 1;
+      return { ...headers };
+    },
+  };
+  return { callContext, reads: () => reads };
+};
+
+describe("the call context: each call gets the headers of the context of its caller in its metadata (C11)", () => {
+  it("adds the headers of the call context, and the metadata of the spec and of the call stays", async () => {
+    const { callContext, reads } = fixedContext({ traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", authorization: "context", "x-id": "context" });
+    const { client, server } = await connected({}, { metadata: { authorization: "Bearer t" } }, { callContext });
+    const before = reads();
+    expect(await client.call(PUT, bytes("v"), { metadata: { "x-id": "1" } })).toMatchObject({ outcome: "ok" });
+    expect(server.latest().calls[0]?.metadata).toEqual({ traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", authorization: "Bearer t", "x-id": "1" });
+    expect(reads() - before).toBe(1);
   });
 });

@@ -62,9 +62,11 @@ describe("the cells of the first fabric", () => {
 describe("the workflow of the cells", () => {
   const workflow = readFileSync(new URL("../../../.github/workflows/cells.yml", import.meta.url), "utf8");
 
-  it("installs the pinned containerlab for a run of E3 cells only", () => {
+  it("installs the pinned containerlab for a shard with a cell on a fabric only", () => {
     expect(workflow).toContain("containerlab_0.82.0_linux_amd64.deb");
     expect(workflow).toContain("770e18f19ef75732eb9f4e362541f509abb2b6eeadde2d5c98140190b19b519a");
-    expect(workflow).toContain("if: contains(inputs.only, 'E3')");
+    expect(workflow).toContain("pnpm exec tsx packages/cells/src/needs-cli.ts");
+    expect(workflow).toContain("if: steps.needs.outputs.containerlab == 'true'");
+    expect(workflow).not.toContain("contains(inputs.only, 'E3')");
   });
 });

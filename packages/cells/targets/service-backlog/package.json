@@ -1,0 +1,9 @@
+{
+  "name": "loom-cells-service-backlog",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mark1russell7/service": "0.7.3",
+    "zod": "4.6.6"
+  }
+}

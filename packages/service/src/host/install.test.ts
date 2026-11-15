@@ -52,6 +52,23 @@ describe("installService on Windows", () => {
     });
   });
 
+  it("tells to elevate when Task Scheduler refuses a task in the background", async () => {
+    const denied = windows({ answer: (command) => (command.args[0] === "/Create" ? { code: 1, out: "ERROR: Access is denied.\r\n" } : undefined) });
+    const outcome = await installService({ ...winSpec, start: "boot" }, denied.ports);
+    expect(outcome.kind === "failed" && outcome.problem).toBe(
+      `schtasks /Create /TN demo-host /XML ${TASK_FILE} /F gave the code 1: ERROR: Access is denied. ` +
+        "(Task Scheduler refuses a boot trigger and an S4U logon from a shell that is not elevated: start the same operation in a shell of an administrator)",
+    );
+    const bytes = denied.files.get(TASK_FILE);
+    if (!(bytes instanceof Uint8Array)) throw new Error("the task file is not bytes");
+    const xml = new TextDecoder("utf-16le").decode(bytes.slice(2));
+    expect(xml).toContain("<BootTrigger>");
+    expect(xml).toContain("<LogonType>S4U</LogonType>");
+    const stopped = windows({ answer: (command) => (command.args[0] === "/Change" ? { code: 1, out: "ERROR: Access is denied." } : undefined) });
+    const stop = await stopService({ ...winSpec, start: "boot" }, stopped.ports);
+    expect(stop.kind === "failed" && stop.problem.endsWith("start the same operation in a shell of an administrator)")).toBe(true);
+  });
+
   it("refuses a spec with problems and an unknown platform, and does nothing", async () => {
     const host = windows();
     expect(await installService({ ...winSpec, name: "bad name" }, host.ports)).toEqual({
@@ -133,6 +150,28 @@ describe("the operations on Linux", () => {
     expect(host.text("/home/test/.config/systemd/user/demo-host.service")).toContain("ExecStart=/usr/bin/node /srv/demo/group.js\n");
   });
 
+  it("sets the linger of the user for a boot start, then enables the unit", async () => {
+    const host = fakeHost();
+    const boot: ServiceSpec = { ...linuxSpec, start: "boot" };
+    expect((await installService(boot, host.ports)).kind).toBe("done");
+    expect(calls(host)).toEqual(["loginctl enable-linger", "systemctl --user daemon-reload", "systemctl --user enable --now demo-host.service"]);
+    host.commands.length = 0;
+    await stopService(boot, host.ports);
+    expect(calls(host)).toEqual(["systemctl --user disable --now demo-host.service"]);
+    host.commands.length = 0;
+    await uninstallService(boot, host.ports);
+    expect(calls(host)).toEqual(["systemctl --user disable --now demo-host.service", "systemctl --user daemon-reload"]);
+  });
+
+  it("does not enable the unit when the linger fails, and gives no note of Task Scheduler", async () => {
+    const host = fakeHost({ answer: (command) => (command.file === "loginctl" ? { code: 1, out: "Could not enable linger: Access denied\n" } : undefined) });
+    expect(await installService({ ...dailySpec, background: true }, host.ports)).toEqual({
+      kind: "failed",
+      commands: [{ file: "loginctl", args: ["enable-linger"], code: 1, out: "Could not enable linger: Access denied" }],
+      problem: "loginctl enable-linger gave the code 1: Could not enable linger: Access denied",
+    });
+  });
+
   it("puts the units in XDG_CONFIG_HOME, and enables the timer of a daily job", async () => {
     const host = fakeHost({ env: { XDG_CONFIG_HOME: "/xdg" } });
     expect(servicePaths(dailySpec, host.ports)).toEqual({ unit: "/xdg/systemd/user/demo-job.service", timer: "/xdg/systemd/user/demo-job.timer" });
@@ -150,11 +189,28 @@ describe("the operations on Linux", () => {
     expect(host.files.size).toBe(0);
   });
 
-  it("start and stop use systemctl, and stop sends SIGTERM through it", async () => {
+  it("stop disables the unit, thus the next login does not start it, and start enables it again", async () => {
     const host = fakeHost();
     await startService(linuxSpec, host.ports);
     await stopService(linuxSpec, host.ports);
-    expect(calls(host)).toEqual(["systemctl --user start demo-host.service", "systemctl --user stop demo-host.service"]);
+    expect(calls(host)).toEqual(["systemctl --user enable --now demo-host.service", "systemctl --user disable --now demo-host.service"]);
+  });
+
+  it("stop disables the timer of a daily job, and stops a job that operates", async () => {
+    const host = fakeHost();
+    expect((await stopService(dailySpec, host.ports)).kind).toBe("done");
+    await startService(dailySpec, host.ports);
+    expect(calls(host)).toEqual([
+      "systemctl --user disable --now demo-job.timer",
+      "systemctl --user stop demo-job.service",
+      "systemctl --user enable --now demo-job.timer",
+    ]);
+  });
+
+  it("stop gives the failure of the disable, and does not go on", async () => {
+    const host = fakeHost({ answer: (command) => (command.args[1] === "disable" ? { code: 1, out: "Failed to disable unit\n" } : undefined) });
+    expect((await stopService(dailySpec, host.ports)).kind).toBe("failed");
+    expect(calls(host)).toEqual(["systemctl --user disable --now demo-job.timer"]);
   });
 
   it("status tells the unit file and the state of is-active", async () => {

@@ -47,6 +47,7 @@ export type {
   Outcomes,
   Pair,
   CountBand,
+  DeliveryPrediction,
   Fault,
   PinnedImage,
   KernelRecord,
@@ -78,6 +79,7 @@ export type {
   Run,
   RunBackup,
   RunDrill,
+  DrillRoom,
   RunGroup,
   RunPart,
   RunFabric,
@@ -96,7 +98,7 @@ export type {
   Toxic,
   WsProbe,
 } from "./cell.ts";
-export { CLIENT_CAPABILITIES, isHopPlace, latestEndOf } from "./cell.ts";
+export { CLIENT_CAPABILITIES, environmentProblems, isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
   DROP_HANDLING,
@@ -109,10 +111,13 @@ export {
   jitterOfLines,
   leftAfter,
   pingsOf,
+  pongsOf,
   programLines,
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
+export type { DeliveryReading, DeliveryStream } from "./delivery.ts";
+export { deliveryFinding, deliveryOf, streamEnded, streamOf } from "./delivery.ts";
 export type { EstimateVerdict, LoadJudgement, LoadSpread, LoadVerdict, RunEstimate, RunLoad } from "./load.ts";
 export { CLOSED_TOLERANCE, LOAD_FORMAT, LOAD_PATH, SCHEDULE_PATH, estimateOf, estimateVerdict, loadOf, loadPlanOf, loadVerdict, poolOf, streamsLoadOf } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
@@ -140,12 +145,13 @@ export {
   stagesOf,
   writesOf,
 } from "./timeline.ts";
-export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
+export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, TimeFromFault, Verdict } from "./verdict.ts";
 export {
   INJECT,
   NOISE,
   RELATIVE,
   STEPS,
+  commitVoid,
   delayVoids,
   groupVerdictOf,
   medianInterval,
@@ -178,12 +184,12 @@ export {
   topologyOf,
 } from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
-export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export { AWS_FROM, CLOUDS, LAYERS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
 export type { Pinnable, RecordCode } from "./pins.ts";
-export { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
+export { commitProblems, DEBUG, DIRTY, imagePinProblems, manifestProblems, recordProblems } from "./pins.ts";
 export {
   CLIENT_NAMES,
   PINNED,
@@ -240,9 +246,12 @@ export {
   drillSpan,
   hashOf,
   highestHeld,
+  memAvailableOf,
   readOplog,
   recoveryFindings,
   recoveryOf,
+  roomNeeded,
+  roomVoidOf,
   seedScript,
   sliceQuery,
   standaloneCommand,
@@ -304,4 +313,4 @@ export {
 export type { PauseCommit, PauseReading } from "./pause.ts";
 export { isFenceLine, logTimeOf, measurePause, namesGroup, pauseReady } from "./pause.ts";
 export type { CellResult } from "./run.ts";
-export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";
+export { LINGER_MS, QUIET_MS, environmentCounts, judge, runCell, spread } from "./run.ts";

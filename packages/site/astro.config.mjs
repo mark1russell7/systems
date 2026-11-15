@@ -56,7 +56,7 @@ export default defineConfig({
       },
       sidebar: [
         { label: "Thesis", items: ["thesis"] },
-        { label: "Lab", items: ["lab/request", "lab/detection"] },
+        { label: "Lab", items: ["lab/request", "lab/detection", "lab/quota"] },
         {
           label: "Results",
           items: [
@@ -77,6 +77,7 @@ export default defineConfig({
             "results/timers",
             "results/harness",
             "results/ci",
+            "results/refresh",
           ],
         },
         { label: "About", items: ["about"] },

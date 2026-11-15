@@ -222,6 +222,20 @@ export const pingsOf = (
   lines.filter((line) => line.ev === "ping" && onConnection(line, local)).map((line) => eventOf(socket, line, isWrite, delta));
 
 /**
+ * This function gives each pong of the program on the connection: each `write` line with the type
+ * `pong`. Each pong has the kernel's stamp of its write in the pairing window (`delta`).
+ */
+export const pongsOf = (
+  lines: readonly ProbeEvent[],
+  socket: readonly KernelRecord[],
+  local: unknown,
+  delta: Quantity = NOISE,
+): ProgramEvent[] =>
+  lines
+    .filter((line) => line.ev === "write" && line["type"] === "pong" && onConnection(line, local))
+    .map((line) => eventOf(socket, line, isWrite, delta));
+
+/**
  * This function gives the first ping that got no answer: no segment with data reached the socket
  * after its write, up to `until`. Its write starts the wait of the heartbeat that the fault met.
  */
