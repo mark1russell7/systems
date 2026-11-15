@@ -3044,7 +3044,7 @@ type QuotaEvent = {
 
 ### build/limiter.chunk.d.ts#QuotaPart
 interface QuotaPart<Sync extends boolean = boolean> {
-  readonly quota: KeyedQuota<Sync>;
+  readonly quota: Pick<KeyedQuota<Sync>, "sync" | "take" | "giveBack">;
   readonly key: string;
   readonly units: number;
 }
@@ -3079,6 +3079,7 @@ interface QuotaRule {
     readonly zone: string;
     readonly start: number;
   };
+  readonly maxBlock?: number | "window" | undefined;
 }
 
 ### build/limiter.chunk.d.ts#QuotaSpec
@@ -3086,6 +3087,7 @@ interface QuotaSpec {
   readonly limit: Quantity;
   readonly reserve: Quantity;
   readonly window: QuotaWindow;
+  readonly maxBlock?: Quantity | "window" | undefined;
 }
 
 ### build/limiter.chunk.d.ts#QuotaState
