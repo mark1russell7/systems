@@ -371,12 +371,14 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
     unit.detail = null;
     say("info", `${unit.spec.name} is ready`, { program: unit.spec.name, pid: child.pid });
     const restart = unit.spec.restart === undefined ? DEFAULT_RESTART : unit.spec.restart;
-    if (unit.retry !== null && restart !== null)
-      unit.timers.push(
-        ports.clock.after(ms(restart.resetAfter), () => {
-          if (unit.child === child && unit.phase === "ready") unit.retry?.reset();
-        }),
-      );
+    if (unit.retry !== null && restart !== null) {
+      const reset = ports.clock.after(ms(restart.resetAfter), () => {
+        if (unit.child === child && unit.phase === "ready") unit.retry?.reset();
+      });
+      // the child keeps the supervisor alive, thus this timer does not (SYS-126)
+      reset.unref?.();
+      unit.timers.push(reset);
+    }
     if (unit.spec.alive !== undefined) watch(unit, child, unit.spec.alive);
     considerAll();
   };
@@ -390,6 +392,8 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
         unit.watch = null;
         void check();
       });
+      // the child keeps the supervisor alive, thus the watch does not (SYS-126)
+      unit.watch.unref?.();
     };
     const check = async (): Promise<void> => {
       if (!current()) return;
@@ -435,7 +439,10 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
         void stagedStop(unit, child);
         return;
       }
-      unit.timers.push(ports.clock.after(ms(ready.interval), () => void attempt()));
+      const again = ports.clock.after(ms(ready.interval), () => void attempt());
+      // the child keeps the supervisor alive, thus the poll of its readiness does not (SYS-126)
+      again.unref?.();
+      unit.timers.push(again);
     };
     void attempt();
   };
@@ -516,6 +523,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
         resolve(true);
         return;
       }
+      // the stop awaits this wait, thus it keeps the process alive (SYS-126)
       const cancel = ports.clock.after(wait, () => resolve(unit.child !== child));
       unit.waiters.push(() => {
         cancel();

@@ -2361,6 +2361,25 @@ The entry `polite-crawler/api` is for a browser, and its quotas come from `keyed
 - The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API. Both are on npm with their provenance.
 - The size of 2.1 kB is not possible without a loss. `quota.ts` alone is approximately 3 kB after gzip. The exact conversion of units is the quantity law. Thus `polite-crawler/api` keeps the limiter. Only its two functions of quotas bundle the limiter. A caller that does not import them does not get it.
 
+### SYS-126 · A wait that a caller awaits keeps the process alive
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:** [#550](https://github.com/mark1russell7/systems/pull/550)
+
+`realClock` was `platformClock({ unref: true })`, and its timers did not keep a Node process alive. The default clock of `retry` is `realClock`. A command-line tool whose only work was the wait of a retry thus ended in the wait, with the exit code 0 and no error. The same fault held for each wait that a caller awaits on the default clock.
+
+- **The rule.** A hang shows, and a silent pass with lost work does not. `realClock` keeps the process alive, as `setTimeout` does.
+- **The timers that do not keep the process alive.** The service uses the `unref()` of a timer only when a socket, a child process or the hold of the lifecycle keeps the process alive. These timers only watch other work. Examples are the heartbeat of a connection, the checks and the watchdog of a service, and the sweep of a listener. The timers of a supervisor for a live child are also examples.
+- **The timers that keep the process alive.** Each other timer stays referenced. Examples are a bound of awaited work, a retry, a ticker, the sleeps of a worker loop and the polls of `watchTargets`. A comment at each timer of service names its choice.
+- **The new parts.** `unrefClock(clock)` of algebra gives a part a clock whose timers do not keep the process alive. The poller of service has the option `unrefLoop`: the timeout of a poll stays referenced, because the warm-up awaits its sweep.
+- **The gates.** A child process in algebra awaits a delay on `realClock`. A child process in service awaits `retry`, the try of a retrier and `within`. Each one ends its waits and exits with 0. A third child proves that `unrefClock(realClock)` does not keep the process alive.
+- **The flip.** The first commit of the pull request has only the tests, and CI is red on them. The second commit has the fix, and CI is green. Two steps of the flip workflow put the timers of `realClock` back in unref, and each gate turns red.
+- The releases are algebra `0.9.0` and service `0.9.0`, MINOR versions before 1.0: a change of behavior.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents

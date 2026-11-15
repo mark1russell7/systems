@@ -37,6 +37,12 @@ export interface PollerOptions {
    * `calling`, `hung` (a call that outlived its timeout) and `stopped`.
    */
   readonly trace?: Trace | undefined;
+  /**
+   * True makes the timer of the loop not keep a Node process alive. A loop that only watches other
+   * work uses it: that work keeps the process alive. The default is false. The timeout of a poll
+   * keeps the process alive at each value, because a caller can await a poll (SYS-126).
+   */
+  readonly unrefLoop?: boolean | undefined;
 }
 
 const message = (error: unknown): string =>
@@ -120,6 +126,7 @@ export const poller = (options: PollerOptions): Poller => {
       active.add(abandon);
       const call = { since: started, late: false };
       pending = call;
+      // a caller can await this poll, thus its timeout keeps the process alive (SYS-126)
       const cancel = clock.after(timeout, () => {
         controller.abort();
         // the poll fails at its timeout. The call stays pending until it settles
@@ -168,6 +175,7 @@ export const poller = (options: PollerOptions): Poller => {
     let polled: Promise<Result> | undefined;
     step("tick", () => {
       next = clock.after(jittered(), tick);
+      if (options.unrefLoop === true) next.unref?.();
       polled = once();
     });
     void polled!.then(handle);
@@ -189,6 +197,7 @@ export const poller = (options: PollerOptions): Poller => {
       step("start", () => {
         looping = true;
         next = clock.after(Math.max(0, delay), tick);
+        if (options.unrefLoop === true) next.unref?.();
       });
     },
     jittered,

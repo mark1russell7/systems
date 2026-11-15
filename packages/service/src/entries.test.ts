@@ -133,12 +133,13 @@ describe("the timer entries: a client in a browser can import them", () => {
     const algebra = await import("@mark1russell7/algebra/clock");
     expect(clockEntry.platformClock).toBe(algebra.platformClock);
     expect(clockEntry.realClock).toBe(algebra.realClock);
+    expect(clockEntry.unrefClock).toBe(algebra.unrefClock);
     const testing = await import("./testing.ts");
     expect(testing.fakeClock).toBe(algebra.fakeClock);
   });
 
   it("give their functions, and the root gives them too", () => {
-    expect(Object.keys(clockEntry).sort()).toEqual(["platformClock", "realClock"]);
+    expect(Object.keys(clockEntry).sort()).toEqual(["platformClock", "realClock", "unrefClock"]);
     expect(Object.keys(heartbeatEntry).sort()).toEqual(["detectionTime", "heartbeat"]);
     expect(Object.keys(backoffEntry).sort()).toEqual(["backoffBand", "backoffDelay", "backoffProblems"]);
     for (const name of [...Object.keys(clockEntry), ...Object.keys(heartbeatEntry), ...Object.keys(backoffEntry)])

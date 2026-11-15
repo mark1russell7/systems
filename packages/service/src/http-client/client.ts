@@ -290,6 +290,7 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
             ready();
             return;
           }
+          // the request awaits its connection, thus this bound keeps the process alive (SYS-126)
           connectTimer = clock.after(connectBound, () => {
             if (left) return;
             record("connect.failed", closing() ? status : "failing", "no connection in connect_bound");
@@ -325,6 +326,7 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
 
     const abandoned = (): void => stop("the caller abandoned the request before it left the client");
     signal?.addEventListener("abort", abandoned, { once: true });
+    // the caller awaits the request, thus this bound keeps the process alive (SYS-126)
     const queued = clock.after(requestTimeout, () => stop("no socket in request_timeout: the request did not leave the client"));
     waiting.add(stop);
     const got = await leaving;

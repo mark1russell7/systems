@@ -64,6 +64,7 @@ export interface UnitRun<U> {
 export const runUnit = async <U>(run: UnitRun<U>): Promise<UnitEnd> => {
   const { clock, bound, abort, life, request, unit, work } = run;
   const timeout = new AbortController();
+  // the unit awaits its bound, thus the timer keeps the process alive (SYS-126)
   const cancel: Cancel = Number.isFinite(bound)
     ? clock.after(bound, () => timeout.abort(new Error(`the unit did not end in its unit_processing_time of ${bound} ms`)))
     : () => {};
@@ -171,6 +172,7 @@ export const flights = (clock: Clock): Flights => {
           resolve();
         };
         idle.add(done);
+        // the drain awaits its deadline, thus the timer keeps the process alive (SYS-126)
         cancel = clock.after(Math.max(0, deadline - clock.now()), done);
       });
     },
@@ -218,6 +220,8 @@ export const sleeper = (clock: Clock): Sleeper => {
             resolve();
           };
           into.add(done);
+          // a sleep or a backoff of a loop is work: an exit in a backoff loses the next try of an item.
+          // Thus the timer keeps the process alive, and the lifecycle stops the loop (SYS-126)
           if (Number.isFinite(ms)) cancel = clock.after(ms, done);
         });
   return {
@@ -250,6 +254,7 @@ export type Settled = { readonly kind: "done" } | { readonly kind: "failed"; rea
 /** This function waits for a work until a bound on the clock, in milliseconds. */
 export const settleWithin = (clock: Clock, ms: number, work: Promise<unknown>): Promise<Settled> =>
   new Promise<Settled>((resolve) => {
+    // the caller awaits the work in its bound, thus the timer keeps the process alive (SYS-126)
     const cancel: Cancel = Number.isFinite(ms) ? clock.after(ms, () => resolve({ kind: "bound" })) : () => {};
     work.then(
       () => {

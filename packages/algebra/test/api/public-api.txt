@@ -81,6 +81,7 @@ nextBoundary: build/clock.chunk.d.ts#nextBoundary
 offsetChanges: build/clock.chunk.d.ts#offsetChanges
 platformClock: build/clock.chunk.d.ts#platformClock
 realClock: build/clock.chunk.d.ts#realClock
+unrefClock: build/clock.chunk.d.ts#unrefClock
 wallClock: build/clock.chunk.d.ts#wallClock
 windowProblems: build/clock.chunk.d.ts#windowProblems
 
@@ -202,6 +203,10 @@ declare const platformClock: (options?: PlatformClockOptions) => Clock;
 
 ### build/clock.chunk.d.ts#realClock
 declare const realClock: Clock;
+
+### build/clock.chunk.d.ts#unrefClock
+declare function unrefClock(clock: Clock): Clock;
+declare function unrefClock(clock: WallClock): WallClock;
 
 ### build/clock.chunk.d.ts#wallClock
 declare const wallClock: (options?: PlatformClockOptions) => WallClock;

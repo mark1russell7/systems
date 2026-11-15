@@ -406,6 +406,7 @@ export const lifecycle = (
     let cancelCap: Cancel = () => {};
     // the timer of the cap starts after the timers of the work: at the same time, the work comes first
     const end = new Promise<"cap">((resolve) => {
+      // the phase awaits its cap, thus the cap keeps the process alive (SYS-126)
       cancelCap = clock.after(cap, () => resolve("cap"));
     });
     const first = await Promise.race([all.then(() => "work" as const), end]);
@@ -474,6 +475,7 @@ export const lifecycle = (
         const cap = valueIn(phase.cap, "ms");
         const cooperative = new AbortController();
         const fireAt = cooperativeAbortAt(cap, description.shutdown.cooperativeWindow, description.shutdown.cooperativeFloor);
+        // the drain awaits its cooperative abort, thus the timer keeps the process alive (SYS-126)
         cancelAbort = clock.after(fireAt, () => {
           cooperative.abort(new Error("the cooperative abort of the drain"));
           requests.cooperativeAbort();

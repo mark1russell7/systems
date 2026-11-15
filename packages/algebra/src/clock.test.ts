@@ -15,6 +15,7 @@ import {
   offsetChanges,
   platformClock,
   realClock,
+  unrefClock,
   wallClock,
   windowProblems,
 } from "./clock.ts";
@@ -106,6 +107,48 @@ describe("the clock of the platform", () => {
   it("reads a monotonic time", () => {
     const first = realClock.now();
     expect(platformClock().now()).toBeGreaterThanOrEqual(first);
+  });
+});
+
+describe("unrefClock (SYS-126)", () => {
+  it("unrefs each timer at its start, and its cancel still stops the timer", () => {
+    const unrefs: string[] = [];
+    const stops: string[] = [];
+    const runs: Array<() => void> = [];
+    const given: Clock = {
+      now: () => 42,
+      after(ms, run) {
+        runs.push(run);
+        return Object.assign(() => void stops.push(`stop ${ms}`), { unref: () => void unrefs.push(`unref ${ms}`) });
+      },
+    };
+    const clock = unrefClock(given);
+    expect(clock.now()).toBe(42);
+    expect(clock.time).toBeUndefined();
+    const cancel = clock.after(10, () => {});
+    clock.after(20, () => {});
+    expect(unrefs).toEqual(["unref 10", "unref 20"]);
+    cancel();
+    expect(stops).toEqual(["stop 10"]);
+    expect(runs).toHaveLength(2);
+  });
+
+  it("moves with a fake clock, whose timers have no unref", async () => {
+    const fake = fakeClock(5);
+    const clock = unrefClock(fake);
+    const runs: number[] = [];
+    clock.after(10, () => runs.push(clock.now()));
+    const stopped = clock.after(10, () => runs.push(-1));
+    stopped();
+    await fake.advance(10);
+    expect(runs).toEqual([15]);
+  });
+
+  it("keeps a wall clock a wall clock, with its instant", () => {
+    const wall = fakeWallClock(1_700_000_000_000);
+    const clock: WallClock = unrefClock(wall);
+    expect(clock.time).toBe("wall");
+    expect(clock.now()).toBe(1_700_000_000_000);
   });
 });
 
