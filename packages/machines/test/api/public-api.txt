@@ -50,6 +50,7 @@ REDIS_CLIENT: build/index.d.ts#REDIS_CLIENT
 SENTINEL: build/index.d.ts#SENTINEL
 SOCKETIO_CLIENT: build/index.d.ts#SOCKETIO_CLIENT
 SOCKETIO_SERVER: build/index.d.ts#SOCKETIO_SERVER
+SOCKETIO_SESSION: build/index.d.ts#SOCKETIO_SESSION
 SUPAVISOR_CLIENT: build/index.d.ts#SUPAVISOR_CLIENT
 SUPAVISOR_SERVER: build/index.d.ts#SUPAVISOR_SERVER
 type SidecarSide: build/index.d.ts#SidecarSide
@@ -201,6 +202,9 @@ export declare const SOCKETIO_CLIENT: Machine;
 
 ### build/index.d.ts#SOCKETIO_SERVER
 export declare const SOCKETIO_SERVER: Machine;
+
+### build/index.d.ts#SOCKETIO_SESSION
+export declare const SOCKETIO_SESSION: Machine;
 
 ### build/index.d.ts#SUPAVISOR_CLIENT
 export declare const SUPAVISOR_CLIENT: Machine;

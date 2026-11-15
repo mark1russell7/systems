@@ -2,7 +2,7 @@
 //        --reconnect on|off [--reconnect-initial-ms N --reconnect-multiplier 2 --reconnect-max-ms N
 //                            --reconnect-attempts N --reconnect-jitter X]
 //        --request-timeout-ms N --connection-timeout-ms N [--hold-ms N] [--go PATH] [--max-s N]
-//        [--count N --interval-ms N --sender client|target] [--retries N]
+//        [--count N --interval-ms N --sender client|target] [--retries N] [--lull-ms N]
 //
 // The client program of the Socket.IO cells (SYS-87): the Manager and the Socket of
 // socket.io-client 4.8.4, on the Node WebSocket transport of engine.io-client 6.6.7 (the `ws`
@@ -20,6 +20,9 @@
 //                 --retries, it is also the ackTimeout of the Socket: the time limit of each try.
 //   --retries     is the `retries` of the Socket. Each event waits for its ack, and the client sends
 //                 it again after a failed try. Without the flag, the Socket has no queue.
+//   --lull-ms     is a quiet time before `ready`, on a Node timer. The client waits it after `echo`
+//                 and the request of a stream. Thus the fault comes that time after the start of a
+//                 stream of the target.
 // Each setting is a flag, and the client has no default: a missing flag is a failure.
 //
 // Each mode calls `echo` first. Then the client waits for the next ping of the server, and writes
@@ -89,6 +92,8 @@ if (stream !== null) {
 const retries = line.flag("--retries") === undefined ? undefined : line.number("--retries");
 // `emit` of the Socket reads `retries` as a boolean: 0 turns the queue off, and is not one try
 if (retries !== undefined && retries < 1) line.fail("--retries is at least 1: the Socket reads 0 as no queue");
+const lull = line.flag("--lull-ms") === undefined ? undefined : line.number("--lull-ms");
+if (lull !== undefined && lull < 1) line.fail("--lull-ms is at least 1");
 
 emit("start", {
   boot_id: bootId(),
@@ -96,7 +101,7 @@ emit("start", {
   client: "socketio",
   packages: versions(["socket.io-client", "engine.io-client", "ws"]),
   node: process.version,
-  settings: { reconnect, requestTimeout, connectionTimeout, hold: hold ?? null, stream, retries: retries ?? null },
+  settings: { reconnect, requestTimeout, connectionTimeout, hold: hold ?? null, stream, retries: retries ?? null, lull: lull ?? null },
 });
 
 /** One socket of the transport: its number, its local address, and if the client dropped it. */
@@ -239,6 +244,8 @@ try {
   const reply: unknown = await socket.timeout(requestTimeout).emitWithAck("echo", {});
   // a stream of the target starts before the fault, because the black hole comes before the signal
   if (stream?.sender === "target") await socket.timeout(requestTimeout).emitWithAck("stream", { count: stream.count, interval: stream.interval });
+  // a lull puts the fault later in the stream: the heartbeat goes on through it
+  if (lull !== undefined) await new Promise<void>((resolve) => setTimeout(resolve, lull));
   // the client writes its pong to the next ping of the server, and starts its ping timer there
   await new Promise<void>((resolve) => manager.once("ping", () => resolve()));
   emit("ready", { reply: JSON.stringify(reply ?? null) });

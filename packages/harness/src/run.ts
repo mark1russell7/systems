@@ -110,6 +110,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     args.push("--connection-timeout-ms", String(valueIn(ws.connectionTimeout, "ms")));
     if (ws.hold !== undefined) args.push("--hold-ms", String(valueIn(ws.hold, "ms")));
     if (ws.retries !== undefined) args.push("--retries", String(ws.retries));
+    if (ws.lull !== undefined) args.push("--lull-ms", String(valueIn(ws.lull, "ms")));
     // a stream of a WebSocket client sends `count` events, one each `interval`, from its sender
     const stream = probe.mode === "stream" ? streamLength(cell) : 0;
     if (probe.mode === "stream")
@@ -121,7 +122,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
         "--sender",
         probe.sender ?? "client",
       );
-    args.push("--max-s", String(Math.ceil((longest + waits + stream) * 2 + 10)));
+    const lull = ws.lull === undefined ? 0 : valueIn(ws.lull, "s");
+    args.push("--max-s", String(Math.ceil((longest + waits + stream + lull) * 2 + 10)));
     return args;
   }
   if (probe.http !== undefined) {
@@ -447,7 +449,9 @@ const once = async (
   const signalled = !server && cell.target.program !== undefined;
   let thawing: Promise<{ t0: number; t1: number }> | null = null;
   try {
-    await probe.until(["ready"], 15_000);
+    // a client with a lull writes `ready` that quiet time after its start
+    const lull = cell.probe.ws?.lull === undefined ? 0 : valueIn(cell.probe.ws.lull, "ms");
+    await probe.until(["ready"], 15_000 + lull);
     if (dry) {
       if (cell.probe.mode !== "idle") await go();
       await sleep(500);

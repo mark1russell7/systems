@@ -43,7 +43,7 @@ import { ATEN_DETECTOR } from "./rabbit/aten.ts";
 import { RA_MEMBER } from "./rabbit/ra-member.ts";
 import { RABBITMQ_CONNECTION } from "./rabbit/rabbitmq-connection.ts";
 import { SENTINEL } from "./sentinel.ts";
-import { SOCKETIO_CLIENT, SOCKETIO_SERVER } from "./socketio.ts";
+import { SOCKETIO_CLIENT, SOCKETIO_SERVER, SOCKETIO_SESSION } from "./socketio.ts";
 
 export {
   AMQPLIB,
@@ -87,6 +87,7 @@ export {
   SENTINEL,
   SOCKETIO_CLIENT,
   SOCKETIO_SERVER,
+  SOCKETIO_SESSION,
   SUPAVISOR_CLIENT,
   SUPAVISOR_SERVER,
   TOXIPROXY_LINK,
@@ -140,6 +141,7 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   PROCEDURES_WS_SERVER,
   SOCKETIO_CLIENT,
   SOCKETIO_SERVER,
+  SOCKETIO_SESSION,
   MONGODB_NODE,
   MONGOD_REPL,
   MONGOD_SESSION,
