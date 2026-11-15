@@ -3573,11 +3573,11 @@ Rung 10,000 has an RPO of 10 s and an RTO of 5 min, on k3s with shards of synthe
 
 ### SYS-99 · The scheduled cells can fail on a failing cell
 
-- **Status:** done
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
-- **Shipped:** 2026-11-15
+- **Shipped:**
 - **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456), [#522](https://github.com/mark1russell7/systems/pull/522)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
@@ -3590,6 +3590,7 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate. A dispatch of the selection `night` on 4 shards, or of the selection `drills` on 1 shard, is that schedule by hand. Its step operates as on the schedule. Before this fix, only the expression of `only` started the step. Thus a rerun of a red Sunday by its selection was green with no check.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
+- **What is left.** The step of the night reads each cell, and the step of the Sunday reads only the budgets of the rungs. The pull request #383 gives each drill of the Sunday the read of the night. The pull request #399 gives the same read to `kind.yml`. This item is done when the two merge.
 
 This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.
 
