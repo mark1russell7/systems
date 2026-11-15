@@ -64,10 +64,17 @@ transitionOn: build/run.chunk.d.ts#transitionOn
 Cancel: build/clock.chunk.d.ts#Cancel
 Clock: build/clock.chunk.d.ts#Clock
 FakeClock: build/clock.chunk.d.ts#FakeClock
+LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
+TimeWindow: build/clock.chunk.d.ts#TimeWindow
+WindowBoundary: build/clock.chunk.d.ts#WindowBoundary
 fakeClock: build/clock.chunk.d.ts#fakeClock
+inWindow: build/clock.chunk.d.ts#inWindow
+localTime: build/clock.chunk.d.ts#localTime
+nextBoundary: build/clock.chunk.d.ts#nextBoundary
 platformClock: build/clock.chunk.d.ts#platformClock
 realClock: build/clock.chunk.d.ts#realClock
+windowProblems: build/clock.chunk.d.ts#windowProblems
 
 ## ./replay (build/replay.d.ts): names
 
@@ -106,19 +113,57 @@ interface FakeClock extends Clock {
   readonly pending: number;
 }
 
+### build/clock.chunk.d.ts#LocalTime
+interface LocalTime {
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly second: number;
+  readonly weekday: number;
+  readonly offset: number;
+}
+
 ### build/clock.chunk.d.ts#PlatformClockOptions
 interface PlatformClockOptions {
   readonly unref?: boolean | undefined;
 }
 
+### build/clock.chunk.d.ts#TimeWindow
+interface TimeWindow {
+  readonly zone: string;
+  readonly start: string;
+  readonly end: string;
+  readonly days?: readonly number[] | undefined;
+}
+
+### build/clock.chunk.d.ts#WindowBoundary
+interface WindowBoundary {
+  readonly at: number;
+  readonly opens: boolean;
+}
+
 ### build/clock.chunk.d.ts#fakeClock
 declare const fakeClock: (start?: number) => FakeClock;
+
+### build/clock.chunk.d.ts#inWindow
+declare function inWindow(instant: number, window: TimeWindow): boolean;
+
+### build/clock.chunk.d.ts#localTime
+declare function localTime(instant: number, zone: string): LocalTime | undefined;
+
+### build/clock.chunk.d.ts#nextBoundary
+declare function nextBoundary(instant: number, window: TimeWindow): WindowBoundary | undefined;
 
 ### build/clock.chunk.d.ts#platformClock
 declare const platformClock: (options?: PlatformClockOptions) => Clock;
 
 ### build/clock.chunk.d.ts#realClock
 declare const realClock: Clock;
+
+### build/clock.chunk.d.ts#windowProblems
+declare function windowProblems(window: TimeWindow): string[];
 
 ### build/index.d.ts#arr
 export declare const arr: <T>(value: T | readonly T[]) => readonly T[];
