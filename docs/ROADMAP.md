@@ -3604,6 +3604,39 @@ Each push to main gives the artifact `coverage` for the ten packages with Vitest
 
 The unit tests do not start the labs of harness and kind. The containers and the kind clusters run only in the workflows Cells and Kind. Thus these two packages have the lowest coverage of main, 53 % and 62 % of their lines. This item merges the coverage of the lab code from those runs with the unit report. It starts only when a lab run already uploads its raw coverage, and the work is in CI only. It blocks no item.
 
+### SYS-127 · The errors of an image build show in each lab
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+testcontainers does not show the errors of an image build. A build that fails gives no error, and an old image with the same tag can stand in for the new one.
+
+This happened in the gate Flip of #550 at 288179b. The f6 step of the Redis close puts a fault in the code of the probe. The copy with the fault measured 307 ms, the figure of the copy with no fault. At 556209a the same fault measured 803 ms. A second try of the job passed.
+
+- **Step 1.** The image of the f6 probe gets a tag from the SHA-256 of the files of its build. After the build, the test reads the image from Docker. A build that made no image stops the test, and an old image cannot stand in for it.
+- **Step 2.** The fix of the build errors is in testcontainers upstream. When a release has it, the harness takes it in a PATCH. The release also gets a check of the alerts on `glob` and `minimatch`, which come through `archiver` in testcontainers 12.2.1. An override in the harness does not reach the users of the harness, thus the fix comes from that chain.
+
+The test: a build that fails stops the f6 test with the tag in its message.
+
+### SYS-128 · A reset after the handshake: only a segment with data gets the reset
+
+- **Status:** ready
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The fault `rst` with `handshake: "pass"` lets each SYN pass. The rule of the injector is `! --syn`, thus the final ACK of the handshake also gets the reset. The connect of the client ends when it sends that ACK, and the reset comes back in less than one millisecond. A program can read the result of the connect after the reset, and then the connect fails with `ECONNRESET`. A lab of a user saw this in 5 of 5 rounds. The documentation of `FaultOptions` says that the connect succeeds.
+
+The fix: with `handshake: "pass"`, only a segment with a payload gets the reset. The rule compares the payload length with zero: the total length of the IP packet, less the IP header and the TCP header. The connection tracker of Linux gives the final ACK the state `ESTABLISHED`, thus a match of the state cannot do this. The release is a PATCH of the harness, because the change makes the code agree with its documentation.
+
+The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset.
+
 ### SYS-106 · The units of a take in the keyed limiter
 
 - **Status:** done
