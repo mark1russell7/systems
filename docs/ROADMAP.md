@@ -3639,9 +3639,9 @@ The state-machine package publishes as `@mark1russell7/algebra`, and that name c
 
 ### SYS-118 · The queue: a pull request that is behind main passes its checks again
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** program
-- **Depends on:** conventions `0.41.13` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
+- **Depends on:** conventions `0.41.14` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
 - **Started:** 2026-11-15
 - **Shipped:**
 - **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538), [part 1, #539](https://github.com/mark1russell7/systems/pull/539)
@@ -3653,7 +3653,9 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 - The conventions option `versionEachChange` is on. A change of the shipped files at a version that npm has breaks the check.
 - Each workflow of a check of the ruleset starts on `workflow_dispatch`.
 - Part 1: a dispatch of Cells or Kind that names no cells is the gate of a pull request. The gate of Cells is its probe. The gate of Kind is its smoke and its capture. A catalog starts only on a schedule or on a dispatch that names its cells. The gate dispatches of one branch share a cancel group, thus a newer dispatch cancels the older run. The test `gate-dispatch.test.ts` of the cells package holds these rules.
-- With conventions `0.41.13`, a run that the queue starts examines the change of the pull request against the new base.
+- With conventions `0.41.14`, a run that the queue starts examines the change of the pull request against the new base.
+- Part 2: the job `checks` of `ci.yml` does `check:conventions` with the shared CI of the template. On a dispatched run, the shared job finds the pull request of the branch. Then it gives its base and its text to the check. `queue.yml` and `versionEachChange` are on.
+- The last step: the ruleset of `main` gets strict status checks.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 

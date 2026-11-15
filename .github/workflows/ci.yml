@@ -1,10 +1,11 @@
 # The gates of each change. release.yml calls this workflow before it packs a release.
 #
 #   checks  The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md): the
-#           typecheck, the tests, the build of each published package, the API reports and the writing rules.
+#           typecheck, the conventions check, the tests, the build of each published package, the API
+#           reports and the writing rules.
 #   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
 #           (reusable-release-build.yml of the template, with the release scripts of the template).
-#   site    The conventions check (check:conventions), and the site, as pages.yml builds it for GitHub Pages.
+#   site    The site, as pages.yml builds it for GitHub Pages.
 #   checker The format, the vet and the tests of the checker of linearizability, in Go.
 #   native  The build and the tests of the native programs of the harness, in Rust.
 #   ci      The required check of main. It fails when a different job of this file fails.
@@ -27,17 +28,21 @@ concurrency:
 
 jobs:
   checks:
-    # This pin is later than the other pins of the template: it has the coverage of each push to main
-    # (template#263). The release build keeps the pin of release.yml.
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+    # This pin is later than the other pins of the template. On a run that the queue dispatches
+    # (queue.yml, SYS-118), its job pull finds the pull request of the branch. Then check:conventions
+    # examines the change of the pull request against the newest main (template#350). The release
+    # build keeps the pin of release.yml.
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@3dafd3e93b105b2d0baea11f62a55c4e3d6e5915 # main
     permissions:
       contents: read
     with:
       # typecheck and test: each package of the workspace.
+      # check:conventions: the conventions of the repositories of mark1russell7 (@mark1russell7/conventions).
+      # The shared job gives it the base and the text of the pull request, also on a dispatched run.
       # build: the build that npm gets, for each package that the repository publishes.
       # check:api: the report of the API of each public package (test/api/public-api.txt), against the build.
       # lint:ste: the writing rules (ASD-STE100) of the README files and the doc comments.
-      scripts: typecheck test build check:api lint:ste
+      scripts: typecheck check:conventions test build check:api lint:ste
       # The coverage of each package, on each pull request and each push to main. The Vitest config of a package
       # reads its floors from coverage-floors.json (SYS-109), thus a package under a floor fails the run.
       coverage: true
@@ -65,8 +70,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The whole history, so that check:conventions reads each commit of a pull request
-          fetch-depth: 0
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -74,9 +77,6 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # The conventions of the repositories of mark1russell7 (@mark1russell7/conventions). The job checks out
-      # the whole repository, so it examines them. The jobs checks and pack come from the template.
-      - run: pnpm check:conventions
       - run: pnpm --filter @systems/site run build
         env:
           ASTRO_TELEMETRY_DISABLED: "1"
