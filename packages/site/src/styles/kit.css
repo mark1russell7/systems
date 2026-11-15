@@ -195,6 +195,11 @@ code.sy-tag {
   font-size: var(--text-lg);
 }
 
+/* a part of a value that a line does not break, for example one shift of a clock */
+.sy-readout-part {
+  white-space: nowrap;
+}
+
 /* ------------------------------------------------------------------ the chips of the verdicts */
 
 .sy-verdict {
@@ -452,6 +457,15 @@ code.sy-tag {
 .sy-now {
   stroke: var(--color-ink);
   stroke-width: 1.5;
+}
+
+/* a halo in the color of the card keeps a label clear of each line that goes under it */
+.sy-strip .sy-shift-text,
+.sy-strip .sy-now-text {
+  paint-order: stroke;
+  stroke: var(--color-surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .sy-strip .sy-shift-text {
@@ -1172,7 +1186,8 @@ code.sy-tag {
     padding-inline: var(--space-3);
   }
 
-  .sy-readout div:first-child {
+  .sy-readout div:first-child,
+  .sy-readout .sy-readout-wide {
     grid-column: 1 / -1;
   }
 

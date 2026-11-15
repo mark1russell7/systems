@@ -9,7 +9,7 @@
  *
  * Each count comes from the pure step of `@mark1russell7/service/limiter`, through the model `../model/quota.ts`.
  */
-import { useMemo, useState, type KeyboardEvent, type PointerEvent, type ReactElement } from "react";
+import { Fragment, useMemo, useState, type KeyboardEvent, type PointerEvent, type ReactElement } from "react";
 import { duration, spacedLabels } from "../lib/format.ts";
 import {
   LIMIT,
@@ -305,7 +305,20 @@ export default function QuotaLab(): ReactElement {
     { label: "Clock", value: stamp(at, zone) },
     { label: "Used", value: `${String(result.state.used)} of ${String(LIMIT)}` },
     { label: "Window", value: length },
-    { label: "Shift", value: shifts.length === 0 ? "none" : shifts.map((shift) => `${shift.before} → ${shift.after}`).join(", ") },
+    {
+      label: "Shift",
+      wide: true,
+      // a line breaks between two shifts, and not inside one shift
+      value:
+        shifts.length === 0
+          ? "none"
+          : shifts.map((shift, index) => (
+              <Fragment key={shift.at}>
+                {index === 0 ? null : ", "}
+                <span className="sy-readout-part">{`${shift.before} → ${shift.after}`}</span>
+              </Fragment>
+            )),
+    },
   ];
   const summary = `${saying.verdict}: ${saying.title}. The window runs from ${stamp(frame.from, zone)} to ${stamp(frame.to, zone)}.`;
 

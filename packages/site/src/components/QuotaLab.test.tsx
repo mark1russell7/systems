@@ -24,6 +24,11 @@ describe("the quota lab, as the server renders it", () => {
     expect(html).toContain("Clock shift");
   });
 
+  it("gives the shift a whole row of the readout on a phone, and no line breaks inside a shift", () => {
+    expect(html).toMatch(/<div class="sy-readout-wide"><dt>Shift<\/dt><dd><span class="sy-readout-part">02:00 → 01:00<\/span><\/dd><\/div>/);
+    expect(times(html, /class="sy-readout-wide"/g)).toBe(1);
+  });
+
   it("names the window in the label of the chart, for a reader without the picture", () => {
     expect(html).toContain('aria-label="Room: 2 of 4 used, 2 left. The window runs from Sun 1 Nov, 00:00 UTC−5 to Mon 2 Nov, 00:00 UTC−6."');
   });
