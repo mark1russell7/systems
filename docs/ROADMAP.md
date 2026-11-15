@@ -2451,7 +2451,7 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 - **Status:** in progress
 - **Area:** site
 - **Depends on:**
-- **Waiting on:** Mark: choose the next page of the item (the first page, the path of one request, shipped 2026-11-02)
+- **Waiting on:**
 - **Started:** 2026-11-02
 - **Shipped:**
 - **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
@@ -2473,7 +2473,21 @@ The second step moved the documents and the arithmetic of the two labs into the 
 - A test compares the two labs with the results of the code before the move. It has 87 cases of the page and 92 cases of the detection lab, and the results are the same.
 - The source changed one value. A probe that takes longer than its period starts the next probe at once. Thus the interval of the probes is the longer of the period and the timeout. At a period of 2 s and a timeout of 5 s, the pod is unready at 17 s, not 11 s.
 
-The next step: Mark's next page of the item.
+**The four next pages (Mark, 2026-11-15).** Mark chose all four pages: the accept queue, the port range, the memory of a process and the NIC. Each visual is one part of a whole. A reader sees each visual on its own page, and all of them together on one page.
+
+- **The contract.** Each visual is a lens: a set of named knobs, a pure model and its lanes. A lane has a band, marks on a timeline, facts and the measured values of cells. A knob has one name in all lenses, thus the page of all lenses has one control for each knob.
+- **One home for each law.** Each lens computes with `@mark1russell7/algebra` on the documents of `@mark1russell7/machines`, and the cells use the same functions. Before a lens ships, its law moves from the cells package into those packages. A test shows that the predictions of the cells do not change.
+
+The order of the steps:
+
+1. The contract and the shared timeline. The path of one request becomes five lenses, and its 87 golden cases do not change.
+2. The accept queue. The law of SYS-63 moves to the packages, and the page shows the cells `AQ.1` to `AQ.10`.
+3. The port range. The law of SYS-64 moves to the packages, and the page shows the cells `PR.1` to `PR.7`.
+4. The page of all lenses. A port, the SYN, the accept queue, the request and the fault share one timeline.
+5. The memory of a process. The law comes from the sources of Linux, new cells measure it in CI, and then the lens ships.
+6. The NIC. It has the same steps as the memory.
+
+The next step: step 1, the contract.
 
 ## The items of S3
 
