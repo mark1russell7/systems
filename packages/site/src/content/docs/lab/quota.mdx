@@ -1,0 +1,35 @@
+---
+title: The quota lab
+description: Take units from a quota, give units back, and move the clock across a shift of daylight time. See what the window counts.
+---
+
+import QuotaLab from "../../../components/QuotaLab.tsx";
+
+A quota lets a key take a limit of units in a window. A calendar window is a day or a month on the clock of one zone. A rolling window is the last span of time. This lab gives a limit of 4 units, and each window has a different case.
+
+<QuotaLab client:visible />
+
+## What the lab shows
+
+- **The window** is the blue wash. It starts at the start of the day on the clock of the zone, and it ends at the start of the next day. On a day when the clocks go back, the window has 25 hours. On a day when the clocks go forward, it has 23 hours.
+- **A take** is a dot. A filled dot counts. An open dot is a unit that the key gave back. A grey dot stopped counting, because its window ended. A cross is a take that the quota refused.
+- **A shift of the clock** is a dashed line, with the clock before and after it. On the day of 25 hours, the clock shows 01:30 two times. The lab writes the offset from UTC with each time, thus the two times differ.
+- **The instant of the reader** is the line in ink. The clock goes only forward.
+
+## How the lab counts
+
+Each count comes from `quotaStep` of `@mark1russell7/service/limiter`, the pure step of the service. Each act of the reader is one step on the record of the key. The lab does no arithmetic of dates of its own:
+
+- The start of a bucket is the bucket that a take of 1 unit writes in an empty record.
+- A unit counts at an instant when a read of a record with only that unit gives 1 unit used.
+- The end of a calendar window is the instant that the step gives for the next unit.
+
+A give-back removes a unit from the bucket of its take, but only while that bucket counts. A give-back after the end of the window changes nothing.
+
+## The cases
+
+- **Clocks go back:** Chicago, 1 November 2026. The day has 25 hours.
+- **Clocks go forward:** Chicago, 8 March 2026. The day has 23 hours.
+- **No midnight:** Santiago, 6 September 2026. The clocks go from 00:00 to 01:00, thus the window of the day starts at 01:00.
+- **Half-hour zone:** Kolkata, 5 h 30 min ahead of UTC. The day of this quota starts at 06:00, thus at 05:30 the window of the day before still counts.
+- **Rolling hour:** the last hour, in 6 buckets of 10 min. A unit stops counting 60 to 70 min after its take, when its whole bucket is more than one hour old.
