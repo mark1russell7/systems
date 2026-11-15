@@ -124,10 +124,12 @@ An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake 
 | Export | What it does |
 | --- | --- |
 | `Clock` | `now()` gives the monotonic time in milliseconds. `after(ms, run)` starts `run` after `ms` and gives its `Cancel`. |
-| `platformClock({ unref })` | A clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. |
+| `platformClock({ unref, speed, start })` | A clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. With a speed or a start, the clock is scaled. |
 | `realClock` | The clock of the platform with `unref: true`. |
+| `wallClock({ unref, speed, start })` | A `WallClock`: `now()` gives the instant of `Date.now()`, and its timers are the timers of `platformClock`. With a speed or a start, the clock is scaled. |
 | `fakeClock(start)` | A clock that moves only on `advance(ms)`. `block(ms)` moves it and starts no timer, as a blocked event loop does. `pending` counts the live timers. |
-| `delay(clock, ms, signal?)` | A promise that resolves after `ms` on the clock. An abort of the signal stops the timer and rejects with the reason of the signal. |
+| `fakeWallClock(start)` | A fake `WallClock`. `set(instant)` steps its instant forward or back, and no timer moves. |
+| `delay(clock, ms, signal?)` | A promise that resolves after `ms` on a `Clock` or a `WallClock`. An abort of the signal stops the timer and rejects with the reason of the signal. |
 
 ```ts
 import { delay, fakeClock, realClock } from "@mark1russell7/algebra/clock";
@@ -139,6 +141,26 @@ await clock.advance(30_000); // the sweep runs, at 30 s exactly
 // a wait before the next try, which the drain stops
 await delay(realClock, retryAfter, controller.signal);
 ```
+
+### A scaled clock
+
+A scaled clock runs a long schedule in a short real time, on the real timers. A fake clock moves only on `advance`. Thus it cannot drive a server, a proxy or a socket that waits on real time.
+
+- `speed` is the milliseconds of the clock in one real millisecond: a finite number above 0. At the speed 60, `now()` moves 60 ms in each real millisecond, and a timer of 60 s ends after 1 real second.
+- `start` is the time of `now()` when the clock is made. The default is the time of the platform.
+- `now()` counts from the start on the monotonic time. Thus a step of the wall clock of the platform does not move it. A wall clock gives whole milliseconds, as `Date.now()` does.
+- When the platform starts a timer before its due time on the clock, the timer waits again for the rest. Thus `run` reads its due time or a later time.
+- A bad speed or a bad start throws a `RangeError`.
+
+```ts
+import { wallClock } from "@mark1russell7/algebra/clock";
+
+// 80 minutes of a source in 80 s of real time
+const clock = wallClock({ speed: 60, start: Date.now(), unref: true });
+clock.after(10 * 60_000, () => console.log("10 minutes on the clock, 10 s of real time"));
+```
+
+The clock reads `performance.now()` at each timer. Thus the fake timers of a test also fake `performance`, for example `vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] })`.
 
 ### Civil time
 

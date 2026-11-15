@@ -2324,6 +2324,23 @@ A sender of alerts gives each send a time limit. The `timeout` channel of servic
 - The release is service `0.8.16`, a PATCH version: a new export before 1.0.
 - The test: a seeded walk of 200 works, late exactly when the work ends after the limit, with no timer left.
 
+### SYS-117 · A scaled clock: speed and start
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:**
+
+A test of a source of alerts runs 80 minutes of the source in 80 s of real time. A fake clock cannot drive a server, a proxy or a socket, because these wait on real time. The consumer had a local copy of a fast clock. The options `speed` and `start` of `platformClock` and `wallClock` of `@mark1russell7/algebra/clock` give a scaled clock.
+
+- `now()` is the start plus the monotonic time since the call, times the speed. A wall clock gives whole milliseconds.
+- A timer of `ms` waits `ms / speed` real milliseconds. When the platform starts it before its due time on the clock, it waits again for the rest.
+- A speed that is not a finite number above 0, or a start that is not finite, throws a `RangeError`.
+- `delay` also takes a `WallClock`, because it uses only the timers.
+- The release is algebra `0.8.10`, a PATCH version: new options before 1.0.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
@@ -3503,6 +3520,23 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 - **Links:** [#453](https://github.com/mark1russell7/systems/pull/453)
 
 The state-machine package publishes as `@mark1russell7/algebra`, and that name clashes with the math repository. The maintainer agreed on the new name `@mark1russell7/automata` on 2026-11-09. The draft #453 has the rename. It merges after the npm sitting. The package holds machines with clocks: their timers in closed form, detection, recovery and the replay of a trace. This is the model of timed automata. The name is free on npm. The change renames the package and each import, for example `@mark1russell7/automata/clock`. A new name breaks each user, thus the release is `0.9.0` (MINOR before 1.0). The old name gets an npm deprecation that names the new one. The maintainer does the publish and the trust. Cells, machines, service and site import the package. Other repositories use it too, for example client and collections. Each changes its imports after the release. If the declarations of a public package name its types, that package also gets a MINOR. The test: only the history and the registry entries of the locks name the old package. The API report of each public package shows only the new name.
+
+### SYS-118 · The queue: a pull request that is behind main passes its checks again
+
+- **Status:** blocked
+- **Area:** program
+- **Depends on:** conventions `0.41.13` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/mark1russell7/systems/pull/538)
+
+On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependencies merged first, and the release published its `0.8.18`. Then #535 merged with the same version and other files. The two version lines had the same text, thus the merge had no conflict. The release check of #535 operated before `0.8.18` was on npm. Thus the pack step of `main` stopped, and #538 set `0.8.19`.
+
+- The ruleset of `main` gets strict status checks. Then GitHub merges a pull request only when its branch has the newest `main`.
+- `queue.yml` uses `reusable-queue.yml` of the template. It merges `main` into each pull request that is behind, and it starts the workflows of its checks again.
+- The conventions option `versionEachChange` is on. A change of the shipped files at a version that npm has breaks the check.
+- Each workflow of a check of the ruleset starts on `workflow_dispatch`.
+- With conventions `0.41.13`, a run that the queue starts examines the change of the pull request against the new base.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
