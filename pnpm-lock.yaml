@@ -173,14 +173,14 @@ importers:
         specifier: ^0.5.0
         version: 0.5.6
       '@mark1russell7/conventions':
-        specifier: ^0.41.0
-        version: 0.41.12
+        specifier: ^0.41.14
+        version: 0.41.14
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
       '@mark1russell7/ste-lint':
-        specifier: github:mark1russell7/ste-lint#f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7
-        version: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7
+        specifier: ^0.3.2
+        version: 0.3.2
       '@mark1russell7/template-cli':
         specifier: ^0.1.2
         version: 0.1.7
@@ -504,6 +504,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rational':
+        specifier: ^0.1.2
+        version: 0.1.2
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.0
         version: 0.1.16
@@ -1496,8 +1499,8 @@ packages:
     resolution: {integrity: sha512-s2DyC8i8JhP0Ue6oG+dLUHrjwvUjz+UQrrSIViLkDdU0t+LhLChLrkRpcwr/eof62ffOSPXifLVYuzM7alEEPw==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/conventions@0.41.12':
-    resolution: {integrity: sha512-KR/hoz40N21xdcxVwyojHH0m4ZwC5PhetuKcxLru5kKfAKKawyN7KV+mWSkDgJEg93CB6ZJI2+wX2dN4l86tRg==}
+  '@mark1russell7/conventions@0.41.14':
+    resolution: {integrity: sha512-GqmF9TE9SWnkj+heyy8addISBS7Q+q3tbvof40QpaxNmulixVoUROUIullzuvfl27yUBVED2RL/eBUaXe/AZFg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1606,9 +1609,8 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
-    resolution: {gitHosted: true, integrity: sha512-HDxumpWNUeciZKaXbAGFPyoOTrt0trj7L3/koNvWnTN/vEuF0gYzqVJdsgfTQ9bE/DhSxfNMRxtrh4KYnbbimA==, tarball: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7}
-    version: 0.1.0
+  '@mark1russell7/ste-lint@0.3.2':
+    resolution: {integrity: sha512-0WRNon1oYKX1mmTP/AhrPnpoGAGolmpkJWHaTkHXc4SKe1tQhUvPrY/0TQ4gvu7aN+TEPpypiZDIkOjYZG8qBA==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -5232,7 +5234,7 @@ snapshots:
 
   '@mark1russell7/api-report@0.5.6':
     dependencies:
-      '@mark1russell7/conventions': 0.41.12
+      '@mark1russell7/conventions': 0.41.14
 
   '@mark1russell7/coeval@0.29.0(zod@4.6.7)':
     dependencies:
@@ -5257,7 +5259,7 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  '@mark1russell7/conventions@0.41.12':
+  '@mark1russell7/conventions@0.41.14':
     dependencies:
       yaml: 2.9.1
 
@@ -5344,7 +5346,7 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-statistics': 0.1.29
 
-  '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
+  '@mark1russell7/ste-lint@0.3.2':
     dependencies:
       typescript: 6.0.3
 

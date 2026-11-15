@@ -40,10 +40,25 @@ export interface WallClock {
   after(ms: number, run: () => void): Cancel;
 }
 
-/** These options make a clock of the platform. */
+/**
+ * These options make a clock of the platform. With a speed or a start, the clock is scaled: it
+ * counts from its start on the monotonic time of the platform, `speed` times faster. Thus a test
+ * runs a long schedule in a short real time, on the real timers.
+ */
 export interface PlatformClockOptions {
   /** True makes each timer not keep a Node process alive. The default is false, as with `setTimeout`. */
   readonly unref?: boolean | undefined;
+  /**
+   * The milliseconds of the clock in one real millisecond: a finite number above 0. The default is 1.
+   * At the speed 60, `now()` moves 60 ms in each real millisecond, and a timer of 60 s ends after 1
+   * real second. A speed below 1 gives a slow clock.
+   */
+  readonly speed?: number | undefined;
+  /**
+   * The time of `now()` when the clock is made, in milliseconds: a finite number. A wall clock reads
+   * it as an instant. The default is the time of the platform at that moment.
+   */
+  readonly start?: number | undefined;
 }
 
 /** This function gives the monotonic time: `performance.now()`, or `Date.now()` on a platform without `performance`. */
@@ -55,28 +70,64 @@ const monotonic = (): number => {
 /** This delay is the longest that `setTimeout` takes, in milliseconds. A longer delay starts the function after 1 ms. */
 const LONGEST_DELAY = 0x7fffffff;
 
+/** This function gives the speed of the options. It throws a `RangeError` for a bad speed or a bad start. */
+const speedOf = (options: PlatformClockOptions): number => {
+  const speed = options.speed ?? 1;
+  if (typeof speed !== "number" || !Number.isFinite(speed) || speed <= 0) throw new RangeError(`The speed ${String(speed)} is not a finite number above 0.`);
+  const start = options.start;
+  if (start !== undefined && (typeof start !== "number" || !Number.isFinite(start))) throw new RangeError(`The start ${String(start)} is not a finite number.`);
+  return speed;
+};
+
 /**
- * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
- * that it gives also has `unref`. A delay longer than `setTimeout` takes waits in steps.
+ * This function makes the timers of a clock of the platform. A timer of `ms` milliseconds on the
+ * clock waits `ms / speed` real milliseconds, in steps when `setTimeout` does not take that delay.
+ * With `now`, the timer reads the clock when the platform starts it. When the clock is before the
+ * due time, the timer waits again for the rest. Thus `run` reads its due time or a later time.
  */
-export const platformClock = (options: PlatformClockOptions = {}): Clock => ({
-  now: monotonic,
-  after(ms, run) {
-    let unrefed = options.unref === true;
+const timersOf =
+  (unrefAll: boolean, speed: number, now?: () => number): Clock["after"] =>
+  (ms, run) => {
+    let unrefed = unrefAll;
+    const due = now === undefined ? 0 : now() + Math.max(0, ms);
+    const fire = (): void => {
+      const early = now === undefined ? 0 : due - now();
+      if (early > 0) timer = arm(early / speed);
+      else run();
+    };
     const arm = (left: number): ReturnType<typeof setTimeout> => {
       const step =
-        left > LONGEST_DELAY ? setTimeout(() => (timer = arm(left - LONGEST_DELAY)), LONGEST_DELAY) : setTimeout(run, Math.max(0, left));
+        left > LONGEST_DELAY ? setTimeout(() => (timer = arm(left - LONGEST_DELAY)), LONGEST_DELAY) : setTimeout(fire, Math.max(0, left));
       if (unrefed) (step as { unref?: () => void }).unref?.();
       return step;
     };
-    let timer = arm(ms);
+    let timer = arm(ms / speed);
     const unref = (): void => {
       unrefed = true;
       (timer as { unref?: () => void }).unref?.();
     };
     return Object.assign(() => clearTimeout(timer), { unref });
-  },
-});
+  };
+
+/**
+ * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
+ * that it gives also has `unref`. A delay longer than `setTimeout` takes waits in steps.
+ *
+ * With a speed or a start, `now()` is the start plus the monotonic time since the call, times the
+ * speed. A scaled clock reads `performance.now()` at each timer. Thus the fake timers of a test
+ * also fake `performance`, else its timers wait again and again.
+ *
+ * @throws {RangeError} for a speed that is not a finite number above 0, and for a start that is not finite.
+ */
+export const platformClock = (options: PlatformClockOptions = {}): Clock => {
+  const speed = speedOf(options);
+  const unref = options.unref === true;
+  if (speed === 1 && options.start === undefined) return { now: monotonic, after: timersOf(unref, 1) };
+  const origin = monotonic();
+  const start = options.start ?? origin;
+  const now = (): number => start + (monotonic() - origin) * speed;
+  return { now, after: timersOf(unref, speed, now) };
+};
 
 /**
  * This clock reads `performance.now()` and uses `setTimeout`. Its timers do not keep a Node
@@ -87,21 +138,32 @@ export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });
 /**
  * This function makes the wall clock of the platform: `Date.now()`, and the timers of
  * `platformClock`. The options are the options of `platformClock`.
+ *
+ * With a speed or a start, `now()` is the start plus the monotonic time since the call, times the
+ * speed. It gives whole milliseconds, as `Date.now()` does. The default start is `Date.now()`.
+ * A step of the wall clock of the platform does not move a scaled clock.
+ *
+ * @throws {RangeError} for a speed that is not a finite number above 0, and for a start that is not finite.
  */
-export const wallClock = (options: PlatformClockOptions = {}): WallClock => ({
-  time: "wall",
-  now: () => Date.now(),
-  after: platformClock(options).after,
-});
+export const wallClock = (options: PlatformClockOptions = {}): WallClock => {
+  const speed = speedOf(options);
+  const unref = options.unref === true;
+  if (speed === 1 && options.start === undefined) return { time: "wall", now: () => Date.now(), after: timersOf(unref, 1) };
+  const origin = monotonic();
+  const start = options.start ?? Date.now();
+  const now = (): number => Math.floor(start + (monotonic() - origin) * speed);
+  return { time: "wall", now, after: timersOf(unref, speed, now) };
+};
 
 /**
  * This function gives a promise that resolves after `ms` milliseconds on the clock. When the signal
  * aborts, the promise stops its timer and rejects with the reason of the signal. A signal that
  * aborted before the call rejects at once, and starts no timer. Each end removes the listener from
  * the signal. A timer of `realClock` does not keep a Node process alive: give `platformClock()` to
- * keep the process alive until the delay ends.
+ * keep the process alive until the delay ends. The clock is a `Clock` or a `WallClock`: the
+ * function uses only its timers, and each timer of the two waits on the monotonic time.
  */
-export const delay = (clock: Clock, ms: number, signal?: AbortSignal): Promise<void> =>
+export const delay = (clock: Pick<Clock, "after">, ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise<void>((resolve, reject) => {
     if (signal?.aborted === true) {
       reject(signal.reason);

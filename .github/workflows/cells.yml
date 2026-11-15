@@ -35,14 +35,17 @@
 # the new copy of each study of the round, and it uploads the copies as the artifact refresh.
 # Start a round by hand with this command.
 #   gh workflow run cells.yml -R mark1russell7/systems -f selection=refresh-2 -f shards=8
+# A dispatch that names no cells (no only, selection, pair or file) is the gate of a pull request: the
+# probe only. The queue starts this dispatch on each pull request that is behind main (SYS-118).
+# To run each cell of the catalogs, give -f only=. by name.
 name: Cells
 
 on:
   workflow_dispatch:
     inputs:
       only:
-        description: A regular expression of the cell names to run
-        default: "."
+        description: A regular expression of the cell names to run (. for each cell, empty with no selection, pair or file for the gate of a pull request)
+        default: ""
       shards:
         description: How many runners share the cells (1 to 20)
         default: "4"
@@ -77,17 +80,18 @@ env:
   REFRESH_EPOCH: 2026-11-11
   REFRESH_SHARDS: 8
 
-# The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch and each
-# schedule has a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a
-# dispatch of other cells.
+# The runs of a pull request share a group, and a newer push cancels the older run. The gate dispatches of
+# one branch (each names no cells) share a group in the same way. Each other dispatch and each schedule has
+# a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of
+# other cells.
 # With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
 defaults:
   run:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '' && inputs.selection == '' && inputs.pair == '' && inputs.file == '')) && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '' && inputs.selection == '' && inputs.pair == '' && inputs.file == '') }}
 
 jobs:
   changes:
@@ -177,9 +181,10 @@ jobs:
           sysctl kernel.unprivileged_bpf_disabled kernel.perf_event_paranoid kernel.kptr_restrict 2>&1 || true
           sudo dmesg | tail -n 40 || true
 
+  # a schedule, or a dispatch that names its cells: the gate dispatch of the queue runs the probe only
   plan:
     needs: changes
-    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'pull_request') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.only != '' || inputs.selection != '' || inputs.pair != '' || inputs.file != ''))) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -237,7 +242,7 @@ jobs:
 
   cells:
     needs: [changes, probe, plan]
-    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'pull_request') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.only != '' || inputs.selection != '' || inputs.pair != '' || inputs.file != ''))) }}
     strategy:
       max-parallel: 3
       fail-fast: false
