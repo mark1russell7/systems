@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import { valueIn } from "@mark1russell7/quantity";
 import type {
@@ -208,8 +209,6 @@ export const viewOf = (
   }
   return { primary, healthy: true, why: "healthy" };
 };
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** This time is the longest that a group takes to converge before a run, or after it. */
 export const CONVERGE_MS = 240_000;

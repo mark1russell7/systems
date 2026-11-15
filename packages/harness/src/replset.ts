@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, GroupPlace, GroupRole, KernelRecord, ProbeEvent, ReplicaSet, Run, RunPart, SentinelEvent } from "./cell.ts";
@@ -193,8 +194,6 @@ export interface ReplicaSetLab {
 }
 
 /** This function waits for a time, in ms. */
-export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
 /** These are the arguments of replSetStepDown: the time that the old primary cannot stand again, and the wait for a secondary to catch up. */
 export const STEP_DOWN = { seconds: 60, catchUp: 10 } as const;
 

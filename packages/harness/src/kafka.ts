@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, GroupPlace, Kafka, KernelRecord, ProbeEvent, Run, RunPart } from "./cell.ts";
@@ -171,8 +172,6 @@ export interface KafkaLab {
   manifest(sysctls: Readonly<Record<string, string>>): Promise<Manifest>;
   close(): Promise<void>;
 }
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** This count is the number of raw lines of the console of each node that a lab keeps. */
 export const RAW_TAIL = 400;
