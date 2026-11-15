@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -185,7 +186,7 @@ export const download = async (url: string, waits: readonly number[] = DOWNLOAD_
     const failure = response instanceof Response ? new Error(`the download of ${url} answered ${response.status}`) : response;
     const wait = waits[attempt];
     if ((response instanceof Response && response.status < 500) || wait === undefined) throw failure;
-    await new Promise((resolve) => setTimeout(resolve, wait));
+    await sleep(wait);
   }
 };
 

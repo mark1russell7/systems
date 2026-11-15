@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,7 +58,6 @@ export interface RunOptions {
   readonly code?: RecordCode | undefined;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 /** This function tells if a cell has Redis: only a declaration of the service can have it. */
 const hasRedis = (cell: KindCell): boolean => cell.declaration !== null && cell.declaration.redis !== null;

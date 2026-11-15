@@ -1,6 +1,11 @@
 # @mark1russell7/harness
 
-A fault-injection harness for connection timers. In a cell, a client connects to a stock target in new Docker environments. The harness injects a fault, and it measures what the kernel did. Then the harness judges the measurement against the prediction of the cell.
+Network labs in Docker, declared as data. A cell builds a topology of networks, routers and proxies around a stock target, and a client connects to that target. The harness injects a fault at layer 3 or 4, and it measures what the kernel did. Then the harness judges the measurement against the prediction of the cell.
+
+- **The faults:** black holes, resets, ICMP unreachable, one-way drops, MTU drops, tc netem, the toxics of Toxiproxy, SIGSTOP and SIGKILL. A sidecar with NET_ADMIN commits each fault in one `iptables-restore`, thus the image of the target stays stock.
+- **The groups:** Redis under its Sentinels, a MongoDB replica set, a PostgreSQL standby, a Kafka or RabbitMQ cluster, and a BGP fabric with BFD.
+- **The tiers:** a lab operates on the Docker of the host, or in a QEMU guest with a pinned kernel. The package [`@mark1russell7/kind`](https://www.npmjs.com/package/@mark1russell7/kind) has the labs on Kubernetes clusters of kind.
+- **The first use:** connection timers. Examples are keep-alive, TCP retransmission, heartbeats and reconnects.
 
 The harness does not compute predictions. The author of a cell computes the prediction, for example from a timer algebra, and puts it in the cell.
 
