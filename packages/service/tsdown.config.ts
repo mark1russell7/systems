@@ -32,6 +32,9 @@ export default defineConfig({
     "src/host.ts",
     "src/otel.ts",
   ],
+  // Each module of src/ is a file of build/. A bundle of a caller then drops each module that it
+  // does not import. A shared chunk joins modules into one file, and the bundle keeps all of it.
+  unbundle: true,
   outDir: "build",
   format: "esm",
   platform: "neutral",

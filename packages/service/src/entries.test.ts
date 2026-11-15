@@ -292,7 +292,7 @@ describe("the http entry: Node only, on node:http and node:net", () => {
   it("loads no node: module other than node:http and node:net, and no package other than quantity", () => {
     const { packages } = reach("http.ts");
     expect(packages.filter((name) => name.startsWith("node:")).every((name) => name === "node:http" || name === "node:net")).toBe(true);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity", "@mark1russell7/quantity/time", "@mark1russell7/rational"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -362,8 +362,8 @@ describe("the channel entry: a client in a browser can import it (collections C2
 });
 
 describe("the limiter entry: a client in a browser can import it (SYS-28)", () => {
-  it("loads only quantity and the clock of the algebra: no node: module and no zod", () => {
-    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
+  it("loads only the entry of the times of quantity, rational and the clock of the algebra: no node: module and no zod", () => {
+    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity/time", "@mark1russell7/rational"]);
     expect(reachAll("limiter.ts")).toEqual([]);
   });
 

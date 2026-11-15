@@ -1,5 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
-import { convertExact, convertible, rationals as r } from "@mark1russell7/quantity";
+import { convertExact, convertible } from "@mark1russell7/quantity/time";
+import { ONE, div, fromNumber, toNumber } from "@mark1russell7/rational";
 
 /**
  * A token bucket gives each key a bucket of `burst` tokens. The bucket refills at `rate`, and each
@@ -187,7 +188,7 @@ export const safely = (test: (amount: Quantity | undefined) => boolean, amount: 
   }
 };
 export const finiteAbove = (amount: Quantity): boolean => typeof amount.value === "number" && Number.isFinite(amount.value) && amount.value > 0;
-export const wholeCount = (amount: Quantity): boolean => finiteAbove(amount) && Number.isInteger(r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count")));
+export const wholeCount = (amount: Quantity): boolean => finiteAbove(amount) && Number.isInteger(toNumber(convertExact(fromNumber(amount.value), amount.unit, "count")));
 
 /** A loose policy is a policy from any source, with each part optional, for the check of its parts. */
 interface LoosePolicy {
@@ -245,9 +246,9 @@ export const limiterProblems = (name: string, spec: Partial<LimiterSpec> | undef
 };
 
 /** This function gives an amount in milliseconds, exactly where the units permit, as one number. */
-export const milliseconds = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "ms"));
+export const milliseconds = (amount: Quantity): number => toNumber(convertExact(fromNumber(amount.value), amount.unit, "ms"));
 /** This function gives a count as one number. */
-export const countOf = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count"));
+export const countOf = (amount: Quantity): number => toNumber(convertExact(fromNumber(amount.value), amount.unit, "count"));
 
 /**
  * This function gives the rule of a policy in numbers. The interval of a bucket is exact as a
@@ -255,8 +256,8 @@ export const countOf = (amount: Quantity): number => r.toNumber(convertExact(r.f
  */
 export const limitRule = (policy: LimitPolicy): LimitRule => {
   if (policy.type === "token-bucket") {
-    const perMs = convertExact(r.fromNumber(policy.rate.value), policy.rate.unit, "count/ms");
-    return { type: "token-bucket", interval: r.toNumber(r.div(r.ONE, perMs)), burst: countOf(policy.burst) };
+    const perMs = convertExact(fromNumber(policy.rate.value), policy.rate.unit, "count/ms");
+    return { type: "token-bucket", interval: toNumber(div(ONE, perMs)), burst: countOf(policy.burst) };
   }
   return { type: "sliding-window", limit: countOf(policy.limit), window: milliseconds(policy.window) };
 };
@@ -290,7 +291,7 @@ export const longestRetryAfter = (policy: LimitPolicy): Quantity => {
  * because that part is an error of floating point.
  */
 export const retryAfterSeconds = (retryAfter: Quantity): number => {
-  const seconds = r.toNumber(convertExact(r.fromNumber(retryAfter.value), retryAfter.unit, "s"));
+  const seconds = toNumber(convertExact(fromNumber(retryAfter.value), retryAfter.unit, "s"));
   return Math.max(0, Math.ceil(seconds - TOLERANCE / 1000));
 };
 

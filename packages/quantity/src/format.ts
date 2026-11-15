@@ -1,7 +1,7 @@
 import type { Component } from "./parse.ts";
-import { parseUnit } from "./parse.ts";
+import { convertExact, parseUnit, whyNotConvertible } from "./parse.ts";
 import type { Extent, Quantity, Unknown } from "./quantity.ts";
-import { convert, convertExact, roundExact, whyNotConvertible } from "./quantity.ts";
+import { convert, roundExact } from "./quantity.ts";
 import * as q from "@mark1russell7/rational";
 import type { Rational } from "@mark1russell7/rational";
 import { UnitError } from "./parse.ts";
