@@ -69,8 +69,11 @@ const CONFIRM_MS = 10_000;
  * directions, or one), or a reset on the next segment. It can also be an ICMP unreachable for each
  * segment, or a drop of each segment that is longer than a length. It can also be a drop of the
  * first ACK of each FIN that the namespace sends.
+ *
+ * A silence drops each packet of the namespace of a hop, in its three chains, and it names no peer.
+ * The links stay up and ARP continues, thus a connect through a silent router times out.
  */
-export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack";
+export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack" | "silence";
 
 /** These are the options of a network fault: the direction of a black hole, the code of a reject, the length of an MTU drop. */
 export interface FaultOptions {
@@ -97,6 +100,32 @@ export const LIFT: Readonly<Record<NetworkFault, string>> = {
   reject: "clear-reject",
   mtu: "clear-mtu",
   "fin-ack": "clear-fin-ack",
+  silence: "clear-silence",
+};
+
+/**
+ * This function gives the argv of the injector for a network fault at a place, or for its lift. The
+ * lab gives the peer of the place and, at a router, its device (`--via`). The peers of the options
+ * replace the peer.
+ *
+ * A silence names no peer and takes no option. It acts only at a hop, and the side of the hop has no
+ * effect on it.
+ */
+export const faultArgs = (
+  kind: NetworkFault,
+  at: FaultPlace,
+  peer: string,
+  via: readonly string[],
+  options: FaultOptions = {},
+  lift = false,
+): string[] => {
+  const action = lift ? LIFT[kind] : kind;
+  if (kind === "silence") {
+    if (!isHopPlace(at)) throw new Error(`a silence drops each packet of the namespace of a hop, not of ${JSON.stringify(at)}`);
+    if (Object.values(options).some((value) => value !== undefined)) throw new Error("a silence takes no options");
+    return ["/opt/harness/inject", action];
+  }
+  return ["/opt/harness/inject", action, options.peers?.join(",") ?? peer, ...optionArgs(options), ...via];
 };
 
 /**
@@ -354,6 +383,9 @@ export interface Lab {
    * of the target. The fault is a black hole, or a reset that answers the next segment of the
    * client. At a proxy of a topology, the rules face the peer of the proxy on one side. The stamps
    * of the injector bracket it.
+   *
+   * A silence at a hop drops each packet of the hop. Thus a router stops its forward and its
+   * answers, and ARP continues.
    */
   fault(
     kind: NetworkFault,
@@ -1054,11 +1086,11 @@ export const openLab = async (
       },
       async fault(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        return stamped(where, ["/opt/harness/inject", kind, options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
+        return stamped(where, faultArgs(kind, at, peer, via, options));
       },
       async lift(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        await output(where, ["/opt/harness/inject", LIFT[kind], options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
+        await output(where, faultArgs(kind, at, peer, via, options, true));
       },
       async netem(spec, at = "target") {
         const [where, device] = deviceAt(at);
