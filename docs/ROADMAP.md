@@ -2606,14 +2606,16 @@ One page shows all lenses on one timeline, with one control for each shared knob
 
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
 A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
+
+Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the cells, in CI only. Part 3 is the lens and its page.
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
