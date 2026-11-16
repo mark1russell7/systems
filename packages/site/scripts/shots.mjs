@@ -29,6 +29,7 @@ const WIDGETS = [
   ["map", ".sy-map"],
   ["borders", ".sy-borders"],
   ["rows", ".sy-rows-figure"],
+  ["queue-results", ".sy-queue-results"],
 ];
 
 // the pages of the site: each index.html under dist, as the path that GitHub Pages serves

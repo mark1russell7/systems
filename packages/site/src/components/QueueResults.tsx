@@ -103,7 +103,7 @@ function TermTable(props: { readonly cell: QueueCellCopy; readonly result: Queue
 export default function QueueResults(props: { readonly copy: QueueCopy }): ReactElement {
   const { copy } = props;
   return (
-    <div className="not-content">
+    <div className="not-content sy-queue-results">
       <p className="sy-muted">
         The runners of GitHub measured these cells on {copy.ranAt}, on the kernel {copy.kernel} with HZ {copy.hz}
         {copy.commit === undefined ? "" : `, at the commit ${copy.commit.slice(0, 7)}`}.
