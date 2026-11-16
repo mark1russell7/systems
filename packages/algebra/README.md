@@ -29,6 +29,7 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
   - `linux.retrans-step`: how late the give-up comes after its budget, at the real RTO of the path.
   - `linux.rto-wait` and `linux.rto-wait-lateness`: one wait of the retransmission timer, from the tail loss probe, and its rounding.
   - `linux.keepalive-lateness`, `linux.wheel` and `linux.jiffy`: the rounding of the timer wheel at the HZ of the kernel.
+  - `linux.time-wait-lateness`: the rounding of the 60 s of TIME_WAIT (`TCP_TIMEWAIT_LEN`) on the wheel. At HZ 1000 a port in TIME_WAIT can stay held up to 4.096 s more.
   - `linux.delack` and `linux.delack-lateness`: the longest wait of the delayed ACK, and its rounding. The wait is the smoothed round trip in whole jiffies, from `TCP_DELACK_MIN` (HZ/25, 40 ms) to `TCP_DELACK_MAX` (HZ/5, 200 ms).
   - `linux.syn-giveup` and `linux.syn-giveup-lateness`: the SYN give-up of 6.5 and later, with linear timeouts, and the rounding of each of its waits on the wheel. At the defaults the give-up is 131 s, up to 6.08 s late at HZ 1000.
   - `linux.syn-wait` and `linux.syn-wait-lateness`: one wait of the SYN timer, after `fired` firings, and its rounding. At the defaults the waits 0 to 4 are 1 s, up to 64 ms late at HZ 1000.
@@ -43,6 +44,7 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
   - `memcgSleepBounds` gives the first usage that sleeps, and the first usage at the cap. For a high of 100 MiB at HZ 1000, these usages are 1.3% and 17.7% above the high.
   - `memcgThrottle` adds the sleeps of a task that charges one batch of 64 pages at a time. It also counts the events `high` of the cgroup. Each charge above the high reclaims one time, and each charge that sleeps reclaims 17 times.
   - `oomBadness` gives the points of a task for the OOM killer of a cgroup. `oomVictim` gives the task that it takes. The OOM killer does not take a task at an `oom_score_adj` of −1000.
+- **The search for a local port.** `portSearchSpan` gives the size that the search of a connect reads: the size of `ip_local_port_range`, rounded down to an even number. `portSearchShares` gives the share of each count of connects to one destination before `EADDRNOTAVAIL`. An even range gives its size in each round. An odd range gives its size or one less, from the exact chain of `portSearchChain`, up to 16 ports. The sources are `__inet_hash_connect` of Linux v7.0.
 - **Detection.** `detection` gives the minimum over the timers that are live in the situation of the connection. With no live timer, the failure is silent at this level. `stackedDetection` adds the timers of the machine below.
 - **Manifestations.** A manifestation tells which incoming events a failure lets through. A black hole lets nothing through. The kernel of a frozen process continues to send ACKs, which stop keepalive before it fires. A manifestation can also tell:
   - the events that the failure sends one time (`delivers`), for example the FIN of a process that stopped with SIGKILL. Such an event detects the failure at once (`Detection.delivered`).
@@ -138,7 +140,7 @@ An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake 
 | `unrefClock(clock)` | A clock with the time of `clock`, whose timers do not keep a Node process alive. A wall clock stays a wall clock. |
 | `wallClock({ unref, speed, start })` | A `WallClock`: `now()` gives the instant of `Date.now()`, and its timers are the timers of `platformClock`. With a speed or a start, the clock is scaled. |
 | `fakeClock(start)` | A clock that moves only on `advance(ms)`. `block(ms)` moves it and starts no timer, as a blocked event loop does. `pending` counts the live timers. |
-| `fakeWallClock(start)` | A fake `WallClock`. `set(instant)` steps its instant forward or back, and no timer moves. |
+| `fakeWallClock(start, monotonic?)` | A fake `WallClock`. `set(instant)` steps its instant forward or back, and no timer moves. With a `fakeClock` as `monotonic`, the two clocks share one queue of timers. |
 | `delay(clock, ms, signal?)` | A promise that resolves after `ms` on a `Clock` or a `WallClock`. An abort of the signal stops the timer and rejects with the reason of the signal. |
 
 ```ts

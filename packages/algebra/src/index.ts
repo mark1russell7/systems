@@ -38,6 +38,7 @@ export {
   oomBadness,
   oomVictim,
 } from "./memcg.ts";
+export { PORT_SEARCH_CHAIN_LARGEST, portSearchChain, portSearchShares, portSearchSpan } from "./port-search.ts";
 export type { Replayable, ReplayOptions, Transition } from "./replay.ts";
 export { replay } from "./replay.ts";
 export type { MachineRun, RunMachineOptions } from "./run.ts";

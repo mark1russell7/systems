@@ -251,6 +251,8 @@ const retransBudget = (retries: bigint, min: Rational, max: Rational): Rational 
 /** These are `TCP_TIMEOUT_INIT` and `TCP_RTO_MAX` in `include/net/tcp.h` at v6.6: the first SYN RTO and the cap. */
 const TCP_TIMEOUT_INIT = whole(1n);
 const TCP_RTO_MAX = whole(120n);
+/** This time is `TCP_TIMEWAIT_LEN` in `include/net/tcp.h` at v6.6: how long a socket stays in TIME_WAIT. */
+const TCP_TIMEWAIT_LEN = whole(60n);
 
 /**
  * This function gives the wait of the SYN of a connect after `fired` firings, from 6.5
@@ -505,6 +507,13 @@ const MODELS: Readonly<Record<string, Model>> = {
     knobs: ["s", "Hz"],
     seconds: ([time, hz]) => r.div(whole(granularity(jiffiesOf(time!, hz!))), hz!),
     source: "kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // the timer of TIME_WAIT is a plain timer of the wheel, thus it fires as late as the wheel at 60 s
+  "linux.time-wait-lateness": {
+    knobs: ["Hz"],
+    seconds: ([hz]) => r.div(whole(granularity(jiffiesOf(TCP_TIMEWAIT_LEN, hz!))), hz!),
+    source:
+      "include/net/tcp.h TCP_TIMEWAIT_LEN, net/ipv4/inet_timewait_sock.c __inet_twsk_schedule and kernel/time/timer.c calc_wheel_index at v6.6",
   },
   // the longest wait of the delayed ACK: min(max(srtt, TCP_DELACK_MIN), TCP_DELACK_MAX), in jiffies
   "linux.delack": {

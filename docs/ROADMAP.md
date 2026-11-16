@@ -2571,10 +2571,10 @@ Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra gi
 
 ### SYS-121 · The port range: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
@@ -2583,7 +2583,13 @@ A client that opens many connections to one destination uses up its local ports.
 - The knobs are `ip_local_port_range`, the count of connections, the side that closes first and `tcp_tw_reuse`.
 - The law of SYS-64 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
 
-The test: the predictions of the cells `PR.1` to `PR.7` do not change. The page shows the measured value of each cell next to its band.
+The test: the predictions of the cells `PR.1` to `PR.8` do not change. The page shows the measured value of each cell next to its band.
+
+Part 1 moves the law. `portSearchSpan` and `portSearchShares` of the algebra give the span of the search and the share of each count of connects. The timer `time_wait` of `linux-tcp` gets its bounds on the timer wheel, from the model `linux.time-wait-lateness`. The cells use them. Part 2 is the lens and its page.
+
+- The release of part 1 is algebra `0.9.3`, a PATCH with new exports before 1.0.
+- Machines `0.4.1` is a PATCH: `timerOf` of `time_wait` gives two new fields, and the old fields keep their values.
+- Service and kind need no release. They do not use the new exports, and their range `^0.9.1` takes algebra `0.9.3`.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
@@ -2607,7 +2613,7 @@ One page shows all lenses on one timeline, with one control for each shared knob
 
 A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
 
-Part 1 is the law in `@mark1russell7/algebra` 0.9.3. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the cells, in CI only. Part 3 is the lens and its page.
+Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the cells, in CI only. Part 3 is the lens and its page.
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
