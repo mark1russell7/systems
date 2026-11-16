@@ -321,13 +321,13 @@ A cell applies its fault with `Lab.fault` and removes it with `Lab.lift`. A prog
 | Option | Fault | Rule | Default |
 | --- | --- | --- | --- |
 | `direction`: `in`, `out` | `blackhole`, `reject` | `in` faces what comes from the peer, `out` what goes to it. At a router, `out` is `-o DEV -d PEER`. | both for a black hole, `in` for a reject |
-| `protocol`: `tcp`, `udp`, `icmp`, `all` | `blackhole`, `reject` | `-p` and the protocol, or no match for `all` | `all` for a black hole, `tcp` for a reject |
+| `protocol`: `tcp`, `udp`, `icmp`, `all` | `blackhole`, `reject`, `mtu` | `-p` and the protocol, or no match for `all` | `all` for a black hole, `tcp` for a reject and an MTU drop |
 | `code`: `host`, `net`, `port`, `admin` | `reject` | the ICMP unreachable of the answer | none: a reject needs a code |
 | `above` | `mtu` | the longest segment that passes, in bytes | none: an MTU drop needs a length |
 | `handshake`: `pass` | `rst` | `! --syn`: each SYN passes, and the next segment gets the reset | the SYN also gets the reset |
 | `peers` | each fault except `silence` | the addresses that the rules face, in one commit | the peer of the place |
 
-The injector refuses `protocol` on a fault other than a black hole or a reject. It refuses `handshake` on a fault other than a reset.
+The injector refuses `protocol` on a fault other than a black hole, a reject or an MTU drop. An MTU drop with `all` is a real black hole. Thus a path-MTU search with ping also sees it. The injector refuses `handshake` on a fault other than a reset.
 
 - **A silence** (`silence`) at a hop drops each packet of the namespace of the hop, in INPUT, OUTPUT and FORWARD, in one commit. The links stay up and ARP continues. Thus a connect through a silent router times out, and the router sends no answer. A silence names no peer and takes no option. It acts only at a hop, and the side of the hop has no effect.
 - **A host that is down behind a router** is a reject at the router toward the target, with `direction: "out"` and `protocol: "all"`. The router answers each packet that it forwards to the host with the ICMP unreachable of `code`.
