@@ -29,6 +29,7 @@ export {
 } from "./machine.ts";
 export { acceptQueueHeld, acceptQueueLimit } from "./accept-queue.ts";
 export { conntrackFloor } from "./conntrack.ts";
+export { PORT_SEARCH_CHAIN_LARGEST, portSearchChain, portSearchShares, portSearchSpan } from "./port-search.ts";
 export type { Replayable, ReplayOptions, Transition } from "./replay.ts";
 export { replay } from "./replay.ts";
 export type { MachineRun, RunMachineOptions } from "./run.ts";
