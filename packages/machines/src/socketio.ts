@@ -5,11 +5,13 @@ import { NODE_EARLY_MS as EARLY, NODE_TIMER_EARLY, nodeLateMs as late, nodeTimer
 /**
  * This module holds the machine documents of Socket.IO 4.8.4 on Node, with the WebSocket transport
  * only. The client is socket.io-client 4.8.4 on engine.io-client 6.6.7. The server is socket.io
- * 4.8.4 on engine.io 6.6.11. Both use ws 8.21.3. The Socket.IO cells (SYS-87) operate
+ * 4.8.4 on engine.io 6.6.11. Both use ws 8.21.3. The store of a recovery of the connection state
+ * is the adapter of the server, socket.io-adapter 2.5.8. The Socket.IO cells (SYS-87) operate
  * them from the lockfile of `packages/cells/targets/socketio`. Each fact comes from the published
  * tarball of each version, or from Node v24.21.0. The comments and the sources give the file and
  * the line. Node loads the build `build/esm-debug` of each client package (the condition `node` of
- * its exports), and the server packages are CommonJS (`build`).
+ * its exports), and the server packages are CommonJS (`build` of engine.io, `dist` of socket.io
+ * and of its adapter).
  *
  * The protocol is engine.io 4. The server writes a ping each pingInterval, and the client answers
  * with a pong. Each side has its own timer. The server waits pingTimeout for the pong of its ping.
@@ -25,6 +27,10 @@ const SC = "socket.io-client 4.8.4 build/esm-debug";
 const ES = "engine.io 6.6.11 build";
 /** This text is the ws package at its version. */
 const WS = "ws 8.21.3 lib";
+/** This text is the server package of Socket.IO at its version. */
+const SS = "socket.io 4.8.4 dist";
+/** This text is the adapter package of Socket.IO at its version: the store of the sessions. */
+const AD = "socket.io-adapter 2.5.8 dist";
 
 /** This text is the wait of the client for the next ping, in ms: the sum that the handshake gives. */
 const PING_WAIT = "ping_interval + ping_timeout";
@@ -331,4 +337,148 @@ export const SOCKETIO_SERVER: Machine = machineSchema.parse({
     sets: {},
     ends: "socket.error",
   },
+} satisfies Machine);
+
+/**
+ * This document is the session of one client in the store of a recovery of the connection state.
+ * The store is the `SessionAwareAdapter` of socket.io-adapter 2.5.8, under the `Server` of socket.io 4.8.4 with
+ * `connectionStateRecovery`.
+ *
+ * - The server keeps the session when it closes the socket for a reason that a recovery can mend,
+ *   for example a ping timeout. It stamps the time of the disconnect.
+ * - The adapter keeps each event with no ack and no volatile flag, with an offset and the time of
+ *   its emit. The client keeps the offset of the last event that it got. A client that got no event
+ *   sends no offset, and the server makes a new session for it.
+ * - A CONNECT with the session and an offset restores the session when the session is younger than
+ *   `maxDisconnectionDuration`. The adapter must also hold the event of the offset. Then the server sends
+ *   each later event again, and `recovered` is true on each side.
+ * - A timer of the adapter fires each 60 s from the start of the server. It removes each session
+ *   that is older than `maxDisconnectionDuration`. It also removes each event that is older, and
+ *   each event before it. The age of an event comes from its emit, not from the disconnect. Thus
+ *   the offset of a client can go before its session.
+ * - Node starts each period of a repeated timer at the start of its callback. Thus each period has
+ *   the bounds of a Node timer of 60 s, and a firing falls in each time longer than its high bound.
+ */
+export const SOCKETIO_SESSION: Machine = machineSchema.parse({
+  format: "mark1russell7.machine/1",
+  id: "socketio-session",
+  title: "The session of one client in the SessionAwareAdapter of socket.io-adapter 2.5.8, under socket.io 4.8.4",
+  layer: "server",
+  version: "2.5.8",
+  conditions: { "socket.io": "4.8.4", "socket.io-adapter": "2.5.8", node: "24.21.0", kernel: "Linux 6.6" },
+  sources: [
+    {
+      ref: `${SS}/index.js:125-130 connectionStateRecovery: maxDisconnectionDuration 2 min at the default (:127), and the SessionAwareAdapter (:130)`,
+      rung: "implemented",
+    },
+    {
+      ref: `${SS}/socket.js:14-21 the reasons that a recovery mends, among them "ping timeout"; :532-552 _onclose calls persistSession (:540) for such a reason`,
+      rung: "implemented",
+    },
+    {
+      ref: `${AD}/in-memory-adapter.js:312-338 the constructor: a setInterval of 60 s (:320-335) removes each session (:322-327) and each event (:328-334) older than maxDisconnectionDuration, and the timer does not hold the process (:337)`,
+      rung: "implemented",
+    },
+    { ref: `${AD}/in-memory-adapter.js:339-342 persistSession stamps disconnectedAt with Date.now()`, rung: "implemented" },
+    {
+      ref: `${AD}/in-memory-adapter.js:343-368 restoreSession gives null for no session (:345-347), an expired session (:349-353) or an offset that the adapter does not hold (:355-358); else the session with each later event of its rooms`,
+      rung: "implemented",
+    },
+    {
+      ref: `${AD}/in-memory-adapter.js:369-389 broadcast keeps each event with no ack and no volatile flag, with an offset at the end of its data and emittedAt`,
+      rung: "implemented",
+    },
+    {
+      ref: `${SS}/namespace.js:245-266 _createSocket asks the adapter for the session of a CONNECT with pid and offset; ${SS}/socket.js:96-107 a restored socket joins its rooms, gets each missed event, and recovered is true`,
+      rung: "implemented",
+    },
+    {
+      ref: `${SC}/socket.js:552-554 the client keeps the last string argument of each event as its offset; :434-441 the CONNECT packet carries pid and offset; :603-607 recovered is true when the pid comes back`,
+      rung: "implemented",
+    },
+    {
+      ref: "node v24.21.0 lib/internal/timers.js:676-678 a repeated timer reads the loop clock before its callback; :690-692 it starts the next period from that time",
+      rung: "implemented",
+    },
+  ],
+  states: {
+    ABSENT: { initial: true, pseudo: true, note: "the store holds no session of the client: its socket is open" },
+    KEPT: { note: "the store holds the session and the event of the offset of the client" },
+    ORPHANED: { note: "the store holds the session, but the timer removed the event of the offset" },
+    RESTORED: { final: true, note: "the new connection took the session, and the server sent each later event again" },
+    REFUSED: { final: true, note: "restoreSession gave null: the new connection has a new session, and recovered is false" },
+  },
+  events: {
+    start: { kind: "local", note: "the server makes the adapter of its namespace" },
+    persist: { kind: "local", note: "the server closes the socket for a reason that a recovery mends" },
+    "purge-due": { kind: "timer", note: "a firing of the timer of the adapter" },
+    "rx.connect": { kind: "rx", note: "a CONNECT packet with the pid and the offset of the client" },
+    "tx.missed": { kind: "tx", note: "the server sends each event after the offset again" },
+  },
+  knobs: {
+    max_disconnection_duration: {
+      key: "connectionStateRecovery.maxDisconnectionDuration",
+      scope: "server",
+      unit: "ms",
+      default: 120000,
+    },
+    hz: { key: "CONFIG_HZ", scope: "global", unit: "Hz", default: null },
+  },
+  timers: {
+    purge: {
+      duration: { const: 60000, unit: "ms" },
+      lateness: nodeTimerLateness("60000"),
+      early: NODE_TIMER_EARLY,
+      arms: ["start", "purge-due"],
+      fires: "purge-due",
+      note: "a setInterval from the start of the server, not from the disconnect: the phase of a session to it is free",
+    },
+  },
+  transitions: [
+    { id: "sn.persist", from: "ABSENT", on: "persist", to: "KEPT", source: `${AD}/in-memory-adapter.js:339-342` },
+    {
+      id: "sn.purge-offset",
+      from: "KEPT",
+      on: "purge-due",
+      to: "ORPHANED",
+      timer: "purge",
+      guard: "the event of the offset is older than max_disconnection_duration, and the session is not",
+      source: `${AD}/in-memory-adapter.js:328-334`,
+    },
+    {
+      id: "sn.purge-session",
+      from: ["KEPT", "ORPHANED"],
+      on: "purge-due",
+      to: "REFUSED",
+      timer: "purge",
+      guard: "the session is older than max_disconnection_duration",
+      note: "the store removes the session: a later CONNECT finds none",
+      source: `${AD}/in-memory-adapter.js:322-327`,
+    },
+    {
+      id: "sn.restore",
+      from: "KEPT",
+      on: "rx.connect",
+      to: "RESTORED",
+      guard: "the session is not older than max_disconnection_duration",
+      emits: ["tx.missed"],
+      source: `${AD}/in-memory-adapter.js:343-368`,
+    },
+    {
+      id: "sn.expired",
+      from: "KEPT",
+      on: "rx.connect",
+      to: "REFUSED",
+      guard: "the session is older than max_disconnection_duration",
+      source: `${AD}/in-memory-adapter.js:349-353`,
+    },
+    {
+      id: "sn.no-offset",
+      from: "ORPHANED",
+      on: "rx.connect",
+      to: "REFUSED",
+      note: "findIndex finds no event of the offset",
+      source: `${AD}/in-memory-adapter.js:355-358`,
+    },
+  ],
 } satisfies Machine);

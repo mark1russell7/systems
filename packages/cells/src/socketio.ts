@@ -3,7 +3,7 @@ import type { KnobValues, Manifestation, Recovery } from "@mark1russell7/algebra
 import { errnoOf, overValues, recovery as recoveryOf, stackedDetection, timerOf, timerUnder } from "@mark1russell7/algebra";
 import type { Cell, CountBand, DeliveryPrediction, Fault, Prediction, Reconnects, Subject, Target, WsProbe } from "@mark1russell7/harness";
 import { DROP_HANDLING, QUIET_MS, programOf, subjectClient } from "@mark1russell7/harness";
-import { LINUX_TCP, SOCKETIO_CLIENT, SOCKETIO_SERVER } from "@mark1russell7/machines";
+import { LINUX_TCP, SOCKETIO_CLIENT, SOCKETIO_SERVER, SOCKETIO_SESSION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { HZ, LINUX_66, RTT_MS, RUNS, WINDOW, count, given, ms, q, seconds, sysctlsOf } from "./catalog.ts";
@@ -79,6 +79,11 @@ export interface SocketIoSpec {
   readonly stream?: SocketIoStream;
   /** This time is the length of a `stall` fault from the signal, in seconds. */
   readonly stall?: number;
+  /**
+   * This time is a quiet time of the client before `ready`, in milliseconds. The fault then comes
+   * that time after the start of a stream of the target.
+   */
+  readonly lull?: number;
 }
 
 /** This folder is the context of the build of the subject. */
@@ -181,9 +186,10 @@ const DELIVERY = {
  * These are the delivery cells (slice 2 of S7): what a stream loses or repeats across a stall.
  * - D1, D2 and D4: the server streams to the client. D1 has no recovery, and D2 has a recovery of
  *   30 s. D4 has a recovery of 2 s, which ends before the new connection.
+ * - D3: the server streams 2 events 90 s apart, with a recovery of 10 s. The client waits 70 s after
+ *   the first event before the fault. Thus the session is kept. But the purge of the adapter removes
+ *   the event of the offset before the new connection, thus the session is not restored.
  * - U1, U2 and U3: the client streams to the server, with no retries, 3 retries and 2 retries.
- * D3 is a later cell: it needs a quiet time of 70 s before the fault, and the harness has no field
- * for that.
  */
 export const DELIVERY_SPECS: readonly SocketIoSpec[] = [
   { ...DELIVERY, name: "D1 the server streams, no recovery, stall 5.6 s", client: CLIENT, server: PING, stream: SERVER_STREAM },
@@ -193,6 +199,14 @@ export const DELIVERY_SPECS: readonly SocketIoSpec[] = [
     client: CLIENT,
     server: { ...PING, recovery: 30_000 },
     stream: SERVER_STREAM,
+  },
+  {
+    ...DELIVERY,
+    name: "D3 the server streams, recovery 10 s, a lull of 70 s, stall 5.6 s",
+    client: CLIENT,
+    server: { ...PING, recovery: 10_000 },
+    stream: { count: 2, interval: 90_000, sender: "target" },
+    lull: 70_000,
   },
   {
     ...DELIVERY,
@@ -374,6 +388,93 @@ const eventsIn = (length: Band, interval: number, late: number): CountBand => ({
 });
 
 /**
+ * These are the emits of a stream of the target, in seconds: `count` events, one each `interval`
+ * from its start. Each emit is a Node timer, thus it comes up to `early` before its time and up to
+ * `late` after it.
+ */
+interface Emissions {
+  readonly count: number;
+  readonly interval: number;
+  readonly early: number;
+  readonly late: number;
+}
+
+/** This function gives the band of the emit of event n (from 1) of a stream that starts at `s`. */
+const emitOf = (stream: Emissions, s: number, n: number): Band => ({
+  low: s + (n - 1) * stream.interval - stream.early,
+  high: s + (n - 1) * stream.interval + stream.late,
+});
+
+/**
+ * This function gives the starts of a stream to test in the band `start`. A count of emits against
+ * fixed times changes only where an end of an emit meets one of those times. Thus the ends of the
+ * band, those points in it, and the midpoints between them give each value of the count.
+ */
+const startsOf = (start: Band, stream: Emissions, times: readonly number[]): number[] => {
+  const points = new Set<number>([start.low, start.high]);
+  for (let n = 1; n <= stream.count; n += 1)
+    for (const time of times)
+      for (const s of [time - (n - 1) * stream.interval + stream.early, time - (n - 1) * stream.interval - stream.late])
+        if (s > start.low && s < start.high) points.add(s);
+  const sorted = [...points].sort((a, b) => a - b);
+  return [...sorted, ...sorted.slice(1).map((s, k) => (s + (sorted[k] ?? s)) / 2)];
+};
+
+/**
+ * This function gives the band of the count of the events of a stream of the target that the fault
+ * loses. An event is surely lost when its emit falls in `sure`, and it can be lost when its emit
+ * meets `can`. The start of the stream is free in its band.
+ */
+const lostIn = (start: Band, stream: Emissions, sure: Band, can: Band): CountBand => {
+  let low = Number.POSITIVE_INFINITY;
+  let high = 0;
+  for (const s of startsOf(start, stream, [sure.low, sure.high, can.low, can.high])) {
+    let surely = 0;
+    let maybe = 0;
+    for (let n = 1; n <= stream.count; n += 1) {
+      const emit = emitOf(stream, s, n);
+      if (emit.low >= sure.low && emit.high <= sure.high) surely += 1;
+      if (emit.high >= can.low && emit.low <= can.high) maybe += 1;
+    }
+    low = Math.min(low, surely);
+    high = Math.max(high, maybe);
+  }
+  return { low, high };
+};
+
+/**
+ * This function gives the band of the emit of the event of the offset of the client. That event is
+ * the last event that the client got before the fault. An event that leaves `rtt` before the earliest signal surely
+ * arrives. An event that leaves before the latest signal can arrive. It throws when a start gives no
+ * event that surely arrives, because the client then can have no offset.
+ */
+const offsetOf = (spec: SocketIoSpec, start: Band, stream: Emissions, signal: Band, rtt: number): Band => {
+  let low = Number.POSITIVE_INFINITY;
+  let high = Number.NEGATIVE_INFINITY;
+  for (const s of startsOf(start, stream, [signal.low - rtt, signal.high])) {
+    let surely: Band | undefined;
+    let maybe: Band | undefined;
+    for (let n = 1; n <= stream.count; n += 1) {
+      const emit = emitOf(stream, s, n);
+      if (emit.high <= signal.low - rtt) surely = emit;
+      if (emit.low < signal.high) maybe = emit;
+    }
+    if (surely === undefined) throw new Error(`${spec.name}: the client can have no offset at the fault, because no event surely arrives before it`);
+    low = Math.min(low, surely.low);
+    high = Math.max(high, (maybe ?? surely).high);
+  }
+  return { low, high };
+};
+
+/** This function gives the band of the period of the purge of the adapter of the server, in seconds. */
+const purgeOf = (spec: SocketIoSpec): Band => {
+  const values = given({ max_disconnection_duration: ms(spec.server.recovery ?? 120_000), hz: { value: HZ, unit: "Hz" } });
+  const bounds = timerOf(SOCKETIO_SESSION, "purge", values);
+  const period = seconds(bounds.duration, "the purge");
+  return { low: period - seconds(bounds.early, "the purge's early bound"), high: period + seconds(bounds.lateness, "the purge's lateness") };
+};
+
+/**
  * This function gives the delivery law of a stream across a stall, at a round trip in seconds.
  * Each time counts from the last pong of the client (`pong-sent`). `detection` is the band of the
  * drop by the client.
@@ -384,13 +485,20 @@ const eventsIn = (length: Band, interval: number, late: number): CountBand => ({
  *   through the stall (`recovery` of the SYN timer). The shortest and the longest stall from the
  *   first SYN must give the same first SYN after the end: else the function throws. The new socket
  *   joins on the server up to JOIN after that SYN.
+ * - A stream of the server starts when the server acks the request of the client. The client reads
+ *   the ack, waits its lull (`lull`), then waits up to one ping, and writes `ready` at its pong.
+ *   Event n leaves (n − 1) intervals after the start, on a Node timer.
  * - The server drops the old connection at its pong timer, from its ping after the pong of the
  *   client. A recovery keeps the session that long after that drop. The new connection restores it
- *   when it comes before the end. It must come clearly before or after the end: else the function
+ *   when the session is younger than the recovery, and the adapter holds the event of the offset.
+ *   The offset is the last event that the client got before the fault.
+ * - The purge of the adapter (`SOCKETIO_SESSION`) removes the event of the offset once that event
+ *   is older than the recovery. The purge fires in each time longer than its period. The session and
+ *   the event must each be clearly kept or clearly gone at the new connection: else the function
  *   throws.
  * - A stream of the server goes to the room of the client. Each event from the start of the fault to
  *   the join of the new socket is lost, except in a restored session. The restore sends each event
- *   after the last offset of the client again.
+ *   after the offset again. The count of lost events tests each start of the stream in its band.
  * - A client with no retries writes each event into the black hole until its drop. After the drop,
  *   the Socket keeps the events in its send buffer, and sends them on the new connection.
  * - A client with retries sends one event at a time, and the next events wait in its queue. Each
@@ -432,19 +540,31 @@ export const deliveryOf = (spec: SocketIoSpec, detection: Band, rtt: number): De
     low: seconds(ping.duration, "ping") - seconds(ping.early, "ping's early bound") + seconds(pong.duration, "pong") - seconds(pong.early, "pong's early bound"),
     high: rtt + seconds(ping.duration, "ping") + seconds(ping.lateness, "ping's lateness") + seconds(pong.duration, "pong") + seconds(pong.lateness, "pong's lateness"),
   };
-  const kept = spec.server.recovery;
-  const recovered = (() => {
-    if (kept === null) return false;
-    if (serverDrop.low + kept / 1000 > join.high) return true;
-    if (serverDrop.high + kept / 1000 < join.low) return false;
-    throw new Error(`${spec.name}: the session can end in the band of the new connection`);
-  })();
   const none: CountBand = { low: 0, high: 0 };
   const last = (stream.count - 1) * interval;
   if (stream.sender === "target") {
-    // the client asks for the stream before it waits for the next ping: up to one ping interval before the pong
-    if (-spec.server.pingInterval / 1000 - rtt + last <= join.high) throw new Error(`${spec.name}: the last event can come before the new connection`);
-    const lost = recovered ? none : eventsIn({ low: join.low - signal.high, high: join.high - signal.low + rtt }, interval, late);
+    // the client gets the ack of its request, waits its lull, then waits up to one ping for its pong
+    const lull = spec.lull === undefined ? { low: 0, high: 0 } : nodeTimerOf(spec, spec.lull);
+    const pingHigh = seconds(ping.duration, "ping") + seconds(ping.lateness, "ping's lateness");
+    const ack: Band = { low: -(lull.high + pingHigh + rtt), high: -lull.low };
+    // the server acks, then starts the stream: up to one round trip before the client reads the ack
+    const start: Band = { low: ack.low - rtt, high: ack.high };
+    const emissions: Emissions = { count: stream.count, interval, early: interval - nodeTimerOf(spec, stream.interval).low, late };
+    if (start.low + last - emissions.early <= join.high) throw new Error(`${spec.name}: the last event can come before the new connection`);
+    const recovered = (() => {
+      const kept = spec.server.recovery;
+      if (kept === null) return false;
+      const k = kept / 1000;
+      // the CONNECT finds no session older than the recovery
+      if (serverDrop.high + k < join.low) return false;
+      if (serverDrop.low + k <= join.high) throw new Error(`${spec.name}: the session can end in the band of the new connection`);
+      // the purge removes the event of the offset once that event is older than the recovery, and it fires in each period
+      const offset = offsetOf(spec, start, emissions, signal, rtt);
+      if (join.low - (offset.high + k) > purgeOf(spec).high) return false;
+      if (offset.low + k < join.high) throw new Error(`${spec.name}: the purge can remove the event of the offset before the new connection`);
+      return true;
+    })();
+    const lost = recovered ? none : lostIn(start, emissions, { low: signal.high, high: join.low }, { low: signal.low - rtt, high: join.high });
     return { lost, duplicates: none, recovered };
   }
   if (stream.retries === undefined) {
@@ -547,6 +667,7 @@ export const probeOf = (spec: SocketIoSpec): WsProbe => {
     requestTimeout: ms(spec.client.requestTimeout),
     connectionTimeout: ms(spec.client.connectionTimeout),
     ...(spec.stream?.retries === undefined ? {} : { retries: spec.stream.retries }),
+    ...(spec.lull === undefined ? {} : { lull: ms(spec.lull) }),
   };
 };
 

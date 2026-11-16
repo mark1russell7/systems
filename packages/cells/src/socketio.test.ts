@@ -141,6 +141,7 @@ describe("the delivery cells of Socket.IO", () => {
   };
   const D1 = "D1 the server streams, no recovery, stall 5.6 s";
   const D2 = "D2 the server streams, recovery 30 s, stall 5.6 s";
+  const D3 = "D3 the server streams, recovery 10 s, a lull of 70 s, stall 5.6 s";
   const D4 = "D4 the server streams, recovery 2 s, stall 5.6 s";
   const U1 = "U1 the client streams, no retries, stall 5.6 s";
   const U2 = "U2 the client streams, 3 retries, stall 5.6 s";
@@ -149,11 +150,11 @@ describe("the delivery cells of Socket.IO", () => {
 
   it("streams across a stall of 5.6 s from the signal, and times the drop from the last pong", () => {
     const [low, high] = dropBand(3);
-    expect(DELIVERY_SPECS).toHaveLength(6);
+    expect(DELIVERY_SPECS).toHaveLength(7);
     for (const each of DELIVERY_SPECS) {
       const c = cell(each.name);
       expect(c).toMatchObject({ fault: "stall", stall: { value: STALL, unit: "s" } });
-      expect(c.probe).toMatchObject({ mode: "stream", count: each.stream!.count, interval: { value: 100, unit: "ms" }, sender: each.stream!.sender });
+      expect(c.probe).toMatchObject({ mode: "stream", count: each.stream!.count, interval: { value: each.stream!.interval, unit: "ms" }, sender: each.stream!.sender });
       expect(band(each.name), each.name).toEqual({ timer: "ping", errno: "DROPPED", from: "pong-sent", low, high, drop: "frame" });
       expect(waits(each.name)).toEqual([nodeBand(0.5)]);
     }
@@ -161,7 +162,7 @@ describe("the delivery cells of Socket.IO", () => {
 
   it("starts the server with its recovery, and gives the retries of a client sender to the client", () => {
     const recoveryOf = (name: string) => cell(name).target.command?.at(-1);
-    expect([D1, D2, D4, U1].map(recoveryOf)).toEqual(["off", "30000", "2000", "off"]);
+    expect([D1, D2, D3, D4, U1].map(recoveryOf)).toEqual(["off", "30000", "10000", "2000", "off"]);
     expect(cell(U1).probe.ws).not.toHaveProperty("retries");
     expect(cell(U2).probe.ws).toMatchObject({ retries: 3, requestTimeout: { value: 1000, unit: "ms" } });
     expect(cell(U3).probe.ws).toMatchObject({ retries: 2 });
@@ -177,6 +178,16 @@ describe("the delivery cells of Socket.IO", () => {
     expect(delivery(D2)).toEqual({ lost: { low: 0, high: 0 }, duplicates: { low: 0, high: 0 }, recovered: true });
     // a recovery of 2 s ends near 5 s, before the new connection
     expect(delivery(D4)).toEqual({ ...delivery(D1), recovered: false });
+  });
+
+  it("restores no session when the purge removed the event of the offset, and loses no event of a slow stream", () => {
+    const { lull, ...quick } = spec(D3);
+    expect(cell(D3).probe.ws).toMatchObject({ lull: { value: lull, unit: "ms" } });
+    // the session is younger than 10 s at the new connection, but the event of the offset is more than 70 s old
+    expect(delivery(D3)).toEqual({ lost: { low: 0, high: 0 }, duplicates: { low: 0, high: 0 }, recovered: false });
+    // without the lull, the event of the offset is younger than 10 s at the new connection: no purge removes it
+    const p = predictSocketIoAt(quick, 1);
+    expect(p.detects === true && p.delivery).toEqual({ lost: { low: 0, high: 0 }, duplicates: { low: 0, high: 0 }, recovered: true });
   });
 
   it("loses each event of the client into the black hole up to its drop, and keeps the later ones in the send buffer", () => {
@@ -197,6 +208,10 @@ describe("the delivery cells of Socket.IO", () => {
   it("refuses a stall that ends in the bounds of a SYN, a session that ends at the new connection, and an ack timeout at the drop", () => {
     expect(() => predictSocketIoAt({ ...spec(D1), stall: 5.1 }, 1)).toThrow(/bounds of a SYN/);
     expect(() => predictSocketIoAt({ ...spec(D2), server: { ...PING, recovery: 3500 } }, 1)).toThrow(/session can end/);
+    // with a lull of 50 s, a purge can fire after the event of the offset is 10 s old, or not
+    expect(() => predictSocketIoAt({ ...spec(D3), lull: 50_000 }, 1)).toThrow(/purge can remove/);
+    // with a lull of 85 s, the second event can come before the new connection
+    expect(() => predictSocketIoAt({ ...spec(D3), lull: 85_000 }, 1)).toThrow(/last event can come/);
     expect(() => predictSocketIoAt({ ...spec(U2), client: { ...spec(U2).client, requestTimeout: 1300 } }, 1)).toThrow(/ack timeout 2/);
     expect(() => predictSocketIoAt({ ...spec(U3), stream: { ...spec(U3).stream!, count: 1 } }, 1)).toThrow(/last of the stream/);
   });

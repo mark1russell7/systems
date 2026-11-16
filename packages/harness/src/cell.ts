@@ -1294,6 +1294,12 @@ export interface WsProbe {
    * with no acknowledgement.
    */
   readonly retries?: number;
+  /**
+   * This time is a quiet time of the client before it writes `ready`. The client asks for the
+   * stream, waits this time, then waits for its next pong. Thus the fault comes this time after the
+   * start of the stream. Without it, the client writes `ready` at its first pong.
+   */
+  readonly lull?: Quantity;
 }
 
 /**

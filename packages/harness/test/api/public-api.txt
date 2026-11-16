@@ -1352,6 +1352,7 @@ interface WsProbe {
   readonly connectionTimeout: Quantity;
   readonly hold?: Quantity;
   readonly retries?: number;
+  readonly lull?: Quantity;
 }
 
 ### build/cell.chunk.d.ts#environmentProblems

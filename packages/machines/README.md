@@ -40,6 +40,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.22.0 (client 2408cea) | server | 5 implemented |
 | `SOCKETIO_CLIENT` | `socketio-client` | The connection of the `Manager` of socket.io-client 4.8.4, on engine.io-client 6.6.7 and ws 8.21.3 | driver | 8 implemented |
 | `SOCKETIO_SERVER` | `socketio-server` | One connection of the `Server` of socket.io 4.8.4, on engine.io 6.6.11 and ws 8.21.3 | server | 6 implemented |
+| `SOCKETIO_SESSION` | `socketio-session` | The session of one client in the `SessionAwareAdapter` of socket.io-adapter 2.5.8, under socket.io 4.8.4 | server | 9 implemented |
 | `MONGODB_NODE` | `mongodb-node` | The MongoDB Node driver 7.7.0, for one server of a replica set | driver | 19 implemented |
 | `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
@@ -74,7 +75,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `KUBELET_READINESS` | `kubelet-readiness` | The readiness probe of the kubelet of Kubernetes 1.37.0, for one container | canary | 9 implemented, 1 documented |
 | `ZTUNNEL_HBONE` | `ztunnel-hbone` | ztunnel 1.31.3 in in-pod mode: one HBONE connection from a client pod to a server pod, its PING, its drain and the close of each flow of the app | proxy | 15 implemented, 3 derived |
 
-Thirty-four documents operate on Linux TCP (`over`). Nine documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici, pilot-agent and the kubelet probe.
+Thirty-four documents operate on Linux TCP (`over`). Ten documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod and aten. The others are the member of Ra, the `RetryAgent` of undici, pilot-agent, the kubelet probe and the session store of Socket.IO.
 
 The call with a deadline is a generic client that the program configures, thus its knobs have no defaults. The readiness probe of the kubelet probes in sequence, thus its probes come at intervals of the longer of the period and the timeout.
 
@@ -123,6 +124,13 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.35
+
+- **The session store of Socket.IO** (`socketio-session`). This new document is the session of one client in the `SessionAwareAdapter` of socket.io-adapter 2.5.8, from the source at its version.
+  - A recoverable close keeps the session. A CONNECT with the session and an offset restores it while the session is younger than `maxDisconnectionDuration`. The adapter must also hold the event of the offset.
+  - A timer of the adapter fires each 60 s from the start of the server, not from the disconnect. It removes each event older than `maxDisconnectionDuration`. The age of an event counts from its emit. Thus the offset of a client can go before its session, and the next CONNECT gets a new session.
+  - The cell `SIO D3` reads the timer `purge`. A new document is a feature, thus the version is a PATCH before 1.0.0.
 
 ### 0.3.28
 
