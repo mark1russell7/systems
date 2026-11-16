@@ -37,6 +37,11 @@ export const TERMS = {
   NIC: "Network interface card: the hardware that puts the packets on the wire.",
   txqueuelen: "The length of the queue of packets in front of the NIC, in packets.",
   MTU: "Maximum transmission unit: the largest packet on the link, in bytes.",
+  ip_local_port_range: "A sysctl: the local ports that a connect can take. The default is 32768 to 60999, thus 28232 ports.",
+  EADDRNOTAVAIL: "The error of a connect when no local port is free for its destination. No SYN leaves.",
+  TIME_WAIT: "The state of a closed connection at the side that closed first. It holds the port for 60 s, thus a late segment cannot reach a new connection.",
+  tcp_tw_reuse: "A sysctl: 1 lets a new connect take a port in TIME_WAIT after tcp_tw_reuse_delay. The default 2 does this on loopback only.",
+  LAST_ACK: "The state of the side that closed second, until the ACK of its FIN arrives.",
 } as const satisfies Record<string, string>;
 
 export type TermName = keyof typeof TERMS;
