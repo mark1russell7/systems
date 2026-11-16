@@ -3293,7 +3293,9 @@ The first slice narrows this text. It has one guest, and that guest holds the wh
 
 Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The pair `e4 e4` gives the noise of the layer.
 
-The first dispatch ([43787980707](https://github.com/mark1russell7/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum, and the next dispatch gives the first record of the bridge.
+The first dispatch ([43787980707](https://github.com/mark1russell7/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum.
+
+The second dispatch ([43796539153](https://github.com/mark1russell7/systems/actions/runs/43796539153), 2026-11-15) built the harness image in the guest. Each cell of the two arms `e4` held its band. Each arm `e4` still failed, because its record had no commit of the code. The image of the guest left out the folder `.git` and had no git. The image keeps the folder `.git` of the shallow checkout and installs git. Thus the guest reads its commit as the runner does, and the next dispatch gives the first record of the bridge.
 
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 
