@@ -177,6 +177,19 @@ A Kafka group (`Kafka`, `Cell.kafka`) is a group of Kafka brokers in KRaft mode 
 - **A target from the image of a subject** (`Target.subject`). The target operates the image of a subject in place of its stock image. `Target.image` is then the stock base of that image, and the manifest names both. The procedures server is a program in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
+## The memory of a client
+
+A cell can set the limits of the memory controller of cgroup v2 for its client (`Cell.cgroup`, SYS-123). The law of those limits is in `@mark1russell7/algebra` (`memcg.ts`), from the sources of Linux.
+
+- **The files of the cgroup.** `Cell.cgroup` maps a file of the client cgroup to its value, for example `memory.high` in bytes. An admin container in the host cgroup namespace writes each file before the client starts. It reads each file back, and a value that the kernel changed stops the run.
+- **The memory client** is `/opt/harness/memory` of the image `harness`. It has two commands:
+  - `grow` touches memory in steps of `--step` pages until `memory.current` reaches `--until-pages`. Before the map of that memory, it locks its own pages, thus a reclaim frees none of them. The lock needs the capability `IPC_LOCK` of the client.
+  - `oom` starts one task for each `--task name:pages:adj`, in order. Each task sets its `oom_score_adj`, then touches its pages. An adj below the adj of the parent needs `SYS_RESOURCE`.
+- **The lines of the memory client.** The `ready` line gives the limits as the cgroup prints them, the usage, the page size and the lock. `grow` writes a `step` line for each step: its time, the usage after it and the count of the event `high`. `oom` writes a `task` line for each task: `held`, `killed` or `ended`, with its signal. Both commands end with the counts of `memory.events`, and `grow` also gives the stall of `memory.pressure`.
+- **The law of a throttle** (`MemoryThrottlePrediction`) has one entry for each batch of 64 pages above `memory.high`. An entry is the time band of a step and its events `high`. The judge (`measureMemory`) compares each step with the entries at its usage and at its usage plus the drift (`stepBand`). It also compares the stall of `memory.pressure` with the sum of the low ends of the bands.
+- **The law of the OOM killer** (`MemoryOomPrediction`) gives the outcome of each task and the count of the event `oom_kill` of the cgroup.
+- **A void run.** A run is void when the cgroup reads other limits than the cell, or when the client stops before its end. A throttle run is also void when the client did not lock its pages, or on a kernel with another HZ. It is void too when the judge reads less than the share `read` of the steps above the high. The judge does not read a step whose usage rose by more or less than one batch, outside the drift.
+
 ## The subjects
 
 A subject (`Subject`, `image.ts`) is the program under test, as data. The harness does not import the program. It starts the image of the program. Thus another repository can give its own subject, with its own release in it.

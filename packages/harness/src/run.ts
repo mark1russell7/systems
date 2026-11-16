@@ -285,7 +285,7 @@ const beforeOnce = async (lab: Lab, cell: Cell, environment: number, index: numb
   const fault = await lab.fault(kind, faultAt, options);
   let probe: Probe | undefined;
   try {
-    probe = await lab.probe(probeArgs(cell, lab));
+    probe = await lab.probe(probeArgs(cell, lab), undefined, cell.cgroup);
     const started = probe;
     // the topology too: a band can be on the socket that a hop opens toward the target
     const current = (): Run => ({
@@ -409,7 +409,7 @@ const once = async (
     ...(plan === undefined ? [] : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }]),
     ...(load === undefined ? [] : [{ content: load.content, target: LOAD_PATH }]),
   ];
-  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files);
+  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files, cell.cgroup);
   const server = cell.observer === "server";
   const peer = server
     ? { freeze: () => probe.freeze(), thaw: () => probe.thaw() }
