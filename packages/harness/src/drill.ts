@@ -64,6 +64,19 @@ const electionStateOf = async (lab: ReplicaSetLab, primary: string, logFrom: num
   return electionStateText(primary, status, lab.log, logFrom);
 };
 
+/**
+ * This function tells if a member of the set accepts writes. After a restore, the old primary can
+ * lose the first election to a member that made its first sync from it. The client after the restore
+ * and `converge` find the primary by themselves, thus each member can be the primary.
+ */
+const writableIn = async (lab: ReplicaSetLab): Promise<boolean> => {
+  for (const name of lab.set.members) {
+    const writable = await lab.script(name, "print(db.hello().isWritablePrimary)").catch(() => "");
+    if (writable.includes("true")) return true;
+  }
+  return false;
+};
+
 /** This function gives the time that the client sent a write. Zero is no write. */
 const writeOf = (events: readonly ProbeEvent[], n: number): RunBackup["last"] => {
   const sent = n === 0 ? undefined : events.find((event) => event.ev === "sent" && Number(event["n"]) === n);
@@ -159,12 +172,7 @@ const restore = async (lab: ReplicaSetLab, drill: Drill, primary: string): Promi
   const ips = Object.fromEntries(Object.entries(lab.members).map(([name, at]) => [name, at.ip]));
   const initiated = await lab.script(primary, initiateScript(set, ips));
   if (!initiated.includes('"ok":1')) throw new Error(`rs.initiate failed after the restore: ${initiated}`);
-  await until(
-    "the primary after the restore",
-    async () => (await lab.script(primary, "print(db.hello().isWritablePrimary)")).includes("true"),
-    STARTS_WITHIN,
-    () => electionStateOf(lab, primary, logFrom),
-  );
+  await until("the primary after the restore", () => writableIn(lab), STARTS_WITHIN, () => electionStateOf(lab, primary, logFrom));
   return { started, ended: Date.now() };
 };
 
