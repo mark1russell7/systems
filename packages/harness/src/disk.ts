@@ -15,8 +15,8 @@ import { substrateHere, type Substrate } from "./substrate.ts";
  *
  * The writer of the subject writes its files on the mount of LazyFS, and the fault stops it at its point. Then
  * `lazyfs::clear-cache` loses each write of data after the last fsync: the state of the disk after a power cut. LazyFS
- * applies each create, rename and unlink at once, so the cut keeps each directory entry. This is the rule of the kind
- * `lose-unsynced`. The check of the subject reads the files that the disk kept, and writes one JSON value. The record
+ * applies each new file, each rename and each unlink at once, so the cut keeps each directory entry. This is the rule
+ * of the kind `lose-unsynced`. The check of the subject reads the files that the disk kept, and writes one JSON value. The record
  * keeps that value.
  *
  * A point at a step uses the stop points of `@mark1russell7/rigor-testkit/stop` in the writer: the writer stops itself
