@@ -61,6 +61,21 @@ describe("the arguments of the injector for a network fault", () => {
     expect(faultArgs("reject", toward, "10.0.1.3", ["--via", "eth1"], host, true)[1]).toBe("clear-reject");
   });
 
+  it("limits an MTU drop to a protocol only when the options name one, and lifts the same rule", () => {
+    expect(faultArgs("mtu", "target", PEER, [], { above: 1200 })).toEqual([INJECT, "mtu", PEER, "--above", "1200"]);
+    expect(faultArgs("mtu", GW, PEER, VIA, { above: 1200, protocol: "all" })).toEqual([INJECT, "mtu", PEER, "--protocol", "all", "--above", "1200", ...VIA]);
+    expect(faultArgs("mtu", GW, PEER, VIA, { above: 1200, protocol: "all" }, true)).toEqual([
+      INJECT,
+      "clear-mtu",
+      PEER,
+      "--protocol",
+      "all",
+      "--above",
+      "1200",
+      ...VIA,
+    ]);
+  });
+
   it("lets the handshake of a reset pass, at an end and at a router", () => {
     expect(optionArgs({ handshake: "pass" })).toEqual(["--handshake", "pass"]);
     expect(faultArgs("rst", "target", PEER, [], { handshake: "pass" })).toEqual([INJECT, "rst", PEER, "--handshake", "pass"]);
