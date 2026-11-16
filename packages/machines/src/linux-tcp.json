@@ -572,11 +572,25 @@
         "const": 60,
         "unit": "s"
       },
+      "lateness": {
+        "model": "linux.time-wait-lateness",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
       "arms": [
         "enter:TIME_WAIT"
       ],
       "fires": "timer.time-wait",
-      "note": "TCP_TIMEWAIT_LEN, compile-time"
+      "note": "TCP_TIMEWAIT_LEN, compile-time; the minisock arms a plain timer of the wheel (__inet_twsk_schedule), thus it fires up to the granularity of its level late (4.096 s at HZ 1000), and the count starts in the jiffy before the FIN of the peer"
     },
     "delayed_ack": {
       "duration": {

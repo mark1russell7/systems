@@ -99,6 +99,12 @@ describe("the algebra's first closed forms", () => {
       duration: { value: 924.6, unit: "s" },
       lateness: { value: 141.344, unit: "s" },
     });
+    // TIME_WAIT is a plain timer of the wheel: 60 s is 15000 jiffies at HZ 250, on the level of 512 jiffies
+    expect(timerOf(tcp, "time_wait", given(HERE))).toEqual({
+      duration: { value: 60, unit: "s" },
+      lateness: { value: 2.048, unit: "s" },
+      early: { value: 0.004, unit: "s" },
+    });
     // each wait of the SYN is a timer of the wheel: five 1 s waits at 8 jiffies, 2 s at 8, 4, 8 and 16 s
     // at 64, and 32 and 64 s at 512. Thus 1264 jiffies, 5.056 s at HZ 250
     expect(timerOf(tcp, "syn_giveup", given(HERE))).toEqual({
