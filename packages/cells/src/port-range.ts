@@ -15,7 +15,7 @@ import { given, HZ, LINUX_66, ms, RTT_MS, seconds, s } from "./catalog.ts";
  *   range. The first half of the connects get the ports of the parity of the low port.
  * - An odd range. The first pass makes `(size - 1) / 2` tries over `(size + 1) / 2` ports of that parity.
  *   Offset 0 does not reach the top port, and each other start does not reach the low port. A range
- *   of 3 gives 2 connects at each try, and the top port stays free. A range of 5 gives 4 or 5. The
+ *   of 3 gives 2 connects at each try, with the top port free, and a range of 5 gives 4 or 5. The
  *   random step at the end of each connect sets the chance of each one (lines 1175-1176).
  *   `portSearchShares` of the algebra gives the exact law.
  * - The error. The search ends with `EADDRNOTAVAIL` (lines 1146-1151). No SYN leaves. A failed search
