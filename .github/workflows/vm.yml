@@ -147,8 +147,11 @@ jobs:
           for layer in $ARMS; do
             index=$((index + 1))
             started="$(date +%s)"
-            node packages/harness/src/vm.ts arm "$VM" "$layer" "$index-$layer" "$ONLY" || status=$?
-            echo "arm $index, $layer: $(($(date +%s) - started)) s, status $status" | tee -a "$VM/runner.txt"
+            # the line of each arm gives its own exit code, and the step exits with the last code that is not 0
+            code=0
+            node packages/harness/src/vm.ts arm "$VM" "$layer" "$index-$layer" "$ONLY" || code=$?
+            echo "arm $index, $layer: $(($(date +%s) - started)) s, status $code" | tee -a "$VM/runner.txt"
+            if [ "$code" -ne 0 ]; then status=$code; fi
           done
           exit "$status"
       - if: always()
