@@ -138,7 +138,7 @@ interface Clock {
 }
 
 ### build/clock.chunk.d.ts#FRAME_DRIFT_LIMIT
-declare const FRAME_DRIFT_LIMIT = 1000;
+declare const FRAME_DRIFT_LIMIT = 1e3;
 
 ### build/clock.chunk.d.ts#FakeClock
 interface FakeClock extends Clock {
