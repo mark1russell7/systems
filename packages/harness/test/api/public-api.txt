@@ -133,6 +133,15 @@ type Manifest: build/index.d.ts#Manifest
 type ManifestHop: build/index.d.ts#ManifestHop
 type Measured: build/index.d.ts#Measured
 type MemberLine: build/index.d.ts#MemberLine
+type MemoryLimits: build/cell.chunk.d.ts#MemoryLimits
+type MemoryOomPrediction: build/cell.chunk.d.ts#MemoryOomPrediction
+type MemoryOomTask: build/cell.chunk.d.ts#MemoryOomTask
+type MemoryPrediction: build/cell.chunk.d.ts#MemoryPrediction
+type MemoryReading: build/index.d.ts#MemoryReading
+type MemoryStep: build/cell.chunk.d.ts#MemoryStep
+type MemoryStepReading: build/index.d.ts#MemoryStepReading
+type MemoryTaskReading: build/index.d.ts#MemoryTaskReading
+type MemoryThrottlePrediction: build/cell.chunk.d.ts#MemoryThrottlePrediction
 type MiddleboxEvent: build/cell.chunk.d.ts#MiddleboxEvent
 type MiddleboxExpectation: build/cell.chunk.d.ts#MiddleboxExpectation
 type MiddleboxForm: build/cell.chunk.d.ts#MiddleboxForm
@@ -337,6 +346,7 @@ measure: build/index.d.ts#measure
 measureConntrack: build/index.d.ts#measureConntrack
 measureDriver: build/index.d.ts#measureDriver
 measureGroup: build/index.d.ts#measureGroup
+measureMemory: build/index.d.ts#measureMemory
 measurePause: build/index.d.ts#measurePause
 measurePorts: build/index.d.ts#measurePorts
 measureQueue: build/index.d.ts#measureQueue
@@ -422,6 +432,7 @@ standaloneCommand: build/index.d.ts#standaloneCommand
 standbyCommand: build/index.d.ts#standbyCommand
 statusViewOf: build/index.d.ts#statusViewOf
 stealShare: build/index.d.ts#stealShare
+stepBand: build/index.d.ts#stepBand
 stopScript: build/index.d.ts#stopScript
 streamEnded: build/index.d.ts#streamEnded
 streamOf: build/index.d.ts#streamOf
@@ -467,7 +478,7 @@ interface BuildImage {
 }
 
 ### build/cell.chunk.d.ts#CLIENT_CAPABILITIES
-declare const CLIENT_CAPABILITIES: readonly ["NET_ADMIN"];
+declare const CLIENT_CAPABILITIES: readonly ["IPC_LOCK", "NET_ADMIN", "SYS_RESOURCE"];
 
 ### build/cell.chunk.d.ts#Cell
 interface Cell {
@@ -525,6 +536,7 @@ interface Cell {
   readonly targetSetup?: readonly (readonly string[])[];
   readonly namespaceSetup?: readonly (readonly string[])[];
   readonly hostSysctls?: readonly HostSysctl[];
+  readonly cgroup?: Readonly<Record<string, string>>;
   readonly prediction: Prediction;
   readonly observer?: Observer;
   readonly targetSettings?: Readonly<Record<string, string>>;
@@ -874,6 +886,55 @@ interface LoadStream {
   readonly requests: readonly string[];
 }
 
+### build/cell.chunk.d.ts#MemoryLimits
+interface MemoryLimits {
+  readonly high: number | null;
+  readonly max: number | null;
+  readonly swap: number;
+  readonly page: number;
+}
+
+### build/cell.chunk.d.ts#MemoryOomPrediction
+interface MemoryOomPrediction {
+  readonly kind: "oom";
+  readonly limits: MemoryLimits;
+  readonly tasks: readonly MemoryOomTask[];
+  readonly kills: number;
+}
+
+### build/cell.chunk.d.ts#MemoryOomTask
+interface MemoryOomTask {
+  readonly name: string;
+  readonly pages: number;
+  readonly adj: number;
+  readonly outcome: "held" | "killed";
+}
+
+### build/cell.chunk.d.ts#MemoryPrediction
+type MemoryPrediction = MemoryThrottlePrediction | MemoryOomPrediction;
+
+### build/cell.chunk.d.ts#MemoryStep
+interface MemoryStep {
+  readonly usage: number;
+  readonly band: QueueBand;
+  readonly high: number;
+}
+
+### build/cell.chunk.d.ts#MemoryThrottlePrediction
+interface MemoryThrottlePrediction {
+  readonly kind: "throttle";
+  readonly limits: MemoryLimits;
+  readonly hz: number;
+  readonly batch: number;
+  readonly until: number;
+  readonly sleepFrom: number;
+  readonly capFrom: number;
+  readonly drift: number;
+  readonly quiet: QueueBand;
+  readonly steps: readonly MemoryStep[];
+  readonly read: number;
+}
+
 ### build/cell.chunk.d.ts#MiddleboxEvent
 interface MiddleboxEvent {
   readonly ev: string;
@@ -1000,6 +1061,7 @@ type Prediction = {
   readonly conntrack?: ConntrackPrediction;
   readonly pause?: PausePrediction;
   readonly load?: LoadPrediction;
+  readonly memory?: MemoryPrediction;
 };
 
 ### build/cell.chunk.d.ts#ProbeEvent
@@ -1983,7 +2045,7 @@ interface Lab {
   probe(args: readonly string[], files?: ReadonlyArray<{
     readonly content: string;
     readonly target: string;
-  }>): Promise<Probe>;
+  }>, cgroup?: Readonly<Record<string, string>>): Promise<Probe>;
   settle(): Promise<number | null>;
   manifest(sysctls: Readonly<Record<string, string>>, settings?: Readonly<Record<string, string>>, targetSysctls?: Readonly<Record<string, string>>): Promise<Manifest>;
   close(): Promise<void>;
@@ -2132,6 +2194,7 @@ interface Measured {
   readonly queue?: QueueReading;
   readonly ports?: PortsReading;
   readonly conntrack?: ConntrackReading;
+  readonly memory?: MemoryReading;
   readonly request?: RequestReading | null;
   readonly driver?: {
     readonly steps: readonly DriverStepTime[];
@@ -2156,6 +2219,35 @@ interface MemberLine extends SentinelEvent {
   readonly c: string;
   readonly msg: string;
   readonly attr: Readonly<Record<string, unknown>>;
+}
+
+### build/index.d.ts#MemoryReading
+interface MemoryReading {
+  readonly limits: {
+    readonly high: string;
+    readonly max: string;
+    readonly swap: string;
+  };
+  readonly start: number;
+  readonly steps: readonly MemoryStepReading[];
+  readonly tasks: readonly MemoryTaskReading[];
+  readonly events: Readonly<Record<string, number>>;
+  readonly stall: Quantity | null;
+}
+
+### build/index.d.ts#MemoryStepReading
+interface MemoryStepReading {
+  readonly usage: number;
+  readonly time: Quantity;
+  readonly high: number;
+  readonly read: boolean;
+}
+
+### build/index.d.ts#MemoryTaskReading
+interface MemoryTaskReading {
+  readonly name: string;
+  readonly outcome: string;
+  readonly signal: number | null;
 }
 
 ### build/index.d.ts#NODE_MARKS
@@ -2936,6 +3028,9 @@ export declare const measureDriver: (cell: Cell, run: Run) => Measured;
 ### build/index.d.ts#measureGroup
 export declare const measureGroup: (cell: Cell, run: Run) => GroupReading;
 
+### build/index.d.ts#measureMemory
+export declare const measureMemory: (run: Run, expected: MemoryPrediction) => Measured;
+
 ### build/index.d.ts#measurePause
 export declare const measurePause: (run: Run, prediction: PausePrediction) => Measured;
 
@@ -3217,6 +3312,15 @@ export declare const statusViewOf: (set: ReplicaSet, ips: Readonly<Record<string
 
 ### build/index.d.ts#stealShare
 export declare const stealShare: (before: CpuTime, after: CpuTime) => number | null;
+
+### build/index.d.ts#stepBand
+export declare const stepBand: (expected: MemoryThrottlePrediction, usage: number) => {
+  readonly band: QueueBand;
+  readonly high: {
+    readonly low: number;
+    readonly high: number;
+  };
+};
 
 ### build/index.d.ts#stopScript
 export declare const stopScript: (terminate: boolean) => string;

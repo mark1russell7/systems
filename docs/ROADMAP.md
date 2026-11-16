@@ -2526,7 +2526,14 @@ Each step is an item, in this order:
 5. SYS-123: the memory of a process.
 6. SYS-124: the NIC.
 
-The next step: SYS-120.
+**The move of the contract (2026-11-16).** The lens contract of SYS-119 (`packages/site/src/model/lens.ts`) moves to `@mark1russell7/visuals`, of the repository [mark1russell7/visuals](https://github.com/mark1russell7/visuals). This repository keeps the laws in `@mark1russell7/algebra` and `@mark1russell7/machines`, and the lens of each part. The 87 cases of the page and the 92 cases of the detection lab hold the move.
+
+- The visuals package adds a 3D stack of the layers of the network.
+- A catalog of the layers and of the parts of a network has a gauge of its coverage.
+- Each lens shows the computed band, the measured values of the cells and the facts of a network diagnosis.
+- SYS-120 to SYS-124 use the contract of today until the move.
+
+The next steps: SYS-120 part 2 and SYS-122 are in review. SYS-121 part 2 shipped on 2026-11-16 (#566). SYS-123 part 2 is the cells of the memory.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
@@ -2635,7 +2642,7 @@ A test of the site checks the combinator and the exit of each preset. It also ch
 
 A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
 
-Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the cells, in CI only. Part 3 is the lens and its page.
+Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the memory tier of `@mark1russell7/harness` 0.16.6 and five cells, in CI only. `MEM.1` and `MEM.2` grow a client above `memory.high` of 100 MiB and of 50 MiB. The judge compares the time of each step with the law. `MEM.3` to `MEM.5` start three tasks under `memory.max` of 200 MiB, and the law names the task that the OOM killer takes. The first records of CI give the band of the slack of a step, from a first value of 20 ms. Part 3 is the lens and its page.
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
@@ -3466,7 +3473,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 353 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 358 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
@@ -3476,6 +3483,8 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band. The 2 cells `SB` of SYS-69 are in the same row. Each cell gives a distribution with a band, on one side of the border of a stable system.
 
 The 13 cells of reply times on the stream client of the harness (`T01`, `CAL`, `E3.F1` and `OL`) also give an estimate of the open loop. The client waits its interval after each reply. Thus `closedLoopPlan` of `rigor-chaos` puts back each send that a stall hid, with that interval as the pause of the driver. The verdict gives the hidden sends, the pauses of the client and the spread of the estimate. The estimate is not a measure: the open-loop twin of SYS-68 stays the better measure. The 5 cells `K2.pause` have their own verdict of a pause.
+
+The 5 cells `MEM` of SYS-123 are in the row of one request. Each cell grows memory or starts tasks, and it sends no request.
 
 The closed-loop families:
 
