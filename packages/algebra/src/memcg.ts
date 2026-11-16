@@ -5,8 +5,8 @@
  * (`mm/page_counter.c`, line 287).
  *
  * - A charge takes `max(64, pages)` pages from the counter (`MEMCG_CHARGE_BATCH`,
- *   `include/linux/memcontrol.h`, line 332, and line 2358). The pages that the charge did not ask
- *   for go to the stock of the CPU, and the next charges on that CPU take the stock first (line 2371).
+ *   `include/linux/memcontrol.h`, line 332, and line 2358). The rest of the batch goes to the
+ *   stock of the CPU (line 2371). The next charges on that CPU take the stock first.
  * - A charge that leaves the usage above `memory.high` adds its batch to the debt of the task
  *   (lines 2521-2534). The task pays the debt when it goes back to user space (lines 2265-2353).
  * - The overage of one level is `((usage − high) << 20) / max(high, 1)`, and 0 at or below high
@@ -92,9 +92,10 @@ const sleepOf = (
 };
 
 /**
- * This function gives the delay of a debt of `debt` pages, in jiffies, before the cap and the skip:
- * the delay of the largest overage of memory plus the delay of the largest overage of swap. The table
- * in the comment of the source gives this delay (lines 2145-2171): 6 ms at 1% over a high of 100 MiB.
+ * This function gives the delay of a debt of `debt` pages, in jiffies, before the cap and the skip.
+ * It is the delay of the largest overage of memory plus the delay of the largest overage of swap.
+ * The table in the comment of the source gives this delay (lines 2145-2171): 6 ms at 1% over a high
+ * of 100 MiB.
  */
 export const memcgHighDelay = (
   memory: readonly MemcgLevel[],
@@ -109,10 +110,10 @@ export const memcgHighDelay = (
 };
 
 /**
- * This function gives the jiffies that a task sleeps when it pays a debt of `debt` pages: the delay
- * of the largest overage of memory, plus the delay of the largest overage of swap, with the cap of
- * 2 s, and 0 when the delay is 10 ms or less. `memory` is the cgroup of the task, then each ancestor
- * below the root. `swap` gives the same for `memory.swap.high`.
+ * This function gives the jiffies that a task sleeps when it pays a debt of `debt` pages. The sleep
+ * is the delay of `memcgHighDelay` with the cap of 2 s. A delay of 10 ms or less gives no sleep.
+ * `memory` is the cgroup of the task, then each ancestor below the root. `swap` gives the same for
+ * `memory.swap.high`.
  */
 export const memcgHighSleep = (
   memory: readonly MemcgLevel[],
@@ -131,10 +132,11 @@ export interface MemcgSleepBounds {
 }
 
 /**
- * This function gives the lowest usage above `high` whose debt of `debt` pages gives a sleep, and the
- * lowest usage whose sleep is the cap of 2 s. The sleep does not go down as the usage goes up, thus a
- * search finds each bound. For a high of 25,600 pages (100 MiB) at HZ 1000 and a debt of 64, the
- * sleep starts at 25,936 pages (1.3% over) and its cap at 30,126 (17.7% over).
+ * This function gives two usages above `high` for a debt of `debt` pages. The first is the lowest
+ * usage that gives a sleep. The second is the lowest usage whose sleep is the cap of 2 s. The sleep
+ * does not go down as the usage goes up, thus a search finds each bound. Take a high of 25,600 pages
+ * (100 MiB), HZ 1000 and a debt of 64. The sleep starts at 25,936 pages (1.3% over), and the cap
+ * starts at 30,126 (17.7% over).
  */
 export const memcgSleepBounds = (high: number, debt: number, hz: number): MemcgSleepBounds => {
   const limit = count(high, "memory.high");
@@ -174,14 +176,14 @@ export interface MemcgThrottle {
 }
 
 /**
- * This function gives the throttle of a task that grows by `charges` charges of `batch` pages each,
- * from the usage of each level in `levels`: the cgroup of the task, then each ancestor below the root.
- * Each charge adds `batch` pages to each level, and the task pays its debt of `batch` pages before
+ * This function gives the throttle of a task that grows by `charges` charges of `batch` pages each.
+ * It starts from the usage of each level in `levels`: the cgroup of the task, then each ancestor
+ * below the root. Each charge adds `batch` pages to each level, and the task pays its debt of `batch` pages before
  * the next charge. A task that touches one page at a time charges a batch of 64 at each 64th page.
  *
  * The model takes a reclaim that frees no page: anonymous memory with no swap. Thus the usage does
- * not go down, and a charge that sleeps reclaims 17 times. The sleep of a level that is not the
- * first, and the debt of a level that is not above its high, follow the same law.
+ * not go down, and a charge that sleeps reclaims 17 times. The same law gives the sleep of a level
+ * that is not the first. It also gives the debt of a level that is not above its high.
  */
 export const memcgThrottle = (
   levels: readonly MemcgLevel[],
@@ -232,13 +234,14 @@ export interface OomTask {
 }
 
 /**
- * This function gives the points of a task for the OOM killer: its resident pages, its swap entries
- * and the pages of its page tables, plus `oom_score_adj` times `totalPages / 1000` in integer
- * arithmetic. A task at −1000 gives undefined, because the OOM killer does not take it.
+ * This function gives the points of a task for the OOM killer. The points are its resident pages,
+ * its swap entries and the pages of its page tables. To this sum, the kernel adds `oom_score_adj`
+ * times `totalPages / 1000`, in integer arithmetic. A task at −1000 gives undefined, because the OOM
+ * killer does not take it.
  *
- * For the OOM of a cgroup, `totalPages` is `memory.max` in pages, plus the smaller of
- * `memory.swap.max` and the swap of the host when the swappiness is not 0 (`mm/memcontrol.c`,
- * lines 1623-1640), and 1 when that sum is 0 (`mm/oom_kill.c`, line 261).
+ * For the OOM of a cgroup, `totalPages` is `memory.max` in pages (`mm/memcontrol.c`, lines
+ * 1623-1640). When the swappiness is not 0, it adds the smaller of `memory.swap.max` and the swap of
+ * the host. When that sum is 0, `totalPages` is 1 (`mm/oom_kill.c`, line 261).
  */
 export const oomBadness = (task: OomTask, totalPages: number, pageSize = 4096): number | undefined => {
   if (!Number.isSafeInteger(task.adj) || task.adj < -1000 || task.adj > 1000)
@@ -258,8 +261,8 @@ export const oomBadness = (task: OomTask, totalPages: number, pageSize = 4096): 
 
 /**
  * This function gives the index of the task that the OOM killer of a cgroup takes: the task with the
- * most points. Of tasks with equal points, the last one in the order of the scan wins, because a task
- * replaces the choice unless its points are less (`mm/oom_kill.c`, lines 342-351). It gives undefined
+ * most points. Of tasks with equal points, the last one in the order of the scan wins (`mm/oom_kill.c`,
+ * lines 342-351). A task replaces the choice unless its points are less. It gives undefined
  * when the OOM killer can take no task.
  */
 export const oomVictim = (
