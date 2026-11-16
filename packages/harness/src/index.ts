@@ -60,6 +60,12 @@ export type {
   LoadPlan,
   LoadStream,
   LoadPrediction,
+  MemoryLimits,
+  MemoryOomPrediction,
+  MemoryOomTask,
+  MemoryPrediction,
+  MemoryStep,
+  MemoryThrottlePrediction,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -126,6 +132,8 @@ export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPl
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { ConntrackReading, StallReading } from "./conntrack.ts";
 export { measureConntrack } from "./conntrack.ts";
+export type { MemoryReading, MemoryStepReading, MemoryTaskReading } from "./memory.ts";
+export { measureMemory, stepBand } from "./memory.ts";
 export type { PortsReading } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
