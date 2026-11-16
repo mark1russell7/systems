@@ -3752,6 +3752,21 @@ The test fits only an IP header of an odd number of words. A header with no opti
 
 The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset. The socket of the target goes to `ESTABLISHED` for each connection. Without the option, the connect fails with `ECONNREFUSED`.
 
+### SYS-129 · The writer of the disk tier uses the stop point of rigor-testkit
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:** [#560, the disk tier](https://github.com/mark1russell7/systems/pull/560)
+
+The writer of the self-test of the disk tier (`disk-subject/writer.mts`) operates in a container with no packages. Thus it keeps its own copy of the stop protocol of `@mark1russell7/rigor-testkit/stop`. Since `0.1.18`, rigor-testkit has the entry `/stop-point`. Its runtime imports are only `node:fs` and `node:os`, and a build gate of the package holds this.
+
+The change: the harness takes rigor-testkit `^0.1.18`. The self-test copies `build/stop-point.js` into `node_modules/@mark1russell7/rigor-testkit/` of the subject folder, with a `package.json` that exports `./stop-point`. The writer imports `stopPoint` from there, and its copy goes. The digest of the subject folder skips `node_modules`. Thus the change also decides how the record of a run names the version of the copied file.
+
+The test: the self-test of the disk tier passes in CI with the import, and the writer has no code of the protocol.
+
 ### SYS-106 · The units of a take in the keyed limiter
 
 - **Status:** done
