@@ -2601,9 +2601,9 @@ Part 3 is the copy of the cells at one commit, for the measured values of the pa
 
 - The client closes second, thus it waits in `LAST_ACK` for the ACK of its FIN. In the failed run, that ACK did not come, and the FIN went again at 205 ms.
 - That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
-- The record of the harness keeps 100 sent segments for each run. Thus it cannot show the side that lost the ACK.
+- The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
 
-The next step for `PR.7` is in the harness: keep each sent control segment, and void a run with a loss that no fault plan explains. Then the cell runs again.
+The next step for `PR.7` is a measure of the rate: the cell runs again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
