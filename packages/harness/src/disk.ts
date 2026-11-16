@@ -11,15 +11,17 @@ import { substrateHere, type Substrate } from "./substrate.ts";
 /**
  * The disk tier applies a disk plan of `@mark1russell7/rigor-chaos` to the files of a program. Each fault starts one new
  * container of the shipped image `lazyfs`. LazyFS is a FUSE file system that keeps each write in its cache until an
- * fsync. The writer of the subject writes its files on the mount of LazyFS, and the fault stops it at its point. Then
+ * fsync.
+ *
+ * The writer of the subject writes its files on the mount of LazyFS, and the fault stops it at its point. Then
  * `lazyfs::clear-cache` loses each write after the last fsync: the state of the disk after a power cut. The check of
  * the subject reads the files that the disk kept, and writes one JSON value. The record keeps that value.
  *
  * A point at a step uses the stop points of `@mark1russell7/rigor-testkit/stop` in the writer: the writer stops itself
  * at the step with `SIGKILL`. A point at a time stops the writer with `SIGKILL` after that time from its start.
  *
- * The container is privileged: it needs `/dev/fuse` and a mount, and the AppArmor profile of Docker refuses a FUSE mount
- * in a container that is not privileged. Thus the tier operates only in CI, in the workflow `disk.yml`.
+ * The container is privileged: it needs `/dev/fuse` and a mount. The AppArmor profile of Docker refuses a FUSE mount in
+ * a container that is not privileged. Thus the tier operates only in CI, in the workflow `disk.yml`.
  */
 
 /** The folder of the subject in the container. */
@@ -70,7 +72,7 @@ export interface DiskImage {
   readonly build?: BuildRecord;
 }
 
-/** A disk lab holds the parts of each run that do not change from one fault to the next. */
+/** A disk lab holds the parts that stay the same from one fault of a plan to the next. */
 export interface DiskLab {
   readonly subject: DiskSubject;
   /** The sha256 of the path and the content of each file of the subject folder. */
@@ -109,7 +111,7 @@ export interface DiskRecord {
   readonly writer: DiskWriterRecord;
   /** The JSON value that the check wrote: what the disk kept. */
   readonly persisted: unknown;
-  /** The time of the start of the run, in ISO 8601. */
+  /** The time when `runDiskFault` started the fault, in ISO 8601. */
   readonly at: string;
 }
 
@@ -165,7 +167,8 @@ const tail = (text: string): string => text.slice(-OUTPUT_LIMIT);
 /**
  * This function applies one fault of a disk plan in one new container, and gives its record. It throws a `RangeError`
  * for a fault with problems. The promise rejects when LazyFS does not clear its cache, or when the check does not end
- * with the code 0 and one JSON value. A run that cannot read the disk gives no record.
+ * with the code 0 and one JSON value. Thus a check that cannot read the disk gives no record. The time limit of the
+ * cut also covers the write of the command to LazyFS: that write waits when LazyFS did not start.
  */
 export const runDiskFault = async (lab: DiskLab, fault: DiskFault): Promise<DiskRecord> => {
   const problems = checkDiskFault(fault);
@@ -195,10 +198,12 @@ export const runDiskFault = async (lab: DiskLab, fault: DiskFault): Promise<Disk
     });
     const ms = performance.now() - started;
 
-    // The power cut: LazyFS loses each write after the last fsync, then writes its answer to the second FIFO
-    const cut = await container.exec(["sh", "-c", `printf 'lazyfs::clear-cache\\n' > ${FAULTS} && timeout ${CLEAR_S} head -n 1 ${DONE}`]);
+    // The power cut: LazyFS loses each write after the last fsync, then writes its answer to the second FIFO. The limit
+    // covers the write to the first FIFO too: that write waits forever when LazyFS did not open the FIFO.
+    const cut = await container.exec(["timeout", String(CLEAR_S), "sh", "-c", `printf 'lazyfs::clear-cache\\n' > ${FAULTS} && head -n 1 ${DONE}`]);
     if (cut.exitCode !== 0 || cut.stdout.trim() !== "finished::clear-cache") {
-      throw new Error(`runDiskFault: LazyFS did not clear its cache (exit ${cut.exitCode}): ${tail(cut.output.trim())}`);
+      const limit = cut.exitCode === 124 ? `, the limit of ${CLEAR_S} s` : "";
+      throw new Error(`runDiskFault: LazyFS did not clear its cache (exit ${cut.exitCode}${limit}): ${tail(cut.output.trim())}`);
     }
 
     const progress = await container.exec(["cat", PROGRESS]);
@@ -240,15 +245,15 @@ export const runDiskFault = async (lab: DiskLab, fault: DiskFault): Promise<Disk
   }
 };
 
-/** These are the parts of a disk record that tell if it pins the code and the image of its run. */
+/** These are the parts of a disk record that tell if it pins its code and its image. */
 export interface DiskPinnable {
   readonly code?: RecordCode | undefined;
   readonly image: DiskImage;
 }
 
 /**
- * This function gives each problem that stops a disk record from pinning its run: the commit of the code, a checkout
- * with changes, and the image with its build record. A record with a problem is not a record.
+ * This function gives each problem of the pins of a disk record. The pins are the commit of the code and the image with
+ * its build record. A checkout with changes is also a problem. A record with a problem is not a record.
  */
 export const diskRecordProblems = (record: DiskPinnable): string[] => [
   ...new Set([

@@ -480,12 +480,13 @@ for (const fault of plan.faults) console.log((await runDiskFault(lab, fault)).pe
   - The protocol is data: an environment variable and one JSON line for each stop point. Thus a writer in each language can speak it.
 - **A fault at a time** stops the writer with `SIGKILL` after that time from its start, through `timeout -s KILL`.
 - **Each fault has a new container.** After the stop, the tier sends `lazyfs::clear-cache` to LazyFS, and waits for its answer. Then the check starts.
-- **The record** (`harness-disk/1`) holds the fault, the digest of the subject folder, the image with its build record and id, and the commit of the code.
+- **The record** (`harness-disk/1`) holds the fault and the digest of the subject folder. It also holds the image with its build record and id, and the commit of the code.
   - It also holds the substrate (layer E1), the exit and the stop points of the writer, and the value of the check (`persisted`).
-  - `diskRecordProblems` gives each problem that stops a record from pinning its programs. A record with a problem is not a record.
+  - `diskRecordProblems` gives each problem of the pins of a record. A record with a problem is not a record.
 - **The container is privileged.** LazyFS needs `/dev/fuse` and a mount. Testcontainers 12 has no option for one device. The AppArmor profile of Docker refuses a FUSE mount in a container that is not privileged.
   - Thus the tier operates only in CI, in the workflow `disk.yml`.
 - **The self-test** (`HARNESS_DISK=1`) has a writer that writes each line to one file with an fsync, and to a second file with none. Each case holds its expected result as data.
+
 ## Runs
 
 - **`runCell(cell)`** (`run.ts`) divides the 11 runs of a cell across two new environments. It records the manifest of each environment, and it removes the fault after each run.

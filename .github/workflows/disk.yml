@@ -11,7 +11,7 @@ name: Disk
 
 on:
   workflow_dispatch:
-  # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+  # Each pull request starts this workflow. Thus the summary check of the gate is always present. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
   push:
@@ -26,8 +26,8 @@ on:
 permissions:
   contents: read
 
-# A pull request and a dispatch share a group with the newer runs of their ref, which cancel them. The queue
-# dispatches this gate on each pull request that is behind main (SYS-118). A push to main keeps each run.
+# A pull request and a dispatch share a group with the later workflows of their ref. A later one cancels an earlier one. The queue
+# dispatches this gate on each pull request that is behind main (SYS-118). A push to main cancels nothing.
 concurrency:
   group: disk-${{ github.event_name != 'push' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
