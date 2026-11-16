@@ -134,7 +134,7 @@ An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake 
 | `unrefClock(clock)` | A clock with the time of `clock`, whose timers do not keep a Node process alive. A wall clock stays a wall clock. |
 | `wallClock({ unref, speed, start })` | A `WallClock`: `now()` gives the instant of `Date.now()`, and its timers are the timers of `platformClock`. With a speed or a start, the clock is scaled. |
 | `fakeClock(start)` | A clock that moves only on `advance(ms)`. `block(ms)` moves it and starts no timer, as a blocked event loop does. `pending` counts the live timers. |
-| `fakeWallClock(start)` | A fake `WallClock`. `set(instant)` steps its instant forward or back, and no timer moves. |
+| `fakeWallClock(start, monotonic?)` | A fake `WallClock`. `set(instant)` steps its instant forward or back, and no timer moves. With a `fakeClock` as `monotonic`, the two clocks share one queue of timers. |
 | `delay(clock, ms, signal?)` | A promise that resolves after `ms` on a `Clock` or a `WallClock`. An abort of the signal stops the timer and rejects with the reason of the signal. |
 
 ```ts

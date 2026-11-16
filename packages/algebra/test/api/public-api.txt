@@ -184,7 +184,7 @@ declare const delay: (clock: Pick<Clock, "after">, ms: number, signal?: AbortSig
 declare const fakeClock: (start?: number) => FakeClock;
 
 ### build/clock.chunk.d.ts#fakeWallClock
-declare const fakeWallClock: (start: number) => FakeWallClock;
+declare const fakeWallClock: (start: number, monotonic?: FakeClock) => FakeWallClock;
 
 ### build/clock.chunk.d.ts#firstInstantOf
 declare function firstInstantOf(wall: number, zone: string): number | undefined;
