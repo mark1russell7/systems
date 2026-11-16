@@ -37,6 +37,12 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
   - `ioredis.retry-base`: the reconnect delay of ioredis 6, min(2^(times − 1) × 50, 5000) ms.
   - `linux.rto-wait-reverted` and `linux.retrans-step-reverted`: the retransmissions when each one gets an ICMP host or net unreachable. The revert of RFC 6069 (`tcp_ld_RTO_revert`) takes back each doubling, thus each wait is one RTO.
 - **The accept queue.** `acceptQueueLimit` gives the limit of the accept queue of a listener: the backlog of listen(2), with `somaxconn` as its cap. A negative backlog gives `somaxconn`. `acceptQueueHeld` gives the count of connections that the queue holds. This count is the limit plus one, because the kernel finds the queue full only above its limit.
+- **The memory limit of a cgroup.** These functions follow `mm/memcontrol.c` and `mm/oom_kill.c` of Linux 7.0. A usage or a limit is in pages.
+  - `memcgHighDelay` gives the delay of a task that charges memory above `memory.high`, in jiffies. The delay grows with the square of the largest overage of the cgroup and its ancestors. For a high of 100 MiB at HZ 1000, the delay at 110 MiB is 639 ms.
+  - `memcgHighSleep` gives the sleep from that delay. The sleep has a cap of 2 s. A delay of HZ / 100 jiffies or less gives no sleep.
+  - `memcgSleepBounds` gives the first usage that sleeps, and the first usage at the cap. For a high of 100 MiB at HZ 1000, these usages are 1.3% and 17.7% above the high.
+  - `memcgThrottle` adds the sleeps of a task that charges one batch of 64 pages at a time. It also counts the events `high` of the cgroup. Each charge above the high reclaims one time, and each charge that sleeps reclaims 17 times.
+  - `oomBadness` gives the points of a task for the OOM killer of a cgroup. `oomVictim` gives the task that it takes. The OOM killer does not take a task at an `oom_score_adj` of −1000.
 - **Detection.** `detection` gives the minimum over the timers that are live in the situation of the connection. With no live timer, the failure is silent at this level. `stackedDetection` adds the timers of the machine below.
 - **Manifestations.** A manifestation tells which incoming events a failure lets through. A black hole lets nothing through. The kernel of a frozen process continues to send ACKs, which stop keepalive before it fires. A manifestation can also tell:
   - the events that the failure sends one time (`delivers`), for example the FIN of a process that stopped with SIGKILL. Such an event detects the failure at once (`Detection.delivered`).

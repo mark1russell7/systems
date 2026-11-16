@@ -8,6 +8,7 @@ import {
 } from "@mark1russell7/quantity";
 import type { Expr, Machine, TransitionDef } from "./machine.ts";
 import { FIRED, arr, exprKnobs, fromStates } from "./machine.ts";
+import { granularity } from "./wheel.ts";
 
 /**
  * This module has the closed forms of the algebra. They give the duration of a timer of a
@@ -356,19 +357,6 @@ const delackWait = (rtt: Rational, hz: Rational): bigint => {
   const srtt = jiffiesOf(rtt, hz);
   const bound = srtt > least ? srtt : least;
   return bound < most ? bound : most;
-};
-
-/**
- * This function gives how late the timer wheel can fire a timer that is due in `jiffies`
- * (`calc_wheel_index` in `kernel/time/timer.c` at v6.6). Level 0 holds the timers due in 63 jiffies
- * or less. Each level above holds eight times as long, at eight times the granularity. The wheel
- * rounds a timer up to the next boundary of its level, thus it fires up to one granularity late.
- * At HZ 250, a 2 h timer can be up to 131 s late.
- */
-const granularity = (jiffies: bigint): bigint => {
-  let level = 0n;
-  while (level < 8n && jiffies >= 63n << (3n * level)) level += 1n;
-  return 8n ** level;
 };
 
 /**
