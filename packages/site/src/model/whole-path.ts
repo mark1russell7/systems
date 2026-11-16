@@ -30,12 +30,12 @@ export type StageId = "ports" | "queue" | "request";
 /** The knobs that the whole path sets from other knobs. The send of the client comes from the request, thus the page shows no control for it. */
 export const LINKED_KNOBS: ReadonlySet<string> = new Set(["send", "sendAt"]);
 
-/** This function gives the settings of each stage: the client sends at once when the request is in flight, and it sends nothing on an idle connection. */
+/** This function gives the settings of each stage. The client sends at once when the request is in flight, and it sends nothing on an idle connection. */
 export const linked = memo((settings: WholeSettings): WholeSettings => ({ ...settings, send: settings.inFlight ? "connected" : "never" }));
 
 /**
- * These are the defaults of Linux: a port from the whole range, a queue with room, and a request with a
- * deadline behind a black hole. The client connects each 10 ms. At the 1 ms of the page of the port range,
+ * These are the defaults of Linux. They give a port from the whole range, a queue with room, and a request
+ * with a deadline behind a black hole. The client connects each 10 ms. At the 1 ms of the page of the port range,
  * the range runs out in 28 s, before TIME_WAIT frees the first port.
  */
 export const WHOLE_DEFAULTS: WholeSettings = { ...PORT_DEFAULTS, ...QUEUE_DEFAULTS, ...DEFAULTS, connectGap: ms(10), queued: 0, connections: 1, send: "connected" };

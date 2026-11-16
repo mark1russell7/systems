@@ -2622,7 +2622,7 @@ The page is [the whole path](https://mark1russell7.github.io/systems/lab/path/).
 - The fault starts at the start of the request. Thus a drain of the queue moves the fault and each time of the request.
 - The send of the client comes from the request, thus the page shows no knob for it.
 
-A test of the site checks the combinator, the exit of each preset and the lanes of each stage against the lanes of its own page.
+A test of the site checks the combinator and the exit of each preset. It also checks the lanes of each stage against the lanes of its own page.
 
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 

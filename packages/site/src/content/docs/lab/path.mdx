@@ -7,7 +7,7 @@ tableOfContents: false
 import WholePath from "../../../components/WholePath.tsx";
 import Term from "../../../components/Term.tsx";
 
-A connection goes through three stages before its reply comes. The client gets a port, the target puts the connection in its accept queue, and the request goes on the path, where a fault can stop it. Each stage has its own page in this lab. This page puts the three stages together on one timeline, and it computes, in your browser, the stage where the connection ends.
+A connection goes through three stages before its reply comes. The client gets a port, and the target puts the connection in its accept queue. Then the request goes on the path, where a fault can stop it. Each stage has its own page in this lab. This page puts the three stages together on one timeline, and it computes, in your browser, the stage where the connection ends.
 
 <WholePath client:visible />
 

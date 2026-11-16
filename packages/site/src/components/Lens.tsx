@@ -18,7 +18,7 @@ const sec = (q: Quantity): number => valueIn(q, "s");
 /** This function gives the names of a lane by its id. */
 export type NamesOf = (id: string) => LaneNames;
 
-/** The fault on the timeline: it starts at `start`, or at 0 with no start, and it ends at `end`, or it lasts to the end of the axis. */
+/** The fault on the timeline. It starts at `start`, or at 0 with no start. It ends at `end`, or it lasts to the end of the axis. */
 export interface FaultSpan {
   readonly label: string;
   readonly start?: Quantity;
