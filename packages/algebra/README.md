@@ -38,6 +38,12 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
   - `ioredis.retry-base`: the reconnect delay of ioredis 6, min(2^(times − 1) × 50, 5000) ms.
   - `linux.rto-wait-reverted` and `linux.retrans-step-reverted`: the retransmissions when each one gets an ICMP host or net unreachable. The revert of RFC 6069 (`tcp_ld_RTO_revert`) takes back each doubling, thus each wait is one RTO.
 - **The accept queue.** `acceptQueueLimit` gives the limit of the accept queue of a listener: the backlog of listen(2), with `somaxconn` as its cap. A negative backlog gives `somaxconn`. `acceptQueueHeld` gives the count of connections that the queue holds. This count is the limit plus one, because the kernel finds the queue full only above its limit.
+- **The egress queue of a device.** These functions follow the qdiscs of Linux 7.0. A length is the qdisc length in bytes, with the link header. A time is in nanoseconds, and a rate is in bytes per second.
+  - `udpFrameLength` gives the qdisc length of a UDP datagram on Ethernet. `gsoQdiscLength` adds the headers of each segment of a GSO packet.
+  - `netemPacketTime` gives the time of a packet at the rate of netem, with its overhead and its cells. `netemSchedule` gives the time that each packet leaves netem, or its drop at the limit. The limit counts the packets of the delay too. Thus a delay of 100 ms at 1,000 packets per second fills a limit of 100.
+  - `pschedFactor` and `pschedLengthTime` give the time of a length at a rate of tbf. The kernel multiplies by a factor of 32 bits. Thus a time can be 1 ns short.
+  - `tbfBuckets` gives the depths of the buckets of tbf. `tbfSchedule` gives the time that each packet leaves tbf, or its drop. The drop is at the size of the burst or at the bytes of the limit.
+  - `fifoDefaultLimit` gives the limit of a pfifo or a bfifo from `txqueuelen`.
 - **The memory limit of a cgroup.** These functions follow `mm/memcontrol.c` and `mm/oom_kill.c` of Linux 7.0. A usage or a limit is in pages.
   - `memcgHighDelay` gives the delay of a task that charges memory above `memory.high`, in jiffies. The delay grows with the square of the largest overage of the cgroup and its ancestors. For a high of 100 MiB at HZ 1000, the delay at 110 MiB is 639 ms.
   - `memcgHighSleep` gives the sleep from that delay. The sleep has a cap of 2 s. A delay of HZ / 100 jiffies or less gives no sleep.
