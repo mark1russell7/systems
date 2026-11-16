@@ -3587,6 +3587,16 @@ The intended send time comes from the record. The form `first + n × interval` i
 
 `Topology` is a chain of hops, thus it cannot name two paths. The first fabric gives its paths in `Topology.fabric`, apart from the chain. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
 
+The format has two test values from the start. The first is the leaf and spine fabric of SYS-77. The second is a world of a consumer that finds the cause of a network fault:
+
+- **The nodes.** A client with its own image, three FRR routers in a line, a target and a reference on HTTPS, and a resolver on DNS. Each node has a kind: host or router.
+- **The links.** Six links, each with a name and two ends. The routes are static first, and OSPF comes later for faults of a route.
+- **The faults.** One fault at a time goes on the egress of one end of one named link. It is a loss, a delay with jitter, a black hole, a lower MTU or a link down. The plan of each fault is data of `@mark1russell7/rigor-chaos`.
+- **The readings.** The case gives the output and the exit code of a command in the client. It also gives the address of each end of each link. Each fault has a record on the monotonic clock of the lab. The counters of the faulted interface come before and after the fault, thus a fault that did not act gives no read. The routes of each router come at the start.
+- **The size.** Seven nodes on the smallest runner.
+
+The next world of that consumer gives a home router with NAT and DHCP, and two providers with eBGP to it. Thus it has two paths and a fault on one path only. An Open vSwitch node with VLANs comes later. Each image is free: FRR, Open vSwitch and Debian.
+
 ### SYS-114 · A Proxmox VE guest: a real API for the provider of runner-dispatch
 
 - **Status:** later
