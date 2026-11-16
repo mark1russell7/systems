@@ -2420,6 +2420,8 @@ export interface ServiceSpec {
   readonly stateDir: string;
   readonly console?: "hidden" | "visible" | undefined;
   readonly timeLimit?: Quantity | undefined;
+  readonly stopGrace?: Quantity | undefined;
+  readonly stopsChildren?: boolean | undefined;
 }
 
 ### build/host/render.d.ts#ServiceStart
