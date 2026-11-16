@@ -11,6 +11,13 @@ RUN curl -fsSL -o /tmp/docker.tgz https://download.docker.com/linux/static/stabl
  && echo "6b130fa5fb13516620d5ece0b63f63a495cede428bb2f9e24449022e9d72e0cb  /tmp/docker.tgz" | sha256sum -c - \
  && tar -xzf /tmp/docker.tgz --strip-components=1 -C /usr/local/bin \
  && rm /tmp/docker.tgz
+# the buildx plugin of the same weeks as that Docker. The harness builds its images with BuildKit
+# (`--progress=plain`), and the legacy builder of the static bundle refuses that flag
+RUN mkdir -p /usr/local/lib/docker/cli-plugins \
+ && curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.22.0/buildx-v0.22.0.linux-amd64 \
+ && echo "805195386fba0cea5a1487cf0d47da82a145ea0a792bd3fb477583e2dbcdcc2f  /usr/local/lib/docker/cli-plugins/docker-buildx" | sha256sum -c - \
+ && chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx \
+ && docker buildx version
 RUN npm install -g pnpm@12.10.1
 COPY packages/harness/vm/lab-net.service packages/harness/vm/docker.service /etc/systemd/system/
 RUN ssh-keygen -A \
