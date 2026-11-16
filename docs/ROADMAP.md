@@ -2604,16 +2604,32 @@ Part 2 is the page [the port range](https://mark1russell7.github.io/systems/lab/
 - Machines `0.4.1` is a PATCH: `timerOf` of `time_wait` gives two new fields, and the old fields keep their values.
 - Service and kind need no release. They do not use the new exports, and their range `^0.9.1` takes algebra `0.9.3`.
 
+Part 3 is the copy of the cells at one commit, for the measured values of the page. The run of 2026-11-16 held seven of the eight cells, with 4 of 4 runs each. `PR.7` failed one run of 4, with no fault in its plan.
+
+- The client closes second, thus it waits in `LAST_ACK` for the ACK of its FIN. In the failed run, that ACK did not come, and the FIN went again at 205 ms.
+- That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
+- The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
+
+The next step for `PR.7` is a measure of the rate: the cell runs again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
+
 ### SYS-122 · The whole path: all lenses on one timeline
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-120, SYS-121
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
 One page shows all lenses on one timeline, with one control for each shared knob. A reader follows one connection from the port of the client, through the SYN and the accept queue, to the request and the fault. Each lens keeps its own page, and the whole page uses the same lenses.
+
+The page is [the whole path](https://mark1russell7.github.io/systems/lab/path/). The contract gets a stage: a set of lenses and an exit, which passes at a band or ends the story. The function `sequence` puts the stages on one timeline. Each stage starts at the pass of the stage before it, and the stages after an end get no lanes.
+
+- The three stages are the port, the accept queue and the request. Each stage has the lenses of its own page.
+- The fault starts at the start of the request. Thus a drain of the queue moves the fault and each time of the request.
+- The send of the client comes from the request, thus the page shows no knob for it.
+
+A test of the site checks the combinator and the exit of each preset. It also checks the lanes of each stage against the lanes of its own page.
 
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 
