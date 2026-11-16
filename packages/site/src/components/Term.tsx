@@ -42,6 +42,15 @@ export const TERMS = {
   TIME_WAIT: "The state of a closed connection at the side that closed first. It holds the port for 60 s, thus a late segment cannot reach a new connection.",
   tcp_tw_reuse: "A sysctl: 1 lets a new connect take a port in TIME_WAIT after tcp_tw_reuse_delay. The default 2 does this on loopback only.",
   LAST_ACK: "The state of the side that closed second, until the ACK of its FIN arrives.",
+  backlog: "The length of the accept queue that a program asks for in listen(2). The queue keeps each connection that the program did not accept.",
+  somaxconn: "A sysctl: the largest backlog. A larger backlog in listen(2) gets this value. The default is 4096.",
+  tcp_syn_retries: "A sysctl: the count of SYNs that a connect sends again before ETIMEDOUT. The default 6 gives 131 s.",
+  tcp_synack_retries: "A sysctl: the count of SYN-ACKs that the target sends again for a request. The default 5 keeps a request for 63 s.",
+  tcp_abort_on_overflow: "A sysctl: 1 answers a final ACK at a full queue with a reset. The default 0 drops the ACK and keeps the request.",
+  "SYN-ACK": "The answer of the target to a SYN, the second packet of the handshake.",
+  "challenge ACK": "The answer of a connected client to a SYN-ACK that comes again: an ACK that tells the target the state of the client.",
+  "SYN cookie": "An answer to a SYN when the queue of requests is full. The target keeps no request and finds the connection in the final ACK.",
+  ECONNRESET: "The error that the kernel gives to the socket when a reset from the peer ends the connection.",
 } as const satisfies Record<string, string>;
 
 export type TermName = keyof typeof TERMS;
