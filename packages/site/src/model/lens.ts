@@ -9,8 +9,14 @@
  *
  * Each time is a quantity of `@mark1russell7/quantity`, from the start of the story of the page, and
  * each time prints through `say`.
+ *
+ * A stage is a part of one story: its lenses and its exit. `sequence` puts each stage after the exit of
+ * the stage before it. Thus a page of one connection, from its port to its request, uses the lenses of
+ * each page with no change.
  */
 import { convert, format, formatDuration, isUnbounded, quantity, valueIn, type Extent, type Quantity, type Unknown } from "@mark1russell7/quantity";
+
+const s = (value: number): Quantity => quantity(value, "s");
 
 // ---------------------------------------------------------------------------------------------
 // the lanes
@@ -126,10 +132,89 @@ export const memo = <S extends object, R>(model: (settings: S) => R): ((settings
 };
 
 // ---------------------------------------------------------------------------------------------
-// the times
+// the stages
 // ---------------------------------------------------------------------------------------------
 
-const s = (value: number): Quantity => quantity(value, "s");
+/**
+ * The exit of a stage: the story passes to the next stage in a band, or it ends in the stage. An end
+ * with no band is an end that no event marks, for example a client that waits forever.
+ */
+export type Exit =
+  | { readonly kind: "pass"; readonly at: Band; readonly label: string }
+  | { readonly kind: "end"; readonly at: Band | null; readonly label: string };
+
+/**
+ * A stage is a part of one story: its lenses, and its exit. The times of a stage count from its start.
+ * Thus a lens keeps its own page, and a page of many stages puts the same lens after the stage before it.
+ */
+export interface Stage<S, Id extends string = string> {
+  readonly id: string;
+  /** the name of the stage for a reader, for example "The accept queue" */
+  readonly title: string;
+  /** a short name for the gutter of a timeline, for example "Queue" */
+  readonly short: string;
+  readonly lenses: ReadonlyArray<Lens<S, Id>>;
+  /** the model of the exit. It is pure: the same settings give the same exit */
+  readonly exit: (settings: S) => Exit;
+}
+
+/** A stage on the whole timeline: its start, its lanes in its own time and on the whole timeline, and its exit. */
+export interface Staged<S, Id extends string = string> {
+  readonly stage: Stage<S, Id>;
+  /** the start of the stage on the whole timeline, or null when the story ends before the stage */
+  readonly start: Band | null;
+  /** the lanes in the time of the stage, from its start */
+  readonly own: ReadonlyArray<Lane<Id>>;
+  /** the lanes on the whole timeline */
+  readonly lanes: ReadonlyArray<Lane<Id>>;
+  /** the exit on the whole timeline, or null when the story ends before the stage */
+  readonly exit: Exit | null;
+}
+
+const plus = (a: Quantity, b: Quantity): Quantity => quantity(valueIn(a, "s") + valueIn(b, "s"), "s");
+
+/** This function moves a band by a band: the low end by the low end, and the high end by the high end. */
+export const shiftBand = (band: Band, by: Band): Band => ({ low: plus(band.low, by.low), high: plus(band.high, by.high) });
+
+/**
+ * This function moves a lane by the start of its stage. A band moves by the band of the start. A mark
+ * and a measured median are points, thus they move by the low end of the start.
+ */
+export const shiftLane = <Id extends string>(lane: Lane<Id>, by: Band): Lane<Id> => ({
+  ...lane,
+  band: lane.band === null ? null : shiftBand(lane.band, by),
+  marks: lane.marks.map((mark) => ({ ...mark, t: plus(mark.t, by.low) })),
+  measured: lane.measured.map((m) => ({ ...m, at: m.at === null ? null : plus(m.at, by.low) })),
+});
+
+/** This function moves an exit by the start of its stage. */
+export const shiftExit = (exit: Exit, by: Band): Exit => (exit.kind === "pass" ? { ...exit, at: shiftBand(exit.at, by) } : { ...exit, at: exit.at === null ? null : shiftBand(exit.at, by) });
+
+/**
+ * This function puts the stages of one story on one timeline. The first stage starts at 0 s, and each
+ * next stage starts at the pass of the stage before it. After an end, the next stages get no start and
+ * no lanes.
+ */
+export const sequence = <S, Id extends string>(stages: ReadonlyArray<Stage<S, Id>>, settings: S): Array<Staged<S, Id>> => {
+  const out: Array<Staged<S, Id>> = [];
+  let start: Band | null = bandOf(s(0));
+  for (const stage of stages) {
+    if (start === null) {
+      out.push({ stage, start: null, own: [], lanes: [], exit: null });
+      continue;
+    }
+    const from: Band = start;
+    const own = lanesOf(stage.lenses, settings);
+    const exit = shiftExit(stage.exit(settings), from);
+    out.push({ stage, start: from, own, lanes: own.map((lane) => shiftLane(lane, from)), exit });
+    start = exit.kind === "pass" ? exit.at : null;
+  }
+  return out;
+};
+
+// ---------------------------------------------------------------------------------------------
+// the times
+// ---------------------------------------------------------------------------------------------
 
 /** This function gives a band in seconds. One time gives a band of one point. */
 export const bandOf = (low: Quantity, high: Quantity = low): Band => ({ low: convert(low, "s"), high: convert(high, "s") });

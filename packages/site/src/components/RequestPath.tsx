@@ -72,6 +72,44 @@ const faultSpanOf = (settings: Settings, result: PathResult): FaultSpan => ({
   end: result.heal,
 });
 
+/** The knobs of the fault, on each page that shows the path of one request. */
+type FaultKnobs = Pick<Settings, "fault" | "inFlight" | "heal">;
+
+/** The controls of the fault: its kind, a request in flight or an idle connection, and the time of a partition. A change plays the story again. */
+export function FaultControls(props: { readonly settings: FaultKnobs; readonly change: (next: Partial<FaultKnobs>) => void; readonly restart: () => void }): ReactElement {
+  const { settings, change, restart } = props;
+  const set = (next: Partial<FaultKnobs>): void => {
+    change(next);
+    restart();
+  };
+  return (
+    <>
+      <div className="sy-knob">
+        <span>The fault</span>
+        <span className="sy-switch" role="group" aria-label="The fault">
+          {FAULTS.map((f) => (
+            <button key={f.id} type="button" aria-pressed={settings.fault === f.id} onClick={() => set({ fault: f.id })}>
+              {f.label}
+            </button>
+          ))}
+        </span>
+      </div>
+      <div className="sy-knob">
+        <span>The request</span>
+        <span className="sy-switch" role="group" aria-label="The request">
+          <button type="button" aria-pressed={settings.inFlight} onClick={() => set({ inFlight: true })}>
+            In flight
+          </button>
+          <button type="button" aria-pressed={!settings.inFlight} onClick={() => set({ inFlight: false })}>
+            Idle connection
+          </button>
+        </span>
+      </div>
+      {settings.fault === "partition" ? <TimeKnob label="The partition lasts" value={settings.heal} unit="s" min={0.2} max={120} onChange={(heal) => change({ heal })} /> : null}
+    </>
+  );
+}
+
 export default function RequestPath(): ReactElement {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [preset, setPreset] = useState<string | null>("defaults");
@@ -112,50 +150,7 @@ export default function RequestPath(): ReactElement {
         </header>
 
         <div className="rp-controls">
-          <div className="sy-knob">
-            <span>The fault</span>
-            <span className="sy-switch" role="group" aria-label="The fault">
-              {FAULTS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  aria-pressed={settings.fault === f.id}
-                  onClick={() => {
-                    change({ fault: f.id });
-                    player.restart();
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </span>
-          </div>
-          <div className="sy-knob">
-            <span>The request</span>
-            <span className="sy-switch" role="group" aria-label="The request">
-              <button
-                type="button"
-                aria-pressed={settings.inFlight}
-                onClick={() => {
-                  change({ inFlight: true });
-                  player.restart();
-                }}
-              >
-                In flight
-              </button>
-              <button
-                type="button"
-                aria-pressed={!settings.inFlight}
-                onClick={() => {
-                  change({ inFlight: false });
-                  player.restart();
-                }}
-              >
-                Idle connection
-              </button>
-            </span>
-          </div>
-          {settings.fault === "partition" ? <TimeKnob label="The partition lasts" value={settings.heal} unit="s" min={0.2} max={120} onChange={(heal) => change({ heal })} /> : null}
+          <FaultControls settings={settings} change={change} restart={player.restart} />
         </div>
 
         <div className="rp-headline" aria-live="polite">
