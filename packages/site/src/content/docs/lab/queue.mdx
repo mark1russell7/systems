@@ -7,7 +7,7 @@ tableOfContents: false
 import AcceptQueue from "../../../components/AcceptQueue.tsx";
 import QueueResults from "../../../components/QueueResults.tsx";
 import Term from "../../../components/Term.tsx";
-import copy from "../../../data/accept-queue-2026-11-06.json";
+import copy from "../../../data/accept-queue-2026-11-16.json";
 
 A program calls listen(2) with a <Term name="backlog" />, and the kernel keeps each new connection in the accept queue until the program accepts it. When the program stops its accepts, the queue fills. A full queue drops a SYN with no answer, and it drops the final ACK of a handshake. This page computes, in your browser, how many connections the queue holds, and how each connect ends.
 

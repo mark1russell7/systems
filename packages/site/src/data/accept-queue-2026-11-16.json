@@ -1,8 +1,8 @@
 {
   "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
-  "ranAt": "2026-11-06",
-  "commit": "6866a9705e294e289bd6a3ccb149a2ececcdc881",
-  "workflows": [42146602190],
+  "ranAt": "2026-11-16",
+  "commit": "43219dbc594adfefc3b47e9a78f0cbf099ebc7a7",
+  "workflows": [43954861254],
   "kernel": "7.0.0",
   "hz": 1000,
   "cells": [
@@ -247,8 +247,8 @@
             "unit": "s",
             "low": 130.99,
             "high": 137.09,
-            "values": [134.430304, 134.568614, 134.56924, 134.716149],
-            "median": 134.568927,
+            "values": [134.435087, 134.585631, 134.881328, 134.040302],
+            "median": 134.510359,
             "inside": true
           }
         ],
@@ -316,8 +316,8 @@
             "unit": "s",
             "low": 62.984,
             "high": 64.738,
-            "values": [63.90719, 63.830405, 63.80175, 64.01655],
-            "median": 63.8687975,
+            "values": [63.827359, 64.09326, 64.295291, 64.058367],
+            "median": 64.07581350000001,
             "inside": true
           },
           {
@@ -325,8 +325,8 @@
             "unit": "s",
             "low": 110,
             "high": 125,
-            "values": [117.684349, 117.098066, 117.580293, 114.207965],
-            "median": 117.3391795,
+            "values": [117.602893, 114.288669, 117.558445, 114.249971],
+            "median": 115.923557,
             "inside": true
           },
           {
@@ -334,8 +334,8 @@
             "unit": "s",
             "low": 0.01,
             "high": 0.05,
-            "values": [0.020133, 0.02012, 0.020112, 0.020117],
-            "median": 0.020118499999999997,
+            "values": [0.020152, 0.020172, 0.02015, 0.020168],
+            "median": 0.020159999999999997,
             "inside": true
           }
         ],
@@ -403,8 +403,8 @@
             "unit": "s",
             "low": 0.01,
             "high": 0.05,
-            "values": [0.02007, 0.020044, 0.020077, 0.020021],
-            "median": 0.020057,
+            "values": [0.020081, 0.020099, 0.020145, 0.020162],
+            "median": 0.020122,
             "inside": true
           },
           {
@@ -412,8 +412,8 @@
             "unit": "s",
             "low": 0.01,
             "high": 0.05,
-            "values": [0.020074, 0.020051, 0.020154, 0.020132],
-            "median": 0.020103000000000003,
+            "values": [0.020085, 0.020125, 0.020144, 0.020169],
+            "median": 0.0201345,
             "inside": true
           }
         ],
@@ -490,8 +490,8 @@
             "unit": "s",
             "low": 3.008,
             "high": 3.158,
-            "values": [3.082319, 3.076601, 3.083828, 3.098911],
-            "median": 3.0830735000000002,
+            "values": [3.080737, 3.083223, 3.135037, 3.070167],
+            "median": 3.0819799999999997,
             "inside": true
           }
         ],
@@ -502,19 +502,181 @@
       "id": "AQ.8",
       "name": "the count of service 0.7: a declared backlog of 4 under a somaxconn of 4096 holds 5",
       "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
-      "result": null
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 4,
+            "high": 4,
+            "values": [4, 4, 4, 4],
+            "median": 4,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
     },
     {
       "id": "AQ.9",
       "name": "the count of service 0.7: somaxconn 8 clamps a declared backlog of 511, and the queue holds 9",
       "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
-      "result": null
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 8,
+            "high": 8,
+            "values": [8, 8, 8, 8],
+            "median": 8,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 9,
+            "high": 9,
+            "values": [9, 9, 9, 9],
+            "median": 9,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 9,
+            "high": 9,
+            "values": [9, 9, 9, 9],
+            "median": 9,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
     },
     {
       "id": "AQ.10",
       "name": "the count of service 0.7: Node gives listen(2) 511 for a declared backlog of 0, and the queue holds 512",
       "why": "Node gives listen(2) 511 for a backlog of 0, thus the declared 0 of service 0.7.3 is a limit of 511. The queue holds the limit plus one, and each later SYN is one overflow.",
-      "result": null
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 511,
+            "high": 511,
+            "values": [511, 511, 511, 511],
+            "median": 511,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 512,
+            "high": 512,
+            "values": [512, 512, 512, 512],
+            "median": 512,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 512,
+            "high": 512,
+            "values": [512, 512, 512, 512],
+            "median": 512,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
     }
   ]
 }

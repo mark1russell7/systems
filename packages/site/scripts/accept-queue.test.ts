@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { QueueCopy, QueueTerm } from "../src/components/QueueResults.tsx";
-import data from "../src/data/accept-queue-2026-11-06.json";
+import data from "../src/data/accept-queue-2026-11-16.json";
 import { middle, secondsOf } from "./records.ts";
 
 const copy = data as unknown as QueueCopy;
@@ -47,17 +47,16 @@ const bandsOf = (name: string): Band[] => {
 const judged = copy.cells.flatMap((cell) => (cell.result === null ? [] : [{ cell, result: cell.result }]));
 
 describe("the copy of the accept queue cells agrees with the catalog", () => {
-  it("has the ten cells of the catalog in their sequence, from one run on Linux 7.0.0 at HZ 1000", () => {
+  it("has the ten cells of the catalog in their sequence, from one run at main on Linux 7.0.0 at HZ 1000", () => {
     expect(copy.cells.map((cell) => `${cell.id} ${cell.name}`)).toEqual(CATALOG.map((cell) => cell.name));
-    expect([copy.kernel, copy.hz, copy.workflows]).toEqual(["7.0.0", 1000, [42146602190]]);
-    expect(copy.commit?.slice(0, 7)).toBe("6866a97");
+    expect([copy.kernel, copy.hz, copy.workflows]).toEqual(["7.0.0", 1000, [43954861254]]);
+    expect(copy.commit?.slice(0, 7)).toBe("43219db");
   });
 
-  it("holds AQ.1 to AQ.7 with four counted trials each, and AQ.8 to AQ.10 have no record yet", () => {
+  it("holds each of the ten cells with four counted trials and no void", () => {
     expect(judged.map(({ cell, result }) => [cell.id, result.decision, result.counted, result.voided])).toEqual(
-      ["AQ.1", "AQ.2", "AQ.3", "AQ.4", "AQ.5", "AQ.6", "AQ.7"].map((id) => [id, "holds", 4, 0]),
+      CATALOG.map((cell) => [cell.name.split(" ")[0], "holds", 4, 0]),
     );
-    expect(copy.cells.filter((cell) => cell.result === null).map((cell) => cell.id)).toEqual(["AQ.8", "AQ.9", "AQ.10"]);
   });
 
   it("gives each band of a term from the prediction of the catalog at the HZ of the runner", () => {
