@@ -16,8 +16,13 @@ type KnobValues: build/run.chunk.d.ts#KnobValues
 type Machine: build/machine.chunk.d.ts#Machine
 type MachineRun: build/run.chunk.d.ts#MachineRun
 type Manifestation: build/run.chunk.d.ts#Manifestation
+type MemcgLevel: build/index.d.ts#MemcgLevel
+type MemcgSleepBounds: build/index.d.ts#MemcgSleepBounds
+type MemcgThrottle: build/index.d.ts#MemcgThrottle
 type Node: build/run.chunk.d.ts#Node
+type OomTask: build/index.d.ts#OomTask
 type Over: build/machine.chunk.d.ts#Over
+PORT_SEARCH_CHAIN_LARGEST: build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
 type Realization: build/machine.chunk.d.ts#Realization
 type Recovery: build/run.chunk.d.ts#Recovery
 type ReplayOptions: build/replay.chunk.d.ts#ReplayOptions
@@ -44,9 +49,18 @@ exprKnobs: build/machine.chunk.d.ts#exprKnobs
 firings: build/run.chunk.d.ts#firings
 fromStates: build/index.d.ts#fromStates
 machineProblems: build/machine.chunk.d.ts#machineProblems
+memcgHighDelay: build/index.d.ts#memcgHighDelay
+memcgHighSleep: build/index.d.ts#memcgHighSleep
+memcgSleepBounds: build/index.d.ts#memcgSleepBounds
+memcgThrottle: build/index.d.ts#memcgThrottle
 modelSource: build/run.chunk.d.ts#modelSource
+oomBadness: build/index.d.ts#oomBadness
+oomVictim: build/index.d.ts#oomVictim
 overValues: build/run.chunk.d.ts#overValues
 parseExpr: build/run.chunk.d.ts#parseExpr
+portSearchChain: build/index.d.ts#portSearchChain
+portSearchShares: build/index.d.ts#portSearchShares
+portSearchSpan: build/index.d.ts#portSearchSpan
 probeTrain: build/run.chunk.d.ts#probeTrain
 readsFired: build/machine.chunk.d.ts#readsFired
 realizationKnobs: build/run.chunk.d.ts#realizationKnobs
@@ -180,7 +194,7 @@ declare const delay: (clock: Pick<Clock, "after">, ms: number, signal?: AbortSig
 declare const fakeClock: (start?: number) => FakeClock;
 
 ### build/clock.chunk.d.ts#fakeWallClock
-declare const fakeWallClock: (start: number) => FakeWallClock;
+declare const fakeWallClock: (start: number, monotonic?: FakeClock) => FakeWallClock;
 
 ### build/clock.chunk.d.ts#firstInstantOf
 declare function firstInstantOf(wall: number, zone: string): number | undefined;
@@ -216,6 +230,38 @@ declare const wallClock: (options?: PlatformClockOptions) => WallClock;
 ### build/clock.chunk.d.ts#windowProblems
 declare function windowProblems(window: TimeWindow): string[];
 
+### build/index.d.ts#MemcgLevel
+interface MemcgLevel {
+  readonly usage: number;
+  readonly high: number;
+}
+
+### build/index.d.ts#MemcgSleepBounds
+interface MemcgSleepBounds {
+  readonly first: number;
+  readonly capped: number;
+}
+
+### build/index.d.ts#MemcgThrottle
+interface MemcgThrottle {
+  readonly over: number;
+  readonly sleeps: number;
+  readonly jiffies: number;
+  readonly late: number;
+  readonly high: number;
+}
+
+### build/index.d.ts#OomTask
+interface OomTask {
+  readonly rss: number;
+  readonly swap: number;
+  readonly pageTables: number;
+  readonly adj: number;
+}
+
+### build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
+export declare const PORT_SEARCH_CHAIN_LARGEST = 16;
+
 ### build/index.d.ts#acceptQueueHeld
 export declare const acceptQueueHeld: (backlog: number, somaxconn: number) => number;
 
@@ -230,6 +276,33 @@ export declare const conntrackFloor: (max: number, hz: number, expired?: number)
 
 ### build/index.d.ts#fromStates
 export declare const fromStates: (m: Pick<Machine, "states">, from: string | readonly string[]) => string[];
+
+### build/index.d.ts#memcgHighDelay
+export declare const memcgHighDelay: (memory: readonly MemcgLevel[], debt: number, hz: number, swap?: readonly MemcgLevel[]) => number;
+
+### build/index.d.ts#memcgHighSleep
+export declare const memcgHighSleep: (memory: readonly MemcgLevel[], debt: number, hz: number, swap?: readonly MemcgLevel[]) => number;
+
+### build/index.d.ts#memcgSleepBounds
+export declare const memcgSleepBounds: (high: number, debt: number, hz: number) => MemcgSleepBounds;
+
+### build/index.d.ts#memcgThrottle
+export declare const memcgThrottle: (levels: readonly MemcgLevel[], charges: number, hz: number, batch?: number) => MemcgThrottle;
+
+### build/index.d.ts#oomBadness
+export declare const oomBadness: (task: OomTask, totalPages: number, pageSize?: number) => number | undefined;
+
+### build/index.d.ts#oomVictim
+export declare const oomVictim: (tasks: readonly OomTask[], totalPages: number, pageSize?: number) => number | undefined;
+
+### build/index.d.ts#portSearchChain
+export declare const portSearchChain: (size: number, rounds?: number) => ReadonlyMap<number, number>;
+
+### build/index.d.ts#portSearchShares
+export declare const portSearchShares: (size: number, rounds?: number) => ReadonlyMap<number, number>;
+
+### build/index.d.ts#portSearchSpan
+export declare const portSearchSpan: (size: number) => number;
 
 ### build/machine.chunk.d.ts#Expr
 type Expr = {

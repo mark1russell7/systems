@@ -2571,10 +2571,10 @@ Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra gi
 
 ### SYS-121 · The port range: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
@@ -2583,7 +2583,13 @@ A client that opens many connections to one destination uses up its local ports.
 - The knobs are `ip_local_port_range`, the count of connections, the side that closes first and `tcp_tw_reuse`.
 - The law of SYS-64 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
 
-The test: the predictions of the cells `PR.1` to `PR.7` do not change. The page shows the measured value of each cell next to its band.
+The test: the predictions of the cells `PR.1` to `PR.8` do not change. The page shows the measured value of each cell next to its band.
+
+Part 1 moves the law. `portSearchSpan` and `portSearchShares` of the algebra give the span of the search and the share of each count of connects. The timer `time_wait` of `linux-tcp` gets its bounds on the timer wheel, from the model `linux.time-wait-lateness`. The cells use them. Part 2 is the lens and its page.
+
+- The release of part 1 is algebra `0.9.3`, a PATCH with new exports before 1.0.
+- Machines `0.4.1` is a PATCH: `timerOf` of `time_wait` gives two new fields, and the old fields keep their values.
+- Service and kind need no release. They do not use the new exports, and their range `^0.9.1` takes algebra `0.9.3`.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
@@ -2598,14 +2604,16 @@ One page shows all lenses on one timeline, with one control for each shared knob
 
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
 A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
+
+Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the cells, in CI only. Part 3 is the lens and its page.
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
@@ -3288,12 +3296,12 @@ The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with 
 
 ### SYS-81 · The VM tier: QEMU on a runner, and its bridge
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** harness
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354)
+- **Shipped:** 2026-11-16
+- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354), [#555](https://github.com/mark1russell7/systems/pull/555), [run 43821694330](https://github.com/mark1russell7/systems/actions/runs/43821694330)
 
 The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
 
@@ -3304,6 +3312,16 @@ Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SY
 The first dispatch ([43787980707](https://github.com/mark1russell7/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum.
 
 The second dispatch ([43796539153](https://github.com/mark1russell7/systems/actions/runs/43796539153), 2026-11-15) built the harness image in the guest. Each cell of the two arms `e4` held its band. Each arm `e4` still failed, because its record had no commit of the code. The image of the guest left out the folder `.git` and had no git. The image keeps the folder `.git` of the shallow checkout and installs git. Thus the guest reads its commit as the runner does, and the next dispatch gives the first record of the bridge.
+
+The third dispatch ([43821694330](https://github.com/mark1russell7/systems/actions/runs/43821694330), 2026-11-16) gave the first record of the bridge. Each arm records the commit 3567648 with no change. Each of the 3 cells held its band in each of the 4 arms, with 11 counted runs and no void run. The kernel built in 632 s. In the guest of the last arm, the first container started at 10.3 s of uptime. The largest steal share of a run in the guest was 0.0009.
+
+| Cell | Arm 1, `e1` | Arm 2, `e4` | Arm 3, `e4` | Arm 4, `e1` |
+| --- | --- | --- | --- | --- |
+| Client idle, blackhole | 11.434 s | 11.425 s | 11.398 s | 11.379 s |
+| Client in flight, blackhole, `tcp_retries2` = 3 | 6.152 s | 6.160 s | 6.168 s | 6.192 s |
+| Client in flight, a 1 s stall | 1.675 s | 1.638 s | 1.672 s | 1.675 s |
+
+The table gives the median of each arm. For the two blackhole cells, each median of the guest is between the two medians of the runner. For the stall cell, the median of the 22 runs of the guest is 1.641 s, 34 ms below the 1.675 s of the runner. But the two arms `e4` of that cell also differ by 34 ms, and the two arms `e1` differ by 0.4 ms. Thus one pair cannot tell a shift of the guest from its noise. A limit of the layer needs 5 or more pairs.
 
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 
@@ -3655,10 +3673,10 @@ The test: a build that fails stops the f6 test with the tag in its message.
 
 ### SYS-128 · A reset after the handshake: only a segment with data gets the reset
 
-- **Status:** ready
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
 
@@ -3666,7 +3684,11 @@ The fault `rst` with `handshake: "pass"` lets each SYN pass. The rule of the inj
 
 The fix: with `handshake: "pass"`, only a segment with a payload gets the reset. The rule compares the payload length with zero: the total length of the IP packet, less the IP header and the TCP header. The connection tracker of Linux gives the final ACK the state `ESTABLISHED`, thus a match of the state cannot do this. The release is a PATCH of the harness, because the change makes the code agree with its documentation.
 
-The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset.
+The rule adds a `u32` test of data to `! --syn`. The test reads the length of the IP header and of the TCP header from the packet. Then it reads the 4 bytes that end at the first byte of the payload. A segment with no data is too short for that read, and the test does not match it.
+
+The test fits only an IP header of an odd number of words. A header with no options has 5 words, and the labs send no options. A model of the match of the kernel checks the test in the unit tests of the injector, for headers of 5 to 15 words. The kernel of the VM tier gets `CONFIG_NETFILTER_XT_MATCH_U32`.
+
+The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset. The socket of the target goes to `ESTABLISHED` for each connection. Without the option, the connect fails with `ECONNREFUSED`.
 
 ### SYS-106 · The units of a take in the keyed limiter
 

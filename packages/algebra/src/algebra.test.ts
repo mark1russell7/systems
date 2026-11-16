@@ -309,6 +309,16 @@ describe("the closed forms of the models", () => {
     expect(delack(41.5, 250).wait).toEqual(s(0.044));
   });
 
+  it("rounds the 60 s of TIME_WAIT on the wheel, at the level that 60 s puts it in", () => {
+    const late = (hz: number) =>
+      evaluate(SOCKET, model("linux.time-wait-lateness", ["hz"]), given({ hz: { value: hz, unit: "Hz" } }));
+    // 60000 jiffies at HZ 1000 wait on level 4, whose granularity is 4096 jiffies
+    expect(late(1000)).toEqual(s(4.096));
+    // 15000 jiffies at HZ 250 and 6000 at HZ 100 wait on level 3, 512 jiffies
+    expect(late(250)).toEqual(s(2.048));
+    expect(late(100)).toEqual(s(5.12));
+  });
+
   it("doubles the wait of the SYN-ACK of a listener from 1 s, and gives up after tcp_synack_retries + 1 waits", () => {
     const hz = (value: number) => ({ value, unit: "Hz" });
     const wait = (fired: number, at: number) => {

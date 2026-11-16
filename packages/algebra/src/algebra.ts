@@ -8,6 +8,7 @@ import {
 } from "@mark1russell7/quantity";
 import type { Expr, Machine, TransitionDef } from "./machine.ts";
 import { FIRED, arr, exprKnobs, fromStates } from "./machine.ts";
+import { granularity } from "./wheel.ts";
 
 /**
  * This module has the closed forms of the algebra. They give the duration of a timer of a
@@ -250,6 +251,8 @@ const retransBudget = (retries: bigint, min: Rational, max: Rational): Rational 
 /** These are `TCP_TIMEOUT_INIT` and `TCP_RTO_MAX` in `include/net/tcp.h` at v6.6: the first SYN RTO and the cap. */
 const TCP_TIMEOUT_INIT = whole(1n);
 const TCP_RTO_MAX = whole(120n);
+/** This time is `TCP_TIMEWAIT_LEN` in `include/net/tcp.h` at v6.6: how long a socket stays in TIME_WAIT. */
+const TCP_TIMEWAIT_LEN = whole(60n);
 
 /**
  * This function gives the wait of the SYN of a connect after `fired` firings, from 6.5
@@ -356,19 +359,6 @@ const delackWait = (rtt: Rational, hz: Rational): bigint => {
   const srtt = jiffiesOf(rtt, hz);
   const bound = srtt > least ? srtt : least;
   return bound < most ? bound : most;
-};
-
-/**
- * This function gives how late the timer wheel can fire a timer that is due in `jiffies`
- * (`calc_wheel_index` in `kernel/time/timer.c` at v6.6). Level 0 holds the timers due in 63 jiffies
- * or less. Each level above holds eight times as long, at eight times the granularity. The wheel
- * rounds a timer up to the next boundary of its level, thus it fires up to one granularity late.
- * At HZ 250, a 2 h timer can be up to 131 s late.
- */
-const granularity = (jiffies: bigint): bigint => {
-  let level = 0n;
-  while (level < 8n && jiffies >= 63n << (3n * level)) level += 1n;
-  return 8n ** level;
 };
 
 /**
@@ -517,6 +507,13 @@ const MODELS: Readonly<Record<string, Model>> = {
     knobs: ["s", "Hz"],
     seconds: ([time, hz]) => r.div(whole(granularity(jiffiesOf(time!, hz!))), hz!),
     source: "kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // the timer of TIME_WAIT is a plain timer of the wheel, thus it fires as late as the wheel at 60 s
+  "linux.time-wait-lateness": {
+    knobs: ["Hz"],
+    seconds: ([hz]) => r.div(whole(granularity(jiffiesOf(TCP_TIMEWAIT_LEN, hz!))), hz!),
+    source:
+      "include/net/tcp.h TCP_TIMEWAIT_LEN, net/ipv4/inet_timewait_sock.c __inet_twsk_schedule and kernel/time/timer.c calc_wheel_index at v6.6",
   },
   // the longest wait of the delayed ACK: min(max(srtt, TCP_DELACK_MIN), TCP_DELACK_MAX), in jiffies
   "linux.delack": {
