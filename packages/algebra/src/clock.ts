@@ -294,10 +294,14 @@ export interface FakeWallClock extends WallClock {
 /**
  * This function makes a fake wall clock. Its instant starts at `start`, in milliseconds from the
  * epoch. Its timers are the timers of a `fakeClock`, thus a step of the instant moves no timer.
+ *
+ * With `monotonic`, the wall clock reads that fake clock and uses its timers. Then the wall clock and
+ * the monotonic clock of a test have one queue of timers, and `advance` of either clock moves both.
+ * Without it, the wall clock makes its own fake clock.
  */
-export const fakeWallClock = (start: number): FakeWallClock => {
-  const monotonicTime = fakeClock(0);
-  let offset = start;
+export const fakeWallClock = (start: number, monotonic?: FakeClock): FakeWallClock => {
+  const monotonicTime = monotonic ?? fakeClock(0);
+  let offset = start - monotonicTime.now();
   return {
     time: "wall",
     now: () => monotonicTime.now() + offset,
