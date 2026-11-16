@@ -190,6 +190,19 @@ A cell can set the limits of the memory controller of cgroup v2 for its client (
 - **The law of the OOM killer** (`MemoryOomPrediction`) gives the outcome of each task and the count of the event `oom_kill` of the cgroup.
 - **A void run.** A run is void when the cgroup reads other limits than the cell, or when the client stops before its end. A throttle run is also void when the client did not lock its pages, or on a kernel with another HZ. It is void too when the judge reads less than the share `read` of the steps above the high. The judge does not read a step whose usage rose by more or less than one batch, outside the drift.
 
+## The egress qdisc of a client
+
+A cell can put a qdisc at the root of the interface of its client, and judge the time that each datagram leaves it (`EgressPrediction`, SYS-124). The law of netem and tbf is in `@mark1russell7/algebra` (`egress.ts`), from the sources of Linux.
+
+- **The egress client** is `/opt/harness/egress` of the image `harness`. It has two commands:
+  - `sink PORT` binds a UDP socket and reads each datagram. The target of an egress cell is this sink.
+  - `send` puts the qdisc of `--qdisc` at the root of `eth0` with `tc qdisc replace`. Then it sends each `--burst AT_MS:COUNT:PAYLOAD` of UDP datagrams to the target. The qdisc and the pin of the neighbour need the capability `NET_ADMIN` of the client.
+- **The stamps of the kernel.** The client sets `SO_TIMESTAMPING` with the stamps `SCHED` and `SOFTWARE`. The kernel gives a stamp when the qdisc takes a datagram and a stamp when the device takes it from the qdisc. The client moves each stamp from `CLOCK_REALTIME` to `CLOCK_MONOTONIC`. A drop of the qdisc is a send that gives `ENOBUFS`.
+- **No other traffic.** Before the qdisc, the client pins the neighbour of the target as `PERMANENT`, thus no ARP packet goes through the qdisc. It reads the counts of the root qdisc before and after the bursts.
+- **The lines of the egress client.** The `ready` line gives the MTU, the root qdisc as `tc` reads it and the neighbour. A `packet` line gives each datagram: its key, its burst, its errno and its two stamps. The client ends with the counts of the qdisc (`stats`), the step of the clock (`clock`) and `done`.
+- **The law of a datagram** (`EgressPacketLaw`) is `sent` or `dropped`. A sent datagram has a time band after the first arrival of its burst. A drop is at the `limit` of the queue, or at the `size` of the burst of tbf. The judge (`measureEgress`) compares each datagram with its law.
+- **A void run.** A run is void when the client stops before its end or when the root qdisc is of another kind. A neighbour that is not permanent voids a run too. It is void too when a send fails with another error. A burst that spreads more than `spread`, or that starts more than `jitter` off its time, voids its run. The counts of the qdisc void a run when other traffic went through it. A step of the clock above 100 µs voids a run, and a read of less than the share `read` of the departures voids it too.
+
 ## The subjects
 
 A subject (`Subject`, `image.ts`) is the program under test, as data. The harness does not import the program. It starts the image of the program. Thus another repository can give its own subject, with its own release in it.

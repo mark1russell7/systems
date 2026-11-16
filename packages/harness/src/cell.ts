@@ -942,6 +942,11 @@ export type Prediction =
        * `memory.high`, or the victim of its OOM killer. A value outside it is a finding of its run.
        */
       readonly memory?: MemoryPrediction;
+      /**
+       * This record is the law of the qdisc at the root of the interface of the client. It gives the
+       * time that each datagram leaves the qdisc, or its drop. A value outside it is a finding of its run.
+       */
+      readonly egress?: EgressPrediction;
     };
 
 /** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
@@ -1020,6 +1025,45 @@ export interface MemoryOomPrediction {
 
 /** This prediction is the law of the memory controller of one cgroup. */
 export type MemoryPrediction = MemoryThrottlePrediction | MemoryOomPrediction;
+
+/** This burst is one group of datagrams of an egress cell, which the client sends back to back. */
+export interface EgressBurst {
+  /** This time is the start of the burst after the start of the first burst. */
+  readonly at: Quantity;
+  readonly count: number;
+  /** This count is the bytes of the UDP payload of each datagram. An IPv4 frame has 42 bytes more. */
+  readonly payload: number;
+}
+
+/**
+ * This law is the end of one datagram in the qdisc. A datagram that leaves has a band from the first
+ * arrival of its burst in the qdisc. A dropped datagram names the limit that drops it.
+ */
+export type EgressPacketLaw =
+  | { readonly kind: "sent"; readonly left: QueueBand }
+  | { readonly kind: "dropped"; readonly why: "limit" | "size" };
+
+/**
+ * This prediction is the law of the qdisc at the root of the interface of the client. It reads the
+ * lines of the egress client. The client sets the qdisc with `tc`, and it sends bursts of UDP datagrams to
+ * the sink of the target. The kernel stamps each datagram when the qdisc takes it (SCHED) and when
+ * the device takes it from the qdisc (SND).
+ */
+export interface EgressPrediction {
+  /** These words set the qdisc, as `tc qdisc replace dev eth0 root` takes them. */
+  readonly qdisc: string;
+  /** This name is the kind of qdisc that `tc` reads back. A run with another kind is void. */
+  readonly kind: string;
+  readonly bursts: readonly EgressBurst[];
+  /** These laws are one for each datagram, in the order of the sends. */
+  readonly packets: readonly EgressPacketLaw[];
+  /** This time is the most that the arrivals of one burst spread. A run with a wider burst is void. */
+  readonly spread: Quantity;
+  /** This time is the most that a later burst starts off its time. A run with a burst further off is void. */
+  readonly jitter: Quantity;
+  /** This share is the least part of the departures that the judge reads. A run with less is void. */
+  readonly read: number;
+}
 
 /** This prediction tells how one connection of a queue cell ends. */
 export interface QueueEnd {

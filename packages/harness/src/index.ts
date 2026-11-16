@@ -66,6 +66,9 @@ export type {
   MemoryPrediction,
   MemoryStep,
   MemoryThrottlePrediction,
+  EgressBurst,
+  EgressPacketLaw,
+  EgressPrediction,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -134,6 +137,8 @@ export type { ConntrackReading, StallReading } from "./conntrack.ts";
 export { measureConntrack } from "./conntrack.ts";
 export type { MemoryReading, MemoryStepReading, MemoryTaskReading } from "./memory.ts";
 export { measureMemory, stepBand } from "./memory.ts";
+export type { EgressPacketReading, EgressReading } from "./egress.ts";
+export { measureEgress } from "./egress.ts";
 export type { PortsReading } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
