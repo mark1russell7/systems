@@ -517,6 +517,8 @@ A quota is the limit of a provider of an API: at most `limit` units in each wind
 | `outcomeResponse`, `endRecord`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
 | `limitedResponse(refused)` | The answer to a take that a keyed limiter refused: 429, with `Retry-After` in whole seconds, or 413 for the cause `capacity` |
 
+The files of a folder, for example a built page, have their own entry: [The files of a folder](#the-files-of-a-folder).
+
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` or `node:http2` (`EdgeServer`) a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
 - **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
 - **The idle close.** `server_idle_close` is the real idle close of the server, which O01 compares with the idle time of a client. Node closes an idle connection at `keepAliveTimeout` plus `keepAliveTimeoutBuffer`. Thus the transport sets `keepAliveTimeout` to `server_idle_close` less the buffer of the server.
@@ -611,6 +613,35 @@ const app = service("app")
 app.controller("orders").requires("db").route("POST /orders", { idempotent: false }).route("GET /orders/export", { idempotent: true });
 
 const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
+```
+
+### The files of a folder
+
+`@mark1russell7/service/http-folder` serves the files of one folder, for example a built page next to the routes of a service. Its handler goes in the list of mounts of `./http`. Thus the page and its API have one origin. The entry `./http` imports only `node:http` and `node:net`, thus this handler has an entry of its own.
+
+| Export | Function |
+| --- | --- |
+| `folderHandler(root, options)` | A request handler that serves the files of the folder `root` |
+| `contentTypeOf(file, types)` | The content type of a file from its extension |
+| `WEB_CONTENT_TYPES` | The content types of the files of a web page, the default table |
+| `UNKNOWN_CONTENT_TYPE` | The content type of a file with an extension that the table does not have |
+| `FOLDER_CONTENT_SECURITY_POLICY` | The default content security policy of each file |
+
+- **The paths.** A path that ends with `/` gives the index file, `index.html` by default. The option `prefix` puts the folder under a path, for example `/page`.
+- **The next handler.** A path that is not for a file of the folder goes to the next handler. Thus a route after it still answers, and a request that no handler takes gets 404.
+- **The paths out of the folder.** The handler refuses an encoded `..`, a NUL, a backslash and a path that does not decode. It also refuses a link in the folder that points out of the folder. Each refused path goes to the next handler.
+- **The methods.** The handler answers GET and HEAD. HEAD gets the headers of GET and no body. Another method on a file gets 405 with `Allow: GET, HEAD`.
+- **The headers.** Each file gets its content type, its length, the content security policy, `X-Content-Type-Options: nosniff` and `Cache-Control: no-cache`.
+- **The policy.** The default policy lets the page load only its own scripts, styles, images and fonts. The page connects only to its own origin, and it has no inline script.
+- **The options.** `index`, `contentType` and `contentSecurityPolicy` change the answers. `readFile` and `realpath` change the file functions, for example in a test.
+
+```ts
+import { fileURLToPath } from "node:url";
+import { folderHandler } from "@mark1russell7/service/http-folder";
+
+// the routes of the service first, then the files of the built page
+http.mount(handle("orders", "POST /orders", (req, signal) => createOrder(req, signal)));
+http.mount(folderHandler(fileURLToPath(new URL("./web/", import.meta.url))));
 ```
 
 ## The host

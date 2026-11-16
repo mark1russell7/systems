@@ -505,6 +505,9 @@ importers:
       '@mark1russell7/collections':
         specifier: ^0.11.0
         version: 0.11.0(zod@4.6.7)
+      '@mark1russell7/files':
+        specifier: ^0.0.3
+        version: 0.0.3
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
@@ -1527,6 +1530,10 @@ packages:
 
   '@mark1russell7/files@0.0.2':
     resolution: {integrity: sha512-3oKnBCxZi5ChjRmxP3lMFsWTRZuhHvt8I7ZHIr2UmgPQR5VrY/qJDKF6k9m8IqFq4958m0Z1+8BDa0SqXe/Ymw==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/files@0.0.3':
+    resolution: {integrity: sha512-FiiKK/sAbp39ypGv+2XzYRc+s911pdCtu97UQ4LiKmQKHjqPiyocGO48r2YObucxUkQhnm9mCdkiQxW6rFjiAg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/optional@1.2.0':
@@ -5240,6 +5247,8 @@ snapshots:
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
 
   '@mark1russell7/files@0.0.2': {}
+
+  '@mark1russell7/files@0.0.3': {}
 
   '@mark1russell7/optional@1.2.0': {}
 

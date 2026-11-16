@@ -13,6 +13,7 @@ import * as heartbeatEntry from "./heartbeat.ts";
 import * as hostEntry from "./host.ts";
 import * as httpEntry from "./http.ts";
 import * as httpClientEntry from "./http-client.ts";
+import * as httpFolderEntry from "./http-folder.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
 import * as otelEntry from "./otel.ts";
@@ -90,7 +91,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -317,6 +318,33 @@ describe("the http entry: Node only, on node:http and node:net", () => {
       "writeOutcome",
     ]);
     for (const name of Object.keys(httpEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+});
+
+describe("the http-folder entry: the files of a folder for the edge, on node:fs, node:path and files", () => {
+  it("loads node:fs/promises and node:path, and of the packages only files and what the transport loads", () => {
+    expect(reach("http-folder.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/files", "@mark1russell7/quantity", "node:fs/promises", "node:path"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("http-folder.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./http-folder"]).toBe("./src/http-folder.ts");
+    expect(manifest.publishConfig.exports["./http-folder"]).toEqual({ types: "./build/http-folder.d.ts", default: "./build/http-folder.js" });
+  });
+
+  it("gives its functions, and the root and the server edge do not give them", () => {
+    expect(Object.keys(httpFolderEntry).sort()).toEqual(["FOLDER_CONTENT_SECURITY_POLICY", "UNKNOWN_CONTENT_TYPE", "WEB_CONTENT_TYPES", "contentTypeOf", "folderHandler"]);
+    for (const name of Object.keys(httpFolderEntry)) {
+      expect(root, name).not.toHaveProperty(name);
+      expect(httpEntry, name).not.toHaveProperty(name);
+    }
   });
 });
 
