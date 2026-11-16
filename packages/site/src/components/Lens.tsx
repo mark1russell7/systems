@@ -18,10 +18,19 @@ const sec = (q: Quantity): number => valueIn(q, "s");
 /** This function gives the names of a lane by its id. */
 export type NamesOf = (id: string) => LaneNames;
 
-/** The fault on the timeline: it starts at 0, and it ends at `end`, or it lasts to the end of the axis. */
+/** The fault on the timeline: it starts at `start`, or at 0 with no start, and it ends at `end`, or it lasts to the end of the axis. */
 export interface FaultSpan {
   readonly label: string;
+  readonly start?: Quantity;
   readonly end: Quantity | null;
+}
+
+/** A group of lanes on the timeline, for example the lanes of one stage: its name, its count of lanes, and its start, or null. */
+export interface TimelineGroup {
+  /** a short name for the gutter, for example "Queue" */
+  readonly label: string;
+  readonly rows: number;
+  readonly start: Quantity | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -101,15 +110,19 @@ const BOTTOM = 30;
 export function Timeline(props: {
   readonly lanes: readonly Lane[];
   readonly names: NamesOf;
-  readonly fault: FaultSpan;
+  /** the fault, or null when the story ends before it */
+  readonly fault: FaultSpan | null;
   readonly scale: Scale;
   readonly progress: number;
   /** what the timeline shows, for a reader who does not see it */
   readonly label: string;
+  /** the groups of the lanes, in their order. With groups, a line goes between two groups */
+  readonly groups?: readonly TimelineGroup[];
 }): ReactElement {
   const [ref, width] = useWidth();
   const { lanes, scale, progress } = props;
-  const axis = useMemo(() => axisOf(lanes, props.fault.end, scale), [lanes, props.fault.end, scale]);
+  const faultEnd = props.fault?.end ?? null;
+  const axis = useMemo(() => axisOf(lanes, faultEnd, scale), [lanes, faultEnd, scale]);
   const narrow = width < 560;
   const gutter = narrow ? 64 : 104;
   const right = 14;
@@ -127,22 +140,45 @@ export function Timeline(props: {
     ticks.map((t) => ({ t, x: X(t), text: say(s(t)), width: say(s(t)).length * CHARACTER })),
     width,
   );
-  const end = props.fault.end === null ? null : sec(props.fault.end);
+  const fault = props.fault;
+  const from = fault === null ? 0 : sec(fault.start ?? s(0));
+  const end = faultEnd === null ? null : sec(faultEnd);
+  // a fault that starts in the right part of the plot has its label on the left of its edge
+  const flip = X(from) > gutter + plot * 0.6;
+  // the first row of each group
+  const groups = (props.groups ?? []).reduce<Array<TimelineGroup & { readonly row: number }>>((out, group) => [...out, { ...group, row: (out.at(-1)?.row ?? 0) + (out.at(-1)?.rows ?? 0) }], []);
 
   return (
     <div ref={ref} className="rp-timeline">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={props.label}>
         {/* the fault */}
-        {end === null ? (
-          <rect className="rp-fault" x={X(0)} y={TOP - 6} width={plot} height={LANE * lanes.length + 6} />
-        ) : (
-          <rect className="rp-fault" x={X(0)} y={TOP - 6} width={Math.max(X(end) - X(0), 1)} height={LANE * lanes.length + 6} />
+        {fault === null ? null : (
+          <g>
+            <rect className="rp-fault" x={X(from)} y={TOP - 6} width={Math.max((end === null ? gutter + plot : X(end)) - X(from), 1)} height={LANE * lanes.length + 6} />
+            <line className="rp-fault-edge" x1={X(from)} x2={X(from)} y1={TOP - 14} y2={TOP + LANE * lanes.length} />
+            <text className="rp-fault-label" x={flip ? X(from) - 4 : X(from) + 4} y={TOP - 16} textAnchor={flip ? "end" : "start"}>
+              {fault.label}
+            </text>
+            {end === null ? null : <line className="rp-fault-edge" x1={X(end)} x2={X(end)} y1={TOP - 6} y2={TOP + LANE * lanes.length} />}
+          </g>
         )}
-        <line className="rp-fault-edge" x1={X(0)} x2={X(0)} y1={TOP - 14} y2={TOP + LANE * lanes.length} />
-        <text className="rp-fault-label" x={X(0) + 4} y={TOP - 16}>
-          {props.fault.label}
-        </text>
-        {end === null ? null : <line className="rp-fault-edge" x1={X(end)} x2={X(end)} y1={TOP - 6} y2={TOP + LANE * lanes.length} />}
+
+        {/* the groups: a line between two groups, the name of each group, and the start of each group after 0 */}
+        {groups.map((group) =>
+          group.rows === 0 ? null : (
+            <g key={group.label} className="rp-group">
+              {group.row === 0 ? null : <line className="rp-group-line" x1={0} x2={gutter + plot + right} y1={TOP + LANE * group.row} y2={TOP + LANE * group.row} />}
+              <text className="rp-group-name" x={8} y={TOP + LANE * group.row + 11}>
+                {group.label}
+              </text>
+              {group.start === null || sec(group.start) <= 0 ? null : (
+                <line className="rp-group-start" x1={X(sec(group.start))} x2={X(sec(group.start))} y1={TOP + LANE * group.row + 2} y2={TOP + LANE * (group.row + group.rows) - 2}>
+                  <title>{`${group.label} starts at ${say(group.start)}`}</title>
+                </line>
+              )}
+            </g>
+          ),
+        )}
 
         {/* the grid and the axis */}
         {ticks.map((t) => (
