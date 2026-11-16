@@ -2579,10 +2579,9 @@ The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/l
 
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** waiting on Mark
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Waiting on:** Mark: a yes or a no for the export of the `AQ` records in CI, through `copy.yml`. Part 3 uses the copy.
 - **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
@@ -2599,6 +2598,8 @@ Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra gi
 Part 2 is the page [the accept queue](https://mark1russell7.github.io/systems/lab/queue/). The lens `queue` gives the count of the queue and the first overflow. The lens `syn` follows the first SYN that drops, to `ETIMEDOUT` or to a place after the accept. The lens `ack` follows the first final ACK that drops. It ends with a reset, with a challenge ACK after the accept, or with a client that stays connected to nothing.
 
 A test of the site checks the counts and the times of the page against the cells `AQ.1` to `AQ.10`. The page shows no measured value. The measured values come with the copy of the ten cells at one commit, in part 3.
+
+Part 3 is the copy. The exporter `scripts/accept-queue.ts` of the site reads the records of a Cells run again with the harness. It gives each term of the law of each cell: its band, the value of each counted trial and their median. The component `QueueResults` shows each median next to its band, and it computes nothing. One Cells run of the ten cells at main gives the copy, because `AQ.8` to `AQ.10` have no record yet.
 
 - The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
 - Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
@@ -2672,7 +2673,7 @@ Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
@@ -2682,6 +2683,8 @@ Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle
 A packet goes from the socket through the queue discipline and the ring of the NIC to the wire. The page shows the queues, the drops and the time of each step. The law comes from the sources of Linux and of the driver. New cells measure it in CI first, and then the lens ships with the measured values.
 
 Part 1 is the law of the egress queue in `@mark1russell7/algebra` 0.9.6, from `net/sched` of Linux 7.0. The function `netemSchedule` gives the time that each packet leaves a netem queue with a rate, or its drop at the limit. The function `tbfSchedule` gives the same for the token bucket of tbf. A veth has no ring, thus the cells of part 2 measure the qdisc and the rate. The ring of a NIC and its byte queue limits come later, from the sources of a driver. Part 3 is the lens and its page.
+
+Part 2 is later. At most three items are in progress at one time, and the copy of SYS-120 comes first.
 
 ## The items of S3
 
@@ -3748,6 +3751,21 @@ The rule adds a `u32` test of data to `! --syn`. The test reads the length of th
 The test fits only an IP header of an odd number of words. A header with no options has 5 words, and the labs send no options. A model of the match of the kernel checks the test in the unit tests of the injector, for headers of 5 to 15 words. The kernel of the VM tier gets `CONFIG_NETFILTER_XT_MATCH_U32`.
 
 The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset. The socket of the target goes to `ESTABLISHED` for each connection. Without the option, the connect fails with `ECONNREFUSED`.
+
+### SYS-129 · The writer of the disk tier uses the stop point of rigor-testkit
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:** [#560, the disk tier](https://github.com/mark1russell7/systems/pull/560)
+
+The writer of the self-test of the disk tier (`disk-subject/writer.mts`) operates in a container with no packages. Thus it keeps its own copy of the stop protocol of `@mark1russell7/rigor-testkit/stop`. Since `0.1.18`, rigor-testkit has the entry `/stop-point`. Its runtime imports are only `node:fs` and `node:os`, and a build gate of the package holds this.
+
+The change: the harness takes rigor-testkit `^0.1.18`. The self-test copies `build/stop-point.js` into `node_modules/@mark1russell7/rigor-testkit/` of the subject folder, with a `package.json` that exports `./stop-point`. The writer imports `stopPoint` from there, and its copy goes. The digest of the subject folder skips `node_modules`. Thus the change also decides how the record of a run names the version of the copied file.
+
+The test: the self-test of the disk tier passes in CI with the import, and the writer has no code of the protocol.
 
 ### SYS-106 · The units of a take in the keyed limiter
 
