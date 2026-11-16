@@ -2565,6 +2565,10 @@ The test: the predictions of the cells `AQ.1` to `AQ.10` do not change. The page
 
 Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra give the count of the queue. The timers `synack_retransmit` and `synack_giveup` of `linux-tcp` give the waits of the SYN-ACK and the expiry. The cells use them, and the predictions of `AQ.1` to `AQ.10` did not change. Part 2 is the lens and its page.
 
+Part 2 is the page [the accept queue](https://mark1russell7.github.io/systems/lab/queue/). The lens `queue` gives the count of the queue and the first overflow. The lens `syn` follows the first SYN that drops, to `ETIMEDOUT` or to a place after the accept. The lens `ack` follows the first final ACK that drops. It ends with a reset, with a challenge ACK after the accept, or with a client that stays connected to nothing.
+
+A test of the site checks the counts and the times of the page against the cells `AQ.1` to `AQ.10`. The page shows no measured value. The measured values come with the copy of the ten cells at one commit, in part 3.
+
 - The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
 - Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
 - Service `0.9.1` and kind `0.14.10` are PATCH versions for their new dependency ranges.
