@@ -32,6 +32,8 @@ type Transition: build/replay.chunk.d.ts#Transition
 type TransitionDef: build/machine.chunk.d.ts#TransitionDef
 type Unit: build/machine.chunk.d.ts#Unit
 type Vantage: build/machine.chunk.d.ts#Vantage
+acceptQueueHeld: build/index.d.ts#acceptQueueHeld
+acceptQueueLimit: build/index.d.ts#acceptQueueLimit
 algebraProblems: build/run.chunk.d.ts#algebraProblems
 arr: build/index.d.ts#arr
 conntrackFloor: build/index.d.ts#conntrackFloor
@@ -213,6 +215,12 @@ declare const wallClock: (options?: PlatformClockOptions) => WallClock;
 
 ### build/clock.chunk.d.ts#windowProblems
 declare function windowProblems(window: TimeWindow): string[];
+
+### build/index.d.ts#acceptQueueHeld
+export declare const acceptQueueHeld: (backlog: number, somaxconn: number) => number;
+
+### build/index.d.ts#acceptQueueLimit
+export declare const acceptQueueLimit: (backlog: number, somaxconn: number) => number;
 
 ### build/index.d.ts#arr
 export declare const arr: <T>(value: T | readonly T[]) => readonly T[];

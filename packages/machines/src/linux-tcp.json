@@ -56,6 +56,14 @@
     {
       "ref": "net/ipv4/tcp_timer.c:604 and :624-631 tcp_retransmit_timer(): each firing sends the SYN again, and in SYN_SENT the RTO doubles only after tcp_syn_linear_timeouts firings; the same at 6.17 (:448 total_rto, :671-678)",
       "rung": "implemented"
+    },
+    {
+      "ref": "include/net/inet_connection_sock.h:290-296 reqsk_timeout(): TCP_TIMEOUT_INIT << num_timeout, up to TCP_RTO_MAX; net/ipv4/inet_connection_sock.c:1022-1096 reqsk_timer_handler(): the SYN-ACK goes out again while num_timeout < max_syn_ack_retries (syn_ack_recalc at :858), and the next firing drops the request",
+      "rung": "implemented"
+    },
+    {
+      "ref": "include/net/sock.h:1033-1036 sk_acceptq_is_full(): sk_ack_backlog > sk_max_ack_backlog; net/socket.c:1873-1879 __sys_listen(): the backlog clamped to somaxconn",
+      "rung": "implemented"
     }
   ],
   "states": {
@@ -141,6 +149,10 @@
       "kind": "timer",
       "note": "the SYN timer fires and the SYN goes out again"
     },
+    "timer.synack": {
+      "kind": "timer",
+      "note": "the SYN-ACK timer of a request fires and the SYN-ACK goes out again"
+    },
     "timer.synack.exhausted": {
       "kind": "timer"
     },
@@ -183,6 +195,27 @@
       "scope": "netns",
       "unit": "count",
       "default": 4
+    },
+    "tcp_synack_retries": {
+      "key": "net.ipv4.tcp_synack_retries",
+      "scope": "netns",
+      "unit": "count",
+      "default": 5,
+      "note": "the SYN-ACKs that a listener sends again for one request: 5 gives the waits 1, 2, 4, 8, 16 and 32 s, and the expiry at 63 s"
+    },
+    "somaxconn": {
+      "key": "net.core.somaxconn",
+      "scope": "netns",
+      "unit": "count",
+      "default": 4096,
+      "note": "listen(2) clamps its backlog to this limit, and a full accept queue holds the limit plus one"
+    },
+    "tcp_abort_on_overflow": {
+      "key": "net.ipv4.tcp_abort_on_overflow",
+      "scope": "netns",
+      "unit": "count",
+      "default": 0,
+      "note": "0 or 1, a switch: with 0, a full accept queue drops the final ACK and keeps the request; with 1, it sends a reset"
     },
     "tcp_retries2": {
       "key": "net.ipv4.tcp_retries2",
@@ -331,6 +364,78 @@
         ]
       },
       "note": "each firing sends the SYN again: the waits 0 to tcp_syn_linear_timeouts keep the initial RTO of 1 s (TCP_TIMEOUT_INIT), then each firing doubles the wait, up to TCP_RTO_MAX. Each wait is a timer of the wheel: a wait of 1 s is up to 64 ms late at HZ 1000. syn_giveup is what gives up on it. Through a stall of the path, the first SYN after its end gets through (recovery)"
+    },
+    "synack_retransmit": {
+      "duration": {
+        "model": "linux.synack-wait",
+        "knobs": [
+          "fired"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.synack-wait-lateness",
+        "knobs": [
+          "fired",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_RECV"
+      ],
+      "cancels": [
+        "rx.ack",
+        "rx.rst"
+      ],
+      "fires": "timer.synack",
+      "backoff": {
+        "resets": [
+          "enter:SYN_RECV"
+        ]
+      },
+      "note": "the timer of a request at a listener: each firing sends the SYN-ACK again, and the wait starts at 1 s and doubles at each firing, up to TCP_RTO_MAX. A final ACK at a full accept queue does not cancel it (tcp_abort_on_overflow 0), and the SYN-ACK that follows gets a challenge ACK from the client, which is a new final ACK. synack_giveup is what gives up on it"
+    },
+    "synack_giveup": {
+      "duration": {
+        "model": "linux.synack-giveup",
+        "knobs": [
+          "tcp_synack_retries"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.synack-giveup-lateness",
+        "knobs": [
+          "tcp_synack_retries",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.synack-giveup-early",
+        "knobs": [
+          "tcp_synack_retries",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_RECV"
+      ],
+      "cancels": [
+        "rx.ack",
+        "rx.rst"
+      ],
+      "fires": "timer.synack.exhausted",
+      "note": "the expiry of a request: the firing after tcp_synack_retries SYN-ACKs drops it with no reset, 63 s at the default 5. A later segment of the client meets the listener and gets a reset. The young pruning of a crowded queue and TCP_DEFER_ACCEPT change the count of firings, and this timer does not hold them"
     },
     "retransmit": {
       "duration": {
@@ -655,10 +760,14 @@
       "id": "tcp.synrecv-reset",
       "from": "SYN_RECV",
       "to": "CLOSE",
-      "on": [
-        "rx.rst",
-        "timer.synack.exhausted"
-      ]
+      "on": "rx.rst"
+    },
+    {
+      "id": "tcp.synrecv-expiry",
+      "from": "SYN_RECV",
+      "to": "CLOSE",
+      "on": "timer.synack.exhausted",
+      "timer": "synack_giveup"
     },
     {
       "id": "tcp.active-close",

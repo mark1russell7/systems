@@ -66,6 +66,9 @@ for (const folder of folders) {
 const LINUX: Readonly<Record<string, string>> = {
   "net.ipv4.tcp_syn_retries": "6",
   "net.ipv4.tcp_syn_linear_timeouts": "4",
+  "net.ipv4.tcp_synack_retries": "5",
+  "net.core.somaxconn": "4096",
+  "net.ipv4.tcp_abort_on_overflow": "0",
   "net.ipv4.tcp_retries2": "15",
   "net.ipv4.tcp_keepalive_time": "7200",
   "net.ipv4.tcp_keepalive_intvl": "75",
