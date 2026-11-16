@@ -5,7 +5,9 @@ tableOfContents: false
 ---
 
 import AcceptQueue from "../../../components/AcceptQueue.tsx";
+import QueueResults from "../../../components/QueueResults.tsx";
 import Term from "../../../components/Term.tsx";
+import copy from "../../../data/accept-queue-2026-11-06.json";
 
 A program calls listen(2) with a <Term name="backlog" />, and the kernel keeps each new connection in the accept queue until the program accepts it. When the program stops its accepts, the queue fills. A full queue drops a SYN with no answer, and it drops the final ACK of a handshake. This page computes, in your browser, how many connections the queue holds, and how each connect ends.
 
@@ -17,6 +19,7 @@ A program calls listen(2) with a <Term name="backlog" />, and the kernel keeps e
 - **The timeline** has three lanes. The queue lane shows when the queue is full and the first overflow. The SYN lane follows the first connect whose SYN drops. The final ACK lane follows the first connect whose final ACK drops. Press **Play** to see the story.
 - **The cards** below the timeline give each lane, with its knobs. Change a knob, and each time on the page changes.
 - **The presets** are the settings of the cells AQ.1 to AQ.10 of the harness.
+- **The measured values** below give each cell as the runners of GitHub measured it. Each row is one term of the law, with its band and its median.
 
 ## The law of the count
 
@@ -31,6 +34,12 @@ Node gives listen(2) 511 for a backlog of 0. Thus a server on Node that declares
 - **With tcp_abort_on_overflow 0**, the target drops the ACK and keeps the request. It sends its <Term name="SYN-ACK" /> again at 1, 3, 7, 15 and 31 s. At 63 s it forgets the request.
 
 After the expiry, the next segment of the client meets the listener, and it gets a reset. A client that sends nothing stays connected to nothing. When the program accepts before the expiry, the next SYN-ACK gets a <Term name="challenge ACK" /> from the client, and that ACK finds a place.
+
+## The measured values
+
+Each cell fills a real queue on a runner of GitHub, and the harness measures each term of its law. The band of a term is the prediction of the cell. The median is the middle value of the counted trials. A median outside its band shows as a failure. A cell with no record keeps its place.
+
+<QueueResults copy={copy} />
 
 ## Where the numbers come from
 
