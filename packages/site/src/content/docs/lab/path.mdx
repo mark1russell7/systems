@@ -1,0 +1,39 @@
+---
+title: The whole path
+description: One connection from its port to its reply. See the stage where it ends, and the time of each step on one timeline.
+tableOfContents: false
+---
+
+import WholePath from "../../../components/WholePath.tsx";
+import Term from "../../../components/Term.tsx";
+
+A connection goes through three stages before its reply comes. The client gets a port, and the target puts the connection in its accept queue. Then the request goes on the path, where a fault can stop it. Each stage has its own page in this lab. This page puts the three stages together on one timeline, and it computes, in your browser, the stage where the connection ends.
+
+<WholePath client:visible />
+
+## How to read the page
+
+- **The headline** tells how the connection ends, and at which time.
+- **The trail** has one step for each stage. A green step passes, a red step ends the connection, and a dashed step is a stage that the connection does not reach.
+- **The timeline** has a group of lanes for each stage. A dashed line is the start of a stage. Press **Play** to see the story.
+- **The stages** below the timeline give the cards of each stage, with their knobs. A stage that the connection does not reach shows only its knobs.
+- **The presets** set the knobs for six stories: the defaults, no port, a SYN drop, a reset, a drain, and a drain with a partition.
+
+## How the stages join
+
+Each stage is a set of lenses, and each lens is also on its own page. The page of the whole path adds no law of its own. It moves each stage on the timeline to the time when the stage before it passes.
+
+- **The port** passes at once when the search finds a free port. It ends with <Term name="EADDRNOTAVAIL" /> when each port of the range is in use.
+- **The accept queue** passes one round trip later when the queue has room. A SYN that drops passes at a later SYN that finds a place, or ends with <Term name="ETIMEDOUT" />. A final ACK that drops passes after the accept, or ends with <Term name="ECONNRESET" />.
+- **The request** starts when the connection is ready, and the fault starts at the same time. Its times come from the page of the request path.
+
+After a stage ends, the next stages have no lanes. Their knobs stay on the page, thus you can change the story and see the later stages again.
+
+## Each knob once
+
+The three stages share some knobs, for example the round trip. The page shows each knob one time, on the first card that uses it. The send of the client follows the request. The client sends at once when a request is in flight, and it sends nothing on an idle connection. Thus the send has no knob on this page.
+
+## Limits
+
+- The limits of each stage are on its own page: [the port range](../ports/), [the accept queue](../queue/) and [the request path](../request/).
+- The page follows one connection. Other connections change only the count of the ports in use and the places in the queue.

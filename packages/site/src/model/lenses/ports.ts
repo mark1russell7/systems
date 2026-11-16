@@ -372,3 +372,6 @@ export const portLenses = (copy: PortCopy | null): { readonly search: Lens<PortS
     lanes: (settings) => [holdLane(copy, settings)],
   },
 });
+
+/** The lenses of the port range on each page of the site: the page of the port range, and the page of the whole path. */
+export const PORT_LENSES = portLenses(null);

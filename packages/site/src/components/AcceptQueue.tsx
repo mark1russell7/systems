@@ -12,13 +12,13 @@
 import { useMemo, useState, type ReactElement } from "react";
 import { format, quantity } from "@mark1russell7/quantity";
 import { say, sayBand, type LaneNames } from "../model/lens.ts";
-import { QUEUE_DEFAULTS, queueLenses, queueModel, type Arrival, type Listener, type QueueLaneId, type QueueSettings, type Send } from "../model/lenses/accept-queue.ts";
+import { QUEUE_DEFAULTS, QUEUE_LENSES, queueModel, type Arrival, type Listener, type QueueLaneId, type QueueSettings, type Send } from "../model/lenses/accept-queue.ts";
 import { ms, s } from "../model/path.ts";
 import { Choice, CountKnob, LensKnobs, TimeKnob, hzKnob, rttKnob, type KnobRegistry } from "./Knobs.tsx";
 import { EventsTable, LaneCard, PlayerBar, Timeline, TimelineLegend, axisOf, isLit, scaleCaption, usePlayer, type Scale } from "./Lens.tsx";
 import Term from "./Term.tsx";
 
-const LENSES = queueLenses();
+const LENSES = QUEUE_LENSES;
 const ORDER: readonly QueueLaneId[] = ["queue", "syn", "ack"];
 const namesOf = (id: string): LaneNames => LENSES[id as QueueLaneId].names;
 const n = (value: number): string => format(quantity(value, "count"));

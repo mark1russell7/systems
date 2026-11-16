@@ -537,3 +537,6 @@ export const queueLenses = (): { readonly queue: Lens<QueueSettings, QueueLaneId
     lanes: (settings) => [ackLane(settings)],
   },
 });
+
+/** The lenses of the accept queue on each page of the site: the page of the queue, and the page of the whole path. */
+export const QUEUE_LENSES = queueLenses();
