@@ -50,6 +50,5 @@ COPY --from=build /out/bin/ /usr/local/bin/
 COPY --from=build /out/lib/ /usr/local/lib/
 RUN ldconfig
 COPY harness/image/lazyfs/config.toml /etc/lazyfs/config.toml
-COPY harness/image/lazyfs/start.sh /usr/local/bin/start-lazyfs
-RUN chmod 0755 /usr/local/bin/start-lazyfs
-CMD ["/usr/local/bin/start-lazyfs"]
+COPY harness/image/lazyfs/start.mts /usr/local/lib/lazyfs/start.mts
+CMD ["node", "--disable-warning=ExperimentalWarning", "/usr/local/lib/lazyfs/start.mts"]

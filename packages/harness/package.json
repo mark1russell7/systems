@@ -103,7 +103,7 @@
     "image/docker-proxy/Dockerfile",
     "image/lazyfs/Dockerfile",
     "image/lazyfs/config.toml",
-    "image/lazyfs/start.sh",
+    "image/lazyfs/start.mts",
     "README.md",
     "LICENSE"
   ],
