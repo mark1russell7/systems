@@ -37,11 +37,22 @@ type Cut: build/index.d.ts#Cut
 DAEMONS: build/index.d.ts#DAEMONS
 DEBUG: build/index.d.ts#DEBUG
 DIRTY: build/index.d.ts#DIRTY
+DISK_MOUNT: build/index.d.ts#DISK_MOUNT
+DISK_RECORD_FORMAT: build/index.d.ts#DISK_RECORD_FORMAT
+DISK_ROOT: build/index.d.ts#DISK_ROOT
+DISK_SUBJECT: build/index.d.ts#DISK_SUBJECT
 DROP_HANDLING: build/index.d.ts#DROP_HANDLING
 type Decision: build/index.d.ts#Decision
 type DeliveryPrediction: build/cell.chunk.d.ts#DeliveryPrediction
 type DeliveryReading: build/index.d.ts#DeliveryReading
 type DeliveryStream: build/index.d.ts#DeliveryStream
+type DiskImage: build/index.d.ts#DiskImage
+type DiskLab: build/index.d.ts#DiskLab
+type DiskLabOptions: build/index.d.ts#DiskLabOptions
+type DiskPinnable: build/index.d.ts#DiskPinnable
+type DiskRecord: build/index.d.ts#DiskRecord
+type DiskSubject: build/index.d.ts#DiskSubject
+type DiskWriterRecord: build/index.d.ts#DiskWriterRecord
 type Drill: build/cell.chunk.d.ts#Drill
 type DrillRoom: build/cell.chunk.d.ts#DrillRoom
 type DriverBand: build/cell.chunk.d.ts#DriverBand
@@ -260,6 +271,8 @@ delayVoids: build/index.d.ts#delayVoids
 deliveryFinding: build/index.d.ts#deliveryFinding
 deliveryOf: build/index.d.ts#deliveryOf
 deviceOf: build/index.d.ts#deviceOf
+diskRecordProblems: build/index.d.ts#diskRecordProblems
+diskSubjectProblems: build/index.d.ts#diskSubjectProblems
 drillOnce: build/index.d.ts#drillOnce
 drillSpan: build/index.d.ts#drillSpan
 dropFinding: build/index.d.ts#dropFinding
@@ -275,6 +288,7 @@ exitOf: build/index.d.ts#exitOf
 fieldOf: build/index.d.ts#fieldOf
 fieldsOf: build/index.d.ts#fieldsOf
 firstUnanswered: build/index.d.ts#firstUnanswered
+folderDigest: build/index.d.ts#folderDigest
 frrConf: build/index.d.ts#frrConf
 goHttpImage: build/index.d.ts#goHttpImage
 goVersions: build/index.d.ts#goVersions
@@ -347,6 +361,7 @@ npmVersions: build/index.d.ts#npmVersions
 numbersOf: build/index.d.ts#numbersOf
 onMonotonic: build/index.d.ts#onMonotonic
 openClusterLab: build/index.d.ts#openClusterLab
+openDiskLab: build/index.d.ts#openDiskLab
 openFabric: build/index.d.ts#openFabric
 openGroupLab: build/index.d.ts#openGroupLab
 openKafkaLab: build/index.d.ts#openKafkaLab
@@ -390,6 +405,7 @@ routeLine: build/index.d.ts#routeLine
 routerImage: build/index.d.ts#routerImage
 routesOf: build/index.d.ts#routesOf
 runCell: build/index.d.ts#runCell
+runDiskFault: build/index.d.ts#runDiskFault
 seedScript: build/index.d.ts#seedScript
 sentinelConfig: build/index.d.ts#sentinelConfig
 sessionsOf: build/index.d.ts#sessionsOf
@@ -1275,7 +1291,7 @@ interface SentinelEvent {
 type SentinelStage = "+sdown" | "+odown" | "+try-failover" | "+elected-leader" | "+selected-slave" | "+promoted-slave" | "+switch-master" | "+convert-to-slave";
 
 ### build/cell.chunk.d.ts#Shipped
-type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "kafka" | "grpc" | "grpc-go" | "etcd" | "router" | "pgbouncer" | "pgpool" | "docker-proxy";
+type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "kafka" | "grpc" | "grpc-go" | "etcd" | "router" | "pgbouncer" | "pgpool" | "docker-proxy" | "lazyfs";
 
 ### build/cell.chunk.d.ts#ShippedImage
 interface ShippedImage {
@@ -1500,6 +1516,18 @@ export declare const DEBUG = "the record is of a local debug run, and no page re
 ### build/index.d.ts#DIRTY
 export declare const DIRTY = "the checkout has changes to tracked files that no commit holds";
 
+### build/index.d.ts#DISK_MOUNT
+export declare const DISK_MOUNT = "/mnt/disk";
+
+### build/index.d.ts#DISK_RECORD_FORMAT
+export declare const DISK_RECORD_FORMAT = "harness-disk/1";
+
+### build/index.d.ts#DISK_ROOT
+export declare const DISK_ROOT = "/var/disk";
+
+### build/index.d.ts#DISK_SUBJECT
+export declare const DISK_SUBJECT = "/opt/subject";
+
 ### build/index.d.ts#DROP_HANDLING
 export declare const DROP_HANDLING: Quantity;
 
@@ -1521,6 +1549,72 @@ interface DeliveryReading {
 interface DeliveryStream {
   readonly count: number;
   readonly sender: "client" | "target";
+}
+
+### build/index.d.ts#DiskImage
+interface DiskImage {
+  readonly tag: string;
+  readonly build?: BuildRecord;
+}
+
+### build/index.d.ts#DiskLab
+interface DiskLab {
+  readonly subject: DiskSubject;
+  readonly digest: string;
+  readonly image: DiskImage;
+  readonly code: RecordCode;
+  readonly substrate: Substrate;
+}
+
+### build/index.d.ts#DiskLabOptions
+interface DiskLabOptions {
+  readonly subject: DiskSubject;
+  readonly code: RecordCode;
+}
+
+### build/index.d.ts#DiskPinnable
+interface DiskPinnable {
+  readonly code?: RecordCode | undefined;
+  readonly image: DiskImage;
+}
+
+### build/index.d.ts#DiskRecord
+interface DiskRecord {
+  readonly format: typeof DISK_RECORD_FORMAT;
+  readonly fault: DiskFault;
+  readonly subject: {
+    readonly name: string;
+    readonly digest: string;
+  };
+  readonly image: DiskImage & {
+    readonly id: string;
+  };
+  readonly code: RecordCode;
+  readonly substrate: Substrate;
+  readonly writer: DiskWriterRecord;
+  readonly persisted: unknown;
+  readonly at: string;
+}
+
+### build/index.d.ts#DiskSubject
+interface DiskSubject {
+  readonly name: string;
+  readonly folder: string;
+  readonly writer: readonly [string, ...string[]];
+  readonly check: readonly [string, ...string[]];
+  readonly env?: Readonly<Record<string, string>>;
+  readonly timeoutMs?: number;
+}
+
+### build/index.d.ts#DiskWriterRecord
+interface DiskWriterRecord {
+  readonly exit: number;
+  readonly stopped: boolean;
+  readonly steps: number;
+  readonly lastStep: number | null;
+  readonly lastLabel: string | null;
+  readonly ms: number;
+  readonly output: string;
 }
 
 ### build/index.d.ts#DriverSocket
@@ -2632,6 +2726,12 @@ export declare const deliveryOf: (run: Run, stream: DeliveryStream) => DeliveryR
 ### build/index.d.ts#deviceOf
 export declare const deviceOf: (route: string) => string;
 
+### build/index.d.ts#diskRecordProblems
+export declare const diskRecordProblems: (record: DiskPinnable) => string[];
+
+### build/index.d.ts#diskSubjectProblems
+export declare const diskSubjectProblems: (subject: DiskSubject) => string[];
+
 ### build/index.d.ts#drillOnce
 export declare const drillOnce: (lab: ReplicaSetLab, cell: Cell, environment: number, index: number) => Promise<Run>;
 
@@ -2676,6 +2776,9 @@ export declare const fieldsOf: (text: string) => Array<Record<string, string>>;
 
 ### build/index.d.ts#firstUnanswered
 export declare const firstUnanswered: (pings: readonly ProgramEvent[], socket: readonly KernelRecord[], until?: number) => ProgramEvent | undefined;
+
+### build/index.d.ts#folderDigest
+export declare const folderDigest: (folder: string) => string;
 
 ### build/index.d.ts#frrConf
 export declare const frrConf: (router: Router, fabric: Fabric) => string;
@@ -2907,6 +3010,9 @@ export declare const onMonotonic: (log: readonly MemberLine[], offset: number | 
 ### build/index.d.ts#openClusterLab
 export declare const openClusterLab: (cluster: Cluster) => Promise<ClusterLab>;
 
+### build/index.d.ts#openDiskLab
+export declare const openDiskLab: (options: DiskLabOptions) => Promise<DiskLab>;
+
 ### build/index.d.ts#openFabric
 export declare const openFabric: (parts: FabricParts) => Promise<FabricLab>;
 
@@ -3057,6 +3163,9 @@ export declare const routesOf: (hops: readonly Pick<Hop, "kind">[]) => Array<{
 
 ### build/index.d.ts#runCell
 export declare const runCell: (cell: Cell, say?: (line: string) => void) => Promise<CellResult>;
+
+### build/index.d.ts#runDiskFault
+export declare const runDiskFault: (lab: DiskLab, fault: DiskFault) => Promise<DiskRecord>;
 
 ### build/index.d.ts#seedScript
 export declare const seedScript: (drill: Drill, copies: number) => string;

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/harness",
-  "version": "0.16.3",
-  "description": "Network labs in Docker, declared as data. A cell builds a topology of networks, routers and proxies around a stock target. It injects a fault at layer 3 or 4 from a NET_ADMIN sidecar, measures the records of the kernel and judges a prediction. The faults are black holes, resets, ICMP unreachable, one-way and MTU drops, tc netem, the toxics of Toxiproxy and frozen processes. Its replicated groups are Redis with Sentinels, MongoDB replica sets, PostgreSQL standbys, Kafka, RabbitMQ and BGP fabrics with BFD. A lab can also operate in a QEMU guest. Its first use is connection timers: keep-alive, TCP retransmission, heartbeats and reconnects.",
+  "version": "0.16.5",
+  "description": "Network labs in Docker, declared as data. A cell builds a topology of networks, routers and proxies around a stock target. It injects a fault at layer 3 or 4 from a NET_ADMIN sidecar, measures the records of the kernel and judges a prediction. The faults are black holes, resets, ICMP unreachable, one-way and MTU drops, tc netem, the toxics of Toxiproxy and frozen processes. Its disk tier cuts the power of a program on LazyFS: the disk loses each write after the last fsync. Its replicated groups are Redis with Sentinels, MongoDB replica sets, PostgreSQL standbys, Kafka, RabbitMQ and BGP fabrics with BFD. A lab can also operate in a QEMU guest. Its first use is connection timers: keep-alive, TCP retransmission, heartbeats and reconnects.",
   "keywords": [
     "fault-injection",
     "chaos-engineering",
@@ -18,7 +18,9 @@
     "toxiproxy",
     "replica-set",
     "bgp",
-    "qemu"
+    "qemu",
+    "lazyfs",
+    "power-loss"
   ],
   "homepage": "https://mark1russell7.github.io/systems/",
   "repository": {
@@ -99,6 +101,9 @@
     "image/pgbouncer/Dockerfile",
     "image/pgpool/Dockerfile",
     "image/docker-proxy/Dockerfile",
+    "image/lazyfs/Dockerfile",
+    "image/lazyfs/config.toml",
+    "image/lazyfs/start.sh",
     "README.md",
     "LICENSE"
   ],
@@ -116,8 +121,9 @@
     "@mark1russell7/prober": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/rigor-bench": "^0.2.10",
-    "@mark1russell7/rigor-chaos": "^0.2.2",
+    "@mark1russell7/rigor-chaos": "^0.3.3",
     "@mark1russell7/rigor-statistics": "^0.2.1",
+    "@mark1russell7/rigor-testkit": "^0.1.13",
     "testcontainers": "12.2.1"
   },
   "peerDependencies": {
