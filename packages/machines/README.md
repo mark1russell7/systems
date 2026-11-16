@@ -124,11 +124,11 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
-### 0.5.0
+### 0.4.1
 
 - **The timer of TIME_WAIT of Linux TCP has its bounds** (`time_wait`). The minisock arms a plain timer of the wheel for `TCP_TIMEWAIT_LEN`, 60 s (`__inet_twsk_schedule` of 6.6). Thus the timer fires up to the granularity of its level late: 4.096 s at HZ 1000, 2.048 s at HZ 250. The early bound is one jiffy.
   - The models are `linux.time-wait-lateness` and `linux.jiffy`, from the algebra 0.9.2.
-  - `timerOf` of `time_wait` gives a lateness and an early bound, which it did not give before. A program that compares the whole result sees the change, thus this change is a MINOR.
+  - `timerOf` of `time_wait` gives a lateness and an early bound, which it did not give before. The duration keeps its value, and no id changes. No schema of a reader holds the result of `timerOf` strictly, thus this change is a PATCH.
   - The cell `PR.5` takes its band from this timer, and no prediction of the snapshot moves.
 
 ### 0.4.0

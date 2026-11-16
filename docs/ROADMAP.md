@@ -2588,8 +2588,8 @@ The test: the predictions of the cells `PR.1` to `PR.8` do not change. The page 
 Part 1 moves the law. `portSearchSpan` and `portSearchShares` of the algebra give the span of the search and the share of each count of connects. The timer `time_wait` of `linux-tcp` gets its bounds on the timer wheel, from the model `linux.time-wait-lateness`. The cells use them. Part 2 is the lens and its page.
 
 - The release of part 1 is algebra `0.9.2`, a PATCH with new exports before 1.0.
-- Machines `0.5.0` is a MINOR before 1.0, because `timerOf` of `time_wait` gives new bounds.
-- Service `0.9.2` and kind `0.14.11` are PATCH versions for their new dependency ranges.
+- Machines `0.4.1` is a PATCH: `timerOf` of `time_wait` gives two new fields, and the old fields keep their values.
+- Service and kind need no release. They do not use the new exports, and their range `^0.9.1` takes algebra `0.9.2`.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
