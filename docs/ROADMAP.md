@@ -2579,10 +2579,9 @@ The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/l
 
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** waiting on Mark
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Waiting on:** Mark: a yes or a no for the export of the `AQ` records in CI, through `copy.yml`. Part 3 uses the copy.
 - **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
@@ -2599,6 +2598,8 @@ Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra gi
 Part 2 is the page [the accept queue](https://mark1russell7.github.io/systems/lab/queue/). The lens `queue` gives the count of the queue and the first overflow. The lens `syn` follows the first SYN that drops, to `ETIMEDOUT` or to a place after the accept. The lens `ack` follows the first final ACK that drops. It ends with a reset, with a challenge ACK after the accept, or with a client that stays connected to nothing.
 
 A test of the site checks the counts and the times of the page against the cells `AQ.1` to `AQ.10`. The page shows no measured value. The measured values come with the copy of the ten cells at one commit, in part 3.
+
+Part 3 is the copy. The exporter `scripts/accept-queue.ts` of the site reads the records of a Cells run again with the harness. It gives each term of the law of each cell: its band, the value of each counted trial and their median. The component `QueueResults` shows each median next to its band, and it computes nothing. One Cells run of the ten cells at main gives the copy, because `AQ.8` to `AQ.10` have no record yet.
 
 - The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
 - Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
@@ -2672,7 +2673,7 @@ Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
@@ -2682,6 +2683,8 @@ Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle
 A packet goes from the socket through the queue discipline and the ring of the NIC to the wire. The page shows the queues, the drops and the time of each step. The law comes from the sources of Linux and of the driver. New cells measure it in CI first, and then the lens ships with the measured values.
 
 Part 1 is the law of the egress queue in `@mark1russell7/algebra` 0.9.6, from `net/sched` of Linux 7.0. The function `netemSchedule` gives the time that each packet leaves a netem queue with a rate, or its drop at the limit. The function `tbfSchedule` gives the same for the token bucket of tbf. A veth has no ring, thus the cells of part 2 measure the qdisc and the rate. The ring of a NIC and its byte queue limits come later, from the sources of a driver. Part 3 is the lens and its page.
+
+Part 2 is later. At most three items are in progress at one time, and the copy of SYS-120 comes first.
 
 ## The items of S3
 
