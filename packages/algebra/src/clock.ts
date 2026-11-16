@@ -319,6 +319,75 @@ export const fakeWallClock = (start: number, monotonic?: FakeClock): FakeWallClo
   };
 };
 
+/**
+ * A frame clock is a wall clock in frames. A frame starts at a mark. In a frame, the time is the wall
+ * time at the mark plus the monotonic time since the mark. Thus the time does not go back in a frame,
+ * also when the wall clock steps. At the next mark, `step` gives the change of the wall clock.
+ */
+export interface FrameClock extends WallClock {
+  /**
+   * This method gives the step of the wall clock since the last mark, in whole milliseconds. The step is the
+   * change of the wall time against the monotonic time. A change of the drift limit or less gives 0. A read
+   * does not end the step. Only `mark` ends it.
+   */
+  step(): number;
+  /** This method starts a new frame. The time of the frame is then the wall time again. */
+  mark(): void;
+}
+
+/** These options make a frame clock. */
+export interface FrameClockOptions {
+  /**
+   * This value is the largest change of the wall clock against the monotonic clock that is a drift, not a
+   * step, in milliseconds. The default is `FRAME_DRIFT_LIMIT`.
+   */
+  readonly driftLimit?: number | undefined;
+}
+
+/**
+ * This value is the default drift limit of a frame clock, in milliseconds. A slew of NTP changes the wall
+ * clock by 0.5 ms in each second at most. Thus a frame of 2000 seconds or less sees no slew as a step.
+ */
+export const FRAME_DRIFT_LIMIT = 1000;
+
+/** This function tells if a wall clock is a frame clock: a clock that also gives the steps of the wall clock. */
+export function isFrameClock(clock: WallClock): clock is FrameClock {
+  const frame = clock as Partial<FrameClock>;
+  return typeof frame.step === "function" && typeof frame.mark === "function";
+}
+
+/**
+ * This function makes a frame clock on a wall clock and a monotonic clock. The first frame starts at
+ * once. `now()` gives whole milliseconds. The timers are the timers of the wall clock, thus they wait
+ * on the monotonic time, and a step does not move them.
+ *
+ * A runtime marks a frame at the start of each pass. Then each instant of the pass is in one frame,
+ * and the runtime reads the step of the wall clock once, before the mark.
+ *
+ * @throws {RangeError} for a drift limit that is not a finite number of 0 or more.
+ */
+export function frameClock(wall: WallClock, monotonic: Pick<Clock, "now">, options: FrameClockOptions = {}): FrameClock {
+  const limit = options.driftLimit ?? FRAME_DRIFT_LIMIT;
+  if (!(Number.isFinite(limit) && limit >= 0)) {
+    throw new RangeError(`The drift limit of a frame clock is ${String(limit)}. It must be a finite number of 0 or more.`);
+  }
+  let wallAt = wall.now();
+  let monotonicAt = monotonic.now();
+  return {
+    time: "wall",
+    now: () => wallAt + Math.floor(monotonic.now() - monotonicAt),
+    after: (ms, run) => wall.after(ms, run),
+    step() {
+      const size = Math.round(wall.now() - monotonic.now() - (wallAt - monotonicAt));
+      return Math.abs(size) > limit ? size : 0;
+    },
+    mark() {
+      wallAt = wall.now();
+      monotonicAt = monotonic.now();
+    },
+  };
+}
+
 // Civil time: the wall-clock time of an instant in a time zone, and windows of local time. A clock
 // gives instants, and civil time maps an instant to the time on the wall of a zone. It uses only
 // `Intl.DateTimeFormat`, thus this entry still imports nothing.

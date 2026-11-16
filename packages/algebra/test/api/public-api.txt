@@ -79,8 +79,11 @@ transitionOn: build/run.chunk.d.ts#transitionOn
 
 Cancel: build/clock.chunk.d.ts#Cancel
 Clock: build/clock.chunk.d.ts#Clock
+FRAME_DRIFT_LIMIT: build/clock.chunk.d.ts#FRAME_DRIFT_LIMIT
 FakeClock: build/clock.chunk.d.ts#FakeClock
 FakeWallClock: build/clock.chunk.d.ts#FakeWallClock
+FrameClock: build/clock.chunk.d.ts#FrameClock
+FrameClockOptions: build/clock.chunk.d.ts#FrameClockOptions
 LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
@@ -90,8 +93,10 @@ delay: build/clock.chunk.d.ts#delay
 fakeClock: build/clock.chunk.d.ts#fakeClock
 fakeWallClock: build/clock.chunk.d.ts#fakeWallClock
 firstInstantOf: build/clock.chunk.d.ts#firstInstantOf
+frameClock: build/clock.chunk.d.ts#frameClock
 inWindow: build/clock.chunk.d.ts#inWindow
 instantsOf: build/clock.chunk.d.ts#instantsOf
+isFrameClock: build/clock.chunk.d.ts#isFrameClock
 localTime: build/clock.chunk.d.ts#localTime
 nextBoundary: build/clock.chunk.d.ts#nextBoundary
 offsetChanges: build/clock.chunk.d.ts#offsetChanges
@@ -132,6 +137,9 @@ interface Clock {
   after(ms: number, run: () => void): Cancel;
 }
 
+### build/clock.chunk.d.ts#FRAME_DRIFT_LIMIT
+declare const FRAME_DRIFT_LIMIT = 1e3;
+
 ### build/clock.chunk.d.ts#FakeClock
 interface FakeClock extends Clock {
   advance(ms: number): Promise<void>;
@@ -145,6 +153,17 @@ interface FakeWallClock extends WallClock {
   block(ms: number): void;
   set(instant: number): void;
   readonly pending: number;
+}
+
+### build/clock.chunk.d.ts#FrameClock
+interface FrameClock extends WallClock {
+  step(): number;
+  mark(): void;
+}
+
+### build/clock.chunk.d.ts#FrameClockOptions
+interface FrameClockOptions {
+  readonly driftLimit?: number | undefined;
 }
 
 ### build/clock.chunk.d.ts#LocalTime
@@ -199,11 +218,17 @@ declare const fakeWallClock: (start: number, monotonic?: FakeClock) => FakeWallC
 ### build/clock.chunk.d.ts#firstInstantOf
 declare function firstInstantOf(wall: number, zone: string): number | undefined;
 
+### build/clock.chunk.d.ts#frameClock
+declare function frameClock(wall: WallClock, monotonic: Pick<Clock, "now">, options?: FrameClockOptions): FrameClock;
+
 ### build/clock.chunk.d.ts#inWindow
 declare function inWindow(instant: number, window: TimeWindow): boolean;
 
 ### build/clock.chunk.d.ts#instantsOf
 declare function instantsOf(wall: number, zone: string): number[] | undefined;
+
+### build/clock.chunk.d.ts#isFrameClock
+declare function isFrameClock(clock: WallClock): clock is FrameClock;
 
 ### build/clock.chunk.d.ts#localTime
 declare function localTime(instant: number, zone: string): LocalTime | undefined;
