@@ -819,6 +819,7 @@ writeOutcome: build/http/outcome.d.ts#writeOutcome
 ## ./http-folder (build/http-folder.d.ts): names
 
 FOLDER_CONTENT_SECURITY_POLICY: build/http/folder.d.ts#FOLDER_CONTENT_SECURITY_POLICY
+type FolderFileStat: build/http/folder.d.ts#FolderFileStat
 type FolderHandlerOptions: build/http/folder.d.ts#FolderHandlerOptions
 UNKNOWN_CONTENT_TYPE: build/http/folder.d.ts#UNKNOWN_CONTENT_TYPE
 WEB_CONTENT_TYPES: build/http/folder.d.ts#WEB_CONTENT_TYPES
@@ -2725,6 +2726,12 @@ export declare const HTTP_CLIENT_STARTING_POLL: Poll;
 ### build/http/folder.d.ts#FOLDER_CONTENT_SECURITY_POLICY
 export declare const FOLDER_CONTENT_SECURITY_POLICY: string;
 
+### build/http/folder.d.ts#FolderFileStat
+export interface FolderFileStat {
+  isFile(): boolean;
+  readonly size: number;
+}
+
 ### build/http/folder.d.ts#FolderHandlerOptions
 export interface FolderHandlerOptions {
   readonly prefix?: string | undefined;
@@ -2733,6 +2740,7 @@ export interface FolderHandlerOptions {
   readonly contentSecurityPolicy?: string | undefined;
   readonly readFile?: ((file: string) => Promise<Uint8Array>) | undefined;
   readonly realpath?: ((file: string) => Promise<string>) | undefined;
+  readonly stat?: ((file: string) => Promise<FolderFileStat>) | undefined;
 }
 
 ### build/http/folder.d.ts#UNKNOWN_CONTENT_TYPE

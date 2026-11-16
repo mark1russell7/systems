@@ -631,9 +631,10 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The next handler.** A path that is not for a file of the folder goes to the next handler. Thus a route after it still answers, and a request that no handler takes gets 404.
 - **The paths out of the folder.** The handler refuses an encoded `..`, a NUL, a backslash and a path that does not decode. It also refuses a link in the folder that points out of the folder. Each refused path goes to the next handler.
 - **The methods.** The handler answers GET and HEAD. HEAD gets the headers of GET and no body. Another method on a file gets 405 with `Allow: GET, HEAD`.
+- **The stat.** Only GET reads the body of the file. HEAD and the 405 take the kind and the length of the file from its stat.
 - **The headers.** Each file gets its content type, its length, the content security policy, `X-Content-Type-Options: nosniff` and `Cache-Control: no-cache`.
 - **The policy.** The default policy lets the page load only its own scripts, styles, images and fonts. The page connects only to its own origin, and it has no inline script.
-- **The options.** `index`, `contentType` and `contentSecurityPolicy` change the answers. `readFile` and `realpath` change the file functions, for example in a test.
+- **The options.** `index`, `contentType` and `contentSecurityPolicy` change the answers. `readFile`, `realpath` and `stat` change the file functions, for example in a test.
 
 ```ts
 import { fileURLToPath } from "node:url";

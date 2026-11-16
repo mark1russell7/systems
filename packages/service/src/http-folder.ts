@@ -3,5 +3,5 @@
 // of mounts of `./http`. The entry `./http` loads node:http and node:net only, thus this handler has
 // an entry of its own: it reads files with node:fs and paths with node:path and @mark1russell7/files.
 
-export type { FolderHandlerOptions } from "./http/folder.ts";
+export type { FolderFileStat, FolderHandlerOptions } from "./http/folder.ts";
 export { contentTypeOf, FOLDER_CONTENT_SECURITY_POLICY, folderHandler, UNKNOWN_CONTENT_TYPE, WEB_CONTENT_TYPES } from "./http/folder.ts";
