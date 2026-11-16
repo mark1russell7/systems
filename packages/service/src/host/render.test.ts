@@ -78,6 +78,9 @@ describe("serviceProblems", () => {
     expect(serviceProblems({ ...linuxSpec, restart: { after: { value: 1, unit: "MB" } } })).toEqual(["the restart wait is not a time of zero or more"]);
     expect(serviceProblems({ ...dailySpec, timeLimit: { value: 0, unit: "s" } })).toEqual(["the time limit is not a time above zero"]);
     expect(serviceProblems({ ...linuxSpec, program: "", stateDir: "" })).toEqual(["the program is empty", "the stateDir is empty"]);
+    expect(serviceProblems({ ...linuxSpec, stopGrace: { value: 0, unit: "s" } })).toEqual(["the stop grace is not a time above zero"]);
+    expect(serviceProblems({ ...linuxSpec, stopGrace: { value: 5, unit: "MB" } })).toEqual(["the stop grace is not a time above zero"]);
+    expect(serviceProblems({ ...linuxSpec, stopsChildren: "yes" as unknown as boolean })).toEqual(["the stopsChildren is not true or false"]);
   });
 
   it("names a boot start that is not in the background, and a visible console in the background", () => {
@@ -205,7 +208,7 @@ describe("utf16le", () => {
 });
 
 describe("renderSystemdUnit and renderSystemdTimer", () => {
-  it("gives a simple service at logon, with Restart=on-failure and escapes", () => {
+  it("gives a simple service at logon, with Restart=always and escapes", () => {
     expect(renderSystemdUnit(linuxSpec)).toBe(`[Unit]
 Description=Demo host at 100%%
 
@@ -213,13 +216,36 @@ Description=Demo host at 100%%
 Type=simple
 ExecStart="/opt/node runtime/bin/node" /srv/demo/host.js --name a$$b
 WorkingDirectory=/srv/demo 100%%
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=default.target
 `);
     expect(renderSystemdTimer(linuxSpec)).toBeNull();
+  });
+
+  it("gives a supervisor the stop signal alone and a stop grace, in whole seconds", () => {
+    const supervisor: ServiceSpec = { ...linuxSpec, start: "boot", stopsChildren: true, stopGrace: { value: 102_500, unit: "ms" } };
+    expect(renderSystemdUnit(supervisor)).toBe(`[Unit]
+Description=Demo host at 100%%
+
+[Service]
+Type=simple
+ExecStart="/opt/node runtime/bin/node" /srv/demo/host.js --name a$$b
+WorkingDirectory=/srv/demo 100%%
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=103
+
+[Install]
+WantedBy=default.target
+`);
+    // False keeps the stop signal for each process: the unit has no kill mode.
+    expect(renderSystemdUnit({ ...linuxSpec, stopsChildren: false })).toBe(renderSystemdUnit(linuxSpec));
+    // On Windows, the two fields change nothing.
+    expect(renderTaskXml({ ...windowsSpec, stopsChildren: true, stopGrace: { value: 2, unit: "min" } }, context)).toBe(renderTaskXml(windowsSpec, context));
   });
 
   it("gives a boot start the same unit as a start at logon, and no timer", () => {
