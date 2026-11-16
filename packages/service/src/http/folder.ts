@@ -11,7 +11,7 @@ import { pathOf, type RequestHandler } from "./transport.ts";
 
 /**
  * The content types of the files of a web page, by the extension of the file in lower case. A module
- * script must have a JavaScript type, else the browser does not run it.
+ * script must have a JavaScript type, else the browser refuses it.
  */
 export const WEB_CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".css": "text/css; charset=utf-8",
@@ -78,8 +78,8 @@ export interface FolderHandlerOptions {
 const METHODS = new Set(["GET", "HEAD"]);
 
 /**
- * This function gives the file of a path of a request in a folder, or `undefined` when the path is not
- * for a file in the folder. A path that does not decode, or that has a NUL or a backslash, gives
+ * This function gives the file in the folder of the path of a request. A path that is not for a file in
+ * the folder gives `undefined`. A path that does not decode, or that has a NUL or a backslash, also gives
  * `undefined`. Thus the rule is the same on Windows and on Linux.
  */
 const fileOf = (base: string, path: string, index: string): string | undefined => {
