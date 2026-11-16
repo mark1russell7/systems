@@ -27,6 +27,7 @@ export {
   machineProblems,
   readsFired,
 } from "./machine.ts";
+export { acceptQueueHeld, acceptQueueLimit } from "./accept-queue.ts";
 export { conntrackFloor } from "./conntrack.ts";
 export type { Replayable, ReplayOptions, Transition } from "./replay.ts";
 export { replay } from "./replay.ts";

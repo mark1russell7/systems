@@ -1,2 +1,3 @@
-.git
+# The guest keeps the folder .git of the checkout. The records of the cells pin the commit that operated,
+# and the guest reads that commit with git, as on the runner. The checkout of the workflow is shallow.
 **/node_modules

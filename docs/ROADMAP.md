@@ -2363,11 +2363,11 @@ The entry `polite-crawler/api` is for a browser, and its quotas come from `keyed
 
 ### SYS-126 · A wait that a caller awaits keeps the process alive
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
+- **Shipped:** 2026-11-15
 - **Links:** [#550](https://github.com/mark1russell7/systems/pull/550)
 
 `realClock` was `platformClock({ unref: true })`, and its timers did not keep a Node process alive. The default clock of `retry` is `realClock`. A command-line tool whose only work was the wait of a retry thus ended in the wait, with the exit code 0 and no error. The same fault held for each wait that a caller awaits on the default clock.
@@ -2526,16 +2526,16 @@ Each step is an item, in this order:
 5. SYS-123: the memory of a process.
 6. SYS-124: the NIC.
 
-The next step: SYS-119.
+The next step: SYS-120.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
+- **Shipped:** 2026-11-15
+- **Links:** [#549](https://github.com/mark1russell7/systems/pull/549), [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
 
 Each visual of the site is a lens: a set of named knobs, a pure model and its lanes. A lane has a verdict, a band, marks on a timeline, facts and the measured values of cells.
 
@@ -2545,12 +2545,14 @@ Each visual of the site is a lens: a set of named knobs, a pure model and its la
 
 The test: the 87 golden cases of the request page and the 92 cases of the detection lab do not change.
 
+The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/lens.ts` has the names of the lens, its knobs and a function from the settings to the lanes. The request page draws five lenses with one timeline, and the golden cases stayed the same.
+
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
 
@@ -2560,6 +2562,12 @@ A listener that does not accept fills its queue. The page shows each step of a n
 - The law of SYS-63 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
 
 The test: the predictions of the cells `AQ.1` to `AQ.10` do not change. The page shows the measured median of each cell next to its band.
+
+Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra give the count of the queue. The timers `synack_retransmit` and `synack_giveup` of `linux-tcp` give the waits of the SYN-ACK and the expiry. The cells use them, and the predictions of `AQ.1` to `AQ.10` did not change. Part 2 is the lens and its page.
+
+- The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
+- Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
+- Service `0.9.1` and kind `0.14.10` are PATCH versions for their new dependency ranges.
 
 ### SYS-121 · The port range: a lens and its page
 
@@ -3291,7 +3299,11 @@ The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for e
 
 The first slice narrows this text. It has one guest, and that guest holds the whole lab, in place of one VM for each node. A bridge cell has no fault that needs a second kernel, and each node costs memory that a runner does not have in quantity. The second node comes with the first fault that needs a second kernel (SYS-83, SYS-84, SYS-85). The disk of a guest is an overlay on one root image, thus that node needs no other build.
 
-Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The workflow `vm.yml` has no record yet, thus the bridge has no result. The first dispatch operates the default arms `e1 e4 e4 e1`. The pair `e4 e4` gives the noise of the layer.
+Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The pair `e4 e4` gives the noise of the layer.
+
+The first dispatch ([43787980707](https://github.com/mark1russell7/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum.
+
+The second dispatch ([43796539153](https://github.com/mark1russell7/systems/actions/runs/43796539153), 2026-11-15) built the harness image in the guest. Each cell of the two arms `e4` held its band. Each arm `e4` still failed, because its record had no commit of the code. The image of the guest left out the folder `.git` and had no git. The image keeps the folder `.git` of the shallow checkout and installs git. Thus the guest reads its commit as the runner does, and the next dispatch gives the first record of the bridge.
 
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 

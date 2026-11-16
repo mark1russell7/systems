@@ -309,6 +309,37 @@ describe("the closed forms of the models", () => {
     expect(delack(41.5, 250).wait).toEqual(s(0.044));
   });
 
+  it("doubles the wait of the SYN-ACK of a listener from 1 s, and gives up after tcp_synack_retries + 1 waits", () => {
+    const hz = (value: number) => ({ value, unit: "Hz" });
+    const wait = (fired: number, at: number) => {
+      const values = given({ hz: hz(at) });
+      return {
+        wait: evaluate(SOCKET, model("linux.synack-wait", ["fired"]), values, fired),
+        late: evaluate(SOCKET, model("linux.synack-wait-lateness", ["fired", "hz"]), values, fired),
+      };
+    };
+    // 1 s is 1000 jiffies at HZ 1000, on the level of 64 jiffies, and 250 jiffies at HZ 250, on the level of 8
+    expect(wait(0, 1000)).toEqual({ wait: s(1), late: s(0.064) });
+    expect(wait(0, 250)).toEqual({ wait: s(1), late: s(0.032) });
+    expect(wait(3, 1000).wait).toEqual(s(8));
+    // TCP_RTO_MAX caps it: 2^7 s would be 128 s
+    expect(wait(7, 1000).wait).toEqual(s(120));
+    // a listener: the socket of the tests, with the knob of the retries of the SYN-ACK
+    const listener: Machine = { ...SOCKET, knobs: { ...SOCKET.knobs, tcp_synack_retries: knob("count", 5) } };
+    const giveup = (retries: number) => {
+      const values = given({ tcp_synack_retries: { value: retries, unit: "count" }, hz: hz(1000) });
+      return {
+        duration: evaluate(listener, model("linux.synack-giveup", ["tcp_synack_retries"]), values),
+        lateness: evaluate(listener, model("linux.synack-giveup-lateness", ["tcp_synack_retries", "hz"]), values),
+        early: evaluate(listener, model("linux.synack-giveup-early", ["tcp_synack_retries", "hz"]), values),
+      };
+    };
+    // the default 5: 1 + 2 + 4 + 8 + 16 + 32 = 63 s. The waits of 1, 2 and 4 s wait on the level of
+    // 64 jiffies, and the waits of 8, 16 and 32 s on the level of 512: 3 × 64 + 3 × 512 = 1728 jiffies
+    expect(giveup(5)).toEqual({ duration: s(63), lateness: s(1.728), early: s(0.006) });
+    expect(giveup(2)).toEqual({ duration: s(7), lateness: s(0.192), early: s(0.003) });
+  });
+
   it("reads a server's own arithmetic in its own units, over the socket below it", () => {
     // the server's keepalive is the socket's: idle is tcp_keepalive, the interval a third of it in
     // whole seconds, and three probes, so 300 + 3 × 100 = 600 s
