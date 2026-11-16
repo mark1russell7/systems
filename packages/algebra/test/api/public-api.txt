@@ -18,6 +18,7 @@ type MachineRun: build/run.chunk.d.ts#MachineRun
 type Manifestation: build/run.chunk.d.ts#Manifestation
 type Node: build/run.chunk.d.ts#Node
 type Over: build/machine.chunk.d.ts#Over
+PORT_SEARCH_CHAIN_LARGEST: build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
 type Realization: build/machine.chunk.d.ts#Realization
 type Recovery: build/run.chunk.d.ts#Recovery
 type ReplayOptions: build/replay.chunk.d.ts#ReplayOptions
@@ -47,7 +48,6 @@ machineProblems: build/machine.chunk.d.ts#machineProblems
 modelSource: build/run.chunk.d.ts#modelSource
 overValues: build/run.chunk.d.ts#overValues
 parseExpr: build/run.chunk.d.ts#parseExpr
-PORT_SEARCH_CHAIN_LARGEST: build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
 portSearchChain: build/index.d.ts#portSearchChain
 portSearchShares: build/index.d.ts#portSearchShares
 portSearchSpan: build/index.d.ts#portSearchSpan
