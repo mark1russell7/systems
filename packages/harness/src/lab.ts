@@ -89,7 +89,8 @@ export interface FaultOptions {
   /**
    * This protocol limits a black hole, a reject or an MTU drop. A black hole without it drops each
    * protocol. A reject or an MTU drop without it acts only on TCP. The value `all` acts on each
-   * protocol. An MTU drop with `all` is a real black hole, so a path-MTU search with ping sees it.
+   * protocol. An MTU drop with `all` is a real black hole.
+   * Thus a path-MTU search with ping also sees it.
    */
   readonly protocol?: "tcp" | "udp" | "icmp" | "all";
   readonly code?: "host" | "net" | "port" | "admin";

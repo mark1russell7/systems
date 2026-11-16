@@ -327,7 +327,7 @@ A cell applies its fault with `Lab.fault` and removes it with `Lab.lift`. A prog
 | `handshake`: `pass` | `rst` | `! --syn`: each SYN passes, and the next segment gets the reset | the SYN also gets the reset |
 | `peers` | each fault except `silence` | the addresses that the rules face, in one commit | the peer of the place |
 
-The injector refuses `protocol` on a fault other than a black hole, a reject or an MTU drop. An MTU drop with `all` is a real black hole, so a path-MTU search with ping also sees it. It refuses `handshake` on a fault other than a reset.
+The injector refuses `protocol` on a fault other than a black hole, a reject or an MTU drop. An MTU drop with `all` is a real black hole. Thus a path-MTU search with ping also sees it. The injector refuses `handshake` on a fault other than a reset.
 
 - **A silence** (`silence`) at a hop drops each packet of the namespace of the hop, in INPUT, OUTPUT and FORWARD, in one commit. The links stay up and ARP continues. Thus a connect through a silent router times out, and the router sends no answer. A silence names no peer and takes no option. It acts only at a hop, and the side of the hop has no effect.
 - **A host that is down behind a router** is a reject at the router toward the target, with `direction: "out"` and `protocol: "all"`. The router answers each packet that it forwards to the host with the ICMP unreachable of `code`.

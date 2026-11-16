@@ -25,7 +25,7 @@
 //! - `mtu PEER --above N [--protocol tcp|udp|icmp|all]` / `clear-mtu PEER --above N […]`: each
 //!   packet from the peer longer than N bytes drops, as a path MTU black hole does, in the
 //!   namespace that receives it. By default it acts on TCP. `--protocol all` drops each protocol,
-//!   as a real black hole does, so a path-MTU search with ping also sees it. It acts on segments
+//!   as a real black hole does. Thus a path-MTU search with ping also sees it. It acts on segments
 //!   only when the sender's TSO and GSO and the receiver's GRO are off (`offload`).
 //! - `fin-ack PEER` / `clear-fin-ack PEER`: the first ACK of each FIN that this end sends to the
 //!   peer drops. The FIN goes again when its retransmission timer fires, and the ACK of the second
