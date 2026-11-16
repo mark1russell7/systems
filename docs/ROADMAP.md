@@ -2533,7 +2533,7 @@ Each step is an item, in this order:
 - Each lens shows the computed band, the measured values of the cells and the facts of a network diagnosis.
 - SYS-120 to SYS-124 use the contract of today until the move.
 
-The next steps: SYS-120 part 2 and SYS-122 are in review. SYS-121 part 2 shipped on 2026-11-16 (#566). SYS-123 part 2 is the cells of the memory.
+The next steps: SYS-120 part 2 (#567), SYS-121 part 2 (#566), SYS-122 (#569) and SYS-123 part 2 (#571) shipped on 2026-11-16. SYS-124 part 1 is the law of the egress queue. The measured values of the accept queue, the port range and the memory come next.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
@@ -2614,12 +2614,12 @@ The next step for `PR.7` is a measure of the rate: the cell runs again with more
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:** SYS-120, SYS-121
 - **Started:** 2026-11-16
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-16
+- **Links:** [#569](https://github.com/mark1russell7/systems/pull/569), [The whole path](https://mark1russell7.github.io/systems/lab/path/)
 
 One page shows all lenses on one timeline, with one control for each shared knob. A reader follows one connection from the port of the client, through the SYN and the accept queue, to the request and the fault. Each lens keeps its own page, and the whole page uses the same lenses.
 
@@ -2630,6 +2630,8 @@ The page is [the whole path](https://mark1russell7.github.io/systems/lab/path/).
 - The send of the client comes from the request, thus the page shows no knob for it.
 
 A test of the site checks the combinator and the exit of each preset. It also checks the lanes of each stage against the lanes of its own page.
+
+The page shipped on 2026-11-16 in #569. The measured values of part 3 of SYS-120 and SYS-121 come to this page through the same lenses.
 
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 
