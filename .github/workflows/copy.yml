@@ -18,6 +18,11 @@ on:
 permissions:
   contents: read
 
+# One copy of each study at a time. A second dispatch of the same exporter waits for the first.
+concurrency:
+  group: copy-${{ inputs.exporter }}
+  cancel-in-progress: false
+
 jobs:
   copy:
     runs-on: ubuntu-24.04
