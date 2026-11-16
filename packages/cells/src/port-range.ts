@@ -1,7 +1,6 @@
-import { timerOf } from "@mark1russell7/algebra";
+import { portSearchShares, timerOf } from "@mark1russell7/algebra";
 import type { Cell, PortsPrediction, QueueBand, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
-import { wheelOf } from "./accept-queue.ts";
 import { given, HZ, LINUX_66, ms, RTT_MS, seconds, s } from "./catalog.ts";
 
 /**
@@ -18,14 +17,15 @@ import { given, HZ, LINUX_66, ms, RTT_MS, seconds, s } from "./catalog.ts";
  *   Offset 0 does not reach the top port, and each other start does not reach the low port. A range
  *   of 3 gives 2 connects at each try, and the top port stays free. A range of 5 gives 4 or 5. The
  *   random step at the end of each connect sets the chance of each one (lines 1175-1176).
- *   `searchShares` gives the exact law.
+ *   `portSearchShares` of the algebra gives the exact law.
  * - The error. The search ends with `EADDRNOTAVAIL` (lines 1146-1151). No SYN leaves. A failed search
  *   does not change the start of the next one.
  * - The unit of the count. The search skips a port that has this 4-tuple (lines 1099-1117). It does not
  *   skip a port that a connection to another destination holds. Thus the count is for each destination.
  * - TIME_WAIT. The port stays held only at the side that closes first. It stays for 60 s from the FIN
  *   of the peer, plus the timer wheel (`net/ipv4/tcp_minisocks.c`, lines 175-182, `include/net/tcp.h`
- *   line 142). With `tcp_tw_reuse` 1, a new connect takes the port 1000 ms after that FIN
+ *   line 142). The timer `time_wait` of the document of Linux TCP gives the bounds of the wheel.
+ *   With `tcp_tw_reuse` 1, a new connect takes the port 1000 ms after that FIN
  *   (`net/ipv4/tcp_ipv4.c`, lines 168-171). The default of 2 applies to loopback only (lines 130-154).
  * - Other ways to close. A reset holds nothing. If the target closes first, the client holds no
  *   port, and a new SYN passes the TIME_WAIT of the target (`net/ipv4/tcp_minisocks.c`, lines 253-262).
@@ -56,7 +56,10 @@ const SETTLE = 50;
 const SLACK = 0.05;
 /** A connect with no free port does no network work. This time is the longest such connect in a run. */
 const AT_ONCE = s(0.1);
-/** This time is `tcp_tw_reuse_delay`, in milliseconds: its default, set here for the record. */
+/**
+ * This time is `tcp_tw_reuse_delay`, in milliseconds: its default, set here for the record. The
+ * document of Linux TCP is for 6.6, which has no such knob. Thus the cell keeps the value.
+ */
 const REUSE_DELAY = 1000;
 
 const LINUX = given({ ...LINUX_66, hz: { value: HZ, unit: "Hz" } });
@@ -68,73 +71,6 @@ const TARGET: Target = {
   port: PORT,
   ready: "listening",
   lines: true,
-};
-
-/** This function gives the size that the search reads: the size of the range, rounded down to an even number. */
-const remainingOf = (size: number): number => (size > 1 ? size & ~1 : size);
-
-/** One try of the search: the two passes from an even offset. It gives the port and the tries of its pass. */
-const search = (size: number, remaining: number, taken: number, start: number): { port: number; tries: number } | null => {
-  for (let offset = start; ; ) {
-    for (let tries = 0, port = offset; tries < remaining; tries += 2, port += 2) {
-      if (port >= size) port -= remaining;
-      if (((taken >> port) & 1) === 0) return { port, tries };
-    }
-    offset += 1;
-    if ((offset & 1) === 0 || remaining <= 1) return null;
-  }
-};
-
-/** This function gives one round from each start: the chance of each pair of a count and the next start. */
-const roundFrom = (size: number, start: number): Map<string, number> => {
-  const remaining = remainingOf(size);
-  const half = remaining / 2;
-  const ends = new Map<string, number>();
-  let states = new Map<string, number>([[`0|${start}`, 1]]);
-  const add = (map: Map<string, number>, key: string, chance: number): void => {
-    map.set(key, (map.get(key) ?? 0) + chance);
-  };
-  while (states.size > 0) {
-    const next = new Map<string, number>();
-    for (const [key, chance] of states) {
-      const [taken, from] = key.split("|").map(Number) as [number, number];
-      const found = search(size, remaining, taken, from);
-      if (found === null) {
-        add(ends, `${taken.toString(2).replaceAll("0", "").length}|${from}`, chance);
-        continue;
-      }
-      // the step of the perturb table: 2 more than the larger of the tries and a random draw
-      for (let draw = 0; draw < 8; draw += 1) {
-        const moved = ((from / 2 + (Math.max(found.tries, draw * 2) + 2) / 2) % half) * 2;
-        add(next, `${taken | (1 << found.port)}|${moved}`, chance / 8);
-      }
-    }
-    states = next;
-  }
-  return ends;
-};
-
-/**
- * This function gives the law of a search: the share of each count of connects, over many rounds.
- * Each round closes its connections with a reset, and the next round starts from the same table.
- */
-export const searchShares = (size: number, rounds = 400): ReadonlyMap<number, number> => {
-  const half = remainingOf(size) / 2;
-  const table = Array.from({ length: half }, (_, at) => roundFrom(size, at * 2));
-  const total = new Map<number, number>();
-  let start = Array.from({ length: half }, () => 1 / half);
-  for (let round = 0; round < rounds; round += 1) {
-    const after = Array.from({ length: half }, () => 0);
-    start.forEach((chance, at) => {
-      for (const [key, value] of table[at]!) {
-        const [count, next] = key.split("|").map(Number) as [number, number];
-        after[next / 2]! += chance * value;
-        total.set(count, (total.get(count) ?? 0) + (chance * value) / rounds);
-      }
-    });
-    start = after;
-  }
-  return new Map([...total].sort((a, b) => a[0] - b[0]));
 };
 
 /** This function gives the band of a share over one run, from the chance of one round. */
@@ -151,12 +87,22 @@ const band = (low: number, high: number): QueueBand => ({
   high: s(Math.round(high * 1e6) / 1e6),
 });
 
-/** This function gives the band of a port in TIME_WAIT: `wait` from the FIN of the peer, to the first connect that gets the port. */
-const freedAfter = (wait: number, late: number): QueueBand =>
-  band(wait - 1 / HZ, wait + late + RETRY / 1000 + SLACK);
+/**
+ * This function gives the band of a held port: `wait` from the FIN of the peer, to the first
+ * connect that gets the port. The count of a timer starts up to `early` before the FIN, one jiffy.
+ */
+const freedAfter = (wait: number, late: number, early = 1 / HZ): QueueBand =>
+  band(wait - early, wait + late + RETRY / 1000 + SLACK);
 
-/** This time is how long a port stays in TIME_WAIT, from the document of Linux TCP. */
-const timeWait = (): number => seconds(timerOf(LINUX_TCP, "time_wait", LINUX).duration, "TIME_WAIT");
+/** This function gives the band of a port in TIME_WAIT, from the timer and its bounds in the document of Linux TCP. */
+const timeWait = (): QueueBand => {
+  const timer = timerOf(LINUX_TCP, "time_wait", LINUX);
+  return freedAfter(
+    seconds(timer.duration, "TIME_WAIT"),
+    seconds(timer.lateness, "the lateness of TIME_WAIT"),
+    seconds(timer.early, "the early bound of TIME_WAIT"),
+  );
+};
 
 /**
  * This function gives the band of a port in LAST_ACK whose first ACK drops. The band starts at
@@ -237,7 +183,7 @@ const portsCell = (spec: PortsSpec): Cell => ({
 
 const everyOffset = (size: number): readonly number[] => Array.from({ length: size }, (_, at) => at);
 
-const fiveCounts = searchShares(5);
+const fiveCounts = portSearchShares(5);
 
 /** These are the laws that the cells check, one cell for each. */
 export const PORT_RANGE_SPECS: readonly PortsSpec[] = [
@@ -303,7 +249,7 @@ export const PORT_RANGE_SPECS: readonly PortsSpec[] = [
     reuse: 2,
     window: 80,
     why: "The FIN of the peer moves the socket to TIME_WAIT and sets its timer again. The default tcp_tw_reuse of 2 is for loopback only, and this path is a veth.",
-    ports: { counts: [4], seen: everyOffset(4), freed: freedAfter(timeWait(), wheelOf(timeWait())) },
+    ports: { counts: [4], seen: everyOffset(4), freed: timeWait() },
   },
   {
     plan: "PR.6",

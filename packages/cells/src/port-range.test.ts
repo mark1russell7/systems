@@ -2,7 +2,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
-import { PORT_RANGE_CELLS, PORT_RANGE_SPECS, searchShares } from "./port-range.ts";
+import { PORT_RANGE_CELLS, PORT_RANGE_SPECS } from "./port-range.ts";
 
 const lawOf = (plan: string) => {
   const cell = PORT_RANGE_CELLS.find((each) => each.name.startsWith(plan));
@@ -10,28 +10,6 @@ const lawOf = (plan: string) => {
     throw new Error(`${plan} has no law`);
   return cell.prediction.ports;
 };
-
-describe("the exact law of the search for a port", () => {
-  it("gives an even range its size in each round", () => {
-    for (const size of [2, 4, 6, 16]) {
-      expect([...searchShares(size).keys()]).toEqual([size]);
-      expect(searchShares(size).get(size)).toBeCloseTo(1, 9);
-    }
-  });
-
-  it("gives a range of 3 two connects in each round", () => {
-    expect([...searchShares(3).keys()]).toEqual([2]);
-    expect(searchShares(3).get(2)).toBeCloseTo(1, 9);
-  });
-
-  it("gives an odd range one port less in some rounds, with the chance of the chain", () => {
-    // a seeded simulation of the kernel code gave 35447 rounds of 4 in 200000 rounds of a range of 5
-    expect(searchShares(5).get(4)).toBeCloseTo(45 / 256, 9);
-    expect(searchShares(5).get(5)).toBeCloseTo(211 / 256, 9);
-    expect(searchShares(7).get(6)).toBeCloseTo(0.0612, 3);
-    expect(searchShares(9).get(8)).toBeCloseTo(0.0968, 3);
-  });
-});
 
 describe("the cells of the port range", () => {
   it("joins the catalog, four counted runs and one cell at a time", () => {

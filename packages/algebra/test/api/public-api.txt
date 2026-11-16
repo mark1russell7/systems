@@ -47,6 +47,10 @@ machineProblems: build/machine.chunk.d.ts#machineProblems
 modelSource: build/run.chunk.d.ts#modelSource
 overValues: build/run.chunk.d.ts#overValues
 parseExpr: build/run.chunk.d.ts#parseExpr
+PORT_SEARCH_CHAIN_LARGEST: build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
+portSearchChain: build/index.d.ts#portSearchChain
+portSearchShares: build/index.d.ts#portSearchShares
+portSearchSpan: build/index.d.ts#portSearchSpan
 probeTrain: build/run.chunk.d.ts#probeTrain
 readsFired: build/machine.chunk.d.ts#readsFired
 realizationKnobs: build/run.chunk.d.ts#realizationKnobs
@@ -216,6 +220,9 @@ declare const wallClock: (options?: PlatformClockOptions) => WallClock;
 ### build/clock.chunk.d.ts#windowProblems
 declare function windowProblems(window: TimeWindow): string[];
 
+### build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
+export declare const PORT_SEARCH_CHAIN_LARGEST = 16;
+
 ### build/index.d.ts#acceptQueueHeld
 export declare const acceptQueueHeld: (backlog: number, somaxconn: number) => number;
 
@@ -230,6 +237,15 @@ export declare const conntrackFloor: (max: number, hz: number, expired?: number)
 
 ### build/index.d.ts#fromStates
 export declare const fromStates: (m: Pick<Machine, "states">, from: string | readonly string[]) => string[];
+
+### build/index.d.ts#portSearchChain
+export declare const portSearchChain: (size: number, rounds?: number) => ReadonlyMap<number, number>;
+
+### build/index.d.ts#portSearchShares
+export declare const portSearchShares: (size: number, rounds?: number) => ReadonlyMap<number, number>;
+
+### build/index.d.ts#portSearchSpan
+export declare const portSearchSpan: (size: number) => number;
 
 ### build/machine.chunk.d.ts#Expr
 type Expr = {

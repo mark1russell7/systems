@@ -2571,10 +2571,10 @@ Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra gi
 
 ### SYS-121 · The port range: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
@@ -2583,7 +2583,13 @@ A client that opens many connections to one destination uses up its local ports.
 - The knobs are `ip_local_port_range`, the count of connections, the side that closes first and `tcp_tw_reuse`.
 - The law of SYS-64 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
 
-The test: the predictions of the cells `PR.1` to `PR.7` do not change. The page shows the measured value of each cell next to its band.
+The test: the predictions of the cells `PR.1` to `PR.8` do not change. The page shows the measured value of each cell next to its band.
+
+Part 1 moves the law. `portSearchSpan` and `portSearchShares` of the algebra give the span of the search and the share of each count of connects. The timer `time_wait` of `linux-tcp` gets its bounds on the timer wheel, from the model `linux.time-wait-lateness`. The cells use them. Part 2 is the lens and its page.
+
+- The release of part 1 is algebra `0.9.2`, a PATCH with new exports before 1.0.
+- Machines `0.5.0` is a MINOR before 1.0, because `timerOf` of `time_wait` gives new bounds.
+- Service `0.9.2` and kind `0.14.11` are PATCH versions for their new dependency ranges.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
