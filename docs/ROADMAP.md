@@ -9,8 +9,8 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
 1. **SYS-99** (P1): the drills of the Sunday on one shard. Its run is in CI.
-2. **SYS-121** (P1): the second read of `PR.7`, then the lens of the port range with the measured values. Its run is in CI.
-3. **SYS-124** (P2): the cells of the egress queue, netem and tbf, in CI only. The law shipped in algebra 0.9.6.
+2. **SYS-121** (P1): the second read of `PR.7` held 4 of 4 runs. Next is the rate of its loss with no fault, then the measured values of the page.
+3. **SYS-124** (P2): the egress tier of the harness and the cells `EQ.1` to `EQ.7` (#583). Their first read is in CI after the merge.
 
 SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. The other open items are `later`, in the order of the score:
 
@@ -2637,7 +2637,7 @@ Part 3 is the copy of the cells at one commit, for the measured values of the pa
 - That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
 - The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
 
-The next step for `PR.7` is a measure of the rate: the cell runs again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
+The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](https://github.com/mark1russell7/systems/actions/runs/43967294195)). Over the two reads, 1 of 8 runs lost the ACK. The next step for `PR.7` is a measure of the rate: the cell operates again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
@@ -2686,7 +2686,24 @@ A packet goes from the socket through the queue discipline and the ring of the N
 
 Part 1 is the law of the egress queue in `@mark1russell7/algebra` 0.9.6, from `net/sched` of Linux 7.0. The function `netemSchedule` gives the time that each packet leaves a netem queue with a rate, or its drop at the limit. The function `tbfSchedule` gives the same for the token bucket of tbf. A veth has no ring, thus the cells of part 2 measure the qdisc and the rate. The ring of a NIC and its byte queue limits come later, from the sources of a driver. Part 3 is the lens and its page.
 
-Part 2 is next, after the copy of SYS-120 shipped on 2026-11-16.
+Part 2 is the egress tier of the harness 0.16.8 and the cells `EQ.1` to `EQ.7` ([#583](https://github.com/mark1russell7/systems/pull/583)).
+
+- The client `/opt/harness/egress send` puts the qdisc at the root of its interface, and it sends bursts of UDP datagrams to the sink of the target.
+- The kernel stamps each datagram with `SO_TIMESTAMPING`: when the qdisc takes it, and when the device takes it. A drop of the qdisc is a send that gives `ENOBUFS`.
+- The neighbour of the target is `PERMANENT`, thus no ARP packet goes through the qdisc. The counts of the root qdisc must equal the counts of the client.
+- The band of each datagram is the hull of its departures at the corners of its arrivals. At a corner, each burst is together or spread 2 ms, and each start is early or late 2 ms. The late slack of 2 ms for the timer of the qdisc is a first value.
+
+| Cell | Qdisc | The law |
+| --- | --- | --- |
+| `EQ.1` | netem at 1 Mbit/s | one full frame each 12.112 ms |
+| `EQ.2` | netem at 1 Mbit/s, limit 10 | 10 of 20 frames sent, 10 dropped |
+| `EQ.3` | netem with a delay of 100 ms, limit 12 | the second burst sends 4 frames and drops 4 |
+| `EQ.4` | netem with no delay, limit 12 | no drop, the control of `EQ.3` |
+| `EQ.5` | tbf at 1 Mbit/s, burst 3000 B | 3 frames at once, then one each 8 ms |
+| `EQ.6` | tbf with a limit of 5000 B | 8 of 20 frames sent, 12 dropped |
+| `EQ.7` | tbf with a burst of 1500 B | a frame of 1501 B is dropped, the frames of 1500 B around it are sent |
+
+The first read of the seven cells checks the late slack against the records. Then the lens and its page come in part 3.
 
 ## The items of S3
 
