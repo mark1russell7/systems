@@ -816,6 +816,15 @@ probeServer: build/http/probes.d.ts#probeServer
 sse: build/http/outcome.d.ts#sse
 writeOutcome: build/http/outcome.d.ts#writeOutcome
 
+## ./http-folder (build/http-folder.d.ts): names
+
+FOLDER_CONTENT_SECURITY_POLICY: build/http/folder.d.ts#FOLDER_CONTENT_SECURITY_POLICY
+type FolderHandlerOptions: build/http/folder.d.ts#FolderHandlerOptions
+UNKNOWN_CONTENT_TYPE: build/http/folder.d.ts#UNKNOWN_CONTENT_TYPE
+WEB_CONTENT_TYPES: build/http/folder.d.ts#WEB_CONTENT_TYPES
+contentTypeOf: build/http/folder.d.ts#contentTypeOf
+folderHandler: build/http/folder.d.ts#folderHandler
+
 ## ./limiter (build/limiter.d.ts): names
 
 type Allowed: build/limiter/policy.d.ts#Allowed
@@ -2712,6 +2721,31 @@ export declare const HTTP_CLIENT_STARTING_KNOBS: HttpClientKnobs;
 
 ### build/http-client/starting.d.ts#HTTP_CLIENT_STARTING_POLL
 export declare const HTTP_CLIENT_STARTING_POLL: Poll;
+
+### build/http/folder.d.ts#FOLDER_CONTENT_SECURITY_POLICY
+export declare const FOLDER_CONTENT_SECURITY_POLICY: string;
+
+### build/http/folder.d.ts#FolderHandlerOptions
+export interface FolderHandlerOptions {
+  readonly prefix?: string | undefined;
+  readonly index?: string | undefined;
+  readonly contentType?: ((file: string) => string) | undefined;
+  readonly contentSecurityPolicy?: string | undefined;
+  readonly readFile?: ((file: string) => Promise<Uint8Array>) | undefined;
+  readonly realpath?: ((file: string) => Promise<string>) | undefined;
+}
+
+### build/http/folder.d.ts#UNKNOWN_CONTENT_TYPE
+export declare const UNKNOWN_CONTENT_TYPE = "application/octet-stream";
+
+### build/http/folder.d.ts#WEB_CONTENT_TYPES
+export declare const WEB_CONTENT_TYPES: Readonly<Record<string, string>>;
+
+### build/http/folder.d.ts#contentTypeOf
+export declare const contentTypeOf: (file: string, types?: Readonly<Record<string, string>>) => string;
+
+### build/http/folder.d.ts#folderHandler
+export declare const folderHandler: (root: string, options?: FolderHandlerOptions) => RequestHandler;
 
 ### build/http/outcome.d.ts#HandleOptions
 export interface HandleOptions<T> extends Omit<OutcomeOptions<T>, "keepAlive" | "retryAfter"> {
