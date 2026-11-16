@@ -171,10 +171,10 @@ importers:
     devDependencies:
       '@mark1russell7/api-report':
         specifier: ^0.5.0
-        version: 0.5.6
+        version: 0.5.7
       '@mark1russell7/conventions':
         specifier: ^0.41.14
-        version: 0.41.14
+        version: 0.41.15
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
@@ -636,8 +636,8 @@ importers:
         specifier: github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
       '@mark1russell7/site-pages':
-        specifier: ^0.4.1
-        version: 0.4.8
+        specifier: ^0.5.2
+        version: 0.5.2
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.6
@@ -1483,8 +1483,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/api-report@0.5.6':
-    resolution: {integrity: sha512-WgMnxnLhm7UoZL8aaosuAk8eik69SyhgoJ6y5rSwwX4A4v9kr98/DV+uGZE6B0XsO0oCg6cg57DhPMQKapKyrw==}
+  '@mark1russell7/api-report@0.5.7':
+    resolution: {integrity: sha512-Oe69KbJhZL6GIrbEwNVIFN+Yz5XLjgEt78CrQZFX7vdeGANWuRyDCoLQaebumVuyip52WpPt19ZQU7n3Oj5WmQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1499,8 +1499,8 @@ packages:
     resolution: {integrity: sha512-s2DyC8i8JhP0Ue6oG+dLUHrjwvUjz+UQrrSIViLkDdU0t+LhLChLrkRpcwr/eof62ffOSPXifLVYuzM7alEEPw==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/conventions@0.41.14':
-    resolution: {integrity: sha512-GqmF9TE9SWnkj+heyy8addISBS7Q+q3tbvof40QpaxNmulixVoUROUIullzuvfl27yUBVED2RL/eBUaXe/AZFg==}
+  '@mark1russell7/conventions@0.41.15':
+    resolution: {integrity: sha512-MxfocF+YfdmMbG1UPZrZ17s7HyuCltJi2o488MtHiBgLy1oKrVgGZ1kSkCp0GUGkm2wgvShlhvnB9blEPYGvAg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1580,6 +1580,10 @@ packages:
     resolution: {integrity: sha512-DBcPP7mt0LsUFIVk8luMICkwbrt/JRCIosHCfpn/F/IM5PYbUKHrCvyzKfwglw4M7lKa7oO70vpcQ2jZZxqKeA==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-statistics@0.2.5':
+    resolution: {integrity: sha512-jaUqrz8FmsUoR9n0MeRUIk9UTpG5QL+dF/moh+C23fyihb00LgOD42Up//1piIPVZZDiq6lua0sBcSKMwh5IFg==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-testkit@0.1.7':
     resolution: {integrity: sha512-/Xz+efOov3xH4o7xOZmbdWWgyeMy/nt1XSh15WrPk292vl0cS6d8rdIqHIMM/goFKv3UdeqxVET7jZC/wZkQ0g==}
     engines: {node: '>=22'}
@@ -1604,8 +1608,8 @@ packages:
       fast-check:
         optional: true
 
-  '@mark1russell7/site-pages@0.4.8':
-    resolution: {integrity: sha512-uN7SV7VxrsMyH7/cPOUClFOnJhw24S2+qVaMIoNK+7AtJe3FB4l5qN2NowKAYvYgLcDpY4gUBlw9meJ6/Gq2pQ==}
+  '@mark1russell7/site-pages@0.5.2':
+    resolution: {integrity: sha512-wZaQllWi5qrxXzzY04b2v2r07RMKq4HsOGguw5i0kuTL/Cl3IEyw3zIhcSoU0pAh9iwK+MD6KrbfywGE4oRAJQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -5232,9 +5236,9 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  '@mark1russell7/api-report@0.5.6':
+  '@mark1russell7/api-report@0.5.7':
     dependencies:
-      '@mark1russell7/conventions': 0.41.14
+      '@mark1russell7/conventions': 0.41.15
 
   '@mark1russell7/coeval@0.29.0(zod@4.6.7)':
     dependencies:
@@ -5259,7 +5263,7 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  '@mark1russell7/conventions@0.41.14':
+  '@mark1russell7/conventions@0.41.15':
     dependencies:
       yaml: 2.9.1
 
@@ -5334,6 +5338,10 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.16
 
+  '@mark1russell7/rigor-statistics@0.2.5':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.16
+
   '@mark1russell7/rigor-testkit@0.1.7(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@0.223.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@2.12.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))':
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
@@ -5342,9 +5350,9 @@ snapshots:
       '@opentelemetry/sdk-metrics': 2.12.1(@opentelemetry/api@1.10.0)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
 
-  '@mark1russell7/site-pages@0.4.8':
+  '@mark1russell7/site-pages@0.5.2':
     dependencies:
-      '@mark1russell7/rigor-statistics': 0.1.29
+      '@mark1russell7/rigor-statistics': 0.2.5
 
   '@mark1russell7/ste-lint@0.3.2':
     dependencies:
