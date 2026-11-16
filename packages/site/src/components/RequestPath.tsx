@@ -12,7 +12,7 @@ import { useMemo, useState, type ReactElement } from "react";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { say, type LaneNames } from "../model/lens.ts";
 import { DATAPLANES, DEFAULTS, PRESETS, lensOf, requestPath, type Fault, type LayerId, type PathResult, type Settings } from "../model/request.ts";
-import { Choice, CountKnob, LensKnobs, OptionalTimeKnob, TimeKnob, type KnobRegistry } from "./Knobs.tsx";
+import { Choice, CountKnob, LensKnobs, OptionalTimeKnob, TimeKnob, hzKnob, rttKnob, type KnobRegistry } from "./Knobs.tsx";
 import { EventsTable, LaneCard, PlayerBar, Timeline, TimelineLegend, axisOf, isLit, scaleCaption, usePlayer, type FaultSpan, type Scale } from "./Lens.tsx";
 import Term, { type TermName } from "./Term.tsx";
 
@@ -50,8 +50,8 @@ export const PATH_KNOBS: KnobRegistry<Settings> = {
   keepcnt: (value, set) => <CountKnob label="Probes" value={value} min={1} max={9} onChange={set} />,
   retries2: (value, set) => <CountKnob label={<Term name="tcp_retries2" />} value={value} min={1} max={15} onChange={set} />,
   userTimeout: (value, set) => <OptionalTimeKnob label={<Term name="TCP_USER_TIMEOUT" />} name="TCP_USER_TIMEOUT" value={value} unit="ms" min={1000} max={1_800_000} onValue={30_000} onChange={set} />,
-  rtt: (value, set) => <TimeKnob label="Round trip" value={value} unit="ms" min={0.1} max={300} onChange={set} />,
-  hz: (value, set) => <Choice label={<Term name="HZ">Kernel clock, HZ</Term>} name="Kernel clock" options={[100, 250, 300, 1000].map((hz) => ({ id: hz, label: String(hz) }))} value={value} onChange={set} />,
+  rtt: rttKnob,
+  hz: hzKnob,
   // Kubernetes
   dataplane: (value, set) => <Choice label={<Term name="kube-proxy">Dataplane</Term>} name="Dataplane" options={DATAPLANES.map((id) => ({ id, label: id }))} value={value} onChange={set} />,
   period: (value, set) => <TimeKnob label={<Term name="readiness probe">Probe period</Term>} value={value} unit="s" min={1} max={60} onChange={set} />,
