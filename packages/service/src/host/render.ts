@@ -27,7 +27,10 @@ export interface ServiceSpec {
   /** This folder is the working folder of the program. */
   readonly cwd?: string | undefined;
   readonly start: ServiceStart;
-  /** This policy starts a program at logon or at boot again after it stops. Null starts it only at its start. A daily job has no restart. */
+  /**
+   * This policy starts a program at logon or at boot again after it stops, also after an exit with the code 0. A stop
+   * of `stopService` keeps the program stopped. Null starts it only at its start. A daily job has no restart.
+   */
   readonly restart: RestartPolicy | null;
   /**
    * True runs the program when the user is not logged on. On Windows, the task gets an S4U logon, and Task Scheduler
@@ -42,6 +45,18 @@ export interface ServiceSpec {
   readonly console?: "hidden" | "visible" | undefined;
   /** This time is the most that one run can take. The default is no limit. */
   readonly timeLimit?: Quantity | undefined;
+  /**
+   * This time is the most that the stop of the program can take. After it, the system stops each process of the service with `SIGKILL`.
+   * On Linux, it is `TimeoutStopSec`, and the default is the default of systemd (90 s). On Windows, it changes nothing.
+   */
+  readonly stopGrace?: Quantity | undefined;
+  /**
+   * True tells that the program stops its own children at a stop, as a supervisor does. Then only the program gets the
+   * stop signal. Each process that stays after the program ends, or after `stopGrace`, gets `SIGKILL`.
+   * The default is false: each process of the service gets the stop signal at once.
+   * On Linux, true is `KillMode=mixed`. On Windows, it changes nothing.
+   */
+  readonly stopsChildren?: boolean | undefined;
 }
 
 /** These are the parts of the task of Windows that come from the system, not from the spec. */
@@ -102,6 +117,9 @@ export const serviceProblems = (spec: ServiceSpec): string[] => {
     problems.push("the restart wait is not a time of zero or more");
   if (spec.timeLimit !== undefined && !(isTime(spec.timeLimit) && valueIn(spec.timeLimit, "ms") > 0))
     problems.push("the time limit is not a time above zero");
+  if (spec.stopGrace !== undefined && !(isTime(spec.stopGrace) && valueIn(spec.stopGrace, "ms") > 0))
+    problems.push("the stop grace is not a time above zero");
+  if (spec.stopsChildren !== undefined && typeof spec.stopsChildren !== "boolean") problems.push("the stopsChildren is not true or false");
   if (spec.console !== undefined && spec.console !== "hidden" && spec.console !== "visible")
     problems.push(`the console ${JSON.stringify(spec.console)} is not "hidden" or "visible"`);
   return problems;
@@ -145,6 +163,9 @@ const repeatMinutes = (time: Quantity): number => Math.max(1, Math.ceil(valueIn(
 
 /** This function gives the seconds of a restart wait for systemd, a whole number. */
 const restartSeconds = (time: Quantity): number => Math.max(0, Math.ceil(valueIn(time, "s")));
+
+/** This function gives the seconds of a time limit for systemd, a whole number of 1 or more. */
+const limitSeconds = (time: Quantity): number => Math.max(1, Math.ceil(valueIn(time, "s")));
 
 const refuse = (spec: ServiceSpec): void => {
   const problems = serviceProblems(spec);
@@ -260,9 +281,10 @@ export const utf16le = (text: string): Uint8Array => {
 
 /**
  * This function gives the systemd user unit of a spec (`<name>.service`), as text. It is a pure function.
- * - A start at logon or at boot is a service of the type `simple`, wanted by `default.target`. With a restart, it has `Restart=on-failure`.
+ * - A start at logon or at boot is a service of the type `simple`, wanted by `default.target`. With a restart, it has `Restart=always`.
  *   The unit is the same for the two starts: the linger of the user (`installService`) starts the user manager at boot.
  * - A daily start is a service of the type `oneshot` with no `[Install]` section. Its timer (`renderSystemdTimer`) starts it.
+ * - A spec that stops its children gets `KillMode=mixed`. A spec with a stop grace gets `TimeoutStopSec`.
  */
 export const renderSystemdUnit = (spec: ServiceSpec): string => {
   refuse(spec);
@@ -270,8 +292,11 @@ export const renderSystemdUnit = (spec: ServiceSpec): string => {
   lines.push(runsUntilStop(spec.start) ? "Type=simple" : "Type=oneshot");
   lines.push(`ExecStart=${[spec.program, ...spec.args].map(systemdArg).join(" ")}`);
   if (spec.cwd !== undefined) lines.push(`WorkingDirectory=${spec.cwd.replace(/%/g, "%%")}`);
-  if (spec.restart !== null) lines.push("Restart=on-failure", `RestartSec=${restartSeconds(spec.restart.after)}`);
-  if (spec.timeLimit !== undefined) lines.push(`RuntimeMaxSec=${Math.max(1, Math.ceil(valueIn(spec.timeLimit, "s")))}`);
+  // Restart=always also starts the program again after an exit with the code 0. A stop of systemctl keeps it stopped.
+  if (spec.restart !== null) lines.push("Restart=always", `RestartSec=${restartSeconds(spec.restart.after)}`);
+  if (spec.timeLimit !== undefined) lines.push(`RuntimeMaxSec=${limitSeconds(spec.timeLimit)}`);
+  if (spec.stopsChildren === true) lines.push("KillMode=mixed");
+  if (spec.stopGrace !== undefined) lines.push(`TimeoutStopSec=${limitSeconds(spec.stopGrace)}`);
   if (runsUntilStop(spec.start)) lines.push("", "[Install]", "WantedBy=default.target");
   return `${lines.join("\n")}\n`;
 };

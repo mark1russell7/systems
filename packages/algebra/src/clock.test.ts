@@ -7,6 +7,9 @@ import {
   delay,
   fakeClock,
   fakeWallClock,
+  FRAME_DRIFT_LIMIT,
+  frameClock,
+  isFrameClock,
   firstInstantOf,
   inWindow,
   instantsOf,
@@ -15,6 +18,7 @@ import {
   offsetChanges,
   platformClock,
   realClock,
+  unrefClock,
   wallClock,
   windowProblems,
 } from "./clock.ts";
@@ -109,6 +113,48 @@ describe("the clock of the platform", () => {
   });
 });
 
+describe("unrefClock (SYS-126)", () => {
+  it("unrefs each timer at its start, and its cancel still stops the timer", () => {
+    const unrefs: string[] = [];
+    const stops: string[] = [];
+    const runs: Array<() => void> = [];
+    const given: Clock = {
+      now: () => 42,
+      after(ms, run) {
+        runs.push(run);
+        return Object.assign(() => void stops.push(`stop ${ms}`), { unref: () => void unrefs.push(`unref ${ms}`) });
+      },
+    };
+    const clock = unrefClock(given);
+    expect(clock.now()).toBe(42);
+    expect(clock.time).toBeUndefined();
+    const cancel = clock.after(10, () => {});
+    clock.after(20, () => {});
+    expect(unrefs).toEqual(["unref 10", "unref 20"]);
+    cancel();
+    expect(stops).toEqual(["stop 10"]);
+    expect(runs).toHaveLength(2);
+  });
+
+  it("moves with a fake clock, whose timers have no unref", async () => {
+    const fake = fakeClock(5);
+    const clock = unrefClock(fake);
+    const runs: number[] = [];
+    clock.after(10, () => runs.push(clock.now()));
+    const stopped = clock.after(10, () => runs.push(-1));
+    stopped();
+    await fake.advance(10);
+    expect(runs).toEqual([15]);
+  });
+
+  it("keeps a wall clock a wall clock, with its instant", () => {
+    const wall = fakeWallClock(1_700_000_000_000);
+    const clock: WallClock = unrefClock(wall);
+    expect(clock.time).toBe("wall");
+    expect(clock.now()).toBe(1_700_000_000_000);
+  });
+});
+
 describe("the wall clock", () => {
   it("reads the instant of Date.now, and starts its timers as the clock of the platform does", async () => {
     const clock = wallClock({ unref: true });
@@ -158,6 +204,38 @@ describe("the wall clock", () => {
     expect(clock.pending).toBe(1);
     await clock.advance(0);
     expect(runs).toEqual([start - 3_600_000 + 1000, -1]);
+  });
+
+  it("shares one queue of timers with a given fake monotonic clock, and a step of the instant moves no timer", async () => {
+    const start = Date.UTC(2026, 10, 15, 12);
+    const mono = fakeClock(5000);
+    const wall = fakeWallClock(start, mono);
+    expect(wall.now()).toBe(start);
+    const runs: string[] = [];
+    mono.after(20, () => runs.push(`mono ${String(mono.now())} wall ${String(wall.now() - start)}`));
+    wall.after(10, () => runs.push(`wall ${String(wall.now() - start)}`));
+    expect(mono.pending).toBe(2);
+    expect(wall.pending).toBe(2);
+    // the advance of the monotonic clock moves the instant too, and starts the timers of both clocks in order
+    await mono.advance(10);
+    expect(runs).toEqual(["wall 10"]);
+    // a step back of one hour changes only the instant
+    wall.set(start - 3_600_000);
+    expect(mono.now()).toBe(5010);
+    await wall.advance(10);
+    expect(runs).toEqual(["wall 10", `mono 5020 wall ${String(-3_600_000 + 10)}`]);
+    wall.block(5);
+    expect(mono.now()).toBe(5025);
+    expect(wall.now()).toBe(start - 3_600_000 + 15);
+  });
+
+  it("keeps two fake wall clocks on one monotonic clock apart in their instants", async () => {
+    const mono = fakeClock();
+    const first = fakeWallClock(1000, mono);
+    const second = fakeWallClock(9000, mono);
+    second.set(500);
+    await mono.advance(7);
+    expect([first.now(), second.now()]).toEqual([1007, 507]);
   });
 });
 
@@ -212,6 +290,95 @@ const oracleIn = (window: TimeWindow & { zone: Zone }, at: number): boolean => {
   if (start < end) return start <= minute && minute < end && startsOn(local.weekday);
   return (minute >= start && startsOn(local.weekday)) || (minute < end && startsOn((local.weekday + 6) % 7));
 };
+
+describe("the frame clock", () => {
+  const T0 = Date.UTC(2026, 3, 1, 18);
+  const MINUTE = 60_000;
+  const HOUR = 60 * MINUTE;
+
+  it("keeps the time of the frame through a step, and takes the wall time again at the mark", () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    expect(frame.time).toBe("wall");
+    expect(frame.now()).toBe(T0);
+    wall.set(T0 - HOUR);
+    expect(frame.now()).toBe(T0);
+    expect(frame.step()).toBe(-HOUR);
+    // A read does not end the step. Only the mark ends it.
+    expect(frame.step()).toBe(-HOUR);
+    frame.mark();
+    expect(frame.now()).toBe(T0 - HOUR);
+    expect(frame.step()).toBe(0);
+  });
+
+  it("moves with the monotonic time in a frame", async () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    await monotonic.advance(MINUTE);
+    wall.set(T0 + MINUTE + HOUR);
+    expect(frame.now()).toBe(T0 + MINUTE);
+    expect(frame.step()).toBe(HOUR);
+    frame.mark();
+    await monotonic.advance(MINUTE);
+    expect(frame.now()).toBe(T0 + 2 * MINUTE + HOUR);
+  });
+
+  it("gives whole milliseconds on a monotonic clock with fractions", () => {
+    let monotonic = 0.25;
+    const frame = frameClock(fakeWallClock(T0), { now: () => monotonic });
+    monotonic = 1000.75;
+    expect(frame.now()).toBe(T0 + 1000);
+    expect(Number.isInteger(frame.step())).toBe(true);
+  });
+
+  it("gives 0 for a change of the drift limit or less, and the size for a larger change", () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    wall.set(T0 + FRAME_DRIFT_LIMIT);
+    expect(frame.step()).toBe(0);
+    wall.set(T0 + FRAME_DRIFT_LIMIT + 1);
+    expect(frame.step()).toBe(FRAME_DRIFT_LIMIT + 1);
+    frame.mark();
+    wall.set(T0 + 1);
+    expect(frame.step()).toBe(0);
+    wall.set(T0);
+    expect(frame.step()).toBe(-FRAME_DRIFT_LIMIT - 1);
+    const exact = frameClock(wall, monotonic, { driftLimit: 0 });
+    expect(exact.step()).toBe(0);
+    wall.set(wall.now() + 1);
+    expect(exact.step()).toBe(1);
+    const wide = frameClock(wall, monotonic, { driftLimit: 2 * HOUR });
+    wall.set(wall.now() - HOUR);
+    expect(wide.step()).toBe(0);
+  });
+
+  it("waits with the timers of the wall clock, and a step does not move a timer", async () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    let fired = 0;
+    frame.after(MINUTE, () => {
+      fired += 1;
+    });
+    wall.set(T0 + HOUR);
+    await monotonic.advance(MINUTE - 1);
+    expect(fired).toBe(0);
+    await monotonic.advance(1);
+    expect(fired).toBe(1);
+  });
+
+  it("tells a frame clock from a wall clock, and refuses a drift limit that is not a finite number of 0 or more", () => {
+    const monotonic = fakeClock(0);
+    expect(isFrameClock(frameClock(fakeWallClock(T0), monotonic))).toBe(true);
+    expect(isFrameClock(fakeWallClock(T0))).toBe(false);
+    for (const driftLimit of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => frameClock(fakeWallClock(T0), monotonic, { driftLimit })).toThrow(RangeError);
+    }
+  });
+});
 
 describe("the scaled clock", () => {
   // the fake timers also fake performance, as the doc of platformClock asks

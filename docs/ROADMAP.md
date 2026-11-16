@@ -4,6 +4,29 @@ This file is the source of truth for the work of the program. A live tracker sho
 
 Each item has an id, a status, an area, the items that it needs, its dates and its links. The statuses are `done`, `in progress`, `blocked`, `waiting on Mark` and `later`. An item that waits on Mark says what Mark does.
 
+## The work in progress (2026-11-16)
+
+At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
+
+1. **SYS-99** (P1): the drills of the Sunday on one shard. Its dispatch waits for free CI slots.
+2. **SYS-121** (P1): the second read of `PR.7`, then the lens of the port range with the measured values. Its dispatch waits for free CI slots.
+3. **SYS-124** (P2): the cells of the egress queue, netem and tbf, in CI only. The law shipped in algebra 0.9.6. This item has code to write while the other two wait.
+
+SYS-120 waits on Mark: its part 3 needs the export of the `AQ` records in CI. The other open items are `later`, in the order of the score:
+
+- **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
+- **SYS-77:** the first fabric. Its cells wait for free CI slots.
+- **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
+- **SYS-69:** the two cells `SB`. They wait for free CI slots.
+- **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
+- **SYS-101:** it starts after SYS-99 ships.
+- **SYS-75**, **SYS-87**, **SYS-102** and **SYS-103:** their cells wait for free CI slots.
+  <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
+- **VIZ:** it ends when SYS-119 to SYS-124 ship. SYS-119 and SYS-122 shipped.
+- **S2** and **S3:** their items hold the work.
+
+An item goes back to `in progress` when one of the three ships.
+
 ## The order of the work (2026-11-02)
 
 The program started again on 2026-11-02, after the pause of 2026-10-28. A gap that a consumer finds in the service or kind packages still comes first. It is released as a PATCH when its checks pass. The order of the other work is:
@@ -59,7 +82,7 @@ H2 was the last system of the set, and its last cell held on 2026-10-25. Thus ea
 
 ### S2 · Intermediaries and Kubernetes
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-15
@@ -82,7 +105,7 @@ MetalLB is the intermediary after kube-vip ([SYS-53](#sys-53--metallb-callers-ou
 
 ### S3 · Outcomes under failure and load
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-11-03
@@ -2361,6 +2384,25 @@ The entry `polite-crawler/api` is for a browser, and its quotas come from `keyed
 - The releases are quantity `0.4.1` and service `0.8.20`, PATCH versions: a new entry, and a smaller bundle with the same API. Both are on npm with their provenance.
 - The size of 2.1 kB is not possible without a loss. `quota.ts` alone is approximately 3 kB after gzip. The exact conversion of units is the quantity law. Thus `polite-crawler/api` keeps the limiter. Only its two functions of quotas bundle the limiter. A caller that does not import them does not get it.
 
+### SYS-126 · A wait that a caller awaits keeps the process alive
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:** 2026-11-15
+- **Links:** [#550](https://github.com/mark1russell7/systems/pull/550)
+
+`realClock` was `platformClock({ unref: true })`, and its timers did not keep a Node process alive. The default clock of `retry` is `realClock`. A command-line tool whose only work was the wait of a retry thus ended in the wait, with the exit code 0 and no error. The same fault held for each wait that a caller awaits on the default clock.
+
+- **The rule.** A hang shows, and a silent pass with lost work does not. `realClock` keeps the process alive, as `setTimeout` does.
+- **The timers that do not keep the process alive.** The service uses the `unref()` of a timer only when a socket, a child process or the hold of the lifecycle keeps the process alive. These timers only watch other work. Examples are the heartbeat of a connection, the checks and the watchdog of a service, and the sweep of a listener. The timers of a supervisor for a live child are also examples.
+- **The timers that keep the process alive.** Each other timer stays referenced. Examples are a bound of awaited work, a retry, a ticker, the sleeps of a worker loop and the polls of `watchTargets`. A comment at each timer of service names its choice.
+- **The new parts.** `unrefClock(clock)` of algebra gives a part a clock whose timers do not keep the process alive. The poller of service has the option `unrefLoop`: the timeout of a poll stays referenced, because the warm-up awaits its sweep.
+- **The gates.** A child process in algebra awaits a delay on `realClock`. A child process in service awaits `retry`, the try of a retrier and `within`. Each one ends its waits and exits with 0. A third child proves that `unrefClock(realClock)` does not keep the process alive.
+- **The flip.** The first commit of the pull request has only the tests, and CI is red on them. The second commit has the fix, and CI is green. Two steps of the flip workflow put the timers of `realClock` back in unref, and each gate turns red.
+- The releases are algebra `0.9.0` and service `0.9.0`, MINOR versions before 1.0: a change of behavior.
+
 ## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
@@ -2468,7 +2510,7 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 
 ### VIZ · Interactive visuals and docs: from processes and the kernel to the NIC
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119, SYS-120, SYS-121, SYS-122, SYS-123, SYS-124
 - **Waiting on:**
@@ -2507,16 +2549,23 @@ Each step is an item, in this order:
 5. SYS-123: the memory of a process.
 6. SYS-124: the NIC.
 
-The next step: SYS-119.
+**The move of the contract (2026-11-16).** The lens contract of SYS-119 (`packages/site/src/model/lens.ts`) moves to `@mark1russell7/visuals`, of the repository [mark1russell7/visuals](https://github.com/mark1russell7/visuals). This repository keeps the laws in `@mark1russell7/algebra` and `@mark1russell7/machines`, and the lens of each part. The 87 cases of the page and the 92 cases of the detection lab hold the move.
+
+- The visuals package adds a 3D stack of the layers of the network.
+- A catalog of the layers and of the parts of a network has a gauge of its coverage.
+- Each lens shows the computed band, the measured values of the cells and the facts of a network diagnosis.
+- SYS-120 to SYS-124 use the contract of today until the move.
+
+The next steps: SYS-120 part 2 (#567), SYS-121 part 2 (#566), SYS-122 (#569) and SYS-123 part 2 (#571) shipped on 2026-11-16. SYS-124 part 1 is the law of the egress queue. The measured values of the accept queue, the port range and the memory come next.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
+- **Shipped:** 2026-11-15
+- **Links:** [#549](https://github.com/mark1russell7/systems/pull/549), [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
 
 Each visual of the site is a lens: a set of named knobs, a pure model and its lanes. A lane has a verdict, a band, marks on a timeline, facts and the measured values of cells.
 
@@ -2526,12 +2575,14 @@ Each visual of the site is a lens: a set of named knobs, a pure model and its la
 
 The test: the 87 golden cases of the request page and the 92 cases of the detection lab do not change.
 
+The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/lens.ts` has the names of the lens, its knobs and a function from the settings to the lanes. The request page draws five lenses with one timeline, and the golden cases stayed the same.
+
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
 
@@ -2542,12 +2593,24 @@ A listener that does not accept fills its queue. The page shows each step of a n
 
 The test: the predictions of the cells `AQ.1` to `AQ.10` do not change. The page shows the measured median of each cell next to its band.
 
+Part 1 moves the law. `acceptQueueLimit` and `acceptQueueHeld` of the algebra give the count of the queue. The timers `synack_retransmit` and `synack_giveup` of `linux-tcp` give the waits of the SYN-ACK and the expiry. The cells use them, and the predictions of `AQ.1` to `AQ.10` did not change. Part 2 is the lens and its page.
+
+Part 2 is the page [the accept queue](https://mark1russell7.github.io/systems/lab/queue/). The lens `queue` gives the count of the queue and the first overflow. The lens `syn` follows the first SYN that drops, to `ETIMEDOUT` or to a place after the accept. The lens `ack` follows the first final ACK that drops. It ends with a reset, with a challenge ACK after the accept, or with a client that stays connected to nothing.
+
+A test of the site checks the counts and the times of the page against the cells `AQ.1` to `AQ.10`. The page shows no measured value. The measured values come with the copy of the ten cells at one commit, in part 3.
+
+Part 3 is the copy. The exporter `scripts/accept-queue.ts` of the site reads the records of a Cells run again with the harness. It gives each term of the law of each cell: its band, the value of each counted trial and their median. The component `QueueResults` shows each median next to its band, and it computes nothing. One Cells run of the ten cells at main gives the copy, because `AQ.8` to `AQ.10` have no record yet.
+
+- The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
+- Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
+- Service `0.9.1` and kind `0.14.10` are PATCH versions for their new dependency ranges.
+
 ### SYS-121 · The port range: a lens and its page
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
@@ -2556,40 +2619,72 @@ A client that opens many connections to one destination uses up its local ports.
 - The knobs are `ip_local_port_range`, the count of connections, the side that closes first and `tcp_tw_reuse`.
 - The law of SYS-64 is in the cells package. It moves to `@mark1russell7/machines` and `@mark1russell7/algebra`, and the cells use it from there.
 
-The test: the predictions of the cells `PR.1` to `PR.7` do not change. The page shows the measured value of each cell next to its band.
+The test: the predictions of the cells `PR.1` to `PR.8` do not change. The page shows the measured value of each cell next to its band.
+
+Part 1 moves the law. `portSearchSpan` and `portSearchShares` of the algebra give the span of the search and the share of each count of connects. The timer `time_wait` of `linux-tcp` gets its bounds on the timer wheel, from the model `linux.time-wait-lateness`. The cells use them. Part 2 is the lens and its page.
+
+Part 2 is the page [the port range](https://mark1russell7.github.io/systems/lab/ports/). The lens `search` gives the first connect that gets `EADDRNOTAVAIL`. It uses the span of the search, the gap of the connects and the hold of each closed port. The lens `hold` gives when the first port is free again: after `TIME_WAIT`, after `tcp_tw_reuse_delay`, after `LAST_ACK`, or at once after a reset. A test of the site checks the counts and the bands of the page against the cells `PR.1` to `PR.8`. The measured value of each cell comes with the copy of the eight cells at one commit, in part 3.
+
+- The release of part 1 is algebra `0.9.3`, a PATCH with new exports before 1.0.
+- Machines `0.4.1` is a PATCH: `timerOf` of `time_wait` gives two new fields, and the old fields keep their values.
+- Service and kind need no release. They do not use the new exports, and their range `^0.9.1` takes algebra `0.9.3`.
+
+Part 3 is the copy of the cells at one commit, for the measured values of the page. The run of 2026-11-16 held seven of the eight cells, with 4 of 4 runs each. `PR.7` failed one run of 4, with no fault in its plan.
+
+- The client closes second, thus it waits in `LAST_ACK` for the ACK of its FIN. In the failed run, that ACK did not come, and the FIN went again at 205 ms.
+- That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
+- The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
+
+The next step for `PR.7` is a measure of the rate: the cell runs again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** site
 - **Depends on:** SYS-120, SYS-121
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-16
+- **Shipped:** 2026-11-16
+- **Links:** [#569](https://github.com/mark1russell7/systems/pull/569), [The whole path](https://mark1russell7.github.io/systems/lab/path/)
 
 One page shows all lenses on one timeline, with one control for each shared knob. A reader follows one connection from the port of the client, through the SYN and the accept queue, to the request and the fault. Each lens keeps its own page, and the whole page uses the same lenses.
 
+The page is [the whole path](https://mark1russell7.github.io/systems/lab/path/). The contract gets a stage: a set of lenses and an exit, which passes at a band or ends the story. The function `sequence` puts the stages on one timeline. Each stage starts at the pass of the stage before it, and the stages after an end get no lanes.
+
+- The three stages are the port, the accept queue and the request. Each stage has the lenses of its own page.
+- The fault starts at the start of the request. Thus a drain of the queue moves the fault and each time of the request.
+- The send of the client comes from the request, thus the page shows no knob for it.
+
+A test of the site checks the combinator and the exit of each preset. It also checks the lanes of each stage against the lanes of its own page.
+
+The page shipped on 2026-11-16 in #569. The measured values of part 3 of SYS-120 and SYS-121 come to this page through the same lenses.
+
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 
-- **Status:** blocked
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
 A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
 
+Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the memory tier of `@mark1russell7/harness` 0.16.6 and five cells, in CI only. `MEM.1` and `MEM.2` grow a client above `memory.high` of 100 MiB and of 50 MiB. The judge compares the time of each step with the law. `MEM.3` to `MEM.5` start three tasks under `memory.max` of 200 MiB, and the law names the task that the OOM killer takes. The first records of CI give the band of the slack of a step, from a first value of 20 ms. Part 3 is the lens and its page.
+
 ### SYS-124 · The NIC: a lens, its law and its cells
 
-- **Status:** blocked
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119
-- **Started:**
+- **Started:** 2026-11-16
 - **Shipped:**
 - **Links:**
 
 A packet goes from the socket through the queue discipline and the ring of the NIC to the wire. The page shows the queues, the drops and the time of each step. The law comes from the sources of Linux and of the driver. New cells measure it in CI first, and then the lens ships with the measured values.
+
+Part 1 is the law of the egress queue in `@mark1russell7/algebra` 0.9.6, from `net/sched` of Linux 7.0. The function `netemSchedule` gives the time that each packet leaves a netem queue with a rate, or its drop at the limit. The function `tbfSchedule` gives the same for the token bucket of tbf. A veth has no ring, thus the cells of part 2 measure the qdisc and the rate. The ring of a NIC and its byte queue limits come later, from the sources of a driver. Part 3 is the lens and its page.
+
+Part 2 is later. At most three items are in progress at one time, and the copy of SYS-120 comes first.
 
 ## The items of S3
 
@@ -2812,7 +2907,7 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-103 · A declared listen backlog
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** server stack
 - **Depends on:** SYS-63
 - **Started:** 2026-11-08
@@ -2872,7 +2967,7 @@ The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of th
 
 ### SYS-102 · The port that LAST_ACK holds
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-64
 - **Started:** 2026-11-09
@@ -3024,7 +3119,7 @@ The first freeze did not stop the server. The stock Redis image starts the serve
 
 ### SYS-69 · The border of a stable system
 
-- **Status:** active
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-68
 - **Started:** 2026-11-09
@@ -3145,7 +3240,7 @@ The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each ce
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:** 2026-11-06
@@ -3217,7 +3312,7 @@ The first records show the block on a real runner. Kind run 41856630889 of the P
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
@@ -3261,18 +3356,32 @@ The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with 
 
 ### SYS-81 · The VM tier: QEMU on a runner, and its bridge
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** harness
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354)
+- **Shipped:** 2026-11-16
+- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354), [#555](https://github.com/mark1russell7/systems/pull/555), [run 43821694330](https://github.com/mark1russell7/systems/actions/runs/43821694330)
 
 The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
 
 The first slice narrows this text. It has one guest, and that guest holds the whole lab, in place of one VM for each node. A bridge cell has no fault that needs a second kernel, and each node costs memory that a runner does not have in quantity. The second node comes with the first fault that needs a second kernel (SYS-83, SYS-84, SYS-85). The disk of a guest is an overlay on one root image, thus that node needs no other build.
 
-Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The workflow `vm.yml` has no record yet, thus the bridge has no result. The first dispatch operates the default arms `e1 e4 e4 e1`. The pair `e4 e4` gives the noise of the layer.
+Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The pair `e4 e4` gives the noise of the layer.
+
+The first dispatch ([43787980707](https://github.com/mark1russell7/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum.
+
+The second dispatch ([43796539153](https://github.com/mark1russell7/systems/actions/runs/43796539153), 2026-11-15) built the harness image in the guest. Each cell of the two arms `e4` held its band. Each arm `e4` still failed, because its record had no commit of the code. The image of the guest left out the folder `.git` and had no git. The image keeps the folder `.git` of the shallow checkout and installs git. Thus the guest reads its commit as the runner does, and the next dispatch gives the first record of the bridge.
+
+The third dispatch ([43821694330](https://github.com/mark1russell7/systems/actions/runs/43821694330), 2026-11-16) gave the first record of the bridge. Each arm records the commit 3567648 with no change. Each of the 3 cells held its band in each of the 4 arms, with 11 counted runs and no void run. The kernel built in 632 s. In the guest of the last arm, the first container started at 10.3 s of uptime. The largest steal share of a run in the guest was 0.0009.
+
+| Cell | Arm 1, `e1` | Arm 2, `e4` | Arm 3, `e4` | Arm 4, `e1` |
+| --- | --- | --- | --- | --- |
+| Client idle, blackhole | 11.434 s | 11.425 s | 11.398 s | 11.379 s |
+| Client in flight, blackhole, `tcp_retries2` = 3 | 6.152 s | 6.160 s | 6.168 s | 6.192 s |
+| Client in flight, a 1 s stall | 1.675 s | 1.638 s | 1.672 s | 1.675 s |
+
+The table gives the median of each arm. For the two blackhole cells, each median of the guest is between the two medians of the runner. For the stall cell, the median of the 22 runs of the guest is 1.641 s, 34 ms below the 1.675 s of the runner. But the two arms `e4` of that cell also differ by 34 ms, and the two arms `e1` differ by 0.4 ms. Thus one pair cannot tell a shift of the guest from its noise. A limit of the layer needs 5 or more pairs.
 
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 
@@ -3331,7 +3440,7 @@ A cell that holds on the two distributions tests a law. A cell that holds on one
 
 ### SYS-87 · Socket.IO: detection, reconnect and recovery
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** 
 - **Started:** 2026-11-09
@@ -3393,7 +3502,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 
 | Pacing | Cells | What the cell gives | Effect of the pacing |
 | --- | --- | --- | --- |
-| One request | 353 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One request | 358 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
@@ -3403,6 +3512,8 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band. The 4 cells `LADDER` of SYS-93 are in the row of the open loop. Each cell gives the share of failed arrivals against a limit, and a distribution with no band. The 2 cells `SB` of SYS-69 are in the same row. Each cell gives a distribution with a band, on one side of the border of a stable system.
 
 The 13 cells of reply times on the stream client of the harness (`T01`, `CAL`, `E3.F1` and `OL`) also give an estimate of the open loop. The client waits its interval after each reply. Thus `closedLoopPlan` of `rigor-chaos` puts back each send that a stall hid, with that interval as the pause of the driver. The verdict gives the hidden sends, the pauses of the client and the spread of the estimate. The estimate is not a measure: the open-loop twin of SYS-68 stays the better measure. The 5 cells `K2.pause` have their own verdict of a pause.
+
+The 5 cells `MEM` of SYS-123 are in the row of one request. Each cell grows memory or starts tasks, and it sends no request.
 
 The closed-loop families:
 
@@ -3496,7 +3607,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
@@ -3603,6 +3714,58 @@ Each push to main gives the artifact `coverage` for the ten packages with Vitest
 - **Links:**
 
 The unit tests do not start the labs of harness and kind. The containers and the kind clusters run only in the workflows Cells and Kind. Thus these two packages have the lowest coverage of main, 53 % and 62 % of their lines. This item merges the coverage of the lab code from those runs with the unit report. It starts only when a lab run already uploads its raw coverage, and the work is in CI only. It blocks no item.
+
+### SYS-127 · The errors of an image build show in each lab
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** a release of testcontainers that shows the errors of an image build (step 2)
+- **Started:** 2026-11-15
+- **Shipped:**
+- **Links:** [#551, step 1](https://github.com/mark1russell7/systems/pull/551)
+
+testcontainers does not show the errors of an image build. A build that fails gives no error, and an old image with the same tag can stand in for the new one.
+
+This happened in the gate Flip of #550 at 288179b. The f6 step of the Redis close puts a fault in the code of the probe. The copy with the fault measured 307 ms, the figure of the copy with no fault. At 556209a the same fault measured 803 ms. A second try of the job passed.
+
+- **Step 1 (done, #551).** The image of the f6 probe gets a tag from the SHA-256 of the files of its build. After the build, the test reads the image from Docker. A build that made no image stops the test, and an old image cannot stand in for it.
+- **Step 2 (blocked).** The fix of the build errors is in testcontainers upstream. On 2026-11-16 the latest release is 12.2.1, of 2026-10-13, and it does not have the fix. When a release has it, the harness takes it in a PATCH. The release also gets a check of the alerts on `glob` and `minimatch`, which come through `archiver` in testcontainers 12.2.1. An override in the harness does not reach the users of the harness, thus the fix comes from that chain.
+
+The test: a build that fails stops the f6 test with the tag in its message.
+
+### SYS-128 · A reset after the handshake: only a segment with data gets the reset
+
+- **Status:** done
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-15
+- **Shipped:** 2026-11-16
+- **Links:** [#565, `@mark1russell7/harness` 0.16.4](https://github.com/mark1russell7/systems/pull/565)
+
+The fault `rst` with `handshake: "pass"` lets each SYN pass. The rule of the injector is `! --syn`, thus the final ACK of the handshake also gets the reset. The connect of the client ends when it sends that ACK, and the reset comes back in less than one millisecond. A program can read the result of the connect after the reset, and then the connect fails with `ECONNRESET`. A lab of a user saw this in 5 of 5 rounds. The documentation of `FaultOptions` says that the connect succeeds.
+
+The fix: with `handshake: "pass"`, only a segment with a payload gets the reset. The rule compares the payload length with zero: the total length of the IP packet, less the IP header and the TCP header. The connection tracker of Linux gives the final ACK the state `ESTABLISHED`, thus a match of the state cannot do this. The release is a PATCH of the harness, because the change makes the code agree with its documentation.
+
+The rule adds a `u32` test of data to `! --syn`. The test reads the length of the IP header and of the TCP header from the packet. Then it reads the 4 bytes that end at the first byte of the payload. A segment with no data is too short for that read, and the test does not match it.
+
+The test fits only an IP header of an odd number of words. A header with no options has 5 words, and the labs send no options. A model of the match of the kernel checks the test in the unit tests of the injector, for headers of 5 to 15 words. The kernel of the VM tier gets `CONFIG_NETFILTER_XT_MATCH_U32`.
+
+The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset. The socket of the target goes to `ESTABLISHED` for each connection. Without the option, the connect fails with `ECONNREFUSED`.
+
+### SYS-129 · The writer of the disk tier uses the stop point of rigor-testkit
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:** [#560, the disk tier](https://github.com/mark1russell7/systems/pull/560)
+
+The writer of the self-test of the disk tier (`disk-subject/writer.mts`) operates in a container with no packages. Thus it keeps its own copy of the stop protocol of `@mark1russell7/rigor-testkit/stop`. Since `0.1.18`, rigor-testkit has the entry `/stop-point`. Its runtime imports are only `node:fs` and `node:os`, and a build gate of the package holds this.
+
+The change: the harness takes rigor-testkit `^0.1.18`. The self-test copies `build/stop-point.js` into `node_modules/@mark1russell7/rigor-testkit/` of the subject folder, with a `package.json` that exports `./stop-point`. The writer imports `stopPoint` from there, and its copy goes. The digest of the subject folder skips `node_modules`. Thus the change also decides how the record of a run names the version of the copied file.
+
+The test: the self-test of the disk tier passes in CI with the import, and the writer has no code of the protocol.
 
 ### SYS-106 · The units of a take in the keyed limiter
 
@@ -3716,7 +3879,7 @@ A hash of the data comes before the service starts, because a service writes. Th
 
 ### SYS-97 · A third size of a restore
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-94
 - **Started:** 2026-11-08
@@ -3853,7 +4016,7 @@ These assertions have no flip:
 
 ### SYS-101 · A 30-day limit for the studies of the site that depend on current code
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-99
 - **Started:** 2026-11-05

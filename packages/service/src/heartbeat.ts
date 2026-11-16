@@ -41,7 +41,11 @@ export interface HeartbeatOptions {
    * answer or a miss, thus it reads a reply that is in the socket first. Without it, the heartbeat counts at once.
    */
   readonly turn?: (() => Promise<void>) | undefined;
-  /** This clock gives the ticks and the timeouts. The default is `realClock`. */
+  /**
+   * This clock gives the ticks and the timeouts. The default is `realClock`, and its timers keep a
+   * Node process alive until `stop()`. A heartbeat only watches a connection, and the connection
+   * decides if the process stays alive. Thus the owner of a connection gives `unrefClock(clock)`.
+   */
   readonly clock?: Clock | undefined;
 }
 

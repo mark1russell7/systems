@@ -10,7 +10,7 @@ export default defineConfig({
   // Redis, PostgreSQL, MongoDB and RabbitMQ clients, which load ioredis, pg, mongodb and amqplib only when they connect,
   // the HTTP client, which loads node:http only when it connects, the WebSocket client, which loads ws
   // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod, the channels on the clock, which load only collections,
-  // the edge of a service in Node (node:http and node:net only), the keyed limiter, which loads only quantity,
+  // the edge of a service in Node (node:http and node:net only), the files of a folder for that edge (node:fs, node:path and files), the keyed limiter, which loads only quantity,
   // the drain rules as data, which load no module, the host of a program in Node, which uses only node: built-ins, and the trace ids, which load only @opentelemetry/api
   entry: [
     "src/index.ts",
@@ -27,6 +27,7 @@ export default defineConfig({
     "src/heartbeat.ts",
     "src/backoff.ts",
     "src/http.ts",
+    "src/http-folder.ts",
     "src/limiter.ts",
     "src/rules.ts",
     "src/host.ts",

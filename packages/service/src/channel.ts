@@ -188,6 +188,7 @@ export const select = async <R>(...cases: readonly SelectCase<R>[]): Promise<R> 
  */
 export const timeout = (ms: number, clock: Clock = realClock): Channel<void> => {
   const ch = new Channel<void>();
+  // a receiver awaits this value, thus the timer keeps the process alive (SYS-126)
   clock.after(ms, () => {
     // The value waits for a receiver. The close lets the receivers after it fail at once.
     ch.send(undefined).catch(() => undefined);
@@ -243,6 +244,7 @@ export const within = <T>(work: WithinWork<T>, ms: number, clock: Clock = realCl
   }
   return new Promise<Within<T>>((resolve) => {
     let done = false;
+    // the caller awaits the bound, thus the timer keeps the process alive (SYS-126)
     const cancel = clock.after(ms, () => {
       if (done) return;
       done = true;
@@ -278,6 +280,7 @@ export const ticker = (ms: number, clock: Clock = realClock): Ticker => {
   const start = clock.now();
   let cancel: Cancel | undefined;
   const arm = (tick: number): void => {
+    // a ticker keeps the process alive until its caller stops it, as with setInterval (SYS-126)
     cancel = clock.after(Math.max(0, start + (tick + 1) * ms - clock.now()), () => {
       const due = Math.max(tick, Math.floor((clock.now() - start) / ms) - 1);
       ch.trySend(due);

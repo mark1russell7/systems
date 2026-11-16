@@ -937,6 +937,11 @@ export type Prediction =
       readonly pause?: PausePrediction;
       /** These are the limits of an open-loop cell (`Cell.probe.plan`). Without them, its load is a measurement. */
       readonly load?: LoadPrediction;
+      /**
+       * This record is the law of the memory controller of the client cgroup: its throttle above
+       * `memory.high`, or the victim of its OOM killer. A value outside it is a finding of its run.
+       */
+      readonly memory?: MemoryPrediction;
     };
 
 /** A queue band is a time from one line of a queue cell to another line, with its two bounds. */
@@ -944,6 +949,77 @@ export interface QueueBand {
   readonly low: Quantity;
   readonly high: Quantity;
 }
+
+/** These are the limits of the cgroup of a memory cell, in pages. A null limit reads `max`. */
+export interface MemoryLimits {
+  readonly high: number | null;
+  readonly max: number | null;
+  /** This count is `memory.swap.max` in pages. */
+  readonly swap: number;
+  /** This count is the bytes of one page. */
+  readonly page: number;
+}
+
+/** This entry gives the band of a step whose charge leaves the usage of the cgroup at `usage` pages. It also gives the events `high` of that charge. */
+export interface MemoryStep {
+  readonly usage: number;
+  readonly band: QueueBand;
+  readonly high: number;
+}
+
+/**
+ * This prediction is the throttle of one task that grows above `memory.high`. It reads the lines of
+ * the memory client. Each step touches one batch of pages, thus it charges one batch, and the task
+ * pays the debt of that charge in the step.
+ */
+export interface MemoryThrottlePrediction {
+  readonly kind: "throttle";
+  readonly limits: MemoryLimits;
+  /** This count is the HZ of the kernel that the bands are for. A run on another HZ is void. */
+  readonly hz: number;
+  /** This count is the pages of one charge, and of one step. */
+  readonly batch: number;
+  /** This usage is where the growth ends, in pages. */
+  readonly until: number;
+  /** This usage is the lowest whose charge sleeps. */
+  readonly sleepFrom: number;
+  /** This usage is the lowest whose sleep is the cap of 2 s. */
+  readonly capFrom: number;
+  /** This count is the pages that the usage at a charge can be above the usage after its step. */
+  readonly drift: number;
+  /** This band is a step whose charge does not leave the usage above `memory.high`. */
+  readonly quiet: QueueBand;
+  /**
+   * These entries are the steps from the first usage above `memory.high` to `capFrom`, one each
+   * `batch` pages. A step above the last entry has the band of the last entry.
+   */
+  readonly steps: readonly MemoryStep[];
+  /** This share is the least part of the steps above `memory.high` that the judge reads. A run with less is void. */
+  readonly read: number;
+}
+
+/** This task is one process of an OOM cell: its name, the pages that it touches, its `oom_score_adj`, and its end. */
+export interface MemoryOomTask {
+  readonly name: string;
+  readonly pages: number;
+  readonly adj: number;
+  readonly outcome: "held" | "killed";
+}
+
+/**
+ * This prediction is the victim of the OOM killer of one cgroup. The memory client starts each task
+ * in order, and each task touches its pages. The last task takes the usage to `memory.max`.
+ */
+export interface MemoryOomPrediction {
+  readonly kind: "oom";
+  readonly limits: MemoryLimits;
+  readonly tasks: readonly MemoryOomTask[];
+  /** This count is the rise of the event `oom_kill` of the cgroup. */
+  readonly kills: number;
+}
+
+/** This prediction is the law of the memory controller of one cgroup. */
+export type MemoryPrediction = MemoryThrottlePrediction | MemoryOomPrediction;
 
 /** This prediction tells how one connection of a queue cell ends. */
 export interface QueueEnd {
@@ -1169,6 +1245,7 @@ export interface Target {
  * package of the harness, and in the package of the prober for `harness`. `grpc-go` is a server of
  * grpc-go and `etcd` is etcd on Alpine: each is a subject of a target (`Target.subject`).
  * `docker-proxy` is the userland proxy of Docker Engine 29.1.5, the program of a proxy hop.
+ * `lazyfs` is the FUSE file system LazyFS with Node.js 24, the image of the disk tier (`openDiskLab`).
  */
 export type Shipped =
   | "harness"
@@ -1186,7 +1263,8 @@ export type Shipped =
   | "router"
   | "pgbouncer"
   | "pgpool"
-  | "docker-proxy";
+  | "docker-proxy"
+  | "lazyfs";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an
@@ -1327,13 +1405,15 @@ export interface ClientImage {
   readonly command: readonly string[];
   /**
    * These capabilities are added to the default set of the container of the client. A read of the
-   * statistics of conntrack over netlink needs NET_ADMIN in the namespace of the client.
+   * statistics of conntrack over netlink needs NET_ADMIN in the namespace of the client. A task that
+   * lowers its own `oom_score_adj` needs SYS_RESOURCE. A lock of more pages than `RLIMIT_MEMLOCK`
+   * needs IPC_LOCK.
    */
   readonly capabilities?: readonly ClientCapability[] | undefined;
 }
 
 /** These are the capabilities that a client image can get. */
-export const CLIENT_CAPABILITIES = ["NET_ADMIN"] as const;
+export const CLIENT_CAPABILITIES = ["IPC_LOCK", "NET_ADMIN", "SYS_RESOURCE"] as const;
 export type ClientCapability = (typeof CLIENT_CAPABILITIES)[number];
 
 /**
@@ -1456,6 +1536,12 @@ export interface Cell {
    * not have one makes the cell void (rule 8 of the environments).
    */
   readonly hostSysctls?: readonly HostSysctl[];
+  /**
+   * These are the files of the client cgroup by name, with the value that each one reads after its
+   * write: for example `memory.high` in bytes. The harness writes them after
+   * the container starts, and then it makes the file `/tmp/cgroup` in it.
+   */
+  readonly cgroup?: Readonly<Record<string, string>>;
   readonly prediction: Prediction;
   /** This side is the side whose detection the cell measures. Without it, the side is the client. */
   readonly observer?: Observer;

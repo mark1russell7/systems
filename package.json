@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@mark1russell7/api-report": "^0.5.0",
-    "@mark1russell7/conventions": "^0.41.14",
+    "@mark1russell7/conventions": "^0.42.3",
     "@mark1russell7/cue": "github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10",
     "@mark1russell7/ste-lint": "^0.3.2",
     "@mark1russell7/template-cli": "^0.1.2",
@@ -69,7 +69,7 @@
       },
       "unreleased-change": {
         "versionEachChange": true,
-        "reason": "Each pull request of systems sets the version of each package whose shipped files it changes, and each merge starts a release. On 2026-11-15, two pull requests set service 0.8.18, and the second change did not get to npm (SYS-118)."
+        "reason": "Each pull request of systems sets the version of each package whose shipped files it changes, and each merge starts a release. On 2026-11-15, two pull requests set service 0.8.18, and the second change did not get to npm (SYS-118). From conventions 0.42.3, an entry of files that git does not track ships only its build inputs. Thus vm/** of the harness and go/** of the prober do not ship, and the default list of unshipped files applies."
       }
     }
   }

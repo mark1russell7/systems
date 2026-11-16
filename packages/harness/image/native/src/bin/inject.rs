@@ -13,18 +13,21 @@
 //!   what comes from the peer, `out` what goes to it: a simplex partition.
 //! - `rst PEER [--handshake pass]` / `clear-rst PEER […]`: the peer's next segment is answered with
 //!   a reset, so its next send fails at once. A REJECT resets only the sender of the matched
-//!   segment: the target's process never hears of it. With `--handshake pass` a SYN passes
-//!   (`! --syn`), so a connect succeeds and the first segment after the SYN gets the reset: the
-//!   last ACK of the handshake, or the first data.
+//!   segment: the process of the target does not see the reset. With `--handshake pass` each
+//!   SYN and each segment with no data passes, and the first segment with data gets the reset.
+//!   Thus the handshake completes, the target accepts the connection, and the first send of the
+//!   peer fails.
 //! - `reject PEER --code host|net|port|admin [--direction in|out|both] [--protocol …]` /
 //!   `clear-reject PEER --code …`: each segment from the peer is answered with that ICMP
 //!   unreachable. On an established socket Linux keeps it as a soft error (tcp_v4_err) and goes on
 //!   retransmitting. By default it acts on TCP from the peer (`in`). `out` answers each packet that
 //!   goes to the peer, and `--protocol all` each protocol: at a router, as a host that is down
 //!   behind it.
-//! - `mtu PEER --above N` / `clear-mtu PEER --above N`: each segment from the peer longer than N
-//!   bytes drops, as a path MTU black hole does, in the namespace that receives it. It acts on
-//!   segments only when the sender's TSO and GSO and the receiver's GRO are off (`offload`).
+//! - `mtu PEER --above N [--protocol tcp|udp|icmp|all]` / `clear-mtu PEER --above N […]`: each
+//!   packet from the peer longer than N bytes drops, as a path MTU black hole does, in the
+//!   namespace that receives it. By default it acts on TCP. `--protocol all` drops each protocol,
+//!   as a real black hole does. Thus a path-MTU search with ping also sees it. It acts on segments
+//!   only when the sender's TSO and GSO and the receiver's GRO are off (`offload`).
 //! - `fin-ack PEER` / `clear-fin-ack PEER`: the first ACK of each FIN that this end sends to the
 //!   peer drops. The FIN goes again when its retransmission timer fires, and the ACK of the second
 //!   FIN passes. Thus a connection that this end closes second stays in `LAST_ACK` until its timer
@@ -137,11 +140,25 @@ struct Options {
     via: Option<String>,
 }
 
-/// The match of the handshake in a reset: nothing, or ` ! --syn` when the SYN passes.
-fn handshake_match(handshake: Option<&str>) -> Result<&'static str, Box<dyn Error>> {
+/// The u32 test of a segment with data: one byte or more after the TCP header. The connection
+/// tracker gives the last ACK of a handshake the state ESTABLISHED, thus a match of the state cannot
+/// tell that ACK from data. A u32 read takes 4 bytes and fails past the end of the packet. Thus the
+/// test reads the 4 bytes that start 3 bytes before the end of the headers.
+///
+/// - `0>>24&0xF1=0x41`: IPv4, and an IP header of an odd number of words. A header with no options
+///   has 5 words. An IP header of an even number of words does not match: the labs send no options.
+/// - `0>>22&0x38`: the length of the IP header less 4 bytes. The mask clears bit 2, and an odd
+///   number of words always sets that bit.
+/// - `@16>>26&0x3C`: the length of the TCP header, from the word of the data offset (TCP byte 12).
+/// - `@1&0=0`: the read at the end of the headers less 3 bytes. It gets 4 bytes only when data follows.
+const DATA: &str = "0>>24&0xF1=0x41&&0>>22&0x38@16>>26&0x3C@1&0=0";
+
+/// The match of the handshake in a reset: nothing, or, when the handshake passes, ` ! --syn` and the
+/// test of data. The last ACK of the handshake has no data, thus it passes too.
+fn handshake_match(handshake: Option<&str>) -> Result<String, Box<dyn Error>> {
     Ok(match handshake {
-        None => "",
-        Some("pass") => " ! --syn",
+        None => String::new(),
+        Some("pass") => format!(" ! --syn -m u32 --u32 {DATA}"),
         Some(other) => return Err(format!("unknown handshake {other}: say pass").into()),
     })
 }
@@ -196,9 +213,10 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
         None => (format!("INPUT -s {peer}/32"), format!("OUTPUT -d {peer}/32")),
         Some(dev) => (format!("FORWARD -i {dev} -s {peer}/32"), format!("FORWARD -o {dev} -d {peer}/32")),
     };
-    // a protocol limits only a black hole and a reject: the other rules match TCP by their nature
-    if opts.protocol.is_some() && !matches!(action, "blackhole" | "clear" | "reject" | "clear-reject") {
-        return Err(format!("--protocol acts on a blackhole or a reject, not on {action}").into());
+    // a protocol limits only a black hole, a reject and an MTU drop: the other rules match TCP by
+    // their nature
+    if opts.protocol.is_some() && !matches!(action, "blackhole" | "clear" | "reject" | "clear-reject" | "mtu" | "clear-mtu") {
+        return Err(format!("--protocol acts on a blackhole, a reject or an mtu, not on {action}").into());
     }
     if opts.handshake.is_some() && !matches!(action, "rst" | "clear-rst") {
         return Err(format!("--handshake acts on a rst, not on {action}").into());
@@ -214,8 +232,8 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
                 format!("{op} {to}{p} -j DROP\n"),
             )?
         }
-        // with the handshake that passes, a SYN goes through and the reset answers the segment
-        // after it: the connect succeeds, and the first exchange on it fails
+        // with the handshake that passes, the SYN and each segment with no data go through, and the
+        // reset answers the first segment with data: the target accepts, and the first send fails
         "rst" | "clear-rst" => {
             let op = op("rst");
             let syn = handshake_match(opts.handshake.as_deref())?;
@@ -239,12 +257,13 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
                 format!("{op} {to}{p} -j REJECT --reject-with {with}\n"),
             )?
         }
-        // the long segments drop where they arrive. In the namespace of the sender, an OUTPUT drop
-        // fails its sends with EPERM, and it does not lose them on the way
+        // the long packets drop where they arrive. In the namespace of the sender, an OUTPUT drop
+        // fails its sends with EPERM, and it does not lose them on the way. By default, TCP only
         "mtu" | "clear-mtu" => {
             let op = op("mtu");
             let above = opts.above.ok_or("--above N")?;
-            format!("{op} {from} -p tcp -m length --length {}:65535 -j DROP\n", above + 1)
+            let p = protocol_match(opts.protocol.as_deref().unwrap_or("tcp"))?;
+            format!("{op} {from}{p} -m length --length {}:65535 -j DROP\n", above + 1)
         }
         // the mark of the connection counts the FINs that this end sent: 1 after the first FIN, 2
         // after the second. A pure ACK from the peer drops at mark 1. Each -I goes to the top of
@@ -760,18 +779,41 @@ mod tests {
              -D OUTPUT -d 10.0.0.2/32 -p udp -j REJECT --reject-with icmp-host-unreachable\n"
         );
         assert!(rules("reject", peer, &with(Some("up"), None)).is_err());
-        // a protocol is one of four words, and only a black hole or a reject takes it
+        // a protocol is one of four words, and only a black hole, a reject or an MTU drop takes it
         assert!(options(&["--protocol".into(), "sctp".into()]).is_err());
         assert!(options(&["--protocol".into(), "tcp;x".into()]).is_err());
         assert_eq!(options(&["--protocol".into(), "all".into()]).unwrap().protocol.as_deref(), Some("all"));
         let tcp = Options { protocol: Some("tcp".into()), above: Some(1200), ..Options::default() };
-        for action in ["rst", "clear-rst", "mtu", "fin-ack"] {
+        for action in ["rst", "clear-rst", "fin-ack"] {
             assert!(rules(action, peer, &tcp).is_err(), "{action}");
         }
+        assert!(rules("mtu", peer, &tcp).is_ok());
     }
 
     #[test]
-    fn a_reset_after_the_handshake_lets_each_syn_pass() {
+    fn an_mtu_drop_takes_a_protocol_and_its_lift_deletes_the_same_rule() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let with = |protocol: Option<&str>| Options { protocol: protocol.map(Into::into), above: Some(1200), ..Options::default() };
+        // the default keeps the rule from before the option: TCP only
+        assert_eq!(rules("mtu", peer, &with(None)).unwrap(), rules("mtu", peer, &with(Some("tcp"))).unwrap());
+        for (protocol, rule) in [
+            ("tcp", "-I INPUT -s 10.0.0.2/32 -p tcp -m length --length 1201:65535 -j DROP\n"),
+            ("udp", "-I INPUT -s 10.0.0.2/32 -p udp -m length --length 1201:65535 -j DROP\n"),
+            ("icmp", "-I INPUT -s 10.0.0.2/32 -p icmp -m length --length 1201:65535 -j DROP\n"),
+            ("all", "-I INPUT -s 10.0.0.2/32 -m length --length 1201:65535 -j DROP\n"),
+        ] {
+            assert_eq!(rules("mtu", peer, &with(Some(protocol))).unwrap(), rule, "{protocol}");
+            assert_eq!(rules("clear-mtu", peer, &with(Some(protocol))).unwrap(), rule.replace("-I ", "-D "), "{protocol}");
+        }
+        let via = Options { protocol: Some("all".into()), above: Some(1200), via: Some("eth0".into()), ..Options::default() };
+        assert_eq!(
+            rules("mtu", peer, &via).unwrap(),
+            "-I FORWARD -i eth0 -s 10.0.0.2/32 -m length --length 1201:65535 -j DROP\n"
+        );
+    }
+
+    #[test]
+    fn a_reset_after_the_handshake_lets_each_syn_and_each_segment_with_no_data_pass() {
         let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
         let pass = Options { handshake: Some("pass".into()), ..Options::default() };
         // without the option, the rule is the one from before: the SYN gets the reset too
@@ -779,15 +821,17 @@ mod tests {
             rules("rst", peer, &Options::default()).unwrap(),
             "-I INPUT -s 10.0.0.2/32 -p tcp -j REJECT --reject-with tcp-reset\n"
         );
+        // one token for iptables-restore: the test has no space
+        assert!(!DATA.contains(' '));
         assert_eq!(
             rules("rst", peer, &pass).unwrap(),
-            "-I INPUT -s 10.0.0.2/32 -p tcp ! --syn -j REJECT --reject-with tcp-reset\n"
+            format!("-I INPUT -s 10.0.0.2/32 -p tcp ! --syn -m u32 --u32 {DATA} -j REJECT --reject-with tcp-reset\n")
         );
         assert_eq!(rules("clear-rst", peer, &pass).unwrap(), rules("rst", peer, &pass).unwrap().replace("-I ", "-D "));
         let via = Options { handshake: Some("pass".into()), via: Some("eth0".into()), ..Options::default() };
         assert_eq!(
             rules("rst", peer, &via).unwrap(),
-            "-I FORWARD -i eth0 -s 10.0.0.2/32 -p tcp ! --syn -j REJECT --reject-with tcp-reset\n"
+            format!("-I FORWARD -i eth0 -s 10.0.0.2/32 -p tcp ! --syn -m u32 --u32 {DATA} -j REJECT --reject-with tcp-reset\n")
         );
         // the one value is pass, and only a reset takes it
         assert!(options(&["--handshake".into(), "drop".into()]).is_err());
@@ -796,6 +840,93 @@ mod tests {
         for action in ["blackhole", "clear", "reject", "mtu", "fin-ack"] {
             assert!(rules(action, peer, &host).is_err(), "{action}");
         }
+    }
+
+    /// The match of xt_u32 (net/netfilter/xt_u32.c, u32_match_it) on the bytes of one IP packet. A
+    /// read of 4 bytes past the end of the packet fails the match, as in the kernel.
+    fn u32_matches(expression: &str, packet: &[u8]) -> bool {
+        let len = packet.len() as u64;
+        let word = |at: u64| u32::from_be_bytes(packet[at as usize..at as usize + 4].try_into().unwrap());
+        let number = |text: &str| match text.strip_prefix("0x") {
+            Some(hex) => u32::from_str_radix(hex, 16).unwrap(),
+            None => text.parse().unwrap(),
+        };
+        expression.split("&&").all(|test| {
+            let (location, values) = test.split_once('=').unwrap();
+            // the numbers of the location, each after its operator: the first one has none
+            let mut steps: Vec<(&str, u32)> = Vec::new();
+            let mut rest = location;
+            let mut op = "";
+            while !rest.is_empty() {
+                let end = rest.find(|c: char| "&@<>".contains(c)).unwrap_or(rest.len());
+                steps.push((op, number(&rest[..end])));
+                rest = &rest[end..];
+                op = ["<<", ">>", "&", "@"].into_iter().find(|each| rest.starts_with(each)).unwrap_or("");
+                rest = &rest[op.len()..];
+            }
+            let first = u64::from(steps[0].1);
+            if len < 4 || first > len - 4 {
+                return false;
+            }
+            let mut at = 0u64;
+            let mut val = word(first);
+            for &(op, n) in &steps[1..] {
+                match op {
+                    "&" => val &= n,
+                    "<<" => val <<= n,
+                    ">>" => val >>= n,
+                    _ => {
+                        at += u64::from(val);
+                        if at + 4 > len || u64::from(n) > len - at - 4 {
+                            return false;
+                        }
+                        val = word(at + u64::from(n));
+                    }
+                }
+            }
+            values.split(',').any(|range| {
+                let (low, high) = range.split_once(':').unwrap_or((range, range));
+                number(low) <= val && val <= number(high)
+            })
+        })
+    }
+
+    /// An IPv4 packet of TCP: `ihl` and `doff` are the lengths of its headers in words of 4 bytes,
+    /// and `data` bytes follow them.
+    fn segment(ihl: usize, doff: usize, data: usize) -> Vec<u8> {
+        let len = 4 * ihl + 4 * doff + data;
+        let mut bytes = vec![0xA5u8; len];
+        bytes[0] = 0x40 | ihl as u8;
+        // a TOS with each bit set: its 2 high bits are in the word of the IP length, and the masks drop them
+        bytes[1] = 0xFF;
+        bytes[2..4].copy_from_slice(&(len as u16).to_be_bytes());
+        bytes[9] = 6;
+        // the reserved bits and AE after the data offset, each set: the mask drops them
+        bytes[4 * ihl + 12] = (doff as u8) << 4 | 0x0F;
+        bytes
+    }
+
+    #[test]
+    fn the_test_of_data_needs_one_byte_after_the_tcp_header() {
+        // the model agrees with the rule of the MTU drop, a test that the kernel also applies
+        assert!(u32_matches("0&0xFFFF=1201:65535", &segment(5, 8, 1149)));
+        assert!(!u32_matches("0&0xFFFF=1201:65535", &segment(5, 8, 1148)));
+        // a header with no options (5 words), with timestamps (8), with each option (15), and an IP
+        // header with options (7 and 15 words)
+        for (ihl, doff) in [(5, 5), (5, 8), (5, 15), (7, 8), (15, 15)] {
+            assert!(!u32_matches(DATA, &segment(ihl, doff, 0)), "{ihl} {doff}, with no data");
+            for data in [1, 2, 3, 4, 5, 1448] {
+                assert!(u32_matches(DATA, &segment(ihl, doff, data)), "{ihl} {doff}, with {data} bytes");
+            }
+        }
+        // an IP header of an even number of words does not match, with data or with none
+        for data in [0, 1, 100] {
+            assert!(!u32_matches(DATA, &segment(6, 8, data)), "6 8, with {data} bytes");
+        }
+        // a packet of IPv6 does not match
+        let mut six = segment(5, 8, 10);
+        six[0] = 0x65;
+        assert!(!u32_matches(DATA, &six));
     }
 
     #[test]

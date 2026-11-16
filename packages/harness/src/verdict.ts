@@ -501,7 +501,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
-    // the law of an accept queue, a port range, a paused consumer or a conntrack table: each run holds each term of it, or the run is outside
+    // the law of an accept queue, a port range, a paused consumer, a conntrack table or a memory limit: each run holds each term of it, or the run is outside
     const law =
       prediction.queue !== undefined
         ? "queue"
@@ -511,7 +511,9 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
             ? "paused consumer"
             : prediction.conntrack !== undefined
               ? "conntrack table"
-              : undefined;
+              : prediction.memory !== undefined
+                ? "memory limit"
+                : undefined;
     if (law !== undefined) {
       const off = new Set(outside.map((each) => each.run)).size;
       return {

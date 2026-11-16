@@ -289,6 +289,7 @@ stageRank: build/lifecycle.d.ts#stageRank
 symbolsOf: build/law.d.ts#symbolsOf
 takeQuotas: build/limiter/quota.d.ts#takeQuotas
 unitsOf: build/limiter/policy.d.ts#unitsOf
+unrefClock: @mark1russell7/algebra/clock#unrefClock (external)
 verdictOf: build/law.d.ts#verdictOf
 watchdog: build/watchdog.d.ts#watchdog
 workerLoop: build/worker.d.ts#workerLoop
@@ -727,6 +728,7 @@ type Clock: @mark1russell7/algebra/clock#Clock (external)
 type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
 platformClock: @mark1russell7/algebra/clock#platformClock (external)
 realClock: @mark1russell7/algebra/clock#realClock (external)
+unrefClock: @mark1russell7/algebra/clock#unrefClock (external)
 
 ## ./channel (build/channel.d.ts): names
 
@@ -813,6 +815,16 @@ probeResponse: build/http/probes.d.ts#probeResponse
 probeServer: build/http/probes.d.ts#probeServer
 sse: build/http/outcome.d.ts#sse
 writeOutcome: build/http/outcome.d.ts#writeOutcome
+
+## ./http-folder (build/http-folder.d.ts): names
+
+FOLDER_CONTENT_SECURITY_POLICY: build/http/folder.d.ts#FOLDER_CONTENT_SECURITY_POLICY
+type FolderFileStat: build/http/folder.d.ts#FolderFileStat
+type FolderHandlerOptions: build/http/folder.d.ts#FolderHandlerOptions
+UNKNOWN_CONTENT_TYPE: build/http/folder.d.ts#UNKNOWN_CONTENT_TYPE
+WEB_CONTENT_TYPES: build/http/folder.d.ts#WEB_CONTENT_TYPES
+contentTypeOf: build/http/folder.d.ts#contentTypeOf
+folderHandler: build/http/folder.d.ts#folderHandler
 
 ## ./limiter (build/limiter.d.ts): names
 
@@ -2418,6 +2430,8 @@ export interface ServiceSpec {
   readonly stateDir: string;
   readonly console?: "hidden" | "visible" | undefined;
   readonly timeLimit?: Quantity | undefined;
+  readonly stopGrace?: Quantity | undefined;
+  readonly stopsChildren?: boolean | undefined;
 }
 
 ### build/host/render.d.ts#ServiceStart
@@ -2708,6 +2722,38 @@ export declare const HTTP_CLIENT_STARTING_KNOBS: HttpClientKnobs;
 
 ### build/http-client/starting.d.ts#HTTP_CLIENT_STARTING_POLL
 export declare const HTTP_CLIENT_STARTING_POLL: Poll;
+
+### build/http/folder.d.ts#FOLDER_CONTENT_SECURITY_POLICY
+export declare const FOLDER_CONTENT_SECURITY_POLICY: string;
+
+### build/http/folder.d.ts#FolderFileStat
+export interface FolderFileStat {
+  isFile(): boolean;
+  readonly size: number;
+}
+
+### build/http/folder.d.ts#FolderHandlerOptions
+export interface FolderHandlerOptions {
+  readonly prefix?: string | undefined;
+  readonly index?: string | undefined;
+  readonly contentType?: ((file: string) => string) | undefined;
+  readonly contentSecurityPolicy?: string | undefined;
+  readonly readFile?: ((file: string) => Promise<Uint8Array>) | undefined;
+  readonly realpath?: ((file: string) => Promise<string>) | undefined;
+  readonly stat?: ((file: string) => Promise<FolderFileStat>) | undefined;
+}
+
+### build/http/folder.d.ts#UNKNOWN_CONTENT_TYPE
+export declare const UNKNOWN_CONTENT_TYPE = "application/octet-stream";
+
+### build/http/folder.d.ts#WEB_CONTENT_TYPES
+export declare const WEB_CONTENT_TYPES: Readonly<Record<string, string>>;
+
+### build/http/folder.d.ts#contentTypeOf
+export declare const contentTypeOf: (file: string, types?: Readonly<Record<string, string>>) => string;
+
+### build/http/folder.d.ts#folderHandler
+export declare const folderHandler: (root: string, options?: FolderHandlerOptions) => RequestHandler;
 
 ### build/http/outcome.d.ts#HandleOptions
 export interface HandleOptions<T> extends Omit<OutcomeOptions<T>, "keepAlive" | "retryAfter"> {

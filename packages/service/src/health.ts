@@ -1,6 +1,6 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cancel, Clock } from "./clock.ts";
-import { realClock } from "./clock.ts";
+import { realClock, unrefClock } from "./clock.ts";
 import type { Check, Gate, ServiceDescription } from "./description.ts";
 import type { MachineName, Recorder } from "./events.ts";
 import type { Latch, Result, Trace } from "./latch.ts";
@@ -175,6 +175,8 @@ export const healthRuntime = (
     budgetTimer = null;
     if (gate !== "open" && gate !== "failed") gateTrace(gate, gate, "startup.over-budget");
   });
+  // the budget only traces, thus it does not keep the process alive (SYS-126)
+  budgetTimer.unref?.();
 
   const changed = (): void => {
     if (listeners.size === 0) return;
@@ -192,7 +194,9 @@ export const healthRuntime = (
         ? null
         : latch(
             timing,
-            clock,
+            // a check watches the parts of the service: the parts keep the process alive, and the
+            // windows of the latch do not (SYS-126)
+            unrefClock(clock),
             check.gates === "readiness",
             changed,
             tracer(timing.type === "window" ? "window" : "latch", check.name),
@@ -206,6 +210,9 @@ export const healthRuntime = (
         run,
         clock,
         random,
+        // a check watches the parts of the service: the parts keep the process alive. The warm-up
+        // awaits its sweep of polls, thus the timeout of a poll stays referenced (SYS-126)
+        unrefLoop: true,
         forced: () =>
           forced.has(check.name) || (check.dependency !== null && forced.has(check.dependency)),
         record: (result) => {

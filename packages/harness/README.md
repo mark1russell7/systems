@@ -177,6 +177,19 @@ A Kafka group (`Kafka`, `Cell.kafka`) is a group of Kafka brokers in KRaft mode 
 - **A target from the image of a subject** (`Target.subject`). The target operates the image of a subject in place of its stock image. `Target.image` is then the stock base of that image, and the manifest names both. The procedures server is a program in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
+## The memory of a client
+
+A cell can set the limits of the memory controller of cgroup v2 for its client (`Cell.cgroup`, SYS-123). The law of those limits is in `@mark1russell7/algebra` (`memcg.ts`), from the sources of Linux.
+
+- **The files of the cgroup.** `Cell.cgroup` maps a file of the client cgroup to its value, for example `memory.high` in bytes. An admin container in the host cgroup namespace writes each file before the client starts. It reads each file back, and a value that the kernel changed stops the run.
+- **The memory client** is `/opt/harness/memory` of the image `harness`. It has two commands:
+  - `grow` touches memory in steps of `--step` pages until `memory.current` reaches `--until-pages`. Before the map of that memory, it locks its own pages, thus a reclaim frees none of them. The lock needs the capability `IPC_LOCK` of the client.
+  - `oom` starts one task for each `--task name:pages:adj`, in order. Each task sets its `oom_score_adj`, then touches its pages. An adj below the adj of the parent needs `SYS_RESOURCE`.
+- **The lines of the memory client.** The `ready` line gives the limits as the cgroup prints them, the usage, the page size and the lock. `grow` writes a `step` line for each step: its time, the usage after it and the count of the event `high`. `oom` writes a `task` line for each task: `held`, `killed` or `ended`, with its signal. Both commands end with the counts of `memory.events`, and `grow` also gives the stall of `memory.pressure`.
+- **The law of a throttle** (`MemoryThrottlePrediction`) has one entry for each batch of 64 pages above `memory.high`. An entry is the time band of a step and its events `high`. The judge (`measureMemory`) compares each step with the entries at its usage and at its usage plus the drift (`stepBand`). It also compares the stall of `memory.pressure` with the sum of the low ends of the bands.
+- **The law of the OOM killer** (`MemoryOomPrediction`) gives the outcome of each task and the count of the event `oom_kill` of the cgroup.
+- **A void run.** A run is void when the cgroup reads other limits than the cell, or when the client stops before its end. A throttle run is also void when the client did not lock its pages, or on a kernel with another HZ. It is void too when the judge reads less than the share `read` of the steps above the high. The judge does not read a step whose usage rose by more or less than one batch, outside the drift.
+
 ## The subjects
 
 A subject (`Subject`, `image.ts`) is the program under test, as data. The harness does not import the program. It starts the image of the program. Thus another repository can give its own subject, with its own release in it.
@@ -205,7 +218,7 @@ The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imag
 
 ## The images
 
-The harness ships sixteen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness ships seventeen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 From 0.11.20, the harness builds each image with the CLI of Docker (`docker build`), thus with BuildKit where the CLI has it. Testcontainers reads nothing of the output of a build, and its error is "Failed to build image" only. The error of a failed build holds each line of its output that names an error, and its last 15 lines (`buildFailure`). Thus the host of a lab needs the CLI of Docker and its daemon.
 
@@ -259,9 +272,12 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - A cell gives its configuration as files of the hop (`ProxyHop.files`): `/etc/pgbouncer/pgbouncer.ini` and `/etc/pgbouncer/userlist.txt`. In them, `{{next.host}}` and `{{next.port}}` are the host and the port of the server.
   - PgBouncer does not start as root, thus it operates as its own user.
 - **The Pgpool-II image** (`image/pgpool`) is Pgpool-II 4.7.3, a pooler hop, on a digest-pinned Alpine. The build gets the source of the tag V4_7_3 from GitHub and checks its SHA-256 before it builds. The tree of git holds no `configure`, thus the build runs autoreconf, and bison and flex make the parser.
-- **The docker-proxy image** (`image/docker-proxy`) is docker-proxy of Docker Engine 29.1.5, the userland proxy of a published port, as a proxy hop. The build gets the static bundle of Docker 29.1.5 and checks its SHA-256. The proxy writes its status to fd 3, the pipe of its parent in Docker. Thus a cell starts it with `3>/dev/null`.
   - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgpool" }`.
   - A cell gives its configuration as one file of the hop: `/etc/pgpool/pgpool.conf`. Each other file that Pgpool-II reads is empty in the image. Pgpool-II operates in the foreground as its own user.
+- **The docker-proxy image** (`image/docker-proxy`) is docker-proxy of Docker Engine 29.1.5, the userland proxy of a published port, as a proxy hop. The build gets the static bundle of Docker 29.1.5 and checks its SHA-256. The proxy writes its status to fd 3, the pipe of its parent in Docker. Thus a cell starts it with `3>/dev/null`.
+- **The LazyFS image** (`image/lazyfs`) is LazyFS of the commit 3edad01 with Node.js 24.21.0, on a digest-pinned Debian. It is the image of the disk tier.
+  - LazyFS is a FUSE file system that keeps each write in its cache until an fsync. The command `lazyfs::clear-cache` loses each write of data after the last fsync. It keeps each directory entry: LazyFS applies each new file, each rename and each unlink at once. This is the rule of the kind `lose-unsynced`.
+  - The build gets the tarball of the commit, toml11 v3.7.1 and spdlog v1.10.0. It checks the SHA-256 of each before it builds.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
 
@@ -321,17 +337,19 @@ A cell applies its fault with `Lab.fault` and removes it with `Lab.lift`. A prog
 | Option | Fault | Rule | Default |
 | --- | --- | --- | --- |
 | `direction`: `in`, `out` | `blackhole`, `reject` | `in` faces what comes from the peer, `out` what goes to it. At a router, `out` is `-o DEV -d PEER`. | both for a black hole, `in` for a reject |
-| `protocol`: `tcp`, `udp`, `icmp`, `all` | `blackhole`, `reject` | `-p` and the protocol, or no match for `all` | `all` for a black hole, `tcp` for a reject |
+| `protocol`: `tcp`, `udp`, `icmp`, `all` | `blackhole`, `reject`, `mtu` | `-p` and the protocol, or no match for `all` | `all` for a black hole, `tcp` for a reject and an MTU drop |
 | `code`: `host`, `net`, `port`, `admin` | `reject` | the ICMP unreachable of the answer | none: a reject needs a code |
 | `above` | `mtu` | the longest segment that passes, in bytes | none: an MTU drop needs a length |
-| `handshake`: `pass` | `rst` | `! --syn`: each SYN passes, and the next segment gets the reset | the SYN also gets the reset |
+| `handshake`: `pass` | `rst` | `! --syn` and a `u32` test of data: each SYN and each segment with no data passes, and the first segment with data gets the reset | the SYN also gets the reset |
 | `peers` | each fault except `silence` | the addresses that the rules face, in one commit | the peer of the place |
 
-The injector refuses `protocol` on a fault other than a black hole or a reject. It refuses `handshake` on a fault other than a reset.
+The injector refuses `protocol` on a fault other than a black hole, a reject or an MTU drop. An MTU drop with `all` is a real black hole. Thus a path-MTU search with ping also sees it. The injector refuses `handshake` on a fault other than a reset.
 
 - **A silence** (`silence`) at a hop drops each packet of the namespace of the hop, in INPUT, OUTPUT and FORWARD, in one commit. The links stay up and ARP continues. Thus a connect through a silent router times out, and the router sends no answer. A silence names no peer and takes no option. It acts only at a hop, and the side of the hop has no effect.
 - **A host that is down behind a router** is a reject at the router toward the target, with `direction: "out"` and `protocol: "all"`. The router answers each packet that it forwards to the host with the ICMP unreachable of `code`.
-- **A reset after the handshake** is a reset with `handshake: "pass"`. The connect succeeds, and the first segment after it gets the reset. Thus a TLS client sees `ECONNRESET` in its handshake.
+- **A reset after the handshake** is a reset with `handshake: "pass"`. The connect succeeds, and the last ACK of the handshake passes. Thus the target accepts the connection, and the first segment with data gets the reset. A TLS client sees `ECONNRESET` in its handshake.
+
+  The `u32` test reads the length of each header from the packet. It does not match an IP header of an even number of words. A header with no options has 5 words, and the labs send no options.
 
 ## The measurement
 
@@ -454,6 +472,35 @@ The injector refuses `protocol` on a fault other than a black hole or a reject. 
 - **The socket after a drop** (`Verdict.left`). The verdict gives the spread of the time from a drop to the close of its socket by the program. It also counts the runs where the program did not close it. For the runs where the socket stayed open until the end of the client process, it gives the spread of that end (`exited`).
 
 The distribution test needs a simulator, which does not exist at this time.
+
+## The disk tier
+
+The disk tier applies a disk plan of `@mark1russell7/rigor-chaos` to the files of a program. A fault of the kind `lose-unsynced` is a power cut. The process stops at its point, and the disk loses each write after the last fsync. Then a check reads the files that the disk kept. An example is the data loss of each synchronous setting of a database.
+
+```ts
+import { diskPlanOf } from "@mark1russell7/rigor-chaos";
+import { openDiskLab, runDiskFault } from "@mark1russell7/harness";
+
+const lab = await openDiskLab({
+  subject: { name: "wal", folder: "./subject", writer: ["node", "/opt/subject/writer.mts"], check: ["node", "/opt/subject/check.mts"] },
+  code: { commit, dirty: false },
+});
+const plan = diskPlanOf([{ kind: "lose-unsynced", at: { step: 40 } }, { kind: "lose-unsynced", at: { ms: 1500 } }]);
+for (const fault of plan.faults) console.log((await runDiskFault(lab, fault)).persisted);
+```
+
+- **The subject** is a folder with a writer and a check, each an argv with no shell. The tier copies the folder to `/opt/subject` in each container.
+  - The writer operates in the mount of LazyFS, `/mnt/disk`. The check operates in the folder below the mount, `/var/disk`, and writes one JSON value.
+- **A fault at a step** uses the stop points of `@mark1russell7/rigor-testkit/stop`. The tier puts the order in `RIGOR_STOP`, and the writer stops itself at the step with `SIGKILL`.
+  - The protocol is data: an environment variable and one JSON line for each stop point. Thus a writer in each language can speak it.
+- **A fault at a time** stops the writer with `SIGKILL` after that time from its start, through `timeout -s KILL`.
+- **Each fault has a new container.** After the stop, the tier sends `lazyfs::clear-cache` to LazyFS, and waits for its answer. Then the check starts.
+- **The record** (`harness-disk/1`) holds the fault and the digest of the subject folder. It also holds the image with its build record and id, and the commit of the code.
+  - It also holds the substrate (layer E1), the exit and the stop points of the writer, and the value of the check (`persisted`).
+  - `diskRecordProblems` gives each problem of the pins of a record. A record with a problem is not a record.
+- **The container is privileged.** LazyFS needs `/dev/fuse` and a mount. Testcontainers 12 has no option for one device. The AppArmor profile of Docker refuses a FUSE mount in a container that is not privileged.
+  - Thus the tier operates only in CI, in the workflow `disk.yml`.
+- **The self-test** (`HARNESS_DISK=1`) has a writer that writes each line to one file with an fsync, and to a second file with none. Each case holds its expected result as data.
 
 ## Runs
 

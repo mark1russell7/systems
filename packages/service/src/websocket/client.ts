@@ -1,5 +1,5 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { realClock } from "../clock.ts";
+import { realClock, unrefClock } from "../clock.ts";
 import type {
   Attempt,
   CheckOptions,
@@ -354,7 +354,8 @@ export const wsClient = (name: string, spec: WsClientSpec, options: WsClientOpti
       interval: ms(knobs.heartbeat_interval),
       timeout: ms(knobs.heartbeat_timeout),
       misses: spec.heartbeatMisses,
-      clock,
+      // the socket keeps the process alive, thus the heartbeat does not (SYS-126)
+      clock: unrefClock(clock),
       turn,
       due: () => status === "ready",
       live: () => status === "ready",
@@ -397,6 +398,7 @@ export const wsClient = (name: string, spec: WsClientSpec, options: WsClientOpti
       record("connect.failed", "failing", detail);
       scheduleRetry();
     };
+    // a caller can await the connection, thus this bound keeps the process alive (SYS-126)
     const bound = clock.after(ms(knobs.connect_bound), () => fail("no open connection in connect_bound"));
     void (async () => {
       const c = await create(wsOptions(spec));

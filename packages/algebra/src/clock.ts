@@ -113,6 +113,13 @@ const timersOf =
  * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
  * that it gives also has `unref`. A delay longer than `setTimeout` takes waits in steps.
  *
+ * The rule of `unref`: each timer keeps a Node process alive, as `setTimeout` does. Thus a process
+ * does not end in a wait that a caller awaits. A hang shows, but a silent exit with lost work does not.
+ *
+ * The owner of a timer uses its `unref` only when a socket, a child process or another hold keeps the
+ * process alive. An example is the heartbeat of a connection. Each other timer stays referenced, a
+ * ticker too: its caller stops it. The option `unref` makes each timer of the clock an exception.
+ *
  * With a speed or a start, `now()` is the start plus the monotonic time since the call, times the
  * speed. A scaled clock reads `performance.now()` at each timer. Thus the fake timers of a test
  * also fake `performance`, else its timers wait again and again.
@@ -130,10 +137,37 @@ export const platformClock = (options: PlatformClockOptions = {}): Clock => {
 };
 
 /**
- * This clock reads `performance.now()` and uses `setTimeout`. Its timers do not keep a Node
- * process alive, thus a timer that is not stopped cannot stop the exit of the process.
+ * This clock reads `performance.now()` and uses `setTimeout`. It is `platformClock()`, thus its
+ * timers keep a Node process alive, as `setTimeout` does. A process does not end in a wait that a
+ * caller awaits, for example a retry.
+ *
+ * The owner of a timer uses its `unref` only when a socket, a child process or another hold keeps the
+ * process alive. Each other timer stays referenced: its caller stops it. A timer that is not stopped
+ * delays the exit, and that delay shows.
+ *
+ * Before algebra 0.9.0, the timers of this clock did not keep the process alive. A process then ended
+ * with the code 0 in a wait, and lost its work.
  */
-export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });
+export const realClock: Clock = /* @__PURE__ */ platformClock();
+
+/**
+ * This function gives a clock with the time of `clock`. Its timers do not keep a Node process alive:
+ * each timer uses the `unref` of its cancel. The owner of a part gives it to the part only
+ * when a socket, a child process or another hold keeps the process alive. An example is the
+ * heartbeat of a connection. A wall clock stays a wall clock. The timers of a fake clock have no
+ * `unref`, thus they do not change.
+ */
+export function unrefClock(clock: Clock): Clock;
+export function unrefClock(clock: WallClock): WallClock;
+export function unrefClock(clock: Clock | WallClock): Clock | WallClock {
+  const after = (ms: number, run: () => void): Cancel => {
+    const cancel = clock.after(ms, run);
+    cancel.unref?.();
+    return cancel;
+  };
+  const now = (): number => clock.now();
+  return clock.time === "wall" ? { time: "wall", now, after } : { now, after };
+}
 
 /**
  * This function makes the wall clock of the platform: `Date.now()`, and the timers of
@@ -159,9 +193,9 @@ export const wallClock = (options: PlatformClockOptions = {}): WallClock => {
  * This function gives a promise that resolves after `ms` milliseconds on the clock. When the signal
  * aborts, the promise stops its timer and rejects with the reason of the signal. A signal that
  * aborted before the call rejects at once, and starts no timer. Each end removes the listener from
- * the signal. A timer of `realClock` does not keep a Node process alive: give `platformClock()` to
- * keep the process alive until the delay ends. The clock is a `Clock` or a `WallClock`: the
- * function uses only its timers, and each timer of the two waits on the monotonic time.
+ * the signal. A timer of `realClock` keeps a Node process alive until the delay ends. The clock is
+ * a `Clock` or a `WallClock`: the function uses only its timers, and each timer of the two waits
+ * on the monotonic time.
  */
 export const delay = (clock: Pick<Clock, "after">, ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise<void>((resolve, reject) => {
@@ -260,10 +294,14 @@ export interface FakeWallClock extends WallClock {
 /**
  * This function makes a fake wall clock. Its instant starts at `start`, in milliseconds from the
  * epoch. Its timers are the timers of a `fakeClock`, thus a step of the instant moves no timer.
+ *
+ * With `monotonic`, the wall clock reads that fake clock and uses its timers. Then the wall clock and
+ * the monotonic clock of a test have one queue of timers, and `advance` of either clock moves both.
+ * Without it, the wall clock makes its own fake clock.
  */
-export const fakeWallClock = (start: number): FakeWallClock => {
-  const monotonicTime = fakeClock(0);
-  let offset = start;
+export const fakeWallClock = (start: number, monotonic?: FakeClock): FakeWallClock => {
+  const monotonicTime = monotonic ?? fakeClock(0);
+  let offset = start - monotonicTime.now();
   return {
     time: "wall",
     now: () => monotonicTime.now() + offset,
@@ -280,6 +318,75 @@ export const fakeWallClock = (start: number): FakeWallClock => {
     },
   };
 };
+
+/**
+ * A frame clock is a wall clock in frames. A frame starts at a mark. In a frame, the time is the wall
+ * time at the mark plus the monotonic time since the mark. Thus the time does not go back in a frame,
+ * also when the wall clock steps. At the next mark, `step` gives the change of the wall clock.
+ */
+export interface FrameClock extends WallClock {
+  /**
+   * This method gives the step of the wall clock since the last mark, in whole milliseconds. The step is the
+   * change of the wall time against the monotonic time. A change of the drift limit or less gives 0. A read
+   * does not end the step. Only `mark` ends it.
+   */
+  step(): number;
+  /** This method starts a new frame. The time of the frame is then the wall time again. */
+  mark(): void;
+}
+
+/** These options make a frame clock. */
+export interface FrameClockOptions {
+  /**
+   * This value is the largest change of the wall clock against the monotonic clock that is a drift, not a
+   * step, in milliseconds. The default is `FRAME_DRIFT_LIMIT`.
+   */
+  readonly driftLimit?: number | undefined;
+}
+
+/**
+ * This value is the default drift limit of a frame clock, in milliseconds. A slew of NTP changes the wall
+ * clock by 0.5 ms in each second at most. Thus a frame of 2000 seconds or less sees no slew as a step.
+ */
+export const FRAME_DRIFT_LIMIT = 1000;
+
+/** This function tells if a wall clock is a frame clock: a clock that also gives the steps of the wall clock. */
+export function isFrameClock(clock: WallClock): clock is FrameClock {
+  const frame = clock as Partial<FrameClock>;
+  return typeof frame.step === "function" && typeof frame.mark === "function";
+}
+
+/**
+ * This function makes a frame clock on a wall clock and a monotonic clock. The first frame starts at
+ * once. `now()` gives whole milliseconds. The timers are the timers of the wall clock, thus they wait
+ * on the monotonic time, and a step does not move them.
+ *
+ * A runtime marks a frame at the start of each pass. Then each instant of the pass is in one frame,
+ * and the runtime reads the step of the wall clock once, before the mark.
+ *
+ * @throws {RangeError} for a drift limit that is not a finite number of 0 or more.
+ */
+export function frameClock(wall: WallClock, monotonic: Pick<Clock, "now">, options: FrameClockOptions = {}): FrameClock {
+  const limit = options.driftLimit ?? FRAME_DRIFT_LIMIT;
+  if (!(Number.isFinite(limit) && limit >= 0)) {
+    throw new RangeError(`The drift limit of a frame clock is ${String(limit)}. It must be a finite number of 0 or more.`);
+  }
+  let wallAt = wall.now();
+  let monotonicAt = monotonic.now();
+  return {
+    time: "wall",
+    now: () => wallAt + Math.floor(monotonic.now() - monotonicAt),
+    after: (ms, run) => wall.after(ms, run),
+    step() {
+      const size = Math.round(wall.now() - monotonic.now() - (wallAt - monotonicAt));
+      return Math.abs(size) > limit ? size : 0;
+    },
+    mark() {
+      wallAt = wall.now();
+      monotonicAt = monotonic.now();
+    },
+  };
+}
 
 // Civil time: the wall-clock time of an instant in a time zone, and windows of local time. A clock
 // gives instants, and civil time maps an instant to the time on the wall of a zone. It uses only

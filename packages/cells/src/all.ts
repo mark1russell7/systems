@@ -3,6 +3,7 @@ import { ACCEPT_QUEUE_CELLS, SERVICE_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { CONNTRACK_CELLS } from "./conntrack.ts";
+import { MEMORY_CELLS } from "./memory.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
@@ -64,7 +65,8 @@ export interface Subjects {
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
  * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder is last.
+ * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder
+ * follows them, and the cells of the memory controller of a cgroup are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -114,6 +116,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...OPEN_LOOP_CELLS,
     ...BORDER_CELLS,
     ...LADDER_CELLS,
+    ...MEMORY_CELLS,
   ];
 };
 

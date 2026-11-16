@@ -9,6 +9,8 @@
 type Band: build/run.chunk.d.ts#Band
 type Detection: build/run.chunk.d.ts#Detection
 type Detector: build/run.chunk.d.ts#Detector
+type EgressOutcome: build/index.d.ts#EgressOutcome
+type EgressPacket: build/index.d.ts#EgressPacket
 type Expr: build/machine.chunk.d.ts#Expr
 FIRED: build/machine.chunk.d.ts#FIRED
 type Firing: build/run.chunk.d.ts#Firing
@@ -16,8 +18,17 @@ type KnobValues: build/run.chunk.d.ts#KnobValues
 type Machine: build/machine.chunk.d.ts#Machine
 type MachineRun: build/run.chunk.d.ts#MachineRun
 type Manifestation: build/run.chunk.d.ts#Manifestation
+type MemcgLevel: build/index.d.ts#MemcgLevel
+type MemcgSleepBounds: build/index.d.ts#MemcgSleepBounds
+type MemcgThrottle: build/index.d.ts#MemcgThrottle
+type NetemQueue: build/index.d.ts#NetemQueue
+type NetemRate: build/index.d.ts#NetemRate
 type Node: build/run.chunk.d.ts#Node
+type OomTask: build/index.d.ts#OomTask
 type Over: build/machine.chunk.d.ts#Over
+PORT_SEARCH_CHAIN_LARGEST: build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
+type PschedFactor: build/index.d.ts#PschedFactor
+type PschedRate: build/index.d.ts#PschedRate
 type Realization: build/machine.chunk.d.ts#Realization
 type Recovery: build/run.chunk.d.ts#Recovery
 type ReplayOptions: build/replay.chunk.d.ts#ReplayOptions
@@ -26,12 +37,17 @@ type RunMachineOptions: build/run.chunk.d.ts#RunMachineOptions
 type ScheduleOptions: build/run.chunk.d.ts#ScheduleOptions
 type Scheduled: build/run.chunk.d.ts#Scheduled
 type Situation: build/run.chunk.d.ts#Situation
+type TbfBuckets: build/index.d.ts#TbfBuckets
+type TbfPeak: build/index.d.ts#TbfPeak
+type TbfQueue: build/index.d.ts#TbfQueue
 type Timer: build/machine.chunk.d.ts#Timer
 type TimerBounds: build/run.chunk.d.ts#TimerBounds
 type Transition: build/replay.chunk.d.ts#Transition
 type TransitionDef: build/machine.chunk.d.ts#TransitionDef
 type Unit: build/machine.chunk.d.ts#Unit
 type Vantage: build/machine.chunk.d.ts#Vantage
+acceptQueueHeld: build/index.d.ts#acceptQueueHeld
+acceptQueueLimit: build/index.d.ts#acceptQueueLimit
 algebraProblems: build/run.chunk.d.ts#algebraProblems
 arr: build/index.d.ts#arr
 conntrackFloor: build/index.d.ts#conntrackFloor
@@ -39,13 +55,28 @@ detection: build/run.chunk.d.ts#detection
 errnoOf: build/run.chunk.d.ts#errnoOf
 evaluate: build/run.chunk.d.ts#evaluate
 exprKnobs: build/machine.chunk.d.ts#exprKnobs
+fifoDefaultLimit: build/index.d.ts#fifoDefaultLimit
 firings: build/run.chunk.d.ts#firings
 fromStates: build/index.d.ts#fromStates
+gsoQdiscLength: build/index.d.ts#gsoQdiscLength
 machineProblems: build/machine.chunk.d.ts#machineProblems
+memcgHighDelay: build/index.d.ts#memcgHighDelay
+memcgHighSleep: build/index.d.ts#memcgHighSleep
+memcgSleepBounds: build/index.d.ts#memcgSleepBounds
+memcgThrottle: build/index.d.ts#memcgThrottle
 modelSource: build/run.chunk.d.ts#modelSource
+netemPacketTime: build/index.d.ts#netemPacketTime
+netemSchedule: build/index.d.ts#netemSchedule
+oomBadness: build/index.d.ts#oomBadness
+oomVictim: build/index.d.ts#oomVictim
 overValues: build/run.chunk.d.ts#overValues
 parseExpr: build/run.chunk.d.ts#parseExpr
+portSearchChain: build/index.d.ts#portSearchChain
+portSearchShares: build/index.d.ts#portSearchShares
+portSearchSpan: build/index.d.ts#portSearchSpan
 probeTrain: build/run.chunk.d.ts#probeTrain
+pschedFactor: build/index.d.ts#pschedFactor
+pschedLengthTime: build/index.d.ts#pschedLengthTime
 readsFired: build/machine.chunk.d.ts#readsFired
 realizationKnobs: build/run.chunk.d.ts#realizationKnobs
 realizationOf: build/run.chunk.d.ts#realizationOf
@@ -54,17 +85,23 @@ replay: build/replay.chunk.d.ts#replay
 runMachine: build/run.chunk.d.ts#runMachine
 stackedDetection: build/run.chunk.d.ts#stackedDetection
 synGiveUpSends: build/run.chunk.d.ts#synGiveUpSends
+tbfBuckets: build/index.d.ts#tbfBuckets
+tbfSchedule: build/index.d.ts#tbfSchedule
 timerBand: build/run.chunk.d.ts#timerBand
 timerOf: build/run.chunk.d.ts#timerOf
 timerUnder: build/run.chunk.d.ts#timerUnder
 transitionOn: build/run.chunk.d.ts#transitionOn
+udpFrameLength: build/index.d.ts#udpFrameLength
 
 ## ./clock (build/clock.d.ts): names
 
 Cancel: build/clock.chunk.d.ts#Cancel
 Clock: build/clock.chunk.d.ts#Clock
+FRAME_DRIFT_LIMIT: build/clock.chunk.d.ts#FRAME_DRIFT_LIMIT
 FakeClock: build/clock.chunk.d.ts#FakeClock
 FakeWallClock: build/clock.chunk.d.ts#FakeWallClock
+FrameClock: build/clock.chunk.d.ts#FrameClock
+FrameClockOptions: build/clock.chunk.d.ts#FrameClockOptions
 LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
@@ -74,13 +111,16 @@ delay: build/clock.chunk.d.ts#delay
 fakeClock: build/clock.chunk.d.ts#fakeClock
 fakeWallClock: build/clock.chunk.d.ts#fakeWallClock
 firstInstantOf: build/clock.chunk.d.ts#firstInstantOf
+frameClock: build/clock.chunk.d.ts#frameClock
 inWindow: build/clock.chunk.d.ts#inWindow
 instantsOf: build/clock.chunk.d.ts#instantsOf
+isFrameClock: build/clock.chunk.d.ts#isFrameClock
 localTime: build/clock.chunk.d.ts#localTime
 nextBoundary: build/clock.chunk.d.ts#nextBoundary
 offsetChanges: build/clock.chunk.d.ts#offsetChanges
 platformClock: build/clock.chunk.d.ts#platformClock
 realClock: build/clock.chunk.d.ts#realClock
+unrefClock: build/clock.chunk.d.ts#unrefClock
 wallClock: build/clock.chunk.d.ts#wallClock
 windowProblems: build/clock.chunk.d.ts#windowProblems
 
@@ -115,6 +155,9 @@ interface Clock {
   after(ms: number, run: () => void): Cancel;
 }
 
+### build/clock.chunk.d.ts#FRAME_DRIFT_LIMIT
+declare const FRAME_DRIFT_LIMIT = 1e3;
+
 ### build/clock.chunk.d.ts#FakeClock
 interface FakeClock extends Clock {
   advance(ms: number): Promise<void>;
@@ -128,6 +171,17 @@ interface FakeWallClock extends WallClock {
   block(ms: number): void;
   set(instant: number): void;
   readonly pending: number;
+}
+
+### build/clock.chunk.d.ts#FrameClock
+interface FrameClock extends WallClock {
+  step(): number;
+  mark(): void;
+}
+
+### build/clock.chunk.d.ts#FrameClockOptions
+interface FrameClockOptions {
+  readonly driftLimit?: number | undefined;
 }
 
 ### build/clock.chunk.d.ts#LocalTime
@@ -177,16 +231,22 @@ declare const delay: (clock: Pick<Clock, "after">, ms: number, signal?: AbortSig
 declare const fakeClock: (start?: number) => FakeClock;
 
 ### build/clock.chunk.d.ts#fakeWallClock
-declare const fakeWallClock: (start: number) => FakeWallClock;
+declare const fakeWallClock: (start: number, monotonic?: FakeClock) => FakeWallClock;
 
 ### build/clock.chunk.d.ts#firstInstantOf
 declare function firstInstantOf(wall: number, zone: string): number | undefined;
+
+### build/clock.chunk.d.ts#frameClock
+declare function frameClock(wall: WallClock, monotonic: Pick<Clock, "now">, options?: FrameClockOptions): FrameClock;
 
 ### build/clock.chunk.d.ts#inWindow
 declare function inWindow(instant: number, window: TimeWindow): boolean;
 
 ### build/clock.chunk.d.ts#instantsOf
 declare function instantsOf(wall: number, zone: string): number[] | undefined;
+
+### build/clock.chunk.d.ts#isFrameClock
+declare function isFrameClock(clock: WallClock): clock is FrameClock;
 
 ### build/clock.chunk.d.ts#localTime
 declare function localTime(instant: number, zone: string): LocalTime | undefined;
@@ -203,11 +263,120 @@ declare const platformClock: (options?: PlatformClockOptions) => Clock;
 ### build/clock.chunk.d.ts#realClock
 declare const realClock: Clock;
 
+### build/clock.chunk.d.ts#unrefClock
+declare function unrefClock(clock: Clock): Clock;
+declare function unrefClock(clock: WallClock): WallClock;
+
 ### build/clock.chunk.d.ts#wallClock
 declare const wallClock: (options?: PlatformClockOptions) => WallClock;
 
 ### build/clock.chunk.d.ts#windowProblems
 declare function windowProblems(window: TimeWindow): string[];
+
+### build/index.d.ts#EgressOutcome
+type EgressOutcome = {
+  readonly kind: "sent";
+  readonly at: number;
+  readonly ahead: number;
+  readonly bytes: number;
+} | {
+  readonly kind: "dropped";
+  readonly why: "limit" | "size";
+  readonly ahead: number;
+  readonly bytes: number;
+};
+
+### build/index.d.ts#EgressPacket
+interface EgressPacket {
+  readonly at: number;
+  readonly length: number;
+}
+
+### build/index.d.ts#MemcgLevel
+interface MemcgLevel {
+  readonly usage: number;
+  readonly high: number;
+}
+
+### build/index.d.ts#MemcgSleepBounds
+interface MemcgSleepBounds {
+  readonly first: number;
+  readonly capped: number;
+}
+
+### build/index.d.ts#MemcgThrottle
+interface MemcgThrottle {
+  readonly over: number;
+  readonly sleeps: number;
+  readonly jiffies: number;
+  readonly late: number;
+  readonly high: number;
+}
+
+### build/index.d.ts#NetemQueue
+interface NetemQueue extends NetemRate {
+  readonly latency?: number;
+  readonly limit: number;
+}
+
+### build/index.d.ts#NetemRate
+interface NetemRate {
+  readonly rate: number;
+  readonly packetOverhead?: number;
+  readonly cellSize?: number;
+  readonly cellOverhead?: number;
+}
+
+### build/index.d.ts#OomTask
+interface OomTask {
+  readonly rss: number;
+  readonly swap: number;
+  readonly pageTables: number;
+  readonly adj: number;
+}
+
+### build/index.d.ts#PORT_SEARCH_CHAIN_LARGEST
+export declare const PORT_SEARCH_CHAIN_LARGEST = 16;
+
+### build/index.d.ts#PschedFactor
+interface PschedFactor {
+  readonly mult: number;
+  readonly shift: number;
+}
+
+### build/index.d.ts#PschedRate
+interface PschedRate {
+  readonly rate: number;
+  readonly overhead?: number;
+  readonly mpu?: number;
+  readonly linklayer?: "ethernet" | "atm";
+}
+
+### build/index.d.ts#TbfBuckets
+interface TbfBuckets {
+  readonly buffer: number;
+  readonly mtu: number;
+  readonly maxSize: number;
+}
+
+### build/index.d.ts#TbfPeak
+interface TbfPeak extends PschedRate {
+  readonly burst: number;
+}
+
+### build/index.d.ts#TbfQueue
+interface TbfQueue {
+  readonly rate: PschedRate;
+  readonly burst: number;
+  readonly limit: number;
+  readonly peak?: TbfPeak;
+}
+
+### build/index.d.ts#acceptQueueHeld
+export declare const acceptQueueHeld: (backlog: number, somaxconn: number) => number;
+
+### build/index.d.ts#acceptQueueLimit
+export declare const acceptQueueLimit: (backlog: number, somaxconn: number) => number;
 
 ### build/index.d.ts#arr
 export declare const arr: <T>(value: T | readonly T[]) => readonly T[];
@@ -215,8 +384,62 @@ export declare const arr: <T>(value: T | readonly T[]) => readonly T[];
 ### build/index.d.ts#conntrackFloor
 export declare const conntrackFloor: (max: number, hz: number, expired?: number) => number;
 
+### build/index.d.ts#fifoDefaultLimit
+export declare const fifoDefaultLimit: (kind: "pfifo" | "bfifo", txQueueLen: number, mtu: number, hardHeaderLen?: number) => number;
+
 ### build/index.d.ts#fromStates
 export declare const fromStates: (m: Pick<Machine, "states">, from: string | readonly string[]) => string[];
+
+### build/index.d.ts#gsoQdiscLength
+export declare const gsoQdiscLength: (length: number, segments: number, headers: number) => number;
+
+### build/index.d.ts#memcgHighDelay
+export declare const memcgHighDelay: (memory: readonly MemcgLevel[], debt: number, hz: number, swap?: readonly MemcgLevel[]) => number;
+
+### build/index.d.ts#memcgHighSleep
+export declare const memcgHighSleep: (memory: readonly MemcgLevel[], debt: number, hz: number, swap?: readonly MemcgLevel[]) => number;
+
+### build/index.d.ts#memcgSleepBounds
+export declare const memcgSleepBounds: (high: number, debt: number, hz: number) => MemcgSleepBounds;
+
+### build/index.d.ts#memcgThrottle
+export declare const memcgThrottle: (levels: readonly MemcgLevel[], charges: number, hz: number, batch?: number) => MemcgThrottle;
+
+### build/index.d.ts#netemPacketTime
+export declare const netemPacketTime: (length: number, rate: NetemRate) => number;
+
+### build/index.d.ts#netemSchedule
+export declare const netemSchedule: (packets: readonly EgressPacket[], queue: NetemQueue) => readonly EgressOutcome[];
+
+### build/index.d.ts#oomBadness
+export declare const oomBadness: (task: OomTask, totalPages: number, pageSize?: number) => number | undefined;
+
+### build/index.d.ts#oomVictim
+export declare const oomVictim: (tasks: readonly OomTask[], totalPages: number, pageSize?: number) => number | undefined;
+
+### build/index.d.ts#portSearchChain
+export declare const portSearchChain: (size: number, rounds?: number) => ReadonlyMap<number, number>;
+
+### build/index.d.ts#portSearchShares
+export declare const portSearchShares: (size: number, rounds?: number) => ReadonlyMap<number, number>;
+
+### build/index.d.ts#portSearchSpan
+export declare const portSearchSpan: (size: number) => number;
+
+### build/index.d.ts#pschedFactor
+export declare const pschedFactor: (rate: number) => PschedFactor;
+
+### build/index.d.ts#pschedLengthTime
+export declare const pschedLengthTime: (length: number, rate: PschedRate) => number;
+
+### build/index.d.ts#tbfBuckets
+export declare const tbfBuckets: (queue: TbfQueue) => TbfBuckets;
+
+### build/index.d.ts#tbfSchedule
+export declare const tbfSchedule: (packets: readonly EgressPacket[], queue: TbfQueue) => readonly EgressOutcome[];
+
+### build/index.d.ts#udpFrameLength
+export declare const udpFrameLength: (payload: number, family?: 4 | 6) => number;
 
 ### build/machine.chunk.d.ts#Expr
 type Expr = {

@@ -1,7 +1,7 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { backoffDelay } from "../backoff.ts";
 import type { Cancel } from "../clock.ts";
-import { realClock } from "../clock.ts";
+import { realClock, unrefClock } from "../clock.ts";
 import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, RetryKnobs, SendOptions, Sent } from "../client/core.ts";
 import {
   attachClient,
@@ -292,7 +292,8 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       interval: ms(knobs.heartbeat_interval),
       timeout: ms(knobs.heartbeat_timeout),
       misses: spec.heartbeatMisses,
-      clock,
+      // the socket keeps the process alive, thus the heartbeat does not (SYS-126)
+      clock: unrefClock(clock),
       turn,
       // a PING starts at each tick, also while an earlier PING waits
       overlap: true,
@@ -354,6 +355,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
                 resolve();
               };
               c.on("end", end);
+              // the close awaits this wait, thus it keeps the process alive (SYS-126)
               stop = clock.after(Math.max(0, within), end);
             });
       await ended(ms(knobs.close_bound) - (clock.now() - startedClose));

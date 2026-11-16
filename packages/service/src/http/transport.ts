@@ -439,6 +439,8 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       closeIdleConnections();
       startSweep();
     });
+    // the listener keeps the process alive, thus the sweep does not (SYS-126)
+    sweep.unref?.();
   };
 
   /**
@@ -693,6 +695,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
         };
         drainers.add(check);
         if (deadline <= clock.now()) reached();
+        // the drain awaits its deadline, thus this timer keeps the process alive (SYS-126)
         else cancel = clock.after(deadline - clock.now(), reached);
       });
     },

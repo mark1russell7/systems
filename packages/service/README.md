@@ -317,11 +317,15 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 
 | Entry | Exports |
 | --- | --- |
-| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock` |
+| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock`, `unrefClock` |
 | `@mark1russell7/service/heartbeat` | `heartbeat`, `detectionTime` |
 | `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
 
-- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
+- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is `platformClock()`: its timers keep the process alive, as `setTimeout` does. Each cancel also has `unref`, for one timer.
+- **The rule of `unref`.** The service uses the `unref` of a timer only when a socket, a child process or the hold of the lifecycle keeps the process alive. Each other timer stays referenced. Thus a wait that a caller awaits, for example `retry` or `within`, ends before the process exits.
+- **The timers that do not keep the process alive.** These timers only watch other work. Examples are the heartbeat of a connection, the checks and the watchdog of a service, and the sweep of a listener. The timers of a supervisor for a live child are also examples. `unrefClock(clock)` gives a part such a clock.
+- **The timers that keep the process alive.** These timers are work, or they bound work that a caller awaits. Examples are a retry, a ticker, the sleeps of a worker loop and the polls of `watchTargets`. The owner stops each one.
+- **Before 0.9.0.** The default clock did not keep the process alive. Thus a command-line tool ended in the wait of a retry, with the code 0 and lost work.
 - **The home of the clock.** The clock lives in `@mark1russell7/algebra/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
 - **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
 - **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.
@@ -513,6 +517,8 @@ A quota is the limit of a provider of an API: at most `limit` units in each wind
 | `outcomeResponse`, `endRecord`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
 | `limitedResponse(refused)` | The answer to a take that a keyed limiter refused: 429, with `Retry-After` in whole seconds, or 413 for the cause `capacity` |
 
+The files of a folder, for example a built page, have their own entry: [The files of a folder](#the-files-of-a-folder).
+
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` or `node:http2` (`EdgeServer`) a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
 - **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
 - **The idle close.** `server_idle_close` is the real idle close of the server, which O01 compares with the idle time of a client. Node closes an idle connection at `keepAliveTimeout` plus `keepAliveTimeoutBuffer`. Thus the transport sets `keepAliveTimeout` to `server_idle_close` less the buffer of the server.
@@ -609,6 +615,36 @@ app.controller("orders").requires("db").route("POST /orders", { idempotent: fals
 const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 ```
 
+### The files of a folder
+
+`@mark1russell7/service/http-folder` serves the files of one folder, for example a built page next to the routes of a service. Its handler goes in the list of mounts of `./http`. Thus the page and its API have one origin. The entry `./http` imports only `node:http` and `node:net`, thus this handler has an entry of its own.
+
+| Export | Function |
+| --- | --- |
+| `folderHandler(root, options)` | A request handler that serves the files of the folder `root` |
+| `contentTypeOf(file, types)` | The content type of a file from its extension |
+| `WEB_CONTENT_TYPES` | The content types of the files of a web page, the default table |
+| `UNKNOWN_CONTENT_TYPE` | The content type of a file with an extension that the table does not have |
+| `FOLDER_CONTENT_SECURITY_POLICY` | The default content security policy of each file |
+
+- **The paths.** A path that ends with `/` gives the index file, `index.html` by default. The option `prefix` puts the folder under a path, for example `/page`.
+- **The next handler.** A path that is not for a file of the folder goes to the next handler. Thus a route after it still answers, and a request that no handler takes gets 404.
+- **The paths out of the folder.** The handler refuses an encoded `..`, a NUL, a backslash and a path that does not decode. It also refuses a link in the folder that points out of the folder. Each refused path goes to the next handler.
+- **The methods.** The handler answers GET and HEAD. HEAD gets the headers of GET and no body. Another method on a file gets 405 with `Allow: GET, HEAD`.
+- **The stat.** Only GET reads the body of the file. HEAD and the 405 take the kind and the length of the file from its stat.
+- **The headers.** Each file gets its content type, its length, the content security policy, `X-Content-Type-Options: nosniff` and `Cache-Control: no-cache`.
+- **The policy.** The default policy lets the page load only its own scripts, styles, images and fonts. The page connects only to its own origin, and it has no inline script.
+- **The options.** `index`, `contentType` and `contentSecurityPolicy` change the answers. `readFile`, `realpath` and `stat` change the file functions, for example in a test.
+
+```ts
+import { fileURLToPath } from "node:url";
+import { folderHandler } from "@mark1russell7/service/http-folder";
+
+// the routes of the service first, then the files of the built page
+http.mount(handle("orders", "POST /orders", (req, signal) => createOrder(req, signal)));
+http.mount(folderHandler(fileURLToPath(new URL("./web/", import.meta.url))));
+```
+
 ## The host
 
 `@mark1russell7/service/host` keeps programs alive on one computer, without a container platform. It installs a Windows scheduled task or a systemd user unit. A group supervisor then starts each program in sequence and starts it again after it stops. Of the modules of Node, the entry imports only `node:child_process`, `node:fs/promises`, `node:net`, `node:os` and `node:path`. The root of the package does not import it.
@@ -632,6 +668,8 @@ Each effect goes through a port (`HostPorts`): the commands, the files, the proc
 
 - **The task.** On Windows, `installService` writes the XML of a scheduled task and gives it to `schtasks /Create`. The task starts at logon, at boot or each day, as the user, without a window. It starts the program again after a failure.
 - **The unit.** On Linux, `installService` writes a systemd user unit in `$XDG_CONFIG_HOME/systemd/user` and enables it. A daily start also gets a timer. Other platforms get `unsupported`, and nothing changes.
+- **The restart on Linux.** A unit with a restart has `Restart=always`. Thus the program starts again after each exit, also with the code 0. A stop of `stopService` keeps it stopped.
+- **The stop on Linux.** `stopGrace` is the most time of the stop (`TimeoutStopSec`). After it, systemd stops each process of the unit with `SIGKILL`. `stopsChildren: true` sends the stop signal only to the program (`KillMode=mixed`), thus a supervisor stops its children in stages. Give a supervisor both.
 - **The start at boot.** `start: "boot"` starts the program when the computer starts, before a logon. Thus a program starts again after a power cut, and it does not wait for the user. A boot start is in the background.
 - **The background.** `background: true` runs the program when the user is not logged on. On Windows, the task gets an S4U logon, and Windows keeps no password. Thus the task has no access to a network share that needs the credentials of the user. On Linux, the install starts `loginctl enable-linger`. Thus the user manager of systemd starts at boot and stays after the logout. The removal keeps the linger, because other units can need it.
 - **The elevation.** Task Scheduler refuses a boot trigger and an S4U logon from a shell that is not elevated (`Access is denied`). Thus the owner of the computer starts the install of a task in the background one time, in a shell of an administrator. The problem of the outcome tells so.

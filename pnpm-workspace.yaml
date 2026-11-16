@@ -15,8 +15,16 @@ allowBuilds:
 # @procedures/peer has @mark1russell7/service as a plain dependency. Without this override, pnpm gives the peer
 # its own copy from npm, apart from the workspace link: two copies of the service in one process. CLI-117 of the
 # client makes the service a peer dependency. When that client release is on npm, SYS-104 removes this override.
+#
+# Testcontainers gets archiver-utils 5.0.2 through archiver 7, and archiver-utils asks for glob ^10. A glob before
+# 14.0.2 has CVE-2026-118773. Its minimatch 9 has CVE-2026-118764. The package archiver-utils uses only glob.sync,
+# and glob 14 keeps that function.
+#
+# Archiver 8 does not fit: testcontainers uses the default export, and archiver 8 has none. When testcontainers
+# moves to archiver 8, or archiver-utils accepts glob 14, this override goes.
 overrides:
   "@mark1russell7/service": "workspace:*"
+  "archiver-utils>glob": "^14.0.2"
 
 minimumReleaseAgeExclude:
   # Our own packages: the release train updates them, so the release age check of pnpm does not apply to them.

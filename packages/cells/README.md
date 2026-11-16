@@ -263,9 +263,9 @@ These cells (`src/port-range.ts`, SYS-64) give the law of `ip_local_port_range` 
 
 - **The two ends.** The native program `ports` is a target that accepts each connection, and a client that connects until a connect fails. The harness ships it in its image. The target closes its sockets at a command on its control port, thus a cell chooses the side that closes first.
 - **An even range.** `PR.1` gets 16 connects from a range of 16, then `EADDRNOTAVAIL` at once. The first 8 connects get the ports of the parity of the low port.
-- **An odd range.** The search rounds the size down to an even number. `PR.2` gets 2 connects from a range of 3, and the search does not reach the top port. `PR.3` gets 4 or 5 from a range of 5. Each round starts from the same table, and `searchShares` gives the exact share of each count.
+- **An odd range.** The search rounds the size down to an even number. `PR.2` gets 2 connects from a range of 3, and the search does not reach the top port. `PR.3` gets 4 or 5 from a range of 5. Each round starts from the same table, and `portSearchShares` of the algebra package gives the exact share of each count.
 - **The unit of the count.** `PR.4` connects to two ports of one target. The search refuses a 4-tuple, not a port, thus the count is for each destination.
-- **TIME_WAIT.** `PR.5` closes the client first. Each port stays held for 60 s from the FIN of the target, plus the timer wheel. `PR.6` sets `tcp_tw_reuse` to 1, and each port comes back 1000 ms after that FIN. The default of 2 is for loopback only.
+- **TIME_WAIT.** `PR.5` closes the client first. Each port stays held for 60 s from the FIN of the target, plus the timer wheel. The timer `time_wait` of the document of Linux TCP gives the bounds of the wheel. `PR.6` sets `tcp_tw_reuse` to 1, and each port comes back 1000 ms after that FIN. The default of 2 is for loopback only.
 - **The other ways to close.** A reset holds nothing, thus each round of `PR.1` to `PR.4` starts with each port free. `PR.7` closes the target first. The client holds no port, and each new SYN passes the TIME_WAIT of the target.
 - **LAST_ACK.** `PR.8` closes the target first, and the fault `fin-ack` drops the first ACK of each FIN of the client. Each port stays held in `LAST_ACK` until its FIN goes again, at the RTO at the latest.
 

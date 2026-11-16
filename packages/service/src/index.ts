@@ -41,7 +41,7 @@ export { BOUND_RULES, CLOSE_BOUND_RULE, DECLARATION_RULE, LAW_STATISTIC, LIMITER
 export type { IdentityType } from "./identity.ts";
 export { IDENTITY_TYPES } from "./identity.ts";
 export type { Cancel, Clock, PlatformClockOptions } from "./clock.ts";
-export { platformClock, realClock } from "./clock.ts";
+export { platformClock, realClock, unrefClock } from "./clock.ts";
 export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";
 export { detectionTime, heartbeat } from "./heartbeat.ts";
 export type { Backoff, DelayBand, Jitter } from "./backoff.ts";
