@@ -29,6 +29,28 @@ export {
 } from "./machine.ts";
 export { acceptQueueHeld, acceptQueueLimit } from "./accept-queue.ts";
 export { conntrackFloor } from "./conntrack.ts";
+export type {
+  EgressOutcome,
+  EgressPacket,
+  NetemQueue,
+  NetemRate,
+  PschedFactor,
+  PschedRate,
+  TbfBuckets,
+  TbfPeak,
+  TbfQueue,
+} from "./egress.ts";
+export {
+  fifoDefaultLimit,
+  gsoQdiscLength,
+  netemPacketTime,
+  netemSchedule,
+  pschedFactor,
+  pschedLengthTime,
+  tbfBuckets,
+  tbfSchedule,
+  udpFrameLength,
+} from "./egress.ts";
 export type { MemcgLevel, MemcgSleepBounds, MemcgThrottle, OomTask } from "./memcg.ts";
 export {
   memcgHighDelay,
