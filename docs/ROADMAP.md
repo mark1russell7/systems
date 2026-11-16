@@ -3657,30 +3657,30 @@ The unit tests do not start the labs of harness and kind. The containers and the
 
 ### SYS-127 · The errors of an image build show in each lab
 
-- **Status:** in progress
+- **Status:** blocked
 - **Area:** engines
-- **Depends on:**
+- **Depends on:** a release of testcontainers that shows the errors of an image build (step 2)
 - **Started:** 2026-11-15
 - **Shipped:**
-- **Links:**
+- **Links:** [#551, step 1](https://github.com/mark1russell7/systems/pull/551)
 
 testcontainers does not show the errors of an image build. A build that fails gives no error, and an old image with the same tag can stand in for the new one.
 
 This happened in the gate Flip of #550 at 288179b. The f6 step of the Redis close puts a fault in the code of the probe. The copy with the fault measured 307 ms, the figure of the copy with no fault. At 556209a the same fault measured 803 ms. A second try of the job passed.
 
-- **Step 1.** The image of the f6 probe gets a tag from the SHA-256 of the files of its build. After the build, the test reads the image from Docker. A build that made no image stops the test, and an old image cannot stand in for it.
-- **Step 2.** The fix of the build errors is in testcontainers upstream. When a release has it, the harness takes it in a PATCH. The release also gets a check of the alerts on `glob` and `minimatch`, which come through `archiver` in testcontainers 12.2.1. An override in the harness does not reach the users of the harness, thus the fix comes from that chain.
+- **Step 1 (done, #551).** The image of the f6 probe gets a tag from the SHA-256 of the files of its build. After the build, the test reads the image from Docker. A build that made no image stops the test, and an old image cannot stand in for it.
+- **Step 2 (blocked).** The fix of the build errors is in testcontainers upstream. On 2026-11-16 the latest release is 12.2.1, of 2026-10-13, and it does not have the fix. When a release has it, the harness takes it in a PATCH. The release also gets a check of the alerts on `glob` and `minimatch`, which come through `archiver` in testcontainers 12.2.1. An override in the harness does not reach the users of the harness, thus the fix comes from that chain.
 
 The test: a build that fails stops the f6 test with the tag in its message.
 
 ### SYS-128 · A reset after the handshake: only a segment with data gets the reset
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-16
+- **Links:** [#565, `@mark1russell7/harness` 0.16.4](https://github.com/mark1russell7/systems/pull/565)
 
 The fault `rst` with `handshake: "pass"` lets each SYN pass. The rule of the injector is `! --syn`, thus the final ACK of the handshake also gets the reset. The connect of the client ends when it sends that ACK, and the reset comes back in less than one millisecond. A program can read the result of the connect after the reset, and then the connect fails with `ECONNRESET`. A lab of a user saw this in 5 of 5 rounds. The documentation of `FaultOptions` says that the connect succeeds.
 
