@@ -207,17 +207,18 @@ export const measureMemory = (run: Run, expected: MemoryPrediction): Measured =>
     events: Object.fromEntries(Object.entries(countsOf(last)).filter(([name]) => name !== "t")),
     stall: some === null ? null : quantity(some / 1e6, "s"),
   };
+  const voidedWith = (why: string): Measured => ({ ...voided(why), memory });
   if (expected.kind === "throttle") {
     // a reclaim of an unlocked page of the client gives a step less than one batch, and more events high
-    if (ready["locked"] === false) return voided("the client did not lock its pages, thus a reclaim can free them: give it IPC_LOCK");
-    if (run.hz !== undefined && run.hz !== expected.hz) return voided(`the kernel runs at HZ ${run.hz}, and the bands are for HZ ${expected.hz}`);
+    if (ready["locked"] === false) return voidedWith("the client did not lock its pages, thus a reclaim can free them: give it IPC_LOCK");
+    if (run.hz !== undefined && run.hz !== expected.hz) return voidedWith(`the kernel runs at HZ ${run.hz}, and the bands are for HZ ${expected.hz}`);
     const high = expected.limits.high ?? Number.POSITIVE_INFINITY;
     const over = memory.steps.filter((step) => step.usage + expected.drift > high);
     const counted = over.filter((step) => step.read).length;
     if (over.length === 0 || counted < expected.read * over.length)
-      return voided(`the judge read ${counted} of the ${over.length} steps above memory.high, less than ${expected.read * 100}%`);
+      return voidedWith(`the judge read ${counted} of the ${over.length} steps above memory.high, less than ${expected.read * 100}%`);
     const reached = memory.steps.at(-1)?.usage ?? start;
-    if (reached < expected.until) return voided(`the growth ended at ${reached} pages, below ${expected.until}`);
+    if (reached < expected.until) return voidedWith(`the growth ended at ${reached} pages, below ${expected.until}`);
   }
   const found = expected.kind === "throttle" ? throttleFindings(memory, expected) : oomFindings(memory, expected);
   return { ...base, void: null, finding: found.length === 0 ? null : found.join(". "), memory };

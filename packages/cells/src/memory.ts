@@ -30,8 +30,8 @@ import { HZ, s } from "./catalog.ts";
  *   can go at the first reclaims. Those reclaims are near the high, where no sleep and no retry follow.
  * - The OOM killer. Three tasks grow in order under `memory.max`, and the last one meets the limit.
  *   The OOM killer takes the task with the most points: its resident pages and its page tables, plus
- *   `oom_score_adj` times a thousandth of `memory.max`. It does not take a task at −1000. After one
- *   kill the other tasks fit.
+ *   `oom_score_adj` times a thousandth of `memory.max`. It does not take a task at −1000. When it
+ *   takes one task, the other tasks fit.
  */
 
 /** This image is the stock base of the image of the harness, for the record. */

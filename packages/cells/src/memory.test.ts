@@ -18,7 +18,7 @@ const imageOf = (cell: Cell): ClientImage => {
 const cellOf = (plan: string) => {
   const cell = MEMORY_CELLS.find((each) => each.name.startsWith(`${plan} `));
   if (cell === undefined || cell.prediction.detects !== null || cell.prediction.memory === undefined) throw new Error(`${plan} has no law`);
-  return { cell, law: cell.prediction.memory };
+  return { cell, prediction: cell.prediction, law: cell.prediction.memory };
 };
 
 const throttleOf = (plan: string): MemoryThrottlePrediction => {
@@ -117,12 +117,12 @@ describe("the law of a growth above memory.high", () => {
 
   it("waits for the longest growth and a margin", () => {
     for (const plan of ["MEM.1", "MEM.2"]) {
-      const { cell } = cellOf(plan);
+      const { prediction } = cellOf(plan);
       const law = throttleOf(plan);
       let sleeps = 0;
       for (let usage = law.limits.high! + 1; usage <= law.until; usage += 64) sleeps += memcgThrottle([{ usage: usage - 64, high: law.limits.high! }], 1, HZ).jiffies / HZ;
       expect(growthTime(law)).toBeGreaterThan(sleeps);
-      expect(valueIn(cell.prediction.window, "s")).toBe(Math.ceil(growthTime(law)) + 30);
+      expect(valueIn(prediction.window, "s")).toBe(Math.ceil(growthTime(law)) + 30);
     }
   });
 });

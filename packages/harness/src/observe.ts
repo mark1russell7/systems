@@ -123,7 +123,10 @@ export interface Measured {
   readonly ports?: PortsReading;
   /** This record is what a run of a conntrack cell measured: the flows, the count, and when a slot came back. */
   readonly conntrack?: ConntrackReading;
-  /** This record is what a run of a memory cell measured: each step of a growth, or the end of each task of an OOM. */
+  /**
+   * This record is what a run of a memory cell measured: each step of a growth, or the end of each task of an OOM.
+   * A void run has it too when the judge read the lines of the client.
+   */
   readonly memory?: MemoryReading;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
