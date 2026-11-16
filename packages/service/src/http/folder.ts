@@ -3,8 +3,8 @@
 // a link that points out. A path that is not a file of the folder goes to the next handler. Thus the transport
 // gives its 404 at the end.
 
-import { readFile as readFileOfNode, realpath as realpathOfNode } from "node:fs/promises";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { readFile as readFileOfNode, realpath as realpathOfNode, stat as statOfNode } from "node:fs/promises";
+import type { ServerResponse } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { isInside } from "@mark1russell7/files";
 import { pathOf, type RequestHandler } from "./transport.ts";
@@ -58,6 +58,14 @@ export const FOLDER_CONTENT_SECURITY_POLICY: string = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+/** The facts of a file that the handler reads before its body: its kind and its length in bytes. */
+export interface FolderFileStat {
+  /** This function tells if the path is a file, and not a folder or another kind. */
+  isFile(): boolean;
+  /** The length of the file in bytes. */
+  readonly size: number;
+}
+
 /** These options change the handler of a folder. */
 export interface FolderHandlerOptions {
   /** This path goes before each path of the folder, for example `/page`. It starts with `/`, or it is empty. The default is empty. */
@@ -72,6 +80,8 @@ export interface FolderHandlerOptions {
   readonly readFile?: ((file: string) => Promise<Uint8Array>) | undefined;
   /** This function gives the real path of a file, after each link. The default is `realpath` of `node:fs/promises`. */
   readonly realpath?: ((file: string) => Promise<string>) | undefined;
+  /** This function gives the kind and the length of a file. The default is `stat` of `node:fs/promises`. */
+  readonly stat?: ((file: string) => Promise<FolderFileStat>) | undefined;
 }
 
 /** The methods that the handler answers. */
@@ -94,16 +104,15 @@ const fileOf = (base: string, path: string, index: string): string | undefined =
   return isInside(base, file) ? file : undefined;
 };
 
-/** This function writes the answer of a file. HEAD gets the same headers as GET, and no body. */
-const writeFile = (req: IncomingMessage, res: ServerResponse, body: Uint8Array, type: string, policy: string): void => {
+/** This function writes the headers of the answer of a file. HEAD and GET get the same headers. */
+const writeHeaders = (res: ServerResponse, length: number, type: string, policy: string): void => {
   res.writeHead(200, {
     "content-type": type,
-    "content-length": String(body.byteLength),
+    "content-length": String(length),
     "content-security-policy": policy,
     "x-content-type-options": "nosniff",
     "cache-control": "no-cache",
   });
-  res.end(req.method === "HEAD" ? undefined : body);
 };
 
 /**
@@ -112,6 +121,7 @@ const writeFile = (req: IncomingMessage, res: ServerResponse, body: Uint8Array, 
  * goes to the next handler.
  *
  * The handler answers GET and HEAD. Another method on a path of a file gets 405 with `allow: GET, HEAD`.
+ * Only GET reads the body of the file. HEAD and the 405 use the stat of the file.
  * Each file gets its content type, its length, the content security policy, `nosniff` and `no-cache`.
  *
  * @param root - The folder of the files.
@@ -126,6 +136,7 @@ export const folderHandler = (root: string, options: FolderHandlerOptions = {}):
   const policy = options.contentSecurityPolicy ?? FOLDER_CONTENT_SECURITY_POLICY;
   const read = options.readFile ?? readFileOfNode;
   const realpath = options.realpath ?? realpathOfNode;
+  const stat = options.stat ?? statOfNode;
   const base = normalize(root);
   return async (req, res) => {
     const path = pathOf(req.url);
@@ -133,23 +144,41 @@ export const folderHandler = (root: string, options: FolderHandlerOptions = {}):
     const file = fileOf(base, path === prefix ? "/" : path.slice(prefix.length), index);
     if (file === undefined) return false;
     let real: string;
-    let body: Uint8Array;
+    let size: number;
     try {
-      // The real paths refuse a link in the folder that points out of the folder.
+      // The real paths refuse a link in the folder that points out of the folder. The handler gives the
+      // real path of the folder again at each request, because a deploy can replace the folder through a link.
       const [found, realBase] = await Promise.all([realpath(file), realpath(base)]);
       if (!isInside(realBase, found)) return false;
+      // The stat gives the kind and the length of the file without its body.
+      const facts = await stat(found);
+      if (!facts.isFile()) return false;
       real = found;
-      body = await read(real);
+      size = facts.size;
     } catch {
-      // A missing file, a folder at the path, or a file that the process cannot read
+      // A missing file, or a path that the process cannot read
       return false;
     }
-    if (!METHODS.has(req.method ?? "GET")) {
+    const method = req.method ?? "GET";
+    if (!METHODS.has(method)) {
       res.writeHead(405, { allow: "GET, HEAD", "content-length": "0", "x-content-type-options": "nosniff" });
       res.end();
       return true;
     }
-    writeFile(req, res, body, contentType(real), policy);
+    if (method === "HEAD") {
+      writeHeaders(res, size, contentType(real), policy);
+      res.end();
+      return true;
+    }
+    let body: Uint8Array;
+    try {
+      body = await read(real);
+    } catch {
+      // A file that the process cannot read, or a file that went away after the stat
+      return false;
+    }
+    writeHeaders(res, body.byteLength, contentType(real), policy);
+    res.end(body);
     return true;
   };
 };

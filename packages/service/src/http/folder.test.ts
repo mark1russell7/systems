@@ -76,6 +76,38 @@ describe("folderHandler: the files of one folder", () => {
     expect(await ask("/orders", "POST")).toBeNull();
   });
 
+  it("reads the body only for GET: HEAD and the 405 take the length and the kind from the stat", async () => {
+    const reads: string[] = [];
+    const ask = asker(
+      folderHandler(root, {
+        readFile: async (file) => {
+          reads.push(file);
+          return new TextEncoder().encode("export const a = 1;");
+        },
+      }),
+    );
+    const head = await ask("/assets/app.js", "HEAD");
+    expect(head?.status).toBe(200);
+    expect(head?.headers.get("content-length")).toBe(String(Buffer.byteLength("export const a = 1;")));
+    expect((await ask("/assets/app.js", "POST"))?.status).toBe(405);
+    expect(reads).toEqual([]);
+    expect((await ask("/assets/app.js"))?.body).toBe("export const a = 1;");
+    expect(reads).toHaveLength(1);
+  });
+
+  it("gives a path that the stat does not find as a file, and a file that the reader cannot read, to the next handler", async () => {
+    const notFile = asker(folderHandler(root, { stat: async () => ({ isFile: () => false, size: 0 }) }));
+    expect(await notFile("/index.html")).toBeNull();
+    const unreadable = asker(
+      folderHandler(root, {
+        readFile: async () => {
+          throw new Error("EACCES");
+        },
+      }),
+    );
+    expect(await unreadable("/index.html")).toBeNull();
+  });
+
   it("gives each path out of the folder, a missing file and a folder to the next handler", async () => {
     const ask = asker(folderHandler(root));
     for (const path of [
