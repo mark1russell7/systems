@@ -1169,6 +1169,7 @@ export interface Target {
  * package of the harness, and in the package of the prober for `harness`. `grpc-go` is a server of
  * grpc-go and `etcd` is etcd on Alpine: each is a subject of a target (`Target.subject`).
  * `docker-proxy` is the userland proxy of Docker Engine 29.1.5, the program of a proxy hop.
+ * `lazyfs` is the FUSE file system LazyFS with Node.js 24, the image of the disk tier (`openDiskLab`).
  */
 export type Shipped =
   | "harness"
@@ -1186,7 +1187,8 @@ export type Shipped =
   | "router"
   | "pgbouncer"
   | "pgpool"
-  | "docker-proxy";
+  | "docker-proxy"
+  | "lazyfs";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an

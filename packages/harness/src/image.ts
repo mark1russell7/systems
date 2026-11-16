@@ -84,6 +84,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   pgpool: { name: "loom-harness-pgpool", dockerfile: "harness/image/pgpool/Dockerfile", from: ["harness/image/pgpool"] },
   // docker-proxy of Docker Engine 29.1.5, a proxy hop: its binary from the static bundle of Docker, by its SHA-256
   "docker-proxy": { name: "loom-harness-docker-proxy", dockerfile: "harness/image/docker-proxy/Dockerfile", from: ["harness/image/docker-proxy"] },
+  // LazyFS of the commit 3edad01 on Node.js 24.21.0, the disk tier: each source by its SHA-256
+  lazyfs: { name: "loom-harness-lazyfs", dockerfile: "harness/image/lazyfs/Dockerfile", from: ["harness/image/lazyfs"] },
 };
 
 /** These are the names of the images that the harness ships. */
@@ -280,8 +282,11 @@ export interface BuildRecord {
   readonly versions: Readonly<Record<string, string>>;
 }
 
-/** This function gives each file under a path, in a stable sequence, but not the output of a local build. */
-const sources = (path: string): string[] => {
+/**
+ * This function gives each file under a path, in a stable sequence, but not the output of a local build. The disk
+ * tier uses it for the digest of a subject folder (`openDiskLab`). The index does not export it.
+ */
+export const sources = (path: string): string[] => {
   if (statSync(path).isFile()) return [path];
   return readdirSync(path, { withFileTypes: true })
     .filter((entry) => entry.name !== "target" && entry.name !== "node_modules")

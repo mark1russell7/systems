@@ -205,7 +205,7 @@ The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imag
 
 ## The images
 
-The harness ships sixteen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness ships seventeen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 From 0.11.20, the harness builds each image with the CLI of Docker (`docker build`), thus with BuildKit where the CLI has it. Testcontainers reads nothing of the output of a build, and its error is "Failed to build image" only. The error of a failed build holds each line of its output that names an error, and its last 15 lines (`buildFailure`). Thus the host of a lab needs the CLI of Docker and its daemon.
 
@@ -259,9 +259,12 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - A cell gives its configuration as files of the hop (`ProxyHop.files`): `/etc/pgbouncer/pgbouncer.ini` and `/etc/pgbouncer/userlist.txt`. In them, `{{next.host}}` and `{{next.port}}` are the host and the port of the server.
   - PgBouncer does not start as root, thus it operates as its own user.
 - **The Pgpool-II image** (`image/pgpool`) is Pgpool-II 4.7.3, a pooler hop, on a digest-pinned Alpine. The build gets the source of the tag V4_7_3 from GitHub and checks its SHA-256 before it builds. The tree of git holds no `configure`, thus the build runs autoreconf, and bison and flex make the parser.
-- **The docker-proxy image** (`image/docker-proxy`) is docker-proxy of Docker Engine 29.1.5, the userland proxy of a published port, as a proxy hop. The build gets the static bundle of Docker 29.1.5 and checks its SHA-256. The proxy writes its status to fd 3, the pipe of its parent in Docker. Thus a cell starts it with `3>/dev/null`.
   - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgpool" }`.
   - A cell gives its configuration as one file of the hop: `/etc/pgpool/pgpool.conf`. Each other file that Pgpool-II reads is empty in the image. Pgpool-II operates in the foreground as its own user.
+- **The docker-proxy image** (`image/docker-proxy`) is docker-proxy of Docker Engine 29.1.5, the userland proxy of a published port, as a proxy hop. The build gets the static bundle of Docker 29.1.5 and checks its SHA-256. The proxy writes its status to fd 3, the pipe of its parent in Docker. Thus a cell starts it with `3>/dev/null`.
+- **The LazyFS image** (`image/lazyfs`) is LazyFS of the commit 3edad01 with Node.js 24.21.0, on a digest-pinned Debian. It is the image of the disk tier.
+  - LazyFS is a FUSE file system that keeps each write in its cache until an fsync. The command `lazyfs::clear-cache` loses each write of data after the last fsync. It keeps each directory entry: LazyFS applies each new file, each rename and each unlink at once. This is the rule of the kind `lose-unsynced`.
+  - The build gets the tarball of the commit, toml11 v3.7.1 and spdlog v1.10.0. It checks the SHA-256 of each before it builds.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
 
@@ -456,6 +459,35 @@ The injector refuses `protocol` on a fault other than a black hole, a reject or 
 - **The socket after a drop** (`Verdict.left`). The verdict gives the spread of the time from a drop to the close of its socket by the program. It also counts the runs where the program did not close it. For the runs where the socket stayed open until the end of the client process, it gives the spread of that end (`exited`).
 
 The distribution test needs a simulator, which does not exist at this time.
+
+## The disk tier
+
+The disk tier applies a disk plan of `@mark1russell7/rigor-chaos` to the files of a program. A fault of the kind `lose-unsynced` is a power cut. The process stops at its point, and the disk loses each write after the last fsync. Then a check reads the files that the disk kept. An example is the data loss of each synchronous setting of a database.
+
+```ts
+import { diskPlanOf } from "@mark1russell7/rigor-chaos";
+import { openDiskLab, runDiskFault } from "@mark1russell7/harness";
+
+const lab = await openDiskLab({
+  subject: { name: "wal", folder: "./subject", writer: ["node", "/opt/subject/writer.mts"], check: ["node", "/opt/subject/check.mts"] },
+  code: { commit, dirty: false },
+});
+const plan = diskPlanOf([{ kind: "lose-unsynced", at: { step: 40 } }, { kind: "lose-unsynced", at: { ms: 1500 } }]);
+for (const fault of plan.faults) console.log((await runDiskFault(lab, fault)).persisted);
+```
+
+- **The subject** is a folder with a writer and a check, each an argv with no shell. The tier copies the folder to `/opt/subject` in each container.
+  - The writer operates in the mount of LazyFS, `/mnt/disk`. The check operates in the folder below the mount, `/var/disk`, and writes one JSON value.
+- **A fault at a step** uses the stop points of `@mark1russell7/rigor-testkit/stop`. The tier puts the order in `RIGOR_STOP`, and the writer stops itself at the step with `SIGKILL`.
+  - The protocol is data: an environment variable and one JSON line for each stop point. Thus a writer in each language can speak it.
+- **A fault at a time** stops the writer with `SIGKILL` after that time from its start, through `timeout -s KILL`.
+- **Each fault has a new container.** After the stop, the tier sends `lazyfs::clear-cache` to LazyFS, and waits for its answer. Then the check starts.
+- **The record** (`harness-disk/1`) holds the fault and the digest of the subject folder. It also holds the image with its build record and id, and the commit of the code.
+  - It also holds the substrate (layer E1), the exit and the stop points of the writer, and the value of the check (`persisted`).
+  - `diskRecordProblems` gives each problem of the pins of a record. A record with a problem is not a record.
+- **The container is privileged.** LazyFS needs `/dev/fuse` and a mount. Testcontainers 12 has no option for one device. The AppArmor profile of Docker refuses a FUSE mount in a container that is not privileged.
+  - Thus the tier operates only in CI, in the workflow `disk.yml`.
+- **The self-test** (`HARNESS_DISK=1`) has a writer that writes each line to one file with an fsync, and to a second file with none. Each case holds its expected result as data.
 
 ## Runs
 
