@@ -14,8 +14,9 @@ At most three items are in progress at one time. A score puts the items in order
 
 SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. The other open items are `later`, in the order of the score:
 
+- **SYS-77:** the first fabric. Its cells wait for free CI slots. It comes first: the routed worlds of a consumer need the layer E3, from 2026-11-16.
+- **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
-- **SYS-77:** the first fabric. Its cells wait for free CI slots.
 - **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
 - **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
