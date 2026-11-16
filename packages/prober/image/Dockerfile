@@ -5,7 +5,7 @@
 # image/compare.sh runs the three live (privileged). The build context is packages/prober.
 
 # --- the kernel program, compiled against the running kernel's BTF ------------------------------
-FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS bpf
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS bpf
 RUN apk add --no-cache clang llvm bpftool libbpf-dev linux-headers
 WORKDIR /src
 COPY bpf/ bpf/
@@ -13,7 +13,7 @@ RUN bpftool btf dump file /sys/kernel/btf/vmlinux format c > bpf/vmlinux.h \
  && clang -O2 -g -target bpf -D__TARGET_ARCH_x86 -Ibpf -c bpf/prober.bpf.c -o prober.bpf.o
 
 # --- Rust, on libbpf-rs (the collector the harness runs) ----------------------------------------
-FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS rust
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS rust
 RUN apk add --no-cache rust cargo build-base elfutils-dev zlib-dev zstd-dev pkgconf linux-headers
 WORKDIR /src/native
 COPY native/ ./
@@ -25,7 +25,7 @@ RUN s=$(date +%s) \
  && cargo test --release --locked --features collector
 
 # --- Go, on cilium/ebpf: no cgo, one static binary ----------------------------------------------
-FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS go
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS go
 RUN apk add --no-cache go
 WORKDIR /src/go
 COPY go/ ./
@@ -36,7 +36,7 @@ RUN s=$(date +%s) \
  && go vet ./... && test -z "$(gofmt -l .)"
 
 # --- C, on libbpf, and the workload ---------------------------------------------------------------
-FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS c
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS c
 RUN apk add --no-cache build-base libbpf-dev elfutils-dev zlib-dev linux-headers
 WORKDIR /src/c
 COPY c/ ./
@@ -46,7 +46,7 @@ RUN s=$(date +%s) \
  && cc -O2 -Wall -Wextra -Werror -pthread -o /storm storm.c
 
 # --- run: the three, the fixture, and the comparison -----------------------------------------------
-FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 RUN apk add --no-cache libbpf libelf zlib zstd-libs libgcc jq coreutils diffutils
 WORKDIR /opt/prober
 COPY --from=bpf /src/prober.bpf.o /opt/harness/prober.bpf.o
