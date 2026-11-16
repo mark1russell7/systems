@@ -2526,7 +2526,14 @@ Each step is an item, in this order:
 5. SYS-123: the memory of a process.
 6. SYS-124: the NIC.
 
-The next step: SYS-120.
+**The move of the contract (2026-11-16).** The lens contract of SYS-119 (`packages/site/src/model/lens.ts`) moves to `@mark1russell7/visuals`, of the repository [mark1russell7/visuals](https://github.com/mark1russell7/visuals). This repository keeps the laws in `@mark1russell7/algebra` and `@mark1russell7/machines`, and the lens of each part. The 87 cases of the page and the 92 cases of the detection lab hold the move.
+
+- The visuals package adds a 3D stack of the layers of the network.
+- A catalog of the layers and of the parts of a network has a gauge of its coverage.
+- Each lens shows the computed band, the measured values of the cells and the facts of a network diagnosis.
+- SYS-120 to SYS-124 use the contract of today until the move.
+
+The next steps: SYS-120 part 2 and SYS-122 are in review. SYS-121 part 2 shipped on 2026-11-16 (#566). SYS-123 part 2 is the cells of the memory.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
