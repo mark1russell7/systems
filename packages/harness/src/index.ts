@@ -5,7 +5,9 @@
 // Sentinels, a replica set whose members elect their own primary, or a cluster of RabbitMQ whose
 // quorum queue elects its leader. A program with its own
 // detector, a WebSocket heartbeat, writes lines that the kernel stamps. The subject of a cell is
-// data: an image pinned by digest, a build context, or an image that the harness ships.
+// data: an image pinned by digest, a build context, or an image that the harness ships. The disk
+// tier applies a disk plan to the files of a program on LazyFS: a power cut loses each write after
+// the last fsync (`openDiskLab`, `runDiskFault`).
 
 export type {
   BuildImage,
@@ -190,6 +192,8 @@ export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
 export type { Pinnable, RecordCode } from "./pins.ts";
 export { commitProblems, DEBUG, DIRTY, imagePinProblems, manifestProblems, recordProblems } from "./pins.ts";
+export type { DiskImage, DiskLab, DiskLabOptions, DiskPinnable, DiskRecord, DiskSubject, DiskWriterRecord } from "./disk.ts";
+export { DISK_MOUNT, DISK_RECORD_FORMAT, DISK_ROOT, DISK_SUBJECT, diskRecordProblems, diskSubjectProblems, folderDigest, openDiskLab, runDiskFault } from "./disk.ts";
 export {
   CLIENT_NAMES,
   PINNED,
