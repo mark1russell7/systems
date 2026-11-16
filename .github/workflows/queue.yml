@@ -1,9 +1,8 @@
 # The queue of the pull requests with auto-merge (SYS-118, the CI.md of the template, "The queue").
 #
 # With strict status checks in the ruleset of main, GitHub merges a pull request only when its branch has the newest
-# main. This job merges main into each pull request with auto-merge that is behind. Then it starts the workflows of the
-# checks of the ruleset on the new head with workflow_dispatch. Each of these workflows starts on workflow_dispatch.
-# A dispatch of Cells or Kind that names no cells is the gate of a pull request (SYS-118 part 1).
+# main. This job merges main into each pull request with auto-merge that is behind. That push starts the pull_request
+# workflows of the new head, and GitHub holds each one (the conclusion action_required). The job starts each of them.
 # With strict off, no pull request is behind, and the job changes nothing.
 name: Queue
 
@@ -27,9 +26,8 @@ concurrency:
 
 jobs:
   queue:
-    uses: mark1russell7/template/.github/workflows/reusable-queue.yml@3dafd3e93b105b2d0baea11f62a55c4e3d6e5915 # main
+    uses: mark1russell7/template/.github/workflows/reusable-queue.yml@84cd228877959446708d1bf8f4399bfcb183bae1 # main
     permissions:
       contents: write
       pull-requests: write
       actions: write
-      checks: read
