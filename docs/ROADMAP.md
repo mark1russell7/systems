@@ -4,6 +4,29 @@ This file is the source of truth for the work of the program. A live tracker sho
 
 Each item has an id, a status, an area, the items that it needs, its dates and its links. The statuses are `done`, `in progress`, `blocked`, `waiting on Mark` and `later`. An item that waits on Mark says what Mark does.
 
+## The work in progress (2026-11-16)
+
+At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
+
+1. **SYS-99** (P1): the drills of the Sunday on one shard. Its dispatch waits for free CI slots.
+2. **SYS-121** (P1): the second read of `PR.7`, then the lens of the port range with the measured values. Its dispatch waits for free CI slots.
+3. **SYS-124** (P2): the cells of the egress queue, netem and tbf, in CI only. The law shipped in algebra 0.9.6. This item has code to write while the other two wait.
+
+SYS-120 waits on Mark: its part 3 needs the export of the `AQ` records in CI. The other open items are `later`, in the order of the score:
+
+- **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
+- **SYS-77:** the first fabric. Its cells wait for free CI slots.
+- **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
+- **SYS-69:** the two cells `SB`. They wait for free CI slots.
+- **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
+- **SYS-101:** it starts after SYS-99 ships.
+- **SYS-75**, **SYS-87**, **SYS-102** and **SYS-103:** their cells wait for free CI slots.
+  <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
+- **VIZ:** it ends when SYS-119 to SYS-124 ship. SYS-119 and SYS-122 shipped.
+- **S2** and **S3:** their items hold the work.
+
+An item goes back to `in progress` when one of the three ships.
+
 ## The order of the work (2026-11-02)
 
 The program started again on 2026-11-02, after the pause of 2026-10-28. A gap that a consumer finds in the service or kind packages still comes first. It is released as a PATCH when its checks pass. The order of the other work is:
@@ -59,7 +82,7 @@ H2 was the last system of the set, and its last cell held on 2026-10-25. Thus ea
 
 ### S2 · Intermediaries and Kubernetes
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-15
@@ -82,7 +105,7 @@ MetalLB is the intermediary after kube-vip ([SYS-53](#sys-53--metallb-callers-ou
 
 ### S3 · Outcomes under failure and load
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-11-03
@@ -2487,7 +2510,7 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 
 ### VIZ · Interactive visuals and docs: from processes and the kernel to the NIC
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119, SYS-120, SYS-121, SYS-122, SYS-123, SYS-124
 - **Waiting on:**
@@ -2556,9 +2579,10 @@ The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/l
 
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** in progress
+- **Status:** waiting on Mark
 - **Area:** site
 - **Depends on:** SYS-119
+- **Waiting on:** Mark: a yes or a no for the export of the `AQ` records in CI, through `copy.yml`. Part 3 uses the copy.
 - **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
@@ -2635,7 +2659,7 @@ The page shipped on 2026-11-16 in #569. The measured values of part 3 of SYS-120
 
 ### SYS-123 · The memory of a process: a lens, its law and its cells
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
@@ -2880,7 +2904,7 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-103 · A declared listen backlog
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** server stack
 - **Depends on:** SYS-63
 - **Started:** 2026-11-08
@@ -2940,7 +2964,7 @@ The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of th
 
 ### SYS-102 · The port that LAST_ACK holds
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-64
 - **Started:** 2026-11-09
@@ -3092,7 +3116,7 @@ The first freeze did not stop the server. The stock Redis image starts the serve
 
 ### SYS-69 · The border of a stable system
 
-- **Status:** active
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-68
 - **Started:** 2026-11-09
@@ -3213,7 +3237,7 @@ The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each ce
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:** 2026-11-06
@@ -3285,7 +3309,7 @@ The first records show the block on a real runner. Kind run 41856630889 of the P
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
@@ -3413,7 +3437,7 @@ A cell that holds on the two distributions tests a law. A cell that holds on one
 
 ### SYS-87 · Socket.IO: detection, reconnect and recovery
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** 
 - **Started:** 2026-11-09
@@ -3580,7 +3604,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
@@ -3837,7 +3861,7 @@ A hash of the data comes before the service starts, because a service writes. Th
 
 ### SYS-97 · A third size of a restore
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** catalogs
 - **Depends on:** SYS-94
 - **Started:** 2026-11-08
@@ -3972,7 +3996,7 @@ These assertions have no flip:
 
 ### SYS-101 · A 30-day limit for the studies of the site that depend on current code
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:** SYS-99
 - **Started:** 2026-11-05
