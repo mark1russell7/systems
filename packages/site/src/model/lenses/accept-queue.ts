@@ -2,8 +2,8 @@
  * The lenses of the accept queue: one listener, a program that does not accept, and many connects. A
  * full queue drops a SYN with no answer, and it drops the final ACK of a handshake. The law of the
  * count is `acceptQueueLimit` and `acceptQueueHeld` of the algebra. The timers of a connection at a
- * full queue come from the document of Linux TCP: the SYN ladder of the client, and the SYN-ACK
- * ladder and the expiry of a request at the target. The cells AQ.1 to AQ.10 of the harness measure
+ * full queue come from the document of Linux TCP. They are the SYN ladder of the client, and the
+ * SYN-ACK ladder and the expiry of a request at the target. The cells AQ.1 to AQ.10 of the harness measure
  * each term.
  *
  * The story of the page starts at the first new connect. The queue holds `queued` connections at
@@ -74,7 +74,7 @@ export type Fate = "in" | "accepted" | "syn" | "ack";
 // the ladders
 // ---------------------------------------------------------------------------------------------
 
-/** A firing is one send of a ladder: its time from the start of the story, and its band, or null when a bound is not known. */
+/** A firing is one send of a ladder: its time from the start of the story, and its band. The band is null when a bound is not known. */
 export interface Firing {
   readonly at: number;
   readonly band: Band | null;
@@ -97,8 +97,8 @@ const values = (settings: QueueSettings): KnobValues =>
   });
 
 /**
- * This function gives the firings of a backoff timer of Linux TCP from `start`: the sum of its waits,
- * with the sums of how early and how late each wait can fire. `until` and `reach` are the stops of
+ * This function gives the firings of a backoff timer of Linux TCP from `start`. Each firing is the sum
+ * of its waits, with the sums of how early and how late each wait can fire. `until` and `reach` are the stops of
  * `firings` of the algebra, in seconds from `start`.
  */
 const ladder = (timer: string, knobs: KnobValues, start: number, stop: { readonly until?: number; readonly reach?: number }): Firing[] => {
@@ -121,7 +121,7 @@ const ladder = (timer: string, knobs: KnobValues, start: number, stop: { readonl
   });
 };
 
-/** This function gives the segments of the client from its send: the first send, then each firing of the retransmission timer, up to the first one at `target` or after it. */
+/** This function gives the segments of the client from its send. They are the first send, then each firing of the retransmission timer, up to the first one at `target` or after it. */
 const segments = (knobs: KnobValues, send: number, target: number): Firing[] => [{ at: send, band: bandOf(s(send)) }, ...ladder("retransmit", knobs, send, { reach: target - send })];
 
 // ---------------------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ const synStory = (settings: QueueSettings, connection: number, dial: number): Sy
   return { connection, dial, syns, end: { kind: "timeout", at: dial + life, band: shift(bandOfTimer(giveup), dial) } };
 };
 
-/** The story of the first final ACK that overflows: a reset, a place after the accept, a reset after the expiry, or a client that knows nothing. */
+/** This function gives the story of the first final ACK that overflows. The end is a reset, a place after the accept, a reset after the expiry, or a client that knows nothing. */
 const ackStory = (settings: QueueSettings, connection: number, dial: number, cookie: boolean): AckStory => {
   const knobs = values(settings);
   const half = sec(settings.rtt) / 2;

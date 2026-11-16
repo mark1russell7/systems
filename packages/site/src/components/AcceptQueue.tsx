@@ -1,7 +1,7 @@
 /**
  * The accept queue. A program listens and does not accept, and new connects come to its port. The
- * page computes, in the browser, how many connections a full queue holds, and what each overflow does:
- * a SYN that drops meets the SYN ladder of the client, and a final ACK that drops leaves a client that
+ * page computes, in the browser, how many connections a full queue holds, and what each overflow does.
+ * A SYN that drops meets the SYN ladder of the client. A final ACK that drops leaves a client that
  * thinks that it is connected. The reader sets the backlog, the connects, the accept of the program and
  * the send of the client.
  *
