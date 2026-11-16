@@ -2615,7 +2615,7 @@ One page shows all lenses on one timeline, with one control for each shared knob
 
 A process grows until the limit of its cgroup stops it. The page shows the memory of the process, the page cache, the reclaim, the pressure stall and the OOM killer. The law comes from the sources of Linux. New cells measure it in CI first, and then the lens ships with the measured values.
 
-Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the cells, in CI only. Part 3 is the lens and its page.
+Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle` gives the sleeps of a task above `memory.high`, from `mm/memcontrol.c` of Linux 7.0. The function `oomBadness` gives the points of a task for the OOM killer, and `oomVictim` gives the task that it takes. Part 2 is the memory tier of `@mark1russell7/harness` 0.16.6 and five cells, in CI only. `MEM.1` and `MEM.2` grow a client above `memory.high` of 100 MiB and of 50 MiB. The judge compares the time of each step with the law. `MEM.3` to `MEM.5` start three tasks under `memory.max` of 200 MiB, and the law names the task that the OOM killer takes. The first records of CI give the band of the slack of a step, from a first value of 20 ms. Part 3 is the lens and its page.
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
