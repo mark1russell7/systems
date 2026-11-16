@@ -202,6 +202,38 @@ describe("the wall clock", () => {
     await clock.advance(0);
     expect(runs).toEqual([start - 3_600_000 + 1000, -1]);
   });
+
+  it("shares one queue of timers with a given fake monotonic clock, and a step of the instant moves no timer", async () => {
+    const start = Date.UTC(2026, 10, 15, 12);
+    const mono = fakeClock(5000);
+    const wall = fakeWallClock(start, mono);
+    expect(wall.now()).toBe(start);
+    const runs: string[] = [];
+    mono.after(20, () => runs.push(`mono ${String(mono.now())} wall ${String(wall.now() - start)}`));
+    wall.after(10, () => runs.push(`wall ${String(wall.now() - start)}`));
+    expect(mono.pending).toBe(2);
+    expect(wall.pending).toBe(2);
+    // the advance of the monotonic clock moves the instant too, and starts the timers of both clocks in order
+    await mono.advance(10);
+    expect(runs).toEqual(["wall 10"]);
+    // a step back of one hour changes only the instant
+    wall.set(start - 3_600_000);
+    expect(mono.now()).toBe(5010);
+    await wall.advance(10);
+    expect(runs).toEqual(["wall 10", `mono 5020 wall ${String(-3_600_000 + 10)}`]);
+    wall.block(5);
+    expect(mono.now()).toBe(5025);
+    expect(wall.now()).toBe(start - 3_600_000 + 15);
+  });
+
+  it("keeps two fake wall clocks on one monotonic clock apart in their instants", async () => {
+    const mono = fakeClock();
+    const first = fakeWallClock(1000, mono);
+    const second = fakeWallClock(9000, mono);
+    second.set(500);
+    await mono.advance(7);
+    expect([first.now(), second.now()]).toEqual([1007, 507]);
+  });
 });
 
 // Civil time. The oracle below takes the offsets of each zone in 2026 from a table, not from Intl.
