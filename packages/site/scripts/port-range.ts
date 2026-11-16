@@ -12,7 +12,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import type { Measured, PortsPrediction, PortsReading } from "../../harness/src/index.ts";
+import type { Measured, PortsPrediction, PortsReading, Prediction } from "../../harness/src/index.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
 import { commitOf, dateOf, ofCatalog, only, readFolders, runnerOf, secondsOf, stringify, voidsOf } from "./records.ts";
@@ -93,10 +93,13 @@ const resultOf = (reading: Reading, prediction: PortsPrediction, first: string |
   };
 };
 
+/** This function gives the law of the port range in a prediction. Only a prediction with no detection has one. */
+const portsOf = (prediction: Prediction): PortsPrediction | undefined => (prediction.detects === null ? prediction.ports : undefined);
+
 const cells = PORT_RANGE_SPECS.map((spec, at) => {
   const catalog = PORT_RANGE_CELLS[at];
   if (catalog === undefined || catalog.name !== `${spec.plan} ${spec.name}`) throw new Error(`${spec.plan}: the specs and the cells disagree on the sequence`);
-  const ports = catalog.prediction.ports;
+  const ports = portsOf(catalog.prediction);
   if (ports === undefined) throw new Error(`${catalog.name} has no prediction of the port range`);
   const entry = found.get(catalog.name);
   if (entry !== undefined && !isDeepStrictEqual(entry.record.cell.prediction, catalog.prediction))
@@ -128,7 +131,7 @@ const copy = {
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,
-  low: Number(only("the low port", records.map((record) => String(record.cell.prediction.ports?.low)))),
+  low: Number(only("the low port", records.map((record) => String(portsOf(record.cell.prediction)?.low)))),
   cells,
 };
 const out = fileURLToPath(new URL(`../src/data/port-range-${date}.json`, import.meta.url));
