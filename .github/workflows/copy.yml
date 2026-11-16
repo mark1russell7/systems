@@ -1,0 +1,54 @@
+# Writes the copy of one study of the site from the records of the workflow Cells, and uploads it as the
+# artifact copy. A pull request then moves the page to its new copy. The export of a study can need much
+# memory, thus it operates here and not on the shared machine.
+#
+# Start it with: gh workflow run copy.yml -R mark1russell7/systems -f exporter=port-range -f runs="<id> <id>"
+name: Copy
+
+on:
+  workflow_dispatch:
+    inputs:
+      exporter:
+        description: The exporter of the study, a script of packages/site/scripts, for example port-range
+        required: true
+      runs:
+        description: The ids of the runs of the workflow Cells, separated by spaces. A later run replaces the record of the same cell
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  copy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # the artifacts of the runs of the workflow Cells
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The copy of the study
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPORTER: ${{ inputs.exporter }}
+          RUNS: ${{ inputs.runs }}
+        run: |
+          read -r -a ids <<< "$RUNS"
+          pnpm exec tsx packages/site/scripts/copy.ts "$EXPORTER" "$RUNNER_TEMP/copy" "${ids[@]}"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: copy
+          path: ${{ runner.temp }}/copy/
+          if-no-files-found: warn
+          retention-days: 30
