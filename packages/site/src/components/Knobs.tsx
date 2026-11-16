@@ -6,6 +6,7 @@
 import { Fragment, type ReactElement, type ReactNode } from "react";
 import { quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { say } from "../model/lens.ts";
+import Term from "./Term.tsx";
 
 /** A slider on a logarithmic scale from `min` to `max`, in one unit, for times that span several orders. */
 const toLog = (value: number, min: number, max: number): number => (100 * Math.log(Math.max(value, min) / min)) / Math.log(max / min);
@@ -132,3 +133,11 @@ export function LensKnobs<S>(props: {
   });
   return shown.length === 0 ? null : <div className="sy-knobs rp-knobs">{shown}</div>;
 }
+
+/** The control of the round trip. The lenses of the kernel share it: TCP, the socket and the port range. */
+export const rttKnob: KnobControl<Quantity> = (value, set) => <TimeKnob label="Round trip" value={value} unit="ms" min={0.1} max={300} onChange={set} />;
+
+/** The control of HZ, the clock of the kernel. The lenses of the kernel share it. */
+export const hzKnob: KnobControl<number> = (value, set) => (
+  <Choice label={<Term name="HZ">Kernel clock, HZ</Term>} name="Kernel clock" options={[100, 250, 300, 1000].map((hz) => ({ id: hz, label: String(hz) }))} value={value} onChange={set} />
+);

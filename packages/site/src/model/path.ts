@@ -99,25 +99,28 @@ export const DEFAULTS: Settings = {
 // the values of the knobs of each machine document
 // ---------------------------------------------------------------------------------------------
 
-/** This function gives the values of the knobs of Linux TCP, from the settings and the defaults of the document. */
-export const tcpValues =
-  (settings: Settings): KnobValues =>
+/** This function gives the values of the knobs of Linux TCP: the given values, and the defaults of the document for the other knobs. */
+export const linuxTcpValues =
+  (given: Readonly<Record<string, Extent>>): KnobValues =>
   (name) => {
-    const given: Readonly<Record<string, Extent>> = {
-      tcp_retries2: count(settings.retries2),
-      keepidle: settings.keepaliveOn ? settings.keepidle : { value: "infinite", unit: "s" },
-      keepintvl: settings.keepintvl,
-      keepcnt: count(settings.keepcnt),
-      tcp_user_timeout: settings.userTimeout,
-      rtt: settings.rtt,
-      hz: quantity(settings.hz, "Hz"),
-    };
     const own = given[name];
     if (own !== undefined) return own;
     const knob = LINUX_TCP.knobs[name];
     if (knob === undefined || knob.default === null) return undefined;
     return quantity(knob.default, knob.unit ?? "count");
   };
+
+/** This function gives the values of the knobs of Linux TCP, from the settings and the defaults of the document. */
+export const tcpValues = (settings: Settings): KnobValues =>
+  linuxTcpValues({
+    tcp_retries2: count(settings.retries2),
+    keepidle: settings.keepaliveOn ? settings.keepidle : { value: "infinite", unit: "s" },
+    keepintvl: settings.keepintvl,
+    keepcnt: count(settings.keepcnt),
+    tcp_user_timeout: settings.userTimeout,
+    rtt: settings.rtt,
+    hz: quantity(settings.hz, "Hz"),
+  });
 
 export const callValues =
   (settings: Settings): KnobValues =>
