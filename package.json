@@ -69,7 +69,25 @@
       },
       "unreleased-change": {
         "versionEachChange": true,
-        "reason": "Each pull request of systems sets the version of each package whose shipped files it changes, and each merge starts a release. On 2026-11-15, two pull requests set service 0.8.18, and the second change did not get to npm (SYS-118)."
+        "unshipped": [
+          "**/*.md",
+          "**/*.{test,spec}.*",
+          "**/{test,tests,__tests__,fixtures,__fixtures__,__snapshots__,bench,benches,benchmarks,e2e}/**",
+          "**/*.{bench,e2e}.*",
+          "**/.*/**",
+          "**/tsconfig*.json",
+          "**/*.config.*",
+          "docs/**",
+          "examples/**",
+          "scripts/**",
+          "site/**",
+          "LICENSE*",
+          "pnpm-lock.yaml",
+          "pnpm-workspace.yaml",
+          "vm/**",
+          "go/**"
+        ],
+        "reason": "Each pull request of systems sets the version of each package whose shipped files it changes, and each merge starts a release. On 2026-11-15, two pull requests set service 0.8.18, and the second change did not get to npm (SYS-118). The option unshipped replaces the default list, thus it holds that list plus vm/** of the harness and go/** of the prober. The files field of each package names build, which git does not track, thus the rule counts each other file of the package as shipped. The folders vm and go are not in the files of their packages. The copy of the default list goes when the rule takes additions to its default list."
       }
     }
   }
