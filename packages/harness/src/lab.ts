@@ -97,8 +97,10 @@ export interface FaultOptions {
   /** This length is the longest segment in bytes that an MTU drop lets through. */
   readonly above?: number;
   /**
-   * This value lets each SYN of a reset pass. The connect then succeeds, and the next segment of
-   * the peer gets the reset. Without it, the SYN also gets the reset.
+   * This value lets each SYN of a reset pass, and each segment with no data. The connect then
+   * succeeds, the target accepts the connection, and the first segment of the peer with data gets
+   * the reset. Without it, the SYN also gets the reset. The match needs an IP header of an odd
+   * number of words: a header with no options has 5, as in each lab.
    */
   readonly handshake?: "pass";
   /** These are the addresses that the rule faces, in place of the peer of its place. */

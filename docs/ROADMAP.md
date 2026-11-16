@@ -3673,10 +3673,10 @@ The test: a build that fails stops the f6 test with the tag in its message.
 
 ### SYS-128 · A reset after the handshake: only a segment with data gets the reset
 
-- **Status:** ready
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-15
 - **Shipped:**
 - **Links:**
 
@@ -3684,7 +3684,11 @@ The fault `rst` with `handshake: "pass"` lets each SYN pass. The rule of the inj
 
 The fix: with `handshake: "pass"`, only a segment with a payload gets the reset. The rule compares the payload length with zero: the total length of the IP packet, less the IP header and the TCP header. The connection tracker of Linux gives the final ACK the state `ESTABLISHED`, thus a match of the state cannot do this. The release is a PATCH of the harness, because the change makes the code agree with its documentation.
 
-The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset.
+The rule adds a `u32` test of data to `! --syn`. The test reads the length of the IP header and of the TCP header from the packet. Then it reads the 4 bytes that end at the first byte of the payload. A segment with no data is too short for that read, and the test does not match it.
+
+The test fits only an IP header of an odd number of words. A header with no options has 5 words, and the labs send no options. A model of the match of the kernel checks the test in the unit tests of the injector, for headers of 5 to 15 words. The kernel of the VM tier gets `CONFIG_NETFILTER_XT_MATCH_U32`.
+
+The test: a lab connects through the fault 20 times, and each connect succeeds. The first write of each connection gets the reset. The socket of the target goes to `ESTABLISHED` for each connection. Without the option, the connect fails with `ECONNREFUSED`.
 
 ### SYS-106 · The units of a take in the keyed limiter
 
