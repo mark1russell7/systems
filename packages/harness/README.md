@@ -456,6 +456,9 @@ The injector refuses `protocol` on a fault other than a black hole, a reject or 
   - Each later band (`then`) has its own reference and line. A later band outside its band, or absent, is a finding. So is a line that the prediction names as quiet, after the fault.
   - For a silent prediction, a flow of an open socket of the driver that a router forgot is a finding.
   - A silent prediction can give a band for the forget of the flow of the socket of the driver (`Prediction.middlebox`). The band counts from the last segment that the socket got before the fault. A forget of another socket of the driver is still a finding.
+- **A port cell** (`measurePorts`). The `round` lines of the client give each search, and the prober gives the retransmissions of the client.
+  - The client writes two `stack` lines before its first round and two after its last round. Each line has the counters of the network stack of one end: snmp, netstat and the devices of its namespace, and softnet_stat of the host.
+  - The reading gives the change of each counter that moved, by end (`PortsReading.stack`). A finding of a retransmission names each counter of a drop, a skip, a reset or a retransmission that moved. Thus a lost ACK tells where it went.
 
 ## The verdict
 

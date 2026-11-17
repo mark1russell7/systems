@@ -139,7 +139,7 @@ export type { MemoryReading, MemoryStepReading, MemoryTaskReading } from "./memo
 export { measureMemory, stepBand } from "./memory.ts";
 export type { EgressPacketReading, EgressReading } from "./egress.ts";
 export { measureEgress } from "./egress.ts";
-export type { PortsReading } from "./ports.ts";
+export type { PortsReading, StackChange } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
 export { measureQueue } from "./queue.ts";

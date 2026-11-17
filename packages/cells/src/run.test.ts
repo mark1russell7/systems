@@ -5,7 +5,7 @@ import { cloudOf, measure, noiseOf, pairingsOf, readHost, recordProblems, runCel
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
-import { catalogs, selectedOf, selectionOf } from "./all.ts";
+import { catalogs, selectedOf, selectionOf, withRuns } from "./all.ts";
 import { codeHere } from "./commit.ts";
 import { environmentOf } from "./environments.ts";
 import type { BenchTime, PairCell, PairSlot } from "./limiter.ts";
@@ -25,6 +25,7 @@ import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./
  * subject as JSON (`Subject`), which replaces the subject of its name in the catalogs. Another
  * repository operates the WS and WST cells on its own release this way. CELLS_PAIR is two versions
  * of the service, for example "0.5.6,0.6.0", and CELLS_PAIR_DIR holds a target folder for each version.
+ * CELLS_RUNS gives each selected cell that count of runs (`withRuns`), for the rate of a rare outcome.
  *
  * With CELLS_PAIR, the cells of the limiter pair replace the catalogs (limiterBench). In each
  * round, the A/B pair of the control and the candidate operates, then the A/A pair of the control.
@@ -88,7 +89,7 @@ const pairTimes = (slot: PairSlot, times: readonly BenchTime[]): void => {
   const lines = pairedLines(first, { slot, times });
   appendFileSync(`${OUT}/paired.ndjson`, lines.map((line) => `${JSON.stringify(line)}\n`).join(""));
 };
-const selected = selectedOf(source, ONLY, shard, of);
+const selected = withRuns(selectedOf(source, ONLY, shard, of), process.env["CELLS_RUNS"]);
 
 /** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */
 const environment = environmentOf(cloudOf(readHost().vendor));

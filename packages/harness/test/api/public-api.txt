@@ -237,6 +237,7 @@ type ShippedImage: build/cell.chunk.d.ts#ShippedImage
 type Sibling: build/index.d.ts#Sibling
 type SocketPlace: build/index.d.ts#SocketPlace
 type Spread: build/index.d.ts#Spread
+type StackChange: build/index.d.ts#StackChange
 type Stage: build/cell.chunk.d.ts#Stage
 type StageBand: build/cell.chunk.d.ts#StageBand
 type StageVerdict: build/index.d.ts#StageVerdict
@@ -2431,6 +2432,7 @@ interface PortsReading {
   readonly lastFreed: Quantity | null;
   readonly freed: number;
   readonly tries: number;
+  readonly stack: StackChange | null;
 }
 
 ### build/index.d.ts#Probe
@@ -2654,6 +2656,12 @@ interface Spread {
   readonly p99: Quantity;
   readonly p999: Quantity;
   readonly max: Quantity;
+}
+
+### build/index.d.ts#StackChange
+interface StackChange {
+  readonly client: Readonly<Record<string, number>>;
+  readonly target: Readonly<Record<string, number>>;
 }
 
 ### build/index.d.ts#StageVerdict
