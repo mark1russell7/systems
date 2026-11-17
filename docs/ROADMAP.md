@@ -8,12 +8,12 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
-1. **SYS-121** (P1): the second read of `PR.7` held 4 of 4 runs. Next is the rate of its loss with no fault, then the measured values of the page.
-2. **SYS-124** (P2): the egress tier of the harness and the cells `EQ.1` to `EQ.7` (#583), then the page of the egress queue (#585). The first read of the cells is in CI after the merge.
-3. **SYS-77** (P2): the first fabric. Its cells wait for free CI slots. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16.
+1. **SYS-121** (P1): the loss of `PR.7` is a gap in the law. Each run gives the counters of the stack of each end, and a read of 40 runs measures the rate. Then the measured values of the page come.
+2. **SYS-124** (P2): the egress tier of the harness and the cells `EQ.1` to `EQ.7` (#583), then the page of the egress queue (#585). The first read of the cells waits for free CI slots.
 
 SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). The other open items are `later`, in the order of the score:
 
+- **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
@@ -2637,7 +2637,11 @@ Part 3 is the copy of the cells at one commit, for the measured values of the pa
 - That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
 - The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
 
-The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](https://github.com/mark1russell7/systems/actions/runs/43967294195)). Over the two reads, 1 of 8 runs lost the ACK. The next step for `PR.7` is a measure of the rate: the cell operates again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
+The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](https://github.com/mark1russell7/systems/actions/runs/43967294195)). Over the two reads, 1 of 8 runs lost the ACK. With the first read of SYS-64, 2 of 12 runs lost it. Thus the loss is a gap in the law, not noise:
+
+- A gate of 4 runs passes with a chance of 0.95 only for a loss of 0.0127 or less in each run. The lower Wilson bound of 2 of 12 is 0.047.
+- Each run of a port cell gives the counters of the network stack of each end, before its first round and after its last round. A finding of a retransmission names each counter of a drop, a skip or a reset that moved. Thus the next lost ACK tells its side and its cause.
+- The input `runs` of the workflow of the cells gives each selected cell from 1 to 100 runs. A read of `PR.7` with 40 runs measures the rate of the loss. The record of the gate keeps that rate next to its decision, and [SYS-102](#sys-102--the-port-that-last_ack-holds) takes the cause into the law.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 

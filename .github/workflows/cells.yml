@@ -38,6 +38,7 @@
 # A dispatch that names no cells (no only, selection, pair or file) is the gate of a pull request: the
 # probe only. The queue starts this dispatch on each pull request that is behind main (SYS-118).
 # To run each cell of the catalogs, give -f only=. by name.
+# A rate: -f runs=40 gives each selected cell 40 runs, for example -f only='^PR[.]7[^0-9]' -f shards=1.
 name: Cells
 
 on:
@@ -60,6 +61,9 @@ on:
         default: ""
       selection:
         description: A scheduled selection by its name, for example refresh-2, in place of only (empty for only)
+        default: ""
+      runs:
+        description: A count of runs for each selected cell, from 1 to 100, for the rate of a rare outcome (empty for the count of each cell)
         default: ""
   schedule:
     - cron: "30 3 * * *"
@@ -104,7 +108,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -395,6 +399,7 @@ jobs:
           CELLS_FILE_AT: ${{ inputs.file }}
           CELLS_PAIR: ${{ inputs.pair }}
           CELLS_PAIR_DIR: ${{ runner.temp }}/limiter-pair
+          CELLS_RUNS: ${{ inputs.runs }}
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
           CELLS_SUBJECT="$(cat "$RUNNER_TEMP/subject.json")"
@@ -491,7 +496,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells export
