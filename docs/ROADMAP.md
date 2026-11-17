@@ -8,11 +8,11 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
-1. **SYS-99** (P1): the drills of the Sunday on one shard. Its dispatch waits for free CI slots.
-2. **SYS-121** (P1): the second read of `PR.7`, then the lens of the port range with the measured values. Its dispatch waits for free CI slots.
-3. **SYS-124** (P2): the cells of the egress queue, netem and tbf, in CI only. The law shipped in algebra 0.9.6. This item has code to write while the other two wait.
+1. **SYS-99** (P1): the drills of the Sunday on one shard. Its run is in CI.
+2. **SYS-121** (P1): the second read of `PR.7`, then the lens of the port range with the measured values. Its run is in CI.
+3. **SYS-124** (P2): the cells of the egress queue, netem and tbf, in CI only. The law shipped in algebra 0.9.6.
 
-SYS-120 waits on Mark: its part 3 needs the export of the `AQ` records in CI. The other open items are `later`, in the order of the score:
+SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. The other open items are `later`, in the order of the score:
 
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-77:** the first fabric. Its cells wait for free CI slots.
@@ -22,7 +22,7 @@ SYS-120 waits on Mark: its part 3 needs the export of the `AQ` records in CI. Th
 - **SYS-101:** it starts after SYS-99 ships.
 - **SYS-75**, **SYS-87**, **SYS-102** and **SYS-103:** their cells wait for free CI slots.
   <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
-- **VIZ:** it ends when SYS-119 to SYS-124 ship. SYS-119 and SYS-122 shipped.
+- **VIZ:** it ends when SYS-119 to SYS-124 ship. SYS-119, SYS-120 and SYS-122 shipped.
 - **S2** and **S3:** their items hold the work.
 
 An item goes back to `in progress` when one of the three ships.
@@ -2556,7 +2556,7 @@ Each step is an item, in this order:
 - Each lens shows the computed band, the measured values of the cells and the facts of a network diagnosis.
 - SYS-120 to SYS-124 use the contract of today until the move.
 
-The next steps: SYS-120 part 2 (#567), SYS-121 part 2 (#566), SYS-122 (#569) and SYS-123 part 2 (#571) shipped on 2026-11-16. SYS-124 part 1 is the law of the egress queue. The measured values of the accept queue, the port range and the memory come next.
+The next steps: SYS-120 part 2 (#567), SYS-121 part 2 (#566), SYS-122 (#569) and SYS-123 part 2 (#571) shipped on 2026-11-16. SYS-124 part 1 is the law of the egress queue. The measured values of the accept queue shipped on 2026-11-16 (#581). The measured values of the port range and the memory come next.
 
 ### SYS-119 · The visuals: a lens contract and one shared timeline
 
@@ -2579,12 +2579,12 @@ The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/l
 
 ### SYS-120 · The accept queue: a lens and its page
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-15
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-16
+- **Links:** [#553, the law](https://github.com/mark1russell7/systems/pull/553), [#567, the lens and its page](https://github.com/mark1russell7/systems/pull/567), [#581, the measured values](https://github.com/mark1russell7/systems/pull/581), [the run of the ten cells](https://github.com/mark1russell7/systems/actions/runs/43954861254)
 
 A listener that does not accept fills its queue. The page shows each step of a new connection at a full queue. The kernel drops the SYN, and the client sends it again on its ladder. The target drops the final ACK and sends the SYN-ACK again on its own ladder. After the expiry at 63 s, a segment of the client gets a reset.
 
@@ -2599,7 +2599,9 @@ Part 2 is the page [the accept queue](https://mark1russell7.github.io/systems/la
 
 A test of the site checks the counts and the times of the page against the cells `AQ.1` to `AQ.10`. The page shows no measured value. The measured values come with the copy of the ten cells at one commit, in part 3.
 
-Part 3 is the copy. The exporter `scripts/accept-queue.ts` of the site reads the records of a Cells run again with the harness. It gives each term of the law of each cell: its band, the value of each counted trial and their median. The component `QueueResults` shows each median next to its band, and it computes nothing. One Cells run of the ten cells at main gives the copy, because `AQ.8` to `AQ.10` have no record yet.
+Part 3 is the copy. The exporter `scripts/accept-queue.ts` of the site reads the records of a Cells run again with the harness. It gives each term of the law of each cell: its band, the value of each counted trial and their median. The component `QueueResults` shows each median next to its band, and it computes nothing.
+
+The copy comes from one Cells run of the ten cells at main `43219db`, on Linux 7.0.0 at HZ 1000. Each cell holds 4 of 4 trials with no void, and each of the 58 medians is inside its band. A test of the site checks each band of the copy against the prediction of the catalog.
 
 - The release of part 1 is algebra `0.9.1`, a PATCH with new exports before 1.0.
 - Machines `0.4.0` is a MINOR before 1.0, because a transition of `linux-tcp` changed.
@@ -2673,7 +2675,7 @@ Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
@@ -2684,7 +2686,7 @@ A packet goes from the socket through the queue discipline and the ring of the N
 
 Part 1 is the law of the egress queue in `@mark1russell7/algebra` 0.9.6, from `net/sched` of Linux 7.0. The function `netemSchedule` gives the time that each packet leaves a netem queue with a rate, or its drop at the limit. The function `tbfSchedule` gives the same for the token bucket of tbf. A veth has no ring, thus the cells of part 2 measure the qdisc and the rate. The ring of a NIC and its byte queue limits come later, from the sources of a driver. Part 3 is the lens and its page.
 
-Part 2 is later. At most three items are in progress at one time, and the copy of SYS-120 comes first.
+Part 2 is next, after the copy of SYS-120 shipped on 2026-11-16.
 
 ## The items of S3
 

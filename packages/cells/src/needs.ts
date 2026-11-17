@@ -28,7 +28,9 @@ export const diskOf = (cell: Cell): Quantity =>
 
 /**
  * This function gives the needs of a shard from the variables of the runner (run.test.ts):
- * CELLS_ONLY, CELLS_SELECTION, CELLS_SHARD, CELLS_FILE and CELLS_PAIR.
+ * CELLS_ONLY, CELLS_SELECTION, CELLS_SHARD, CELLS_FILE and CELLS_PAIR. It stops a run whose selection
+ * matches no cell of the catalogs or of the file. Without this stop, each shard finds no test and fails
+ * with no reason. A shard with no cell is correct when the run has more shards than cells.
  */
 export const needsOf = (env: Readonly<Record<string, string | undefined>>, read: (path: string) => string): ShardNeeds => {
   // The cells of the limiter pair replace the catalogs, and no cell of the pair is on a fabric or is a drill.
@@ -37,6 +39,10 @@ export const needsOf = (env: Readonly<Record<string, string | undefined>>, read:
   const [shard, of] = (env["CELLS_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
   const file = env["CELLS_FILE"] || undefined;
   const source: readonly Cell[] = file === undefined ? catalogs() : (JSON.parse(read(file)) as Cell[]);
+  if (!source.some((each) => only.test(each.name)))
+    throw new Error(
+      `the selection ${String(only)} matches no cell of ${file ?? "the catalogs"}. The name of a cell is its id and its words, for example "${source[0]?.name ?? ""}". To select one id, end it with [^0-9], not with $.`,
+    );
   const selected = selectedOf(source, only, shard, of);
   const cells = selected.filter(needsContainerlab).map((each) => each.name);
   const disk = selected.map(diskOf).reduce((most, each) => (valueIn(each, "B") > valueIn(most, "B") ? each : most), NO_DISK);

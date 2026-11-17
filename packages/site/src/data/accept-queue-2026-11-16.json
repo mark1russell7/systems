@@ -1,0 +1,682 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
+  "ranAt": "2026-11-16",
+  "commit": "43219dbc594adfefc3b47e9a78f0cbf099ebc7a7",
+  "workflows": [43954861254],
+  "kernel": "7.0.0",
+  "hz": 1000,
+  "cells": [
+    {
+      "id": "AQ.1",
+      "name": "the count: a backlog of 4 under a somaxconn of 4096 holds 5",
+      "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 4,
+            "high": 4,
+            "values": [4, 4, 4, 4],
+            "median": 4,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.2",
+      "name": "the count: somaxconn 8 clamps a backlog of 511, and the queue holds 9",
+      "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 8,
+            "high": 8,
+            "values": [8, 8, 8, 8],
+            "median": 8,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 9,
+            "high": 9,
+            "values": [9, 9, 9, 9],
+            "median": 9,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 9,
+            "high": 9,
+            "values": [9, 9, 9, 9],
+            "median": 9,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.3",
+      "name": "the count: a backlog of 0 holds 1",
+      "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 1,
+            "high": 1,
+            "values": [1, 1, 1, 1],
+            "median": 1,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 1,
+            "high": 1,
+            "values": [1, 1, 1, 1],
+            "median": 1,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.4",
+      "name": "a SYN at a full queue meets the SYN ladder of the client, and ETIMEDOUT",
+      "why": "The kernel drops each SYN at a full queue with no answer. Each of the 11 SYNs is one overflow, and the connect ends on the timer of the client.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 1,
+            "high": 1,
+            "values": [1, 1, 1, 1],
+            "median": 1,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 11,
+            "high": 11,
+            "values": [11, 11, 11, 11],
+            "median": 11,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          },
+          {
+            "term": "ETIMEDOUT at the blocked connection",
+            "unit": "s",
+            "low": 130.99,
+            "high": 137.09,
+            "values": [134.435087, 134.585631, 134.881328, 134.040302],
+            "median": 134.510359,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.5",
+      "name": "a final ACK at a full queue: the client connects, the target forgets it at 63 s, and the next segment meets a reset",
+      "why": "tcp_abort_on_overflow 0 keeps the request and drops the final ACK. The client is ESTABLISHED, and only a later segment tells it the truth. The count of overflows depends on the retransmissions of the client, thus it has a floor and no band.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 4,
+            "high": 4,
+            "values": [4, 4, 4, 4],
+            "median": 4,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 7,
+            "high": 7,
+            "values": [7, 7, 7, 7],
+            "median": 7,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 1000,
+            "values": [22, 22, 22, 22],
+            "median": 22,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          },
+          {
+            "term": "the expiry of the requests",
+            "unit": "s",
+            "low": 62.984,
+            "high": 64.738,
+            "values": [63.827359, 64.09326, 64.295291, 64.058367],
+            "median": 64.07581350000001,
+            "inside": true
+          },
+          {
+            "term": "ECONNRESET at the busy connection",
+            "unit": "s",
+            "low": 110,
+            "high": 125,
+            "values": [117.602893, 114.288669, 117.558445, 114.249971],
+            "median": 115.923557,
+            "inside": true
+          },
+          {
+            "term": "ECONNRESET at the quiet connection",
+            "unit": "s",
+            "low": 0.01,
+            "high": 0.05,
+            "values": [0.020152, 0.020172, 0.02015, 0.020168],
+            "median": 0.020159999999999997,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.6",
+      "name": "a final ACK at a full queue with tcp_abort_on_overflow 1: connected, then ECONNRESET one round trip later",
+      "why": "tcp_abort_on_overflow 1 answers an overflow of a final ACK with a reset. A SYN at a full queue stays silent, because the sysctl does not change that path.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 4,
+            "high": 4,
+            "values": [4, 4, 4, 4],
+            "median": 4,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 7,
+            "high": 7,
+            "values": [7, 7, 7, 7],
+            "median": 7,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 3,
+            "high": 3,
+            "values": [3, 3, 3, 3],
+            "median": 3,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "ECONNRESET at the busy connection",
+            "unit": "s",
+            "low": 0.01,
+            "high": 0.05,
+            "values": [0.020081, 0.020099, 0.020145, 0.020162],
+            "median": 0.020122,
+            "inside": true
+          },
+          {
+            "term": "ECONNRESET at the quiet connection",
+            "unit": "s",
+            "low": 0.01,
+            "high": 0.05,
+            "values": [0.020085, 0.020125, 0.020144, 0.020169],
+            "median": 0.0201345,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.7",
+      "name": "the queue drains before the expiry: the next SYN-ACK brings a challenge ACK, and no connection fails",
+      "why": "The request stays until its expiry. The SYN-ACK at 3 s gets a challenge ACK, and that ACK finds a place. The blocked SYN finds a place at its next firing. The count of overflows depends on the retransmissions before the accept, thus its band is wide.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 4,
+            "high": 4,
+            "values": [4, 4, 4, 4],
+            "median": 4,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 8,
+            "high": 8,
+            "values": [8, 8, 8, 8],
+            "median": 8,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 9,
+            "high": 15,
+            "values": [12, 12, 12, 12],
+            "median": 12,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          },
+          {
+            "term": "the accepts",
+            "unit": "count",
+            "low": 8,
+            "high": 8,
+            "values": [8, 8, 8, 8],
+            "median": 8,
+            "inside": true
+          },
+          {
+            "term": "the queue back to 4",
+            "unit": "s",
+            "low": 3.008,
+            "high": 3.158,
+            "values": [3.080737, 3.083223, 3.135037, 3.070167],
+            "median": 3.0819799999999997,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.8",
+      "name": "the count of service 0.7: a declared backlog of 4 under a somaxconn of 4096 holds 5",
+      "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 4,
+            "high": 4,
+            "values": [4, 4, 4, 4],
+            "median": 4,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 5,
+            "high": 5,
+            "values": [5, 5, 5, 5],
+            "median": 5,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.9",
+      "name": "the count of service 0.7: somaxconn 8 clamps a declared backlog of 511, and the queue holds 9",
+      "why": "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 8,
+            "high": 8,
+            "values": [8, 8, 8, 8],
+            "median": 8,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 9,
+            "high": 9,
+            "values": [9, 9, 9, 9],
+            "median": 9,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 9,
+            "high": 9,
+            "values": [9, 9, 9, 9],
+            "median": 9,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    },
+    {
+      "id": "AQ.10",
+      "name": "the count of service 0.7: Node gives listen(2) 511 for a declared backlog of 0, and the queue holds 512",
+      "why": "Node gives listen(2) 511 for a backlog of 0, thus the declared 0 of service 0.7.3 is a limit of 511. The queue holds the limit plus one, and each later SYN is one overflow.",
+      "result": {
+        "decision": "holds",
+        "counted": 4,
+        "voided": 0,
+        "why": "None of the 4 counted runs measured a time.",
+        "voids": null,
+        "terms": [
+          {
+            "term": "the limit of the queue",
+            "unit": "count",
+            "low": 511,
+            "high": 511,
+            "values": [511, 511, 511, 511],
+            "median": 511,
+            "inside": true
+          },
+          {
+            "term": "the most in the queue",
+            "unit": "count",
+            "low": 512,
+            "high": 512,
+            "values": [512, 512, 512, 512],
+            "median": 512,
+            "inside": true
+          },
+          {
+            "term": "the connects that succeed",
+            "unit": "count",
+            "low": 512,
+            "high": 512,
+            "values": [512, 512, 512, 512],
+            "median": 512,
+            "inside": true
+          },
+          {
+            "term": "the overflows",
+            "unit": "count",
+            "low": 2,
+            "high": 2,
+            "values": [2, 2, 2, 2],
+            "median": 2,
+            "inside": true
+          },
+          {
+            "term": "the resets of the target",
+            "unit": "count",
+            "low": 0,
+            "high": 0,
+            "values": [0, 0, 0, 0],
+            "median": 0,
+            "inside": true
+          }
+        ],
+        "first": null
+      }
+    }
+  ]
+}
