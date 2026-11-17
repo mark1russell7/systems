@@ -4,7 +4,7 @@
  * lenses, thus a page of many lenses merges the registries of its lenses and shows each knob once.
  */
 import { Fragment, type ReactElement, type ReactNode } from "react";
-import { quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
+import { format, quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { say } from "../model/lens.ts";
 import Term from "./Term.tsx";
 
@@ -12,6 +12,42 @@ import Term from "./Term.tsx";
 const toLog = (value: number, min: number, max: number): number => (100 * Math.log(Math.max(value, min) / min)) / Math.log(max / min);
 const fromLog = (step: number, min: number, max: number): number => Number((min * (max / min) ** (step / 100)).toPrecision(2));
 
+/**
+ * A slider for an amount in one unit, on a logarithmic scale by default, or on a linear scale with
+ * `step`. The value prints through `format` of the quantity package, or through `print`.
+ */
+export function AmountKnob(props: {
+  readonly label: ReactNode;
+  readonly value: Quantity;
+  readonly unit: string;
+  readonly min: number;
+  readonly max: number;
+  /** the step of a linear slider. Without it, the slider is logarithmic */
+  readonly step?: number;
+  readonly print?: (value: Quantity) => string;
+  readonly onChange: (value: Quantity) => void;
+}): ReactElement {
+  const now = valueIn(props.value, props.unit);
+  const { min, max, step } = props;
+  const linear = step !== undefined;
+  return (
+    <label className="sy-knob">
+      <span>
+        {props.label} <output>{(props.print ?? format)(props.value)}</output>
+      </span>
+      <input
+        type="range"
+        min={linear ? min : 0}
+        max={linear ? max : 100}
+        step={linear ? step : 0.5}
+        value={linear ? Math.min(Math.max(now, min), max) : toLog(now, min, max)}
+        onChange={(e) => props.onChange(quantity(linear ? Number(e.target.value) : fromLog(Number(e.target.value), min, max), props.unit))}
+      />
+    </label>
+  );
+}
+
+/** A time on a logarithmic slider. The time prints through `say`. */
 export function TimeKnob(props: {
   readonly label: ReactNode;
   readonly value: Quantity;
@@ -20,22 +56,7 @@ export function TimeKnob(props: {
   readonly max: number;
   readonly onChange: (value: Quantity) => void;
 }): ReactElement {
-  const now = valueIn(props.value, props.unit);
-  return (
-    <label className="sy-knob">
-      <span>
-        {props.label} <output>{say(props.value)}</output>
-      </span>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        step={0.5}
-        value={toLog(now, props.min, props.max)}
-        onChange={(e) => props.onChange(quantity(fromLog(Number(e.target.value), props.min, props.max), props.unit))}
-      />
-    </label>
-  );
+  return <AmountKnob {...props} print={say} />;
 }
 
 export function CountKnob(props: { readonly label: ReactNode; readonly value: number; readonly min: number; readonly max: number; readonly onChange: (value: number) => void }): ReactElement {
@@ -140,4 +161,9 @@ export const rttKnob: KnobControl<Quantity> = (value, set) => <TimeKnob label="R
 /** The control of HZ, the clock of the kernel. The lenses of the kernel share it. */
 export const hzKnob: KnobControl<number> = (value, set) => (
   <Choice label={<Term name="HZ">Kernel clock, HZ</Term>} name="Kernel clock" options={[100, 250, 300, 1000].map((hz) => ({ id: hz, label: String(hz) }))} value={value} onChange={set} />
+);
+
+/** The control of the MTU of the link. The path of one request and the egress queue share it. */
+export const mtuKnob: KnobControl<Quantity> = (value, set) => (
+  <Choice label={<Term name="MTU" />} name="MTU" options={[1500, 9000].map((mtu) => ({ id: mtu, label: `${mtu} B` }))} value={valueIn(value, "B")} onChange={(mtu) => set(quantity(mtu, "B"))} />
 );

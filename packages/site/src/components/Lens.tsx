@@ -48,9 +48,9 @@ export interface Axis {
   readonly ticks: readonly number[];
 }
 
-/** the time constant of the logarithmic axis: below it the axis is approximately linear */
+/** the time constant of the logarithmic axis, as a share of the least end of the axis: below it the axis is approximately linear */
 const TAU = 0.1;
-const LOG_TICKS = [0, 0.01, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 21_600, 86_400, 432_000];
+const LOG_TICKS = [0, 0.001, 0.002, 0.005, 0.01, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 21_600, 86_400, 432_000];
 
 const niceStep = (span: number): number => {
   const raw = span / 5;
@@ -69,25 +69,32 @@ const timesOf = (lanes: readonly Lane[], end: Quantity | null): number[] => [
   ...(end === null ? [] : [sec(end)]),
 ];
 
-/** This function gives the axis of the lanes: the whole story on a logarithmic axis, or a linear axis up to the first answer. */
-export const axisOf = (lanes: readonly Lane[], faultEnd: Quantity | null, scale: Scale): Axis => {
+/**
+ * This function gives the axis of the lanes: the whole story on a logarithmic axis, or a linear axis up
+ * to the first answer. The axis holds at least `least`, 1 s by default. A story of milliseconds gives a
+ * smaller `least`, and the logarithmic axis scales its time constant with it.
+ */
+export const axisOf = (lanes: readonly Lane[], faultEnd: Quantity | null, scale: Scale, least: Quantity = quantity(1, "s")): Axis => {
   const all = timesOf(lanes, faultEnd).filter(Number.isFinite);
+  const floor = Math.max(sec(least), 1e-6);
   if (scale === "linear") {
     // the linear axis ends a little after the first answer: a detection or a recovery
     const answers = lanes.flatMap((lane) => (lane.band === null || lane.verdict === "blind" ? [] : [sec(lane.band.high)]));
-    const focus = Math.max(answers.length === 0 ? Math.max(...all, 1) : Math.min(...answers), faultEnd === null ? 0 : sec(faultEnd), 1);
+    const focus = Math.max(answers.length === 0 ? Math.max(...all, floor) : Math.min(...answers), faultEnd === null ? 0 : sec(faultEnd), floor);
     const end = focus * 1.15;
     const step = niceStep(end);
     const ticks = Array.from({ length: Math.floor(end / step) + 1 }, (_, n) => n * step);
     return { x: (t) => t / end, t: (x) => x * end, end, ticks };
   }
-  const end = Math.max(...all, 1) * 1.25;
-  const span = Math.log10(1 + end / TAU);
+  const tau = TAU * Math.min(floor, 1);
+  const end = Math.max(...all, floor) * 1.25;
+  const span = Math.log10(1 + end / tau);
   return {
-    x: (t) => Math.log10(1 + Math.max(t, 0) / TAU) / span,
-    t: (x) => TAU * (10 ** (x * span) - 1),
+    x: (t) => Math.log10(1 + Math.max(t, 0) / tau) / span,
+    t: (x) => tau * (10 ** (x * span) - 1),
     end,
-    ticks: LOG_TICKS.filter((t) => t <= end),
+    // a tick far below the time constant sits at the start of the axis, thus the axis shows none
+    ticks: LOG_TICKS.filter((t) => t <= end && (t === 0 || t >= tau / 10)),
   };
 };
 
@@ -118,11 +125,13 @@ export function Timeline(props: {
   readonly label: string;
   /** the groups of the lanes, in their order. With groups, a line goes between two groups */
   readonly groups?: readonly TimelineGroup[];
+  /** the least end of the axis, 1 s by default (`axisOf`) */
+  readonly least?: Quantity;
 }): ReactElement {
   const [ref, width] = useWidth();
-  const { lanes, scale, progress } = props;
+  const { lanes, scale, progress, least } = props;
   const faultEnd = props.fault?.end ?? null;
-  const axis = useMemo(() => axisOf(lanes, faultEnd, scale), [lanes, faultEnd, scale]);
+  const axis = useMemo(() => axisOf(lanes, faultEnd, scale, least), [lanes, faultEnd, scale, least]);
   const narrow = width < 560;
   const gutter = narrow ? 64 : 104;
   const right = 14;
