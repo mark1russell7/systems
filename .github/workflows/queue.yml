@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   queue:
-    uses: mark1russell7/template/.github/workflows/reusable-queue.yml@84cd228877959446708d1bf8f4399bfcb183bae1 # main
+    uses: mark1russell7/template/.github/workflows/reusable-queue.yml@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
     permissions:
       contents: write
       pull-requests: write
