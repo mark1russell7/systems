@@ -8,18 +8,18 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
-1. **SYS-99** (P1): the drills of the Sunday on one shard. Its run is in CI.
-2. **SYS-121** (P1): the second read of `PR.7`, then the lens of the port range with the measured values. Its run is in CI.
-3. **SYS-124** (P2): the cells of the egress queue, netem and tbf, in CI only. The law shipped in algebra 0.9.6.
+1. **SYS-121** (P1): the second read of `PR.7` held 4 of 4 runs. Next is the rate of its loss with no fault, then the measured values of the page.
+2. **SYS-124** (P2): the egress tier of the harness and the cells `EQ.1` to `EQ.7` (#583), then the page of the egress queue (#585). The first read of the cells is in CI after the merge.
+3. **SYS-77** (P2): the first fabric. Its cells wait for free CI slots. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16.
 
-SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. The other open items are `later`, in the order of the score:
+SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). The other open items are `later`, in the order of the score:
 
+- **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
-- **SYS-77:** the first fabric. Its cells wait for free CI slots.
 - **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
 - **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
-- **SYS-101:** it starts after SYS-99 ships.
+- **SYS-101:** SYS-99 shipped on 2026-11-16, thus it can start when a place opens.
 - **SYS-75**, **SYS-87**, **SYS-102** and **SYS-103:** their cells wait for free CI slots.
   <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 - **VIZ:** it ends when SYS-119 to SYS-124 ship. SYS-119, SYS-120 and SYS-122 shipped.
@@ -2637,7 +2637,7 @@ Part 3 is the copy of the cells at one commit, for the measured values of the pa
 - That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
 - The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
 
-The next step for `PR.7` is a measure of the rate: the cell runs again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
+The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](https://github.com/mark1russell7/systems/actions/runs/43967294195)). Over the two reads, 1 of 8 runs lost the ACK. The next step for `PR.7` is a measure of the rate: the cell operates again with more runs. A rare loss with no fault plan is noise, and the judge voids such a run. A frequent loss is a gap in the law, and the prober then records the control segments of each side.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
@@ -2686,7 +2686,24 @@ A packet goes from the socket through the queue discipline and the ring of the N
 
 Part 1 is the law of the egress queue in `@mark1russell7/algebra` 0.9.6, from `net/sched` of Linux 7.0. The function `netemSchedule` gives the time that each packet leaves a netem queue with a rate, or its drop at the limit. The function `tbfSchedule` gives the same for the token bucket of tbf. A veth has no ring, thus the cells of part 2 measure the qdisc and the rate. The ring of a NIC and its byte queue limits come later, from the sources of a driver. Part 3 is the lens and its page.
 
-Part 2 is next, after the copy of SYS-120 shipped on 2026-11-16.
+Part 2 is the egress tier of the harness 0.16.8 and the cells `EQ.1` to `EQ.7` ([#583](https://github.com/mark1russell7/systems/pull/583)).
+
+- The client `/opt/harness/egress send` puts the qdisc at the root of its interface, and it sends bursts of UDP datagrams to the sink of the target.
+- The kernel stamps each datagram with `SO_TIMESTAMPING`: when the qdisc takes it, and when the device takes it. A drop of the qdisc is a send that gives `ENOBUFS`.
+- The neighbour of the target is `PERMANENT`, thus no ARP packet goes through the qdisc. The counts of the root qdisc must equal the counts of the client.
+- The band of each datagram is the hull of its departures at the corners of its arrivals. At a corner, each burst is together or spread 2 ms, and each start is early or late 2 ms. The late slack of 2 ms for the timer of the qdisc is a first value.
+
+| Cell | Qdisc | The law |
+| --- | --- | --- |
+| `EQ.1` | netem at 1 Mbit/s | one full frame each 12.112 ms |
+| `EQ.2` | netem at 1 Mbit/s, limit 10 | 10 of 20 frames sent, 10 dropped |
+| `EQ.3` | netem with a delay of 100 ms, limit 12 | the second burst sends 4 frames and drops 4 |
+| `EQ.4` | netem with no delay, limit 12 | no drop, the control of `EQ.3` |
+| `EQ.5` | tbf at 1 Mbit/s, burst 3000 B | 3 frames at once, then one each 8 ms |
+| `EQ.6` | tbf with a limit of 5000 B | 8 of 20 frames sent, 12 dropped |
+| `EQ.7` | tbf with a burst of 1500 B | a frame of 1501 B is dropped, the frames of 1500 B around it are sent |
+
+The first read of the seven cells checks the late slack against the records. Then the lens and its page come in part 3.
 
 ## The items of S3
 
@@ -3569,6 +3586,16 @@ The intended send time comes from the record. The form `first + n × interval` i
 
 `Topology` is a chain of hops, thus it cannot name two paths. The first fabric gives its paths in `Topology.fabric`, apart from the chain. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
 
+The format has two test values from the start. The first is the leaf and spine fabric of SYS-77. The second is a world of a consumer that finds the cause of a network fault:
+
+- **The nodes.** A client with its own image, three FRR routers in a line, a target and a reference on HTTPS, and a resolver on DNS. Each node has a kind: host or router.
+- **The links.** Six links, each with a name and two ends. The routes are static first, and OSPF comes later for faults of a route.
+- **The faults.** One fault at a time goes on the egress of one end of one named link. It is a loss, a delay with jitter, a black hole, a lower MTU or a link down. The plan of each fault is data of `@mark1russell7/rigor-chaos`.
+- **The readings.** The case gives the output and the exit code of a command in the client. It also gives the address of each end of each link. Each fault has a record on the monotonic clock of the lab. The counters of the faulted interface come before and after the fault, thus a fault that did not act gives no read. The routes of each router come at the start.
+- **The size.** Seven nodes on the smallest runner.
+
+The next world of that consumer gives a home router with NAT and DHCP, and two providers with eBGP to it. Thus it has two paths and a fault on one path only. An Open vSwitch node with VLANs comes later. Each image is free: FRR, Open vSwitch and Debian.
+
 ### SYS-114 · A Proxmox VE guest: a real API for the provider of runner-dispatch
 
 - **Status:** later
@@ -3932,12 +3959,12 @@ Rung 10,000 has an RPO of 10 s and an RTO of 5 min, on k3s with shards of synthe
 
 ### SYS-99 · The scheduled cells can fail on a failing cell
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
-- **Shipped:**
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456), [#522](https://github.com/mark1russell7/systems/pull/522)
+- **Shipped:** 2026-11-16
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/mark1russell7/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/mark1russell7/systems/pull/456), [#522](https://github.com/mark1russell7/systems/pull/522), [#399](https://github.com/mark1russell7/systems/pull/399), [#383](https://github.com/mark1russell7/systems/pull/383)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
@@ -3951,7 +3978,7 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate. A dispatch of the selection `night` on 4 shards, or of the selection `drills` on 1 shard, is that schedule by hand. Its step operates as on the schedule. Before this fix, only the expression of `only` started the step. Thus a rerun of a red Sunday by its selection was green with no check.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 - **The proof.** The dispatch of `only=^WS` with `shards=4` (run 42098411637, 2026-11-05) operated the step on real records. Each of the 33 cells holds. On each of the 4 shards, the clean copy exits with 0, and the fault and the copy with one record gone exit with 1.
-- **What is left.** The step of the night reads each cell, and the step of the Sunday reads only the budgets of the rungs. The pull request #383 gives each drill of the Sunday the read of the night. The pull request #399 gives the same read to `kind.yml`. This item is done when the two merge.
+- **The end.** The pull request #383 gives each drill of the Sunday the read of the night. The pull request #399 gives the same read to `kind.yml`. The two merged on 2026-11-15 and 2026-11-16, thus the item is done.
 - **The run of 2026-11-15.** The run 43699733340 failed in one run of 6 of `RD.100.restore`. After `rs.initiate`, the old primary did not accept writes in 60 s. The run before it took 14.8 s. The error gave no state of the set, thus its cause is not known. From harness `0.16.1`, the error of that wait gives the view of the old primary and its last 8 log lines of the election. The next run of the drills tells the cause.
 
 This is the read of false blocks, before the check blocks. The code and the catalog of the head judge each past night at the HZ of the runner. Each of the 19 complete nights holds 33 of 33 cells.

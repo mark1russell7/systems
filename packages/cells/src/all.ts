@@ -3,6 +3,7 @@ import { ACCEPT_QUEUE_CELLS, SERVICE_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { CONNTRACK_CELLS } from "./conntrack.ts";
+import { EGRESS_CELLS } from "./egress.ts";
 import { MEMORY_CELLS } from "./memory.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
@@ -117,6 +118,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...BORDER_CELLS,
     ...LADDER_CELLS,
     ...MEMORY_CELLS,
+    ...EGRESS_CELLS,
   ];
 };
 

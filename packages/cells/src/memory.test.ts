@@ -5,6 +5,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
+import { EGRESS_CELLS } from "./egress.ts";
 import { BASE_MOST, growthTime, MEMORY_CELLS, MEMORY_SPECS, victimOf } from "./memory.ts";
 
 const PAGE = 4096;
@@ -34,9 +35,9 @@ const oomOf = (plan: string): MemoryOomPrediction => {
 };
 
 describe("the cells of the memory controller", () => {
-  it("joins the end of the catalog, four counted runs and one cell at a time, on an idle client", () => {
+  it("comes before the egress cells at the end of the catalog, four counted runs and one cell at a time, on an idle client", () => {
     expect(MEMORY_CELLS).toHaveLength(5);
-    expect(ALL.slice(-MEMORY_CELLS.length)).toEqual(MEMORY_CELLS);
+    expect(ALL.slice(-(MEMORY_CELLS.length + EGRESS_CELLS.length), -EGRESS_CELLS.length)).toEqual(MEMORY_CELLS);
     for (const cell of MEMORY_CELLS) {
       expect(cell.runs).toBe(4);
       expect(cell.concurrency).toBe(1);

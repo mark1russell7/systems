@@ -59,6 +59,11 @@ type DriverBand: build/cell.chunk.d.ts#DriverBand
 type DriverSocket: build/index.d.ts#DriverSocket
 type DriverStep: build/cell.chunk.d.ts#DriverStep
 type DriverStepTime: build/index.d.ts#DriverStepTime
+type EgressBurst: build/cell.chunk.d.ts#EgressBurst
+type EgressPacketLaw: build/cell.chunk.d.ts#EgressPacketLaw
+type EgressPacketReading: build/index.d.ts#EgressPacketReading
+type EgressPrediction: build/cell.chunk.d.ts#EgressPrediction
+type EgressReading: build/index.d.ts#EgressReading
 type ErrorOnTheWay: build/index.d.ts#ErrorOnTheWay
 type EstimateVerdict: build/index.d.ts#EstimateVerdict
 FABRIC_CLIENT: build/index.d.ts#FABRIC_CLIENT
@@ -345,6 +350,7 @@ matches: build/index.d.ts#matches
 measure: build/index.d.ts#measure
 measureConntrack: build/index.d.ts#measureConntrack
 measureDriver: build/index.d.ts#measureDriver
+measureEgress: build/index.d.ts#measureEgress
 measureGroup: build/index.d.ts#measureGroup
 measureMemory: build/index.d.ts#measureMemory
 measurePause: build/index.d.ts#measurePause
@@ -673,6 +679,33 @@ interface DriverStep {
   readonly ends: LineMatch;
   readonly low: Quantity;
   readonly high: Quantity;
+}
+
+### build/cell.chunk.d.ts#EgressBurst
+interface EgressBurst {
+  readonly at: Quantity;
+  readonly count: number;
+  readonly payload: number;
+}
+
+### build/cell.chunk.d.ts#EgressPacketLaw
+type EgressPacketLaw = {
+  readonly kind: "sent";
+  readonly left: QueueBand;
+} | {
+  readonly kind: "dropped";
+  readonly why: "limit" | "size";
+};
+
+### build/cell.chunk.d.ts#EgressPrediction
+interface EgressPrediction {
+  readonly qdisc: string;
+  readonly kind: string;
+  readonly bursts: readonly EgressBurst[];
+  readonly packets: readonly EgressPacketLaw[];
+  readonly spread: Quantity;
+  readonly jitter: Quantity;
+  readonly read: number;
 }
 
 ### build/cell.chunk.d.ts#Fabric
@@ -1062,6 +1095,7 @@ type Prediction = {
   readonly pause?: PausePrediction;
   readonly load?: LoadPrediction;
   readonly memory?: MemoryPrediction;
+  readonly egress?: EgressPrediction;
 };
 
 ### build/cell.chunk.d.ts#ProbeEvent
@@ -1695,6 +1729,28 @@ interface DriverStepTime {
   readonly elapsed: Quantity | null;
 }
 
+### build/index.d.ts#EgressPacketReading
+interface EgressPacketReading {
+  readonly key: number;
+  readonly burst: number;
+  readonly outcome: "sent" | "dropped" | "unread";
+  readonly arrived: Quantity;
+  readonly left: Quantity | null;
+}
+
+### build/index.d.ts#EgressReading
+interface EgressReading {
+  readonly kind: string;
+  readonly packets: readonly EgressPacketReading[];
+  readonly spreads: readonly Quantity[];
+  readonly starts: readonly Quantity[];
+  readonly counts: {
+    readonly packets: number;
+    readonly drops: number;
+  };
+  readonly step: Quantity;
+}
+
 ### build/index.d.ts#ErrorOnTheWay
 interface ErrorOnTheWay {
   readonly name: string;
@@ -2195,6 +2251,7 @@ interface Measured {
   readonly ports?: PortsReading;
   readonly conntrack?: ConntrackReading;
   readonly memory?: MemoryReading;
+  readonly egress?: EgressReading;
   readonly request?: RequestReading | null;
   readonly driver?: {
     readonly steps: readonly DriverStepTime[];
@@ -3024,6 +3081,9 @@ export declare const measureConntrack: (run: Run, expected: ConntrackPrediction)
 
 ### build/index.d.ts#measureDriver
 export declare const measureDriver: (cell: Cell, run: Run) => Measured;
+
+### build/index.d.ts#measureEgress
+export declare const measureEgress: (run: Run, expected: EgressPrediction) => Measured;
 
 ### build/index.d.ts#measureGroup
 export declare const measureGroup: (cell: Cell, run: Run) => GroupReading;
