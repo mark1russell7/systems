@@ -32,7 +32,7 @@ jobs:
     # (queue.yml, SYS-118), its job pull finds the pull request of the branch. Then check:conventions
     # examines the change of the pull request against the newest main (template#350). The release
     # build keeps the pin of release.yml.
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@3dafd3e93b105b2d0baea11f62a55c4e3d6e5915 # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
     permissions:
       contents: read
     with:
@@ -53,7 +53,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
     permissions:
       contents: read
     with:
@@ -151,3 +151,26 @@ jobs:
           test "$CHECKER" = success
           test "$NATIVE" = success
           if [ "$WORKFLOW" = CI ]; then test "$PACK" = success; else test "$PACK" = skipped; fi
+
+  # The site of .github/site.json: the build, the site check and the probe, with no deploy (CI.md of the
+  # template, "The site config"). The Pages workflow deploys the same site from main.
+  site-check:
+    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+    permissions:
+      contents: read
+
+  # The summary check of the ruleset of main: each job passed (CI.md of the template, "The check of the
+  # ruleset").
+  ci-ok:
+    name: CI OK
+    if: ${{ !cancelled() }}
+    needs: [checks, pack, site, checker, native, ci, site-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+        with:
+          needs: ${{ toJSON(needs) }}
+          # The jobs that their own if can skip. Each other job must pass.
+          allow-skip: "pack ci"
