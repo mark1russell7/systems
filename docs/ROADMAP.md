@@ -3616,6 +3616,23 @@ The provider of [`@mark1russell7/runner-dispatch`](https://www.npmjs.com/package
 - **The machines in the guest.** The guest gives no KVM to its own machines. Thus a machine that the provider makes is a container of LXC, or a VM with the emulation of QEMU.
 - **The test.** The provider asks for a machine, waits until it starts, and removes it. A fault cell stops the API in the middle of a request, and the provider must leave no machine behind.
 
+### SYS-130 · The layers as data, with the faults of each layer
+
+- **Status:** done
+- **Area:** harness
+- **Depends on:** SYS-76
+- **Started:** 2026-11-16
+- **Shipped:** 2026-11-16
+- **Links:** [#586, `@mark1russell7/harness` 0.16.10](https://github.com/mark1russell7/systems/pull/586)
+
+A consumer of the labs kept its own copy of the table of the layers of S7. Each layer also needs a list of the faults that it applies, as data. A query of the coverage of each fault on each layer reads that list.
+
+The entry `@mark1russell7/harness/layers` gives `LAYER_FACTS`. Each layer gets its texts from the table of S7, the faults that its cells inject and the limits that their load fills. The entry imports no `node:` module, thus a page in a browser can read it. `layerOf` gives the layer of a lab from its topology, and the lab writes its substrate with the same rule.
+
+The test: a test of the harness holds each text equal to the table of S7. A test of the cells holds the faults and the limits of each layer equal to the cells of `ALL`.
+
+The labs of E2 are in the kind package, and their steps are not faults of the harness. Thus E2 lists no fault. The end of this gap: each step of the kind package names its fault, and the test of the cells reads them.
+
 ## The items of the scale ladder
 
 A rung is one target at one power of ten, and an automatic test holds it. A number in a document is not a rung. The format of a ladder and `ladderVerdict` are in `rigor-bench`. These two items give the first records in that format, for a public service with no product code. The rungs above 1,000 tenants are not in these items.
