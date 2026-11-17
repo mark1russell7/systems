@@ -3335,7 +3335,7 @@ The first records show the block on a real runner. Kind run 41856630889 of the P
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
-- **Status:** later
+- **Status:** todo
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
@@ -3659,7 +3659,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** later
+- **Status:** todo
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
@@ -4068,7 +4068,7 @@ These assertions have no flip:
 
 ### SYS-101 · A 30-day limit for the studies of the site that depend on current code
 
-- **Status:** later
+- **Status:** todo
 - **Area:** site
 - **Depends on:** SYS-99
 - **Started:** 2026-11-05
