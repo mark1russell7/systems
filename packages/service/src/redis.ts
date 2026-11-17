@@ -27,7 +27,7 @@ export type { ConnectionFactory, RedisConnection, RedisConnectionOptions, RedisS
 export { ioredis } from "./redis/connection.ts";
 export type { Detector, Meeting, Situation } from "./redis/meets.ts";
 export { firstDetector, meetings, unwatched } from "./redis/meets.ts";
-export type { RedisLimiterOptions, RedisSender } from "./redis/limiter.ts";
-export { LIMITER_SCRIPT, redisLimiterStore } from "./redis/limiter.ts";
+export type { RedisLimiterOptions, RedisLimiterStore, RedisSender } from "./redis/limiter.ts";
+export { LIMITER_RELEASE_SCRIPT, LIMITER_SCRIPT, redisLimiterStore } from "./redis/limiter.ts";
 export { REDIS_CLIENT_MACHINE } from "./redis/machine.ts";
 export { REDIS_OPERATIONS, commandName } from "./redis/operations.ts";

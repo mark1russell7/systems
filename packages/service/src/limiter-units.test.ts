@@ -12,14 +12,36 @@ const RULES: ReadonlyArray<LimitRule> = [
   { type: "token-bucket", interval: 250, burst: 8 },
   { type: "sliding-window", limit: 5, window: 10_000 },
   { type: "sliding-window", limit: 2, window: 60_000 },
+  { type: "in-flight", limit: 4, lease: 10_000, retryAfter: 1000 },
+  { type: "in-flight", limit: 2, lease: 30_000, retryAfter: 30_000 },
 ];
 
-/** This function gives the span of the policy in ms: the bucket refills in it, and a window is it. */
-const spanOf = (rule: LimitRule): number => (rule.type === "token-bucket" ? rule.interval * rule.burst : rule.window);
+/** This function gives the span of the policy in ms: the bucket refills in it, a window is it, and a lease is it. */
+const spanOf = (rule: LimitRule): number =>
+  rule.type === "token-bucket" ? rule.interval * rule.burst : rule.type === "in-flight" ? rule.lease : rule.window;
 
-/** This function gives the most units that the policy lets in during `ms` milliseconds. */
+/** This function gives the most units that the policy lets in during `ms` milliseconds, with no release. */
 const mostIn = (rule: LimitRule, ms: number): number =>
-  rule.type === "token-bucket" ? rule.burst + Math.floor(ms / rule.interval) : rule.limit * (Math.floor(ms / rule.window) + 1);
+  rule.type === "token-bucket" ? rule.burst + Math.floor(ms / rule.interval) : rule.limit * (Math.floor(ms / spanOf(rule)) + 1);
+
+/** This function gives the decision of a take with no lease: the lease of a take of n units differs from the lease of a take of 1. */
+const withoutLease = (decision: Decision | undefined): Decision | undefined => {
+  if (decision === undefined || !decision.allowed) return decision;
+  const { lease: _lease, ...rest } = decision;
+  return rest;
+};
+
+type InFlightRule = Extract<LimitRule, { type: "in-flight" }>;
+
+/** This function gives the time until enough leases end for a take, with no release: the wait of a window whose window is the lease. */
+const freeWait = (rule: InFlightRule, before: KeyState | undefined, at: number, units: number): number => {
+  const window: LimitRule = { type: "sliding-window", limit: rule.limit, window: rule.lease };
+  const stamps: KeyState | undefined = before?.type === "in-flight" ? { type: "sliding-window", stamps: before.starts } : undefined;
+  const { decision } = decide(window, stamps, at, units);
+  if (decision.allowed) return 0;
+  if (decision.cause === "capacity") throw new Error("a take over the capacity has no wait");
+  return decision.retryAfter.value;
+};
 
 /** A run is a seeded sequence of takes on one key, with the units and the time of each. */
 const run = (rule: LimitRule, seed: number, takes = 400) => {
@@ -71,10 +93,10 @@ describe("the units of a take (service 0.7.0)", () => {
           if (ms > 3 * spanOf(rule)) break;
         }
       }
-      // in one window of the sliding window, the bound is the limit
-      if (rule.type === "sliding-window")
+      // in one window of the sliding window, and in one lease of an in-flight bound with no release, the bound is the limit
+      if (rule.type !== "token-bucket")
         for (const entry of allowed) {
-          const inWindow = allowed.filter((other) => other.at <= entry.at && other.at > entry.at - rule.window);
+          const inWindow = allowed.filter((other) => other.at <= entry.at && other.at > entry.at - spanOf(rule));
           expect(inWindow.reduce((sum, other) => sum + other.units, 0)).toBeLessThanOrEqual(rule.limit);
         }
     }
@@ -96,7 +118,10 @@ describe("the units of a take (service 0.7.0)", () => {
         expect(decision.allowed, `${rule.type} at ${at}, ${units} units`).toBe(room);
         if (room) {
           expect(decide(rule, before, at, units).state).toEqual(state);
-          expect(decision).toEqual(singles.at(-1));
+          expect(withoutLease(decision)).toEqual(withoutLease(singles.at(-1)));
+          // the lease of an in-flight take holds all of its units, from the time of the take
+          if (rule.type === "in-flight") expect(decision).toMatchObject({ lease: { start: at, units } });
+          else expect(decision).toEqual(singles.at(-1));
         }
       }
   });
@@ -109,10 +134,35 @@ describe("the units of a take (service 0.7.0)", () => {
         refusals += 1;
         const wait = decision.retryAfter.value;
         expect(decision.retryAfter.unit).toBe("ms");
-        expect(decide(rule, before, at + wait, units).decision.allowed).toBe(true);
-        if (wait > 1) expect(decide(rule, before, at + wait - 1, units).decision.allowed).toBe(false);
+        // an in-flight bound waits for its declared retryAfter, or less: a release can come first
+        const fits = rule.type === "in-flight" ? freeWait(rule, before, at, units) : wait;
+        if (rule.type === "in-flight") expect(wait).toBe(Math.min(rule.retryAfter, fits));
+        expect(decide(rule, before, at + fits, units).decision.allowed).toBe(true);
+        if (fits > 1) expect(decide(rule, before, at + fits - 1, units).decision.allowed).toBe(false);
       }
-    expect(refusals).toBeGreaterThan(50);
+    expect(refusals).toBeGreaterThan(100);
+  });
+
+  it("gives an in-flight bound with no release the step of a sliding window whose window is the lease", () => {
+    for (const [index, rule] of RULES.entries()) {
+      if (rule.type !== "in-flight") continue;
+      const window: LimitRule = { type: "sliding-window", limit: rule.limit, window: rule.lease };
+      let held: KeyState | undefined;
+      let stamps: KeyState | undefined;
+      const random = seeded(61 + index);
+      let now = 0;
+      for (let take = 0; take < 400; take += 1) {
+        const units = 1 + Math.floor(random() * rule.limit);
+        const leased = decide(rule, held, now, units);
+        const windowed = decide(window, stamps, now, units);
+        expect(leased.decision.allowed).toBe(windowed.decision.allowed);
+        if (leased.decision.allowed && windowed.decision.allowed) expect(leased.decision.remaining).toBe(windowed.decision.remaining);
+        expect(leased.state.type === "in-flight" && leased.state.starts).toEqual(windowed.state.type === "sliding-window" && windowed.state.stamps);
+        held = leased.state;
+        stamps = windowed.state;
+        now += Math.floor(random() * (rule.lease / 3));
+      }
+    }
   });
 
   it("accepts only a whole number of 1 or more units", () => {

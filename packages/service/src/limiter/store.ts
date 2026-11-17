@@ -2,8 +2,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { convertExact } from "@mark1russell7/quantity/time";
 import { fromNumber, toNumber } from "@mark1russell7/rational";
 import type { Clock } from "../clock.ts";
-import type { Decision, KeyState, LimiterSpec, LimitRule } from "./policy.ts";
-import { decide, freeAt, limitRule, limiterProblems, longestRetryAfter, overCapacity, unitsOf } from "./policy.ts";
+import type { Decision, KeyState, Lease, LimiterSpec, LimitRule } from "./policy.ts";
+import { decide, freeAt, limitRule, limiterProblems, longestRetryAfter, overCapacity, releaseLease, unitsOf } from "./policy.ts";
 
 /** A take request is one take of one key, with the rule and the cap of its limiter in numbers. */
 export interface TakeRequest {
@@ -21,6 +21,15 @@ export interface TakeRequest {
   readonly units?: number | undefined;
 }
 
+/** A release request is the release of one lease of one key of an in-flight bound. */
+export interface ReleaseRequest {
+  readonly limiter: string;
+  readonly key: string;
+  readonly rule: LimitRule;
+  /** This lease is the lease of the permitted take, as the decision of the store gave it. */
+  readonly lease: Lease;
+}
+
 /**
  * A limiter store keeps the state of each key, and it decides each take in one atomic step, on its
  * own clock. Thus two takes of one key do not read the same state at any time. A store in this
@@ -36,11 +45,19 @@ export interface LimiterStore {
    * store rejects the take, and the limiter then applies the `onStoreFailure` of its spec.
    */
   take(request: TakeRequest): Decision | Promise<Decision>;
+  /**
+   * This method releases the units of one lease of an in-flight bound in one atomic step, with the
+   * arithmetic of `release`. A unit whose lease ended is not held, thus a late release changes
+   * nothing. A failure rejects the release, and the units then count until their lease ends. A store
+   * with no release cannot keep an in-flight bound: `keyedLimiter` refuses that pair.
+   */
+  release?(request: ReleaseRequest): void | Promise<void>;
 }
 
 /** A memory store is the store of one replica, on the injected monotonic clock. */
 export interface MemoryStore extends LimiterStore {
   readonly kind: "local";
+  release(request: ReleaseRequest): void;
   /** This method gives the count of keys that the store holds for a limiter. */
   size(limiter: string): number;
 }
@@ -51,7 +68,7 @@ interface Table {
   /**
    * This time is at or before the earliest time at which a held key is equal to a new key. An
    * insert lowers it, and a sweep sets it again. A take of a held key only moves the time of that
-   * key later, thus the bound stays true.
+   * key later. A release can move it earlier, thus a release lowers the bound too.
    */
   next: number;
 }
@@ -61,8 +78,9 @@ const ms = (value: number): Quantity => ({ value, unit: "ms" });
 /**
  * This function makes the store of one replica. It reads time only through the clock. Thus a step
  * of the wall clock does not move a count, and a fake clock gives exact decisions in a test.
- * - The eviction is exact. A key whose bucket is full again, or whose window has no take, is equal
- *   to a new key. The store removes it at its next take, or at a sweep.
+ * - The eviction is exact. A key whose bucket is full again, whose window has no take, or whose bound
+ *   holds no unit, is equal to a new key. The store removes it at its next take, at a sweep, or at
+ *   the release of its last held unit.
  * - The count of keys has a bound. At the cap, a take of a new key sweeps the table, but only when
  *   a held key can be free. Each sweep reads each key one time. When no key is free, the store
  *   refuses the new key with the cause `cap`. Its `retryAfter` is at most the time until the
@@ -110,6 +128,20 @@ export const memoryStore = (clock: Clock): MemoryStore => {
       } else table.states.set(key, step.state);
       return step.decision;
     },
+    release({ limiter, key, rule, lease }) {
+      const table = tables.get(limiter);
+      const state = table?.states.get(key);
+      if (table === undefined || state === undefined) return;
+      const now = clock.now();
+      const after = releaseLease(rule, state, now, lease);
+      const free = after === undefined ? Number.NEGATIVE_INFINITY : freeAt(rule, after);
+      // a key with no held unit is equal to a new key: it goes, and it frees its slot
+      if (after === undefined || free <= now) table.states.delete(key);
+      else {
+        table.states.set(key, after);
+        table.next = Math.min(table.next, free);
+      }
+    },
     size(limiter) {
       return tables.get(limiter)?.states.size ?? 0;
     },
@@ -137,6 +169,15 @@ export interface KeyedLimiter {
    * `memoryStore`. A shared store throws.
    */
   tryTakeSync?(key: string, units?: number): Decision;
+  /**
+   * This method releases the held units of a permitted take of an in-flight bound. When the call of
+   * the take ends, give the decision of the take to it, with the same key.
+   * - A refusal, or a decision with no lease, releases nothing. A rate policy gives no lease.
+   * - A decision that this limiter did not give releases nothing, and so does a second release of one decision.
+   * - A key that is not the key of the take rejects the release, and the units stay held.
+   * - A failure of the store rejects the release. The units then count until their lease ends.
+   */
+  release(key: string, decision: Decision): Promise<void>;
 }
 
 /** A local limiter is a keyed limiter on a memory store: its take can give the decision at once. */
@@ -158,6 +199,8 @@ const failureOf = (error: unknown): string => (error instanceof Error ? error.me
  * - A take over the capacity of the policy is refused with the cause `capacity`, before the store.
  *   Thus a store of your own that does not read `units` cannot let it in.
  * - `tryTakeSync` gives the decision at once. A shared store throws, and so does a local store that gives a promise.
+ * - An in-flight bound needs a store with a release. The function refuses a store with no release,
+ *   because the units of each take then stay held until their lease ends.
  */
 export function keyedLimiter(name: string, spec: LimiterSpec, store: MemoryStore): LocalLimiter;
 export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStore): KeyedLimiter;
@@ -167,17 +210,25 @@ export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStor
   if (store.kind !== spec.store.kind)
     throw new Error(`limiter ${name} declares a ${spec.store.kind} store, but the store that it got is ${store.kind}`);
   const rule = limitRule(spec.policy);
+  if (rule.type === "in-flight" && typeof store.release !== "function")
+    throw new Error(`limiter ${name} declares an in-flight bound, but its store has no release: each unit then stays held until its lease ends`);
   const maxKeys = toNumber(convertExact(fromNumber(spec.evict.maxKeys.value), spec.evict.maxKeys.unit, "count"));
   const onStoreFailure = spec.store.kind === "shared" ? spec.store.onStoreFailure : undefined;
   const closedAfter = longestRetryAfter(spec.policy);
+  // each lease that this limiter gave, with its key: a release removes the entry, thus a lease is released one time
+  const leases = new WeakMap<Lease, string>();
+  const leased = (key: string, decision: Decision): Decision => {
+    if (decision.allowed && decision.lease !== undefined) leases.set(decision.lease, key);
+    return decision;
+  };
   const take = async (key: string, units?: number): Promise<Decision> => {
     const n = unitsOf(units);
     const over = overCapacity(rule, n);
     if (over !== undefined) return over;
     const request: TakeRequest = { limiter: name, key, rule, maxKeys, units: n };
-    if (onStoreFailure === undefined) return store.take(request);
+    if (onStoreFailure === undefined) return leased(key, await store.take(request));
     try {
-      return await store.take(request);
+      return leased(key, await store.take(request));
     } catch (error) {
       const failure = failureOf(error);
       if (onStoreFailure === "open") return { allowed: true, remaining: 0, failure };
@@ -196,7 +247,16 @@ export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStor
       decision.then(undefined, () => {});
       throw new Error(`limiter ${name} has a store whose take gives a promise: tryTakeSync needs a memory store, thus use take()`);
     }
-    return decision;
+    return leased(key, decision);
+  };
+  // a second release, or the release of a lease of another key, would remove the units of another take
+  const release = async (key: string, decision: Decision): Promise<void> => {
+    if (!decision.allowed || decision.lease === undefined) return;
+    const owner = leases.get(decision.lease);
+    if (owner === undefined) return;
+    if (owner !== key) throw new Error(`limiter ${name} got the release of a lease of the key ${owner} with the key ${key}`);
+    leases.delete(decision.lease);
+    await store.release?.({ limiter: name, key, rule, lease: decision.lease });
   };
   return {
     name,
@@ -210,6 +270,7 @@ export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStor
     maxKeys,
     take,
     tryTakeSync,
+    release,
   };
 }
 
