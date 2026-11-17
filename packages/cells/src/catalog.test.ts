@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL } from "./all.ts";
+import { ALL, MOST_RUNS, withRuns } from "./all.ts";
 import { CELLS, SPECS, predict } from "./catalog.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 
@@ -113,5 +113,22 @@ describe("the signalled targets", () => {
     );
     expect(signalled.some((each) => each.name.startsWith("OL.freeze"))).toBe(true);
     for (const each of signalled) expect(each.target.command, each.name).toBeDefined();
+  });
+});
+
+describe("the count of runs for a rate", () => {
+  it("gives each cell the count of CELLS_RUNS, and keeps the count without it", () => {
+    const cells = ALL.filter((each) => each.name.startsWith("PR.7 "));
+    expect(cells).toHaveLength(1);
+    expect(withRuns(cells, undefined)).toBe(cells);
+    expect(withRuns(cells, "")).toBe(cells);
+    const more = withRuns(cells, "40");
+    expect(more.map((each) => each.runs)).toEqual([40]);
+    expect({ ...more[0], runs: cells[0]!.runs }).toEqual(cells[0]);
+  });
+
+  it("refuses a count that is not a whole count from 1 to the most", () => {
+    for (const text of ["0", "2.5", "many", String(MOST_RUNS + 1)]) expect(() => withRuns(ALL, text)).toThrow(/CELLS_RUNS is/);
+    expect(withRuns(ALL.slice(0, 1), String(MOST_RUNS))[0]?.runs).toBe(MOST_RUNS);
   });
 });

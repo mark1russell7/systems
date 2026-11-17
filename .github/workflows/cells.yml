@@ -38,6 +38,7 @@
 # A dispatch that names no cells (no only, selection, pair or file) is the gate of a pull request: the
 # probe only. The queue starts this dispatch on each pull request that is behind main (SYS-118).
 # To run each cell of the catalogs, give -f only=. by name.
+# A rate: -f runs=40 gives each selected cell 40 runs, for example -f only='^PR[.]7[^0-9]' -f shards=1.
 name: Cells
 
 on:
@@ -60,6 +61,9 @@ on:
         default: ""
       selection:
         description: A scheduled selection by its name, for example refresh-2, in place of only (empty for only)
+        default: ""
+      runs:
+        description: A count of runs for each selected cell, from 1 to 100, for the rate of a rare outcome (empty for the count of each cell)
         default: ""
   schedule:
     - cron: "30 3 * * *"
@@ -395,6 +399,7 @@ jobs:
           CELLS_FILE_AT: ${{ inputs.file }}
           CELLS_PAIR: ${{ inputs.pair }}
           CELLS_PAIR_DIR: ${{ runner.temp }}/limiter-pair
+          CELLS_RUNS: ${{ inputs.runs }}
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
           CELLS_SUBJECT="$(cat "$RUNNER_TEMP/subject.json")"

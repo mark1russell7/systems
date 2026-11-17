@@ -27,7 +27,58 @@ export interface PortsReading {
   readonly freed: number;
   /** This count is the connects that failed before the last `freed` line. */
   readonly tries: number;
+  /** These counters of the network stack moved in the run, or null for a run with no `stack` lines. */
+  readonly stack: StackChange | null;
 }
+
+/**
+ * A stack change is the change of each counter of the network stack of each end, from the `stack`
+ * line before the first round to the one after the last round. A counter that did not move is absent.
+ */
+export interface StackChange {
+  readonly client: Readonly<Record<string, number>>;
+  readonly target: Readonly<Record<string, number>>;
+}
+
+/** This pattern names the counters of a drop, a skip, a reset or a retransmission. A finding of a lost segment names them. */
+const LOSS = /Drop|drop|Skipped|Overflow|Errs|errs|Discards|Challenge|PAWS|Rsts|Retrans/;
+
+const countersOf = (line: ProbeEvent | undefined): Readonly<Record<string, number>> | undefined => {
+  const counters = line?.["counters"];
+  if (counters === null || typeof counters !== "object" || Array.isArray(counters)) return undefined;
+  return Object.fromEntries(Object.entries(counters).filter((entry): entry is [string, number] => typeof entry[1] === "number"));
+};
+
+/** This function gives the counters of one end that moved from its `stack` line at the start to its line at the end. */
+const changeOf = (events: readonly ProbeEvent[], side: string): Readonly<Record<string, number>> | null => {
+  const at = (point: string) => countersOf(events.find((event) => event.ev === "stack" && event["side"] === side && event["at"] === point));
+  const start = at("start");
+  const end = at("end");
+  if (start === undefined || end === undefined) return null;
+  return Object.fromEntries(
+    Object.entries(end).flatMap(([name, value]) => {
+      const change = value - (start[name] ?? 0);
+      return change === 0 ? [] : [[name, change] as const];
+    }),
+  );
+};
+
+/** This function gives the stack change of a run, or null when an end has no pair of `stack` lines. */
+export const stackOf = (events: readonly ProbeEvent[]): StackChange | null => {
+  const client = changeOf(events, "client");
+  const target = changeOf(events, "target");
+  return client === null || target === null ? null : { client, target };
+};
+
+/** This function gives the words of the counters of a loss that moved at each end. */
+export const lossWords = (stack: StackChange | null): string => {
+  if (stack === null) return "the run has no stack lines";
+  const words = (["client", "target"] as const).flatMap((side) => {
+    const moved = Object.entries(stack[side]).filter(([name]) => LOSS.test(name));
+    return moved.length === 0 ? [] : [`the ${side}: ${moved.map(([name, change]) => `${name} ${change > 0 ? "+" : ""}${change}`).join(", ")}`];
+  });
+  return words.length === 0 ? "no counter of a loss moved at either end" : words.join("; ");
+};
 
 const portsOf = (line: ProbeEvent): readonly number[] =>
   Array.isArray(line["ports"]) ? line["ports"].filter((port): port is number => typeof port === "number") : [];
@@ -85,6 +136,7 @@ export const measurePorts = (run: Run, expected: PortsPrediction): Measured => {
     lastFreed: closing === undefined || last === undefined ? null : between(closing.t, last.t),
     freed: freedLines.length,
     tries: last === undefined || typeof last["tries"] !== "number" ? 0 : last["tries"],
+    stack: stackOf(events),
   };
 
   const found: string[] = [];
@@ -104,7 +156,7 @@ export const measurePorts = (run: Run, expected: PortsPrediction): Measured => {
   if (expected.lowFirst === true && !rounds.every((round) => lowFirst(portsOf(round), expected.low)))
     found.push("a search got a port of the other parity before each port of the parity of the low port");
   if (expected.retransmissions !== undefined && retransmissions !== expected.retransmissions)
-    found.push(`${retransmissions} retransmissions, not ${expected.retransmissions}`);
+    found.push(`${retransmissions} retransmissions, not ${expected.retransmissions} (${lossWords(ports.stack)})`);
   if (expected.freed !== undefined) {
     const held = Math.max(...expected.counts);
     if (ports.freed !== held) found.push(`${ports.freed} ports came back, not ${held}`);
