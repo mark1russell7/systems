@@ -1,0 +1,51 @@
+---
+title: The egress queue
+description: A program sends bursts of UDP datagrams through a qdisc with a rate. Find which datagrams drop, when each one leaves, and who knows of a drop.
+tableOfContents: false
+---
+
+import EgressQueue from "../../../components/EgressQueue.tsx";
+import Term from "../../../components/Term.tsx";
+
+A program sends UDP datagrams faster than its link takes them. Each datagram waits in the <Term name="qdisc" /> of the device, and a full qdisc drops it. With <Term name="netem" />, the queue holds a count of packets. With <Term name="tbf" />, the queue holds bytes, and its bucket lets a burst leave at once. This page computes, in your browser, when each datagram leaves and which datagrams drop.
+
+<EgressQueue client:visible />
+
+## How to read the page
+
+- **The headline** tells how many datagrams drop, who knows of the drops, and when the last frame leaves.
+- **The timeline** has three lanes. The program lane shows each burst and the first ENOBUFS. The qdisc lane shows the first drop. The device lane ends when the last frame leaves. Press **Play** to see the story.
+- **The chart** under the timeline has one row for each datagram. A line goes from its send to its departure, and a cross marks a drop. The lower part shows what the qdisc holds, with its limit.
+- **The cards** below the timeline give each lane, with its knobs. Change a knob, and each time on the page changes.
+- **The presets** EQ.1 to EQ.7 are the settings of the cells of the harness.
+
+## Who knows of a drop
+
+A full qdisc drops the datagram and gives an error to the kernel code of the send. What the program gets depends on the socket option <Term name="IP_RECVERR" />.
+
+- **With IP_RECVERR off**, the default of Linux, the send succeeds. The kernel counts the drop in <Term name="SndbufErrors" />, and the program does not learn of it.
+- **With IP_RECVERR on**, the send gets <Term name="ENOBUFS" />. The cells of the harness set this option, thus each drop shows as an error.
+
+The qdisc also counts each drop in its own statistics, in the output of `tc -s qdisc show`. That counter changes at the arrival of the datagram.
+
+## The law of the queue
+
+The netem qdisc gives each frame the time of its length at its rate. A frame leaves at `max(last, at + delay) + time`. Here `last` is the departure of the frame before it, and `time` is the time of its length. At 1 Mbit/s, a full frame of 1,514 B takes 12.112 ms.
+
+The netem qdisc holds each frame until it leaves, thus the delay counts in the limit. With a delay of 100 ms, a burst of 8 frames holds 8 of 12 places for 100 ms. A second burst 30 ms later finds 4 places, and it drops 4 frames.
+
+The tbf qdisc counts its tokens in nanoseconds. Its bucket is full at the first frame, and it gains one token for each nanosecond, up to its depth. A frame leaves when the tokens cover the time of its length. Thus a bucket of 3,000 B at 1 Mbit/s sends 3 frames of 1,000 B at once, and then one frame each 8 ms. It drops a frame longer than its bucket before its queue. Its bfifo drops a frame that puts its bytes above the limit.
+
+## Where the numbers come from
+
+The times are the law of `netemSchedule` and `tbfSchedule` of `@mark1russell7/algebra`. Each one follows the kernel: `packet_time_ns` of netem, and `psched_l2t_ns` of tbf. The kernel multiplies by a factor and does not divide, thus a time of tbf can be 1 ns short. The length of a frame is `udpFrameLength`: the payload, 8 B of UDP, 20 B of IPv4 and 14 B of Ethernet.
+
+Each amount prints through `format` of `@mark1russell7/quantity`. The page does no queue arithmetic of its own.
+
+## Limits
+
+- The page sends the datagrams of a burst at one time. A real program sends them one after the other, a few microseconds apart.
+- A payload above the MTU less 28 B leaves in fragments. The page counts one frame for it, and the device card shows a warning.
+- The page shows one qdisc. A tbf with a netem child, or a qdisc on the other host, adds a queue of its own.
+- A NIC with its own ring of frames adds its own delay after the qdisc. The page does not show that ring.
+- The page shows no measured value yet. The cells EQ.1 to EQ.7 add their medians after their first records.
