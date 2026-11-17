@@ -2679,7 +2679,7 @@ Part 1 is the law in `@mark1russell7/algebra` 0.9.4. The function `memcgThrottle
 
 ### SYS-124 · The NIC: a lens, its law and its cells
 
-- **Status:** in progress
+- **Status:** todo
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
@@ -3335,7 +3335,7 @@ The first records show the block on a real runner. Kind run 41856630889 of the P
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
-- **Status:** todo
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
