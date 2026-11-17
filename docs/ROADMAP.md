@@ -3850,6 +3850,33 @@ A flush of the sync of `@procedures` writes many items in one call, thus it take
 
 Mark decided on 2026-11-09 that one math repository holds the math packages. `@mark1russell7/quantity` moves there with its history and the same npm name, thus a user of quantity changes nothing. When that repository publishes the next PATCH of quantity, this item removes `packages/quantity` from systems. Eight packages use it with `workspace:^`: algebra, cells, harness, kind, machines, prober, service and site. Each takes the npm release with a caret range. The release of systems no longer packs quantity. The test: `pnpm why @mark1russell7/quantity` shows one copy from npm, and CI passes on main.
 
+### SYS-131 · More units in quantity: prefixes, doses, activity, pressure and currencies
+
+- **Status:** todo
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A consumer of public data feeds reads the unit of each measure with `tryParseUnit` of `@mark1russell7/quantity`. Version `0.4.1` does not parse these units of the feeds:
+
+- Power and energy with the prefixes M and G: `MW`, `GW`, `MWh` and `GWh`.
+- Dose and dose rate: `Gy`, and `Sv` with the prefixes m, µ and n. Thus `µSv/h` parses.
+- The microgram `µg`, with the spellings `ug` and `mcg`. Thus `µg/m^3` parses.
+- Pressure: `Pa` and `hPa`. Activity: `Bq`, thus `Bq/m^3` parses. Ratios: `ppm` and `ppb`.
+- Currencies other than USD: `EUR`, `GBP`, `CHF`, `SEK` and `JPY`. Thus `EUR/L` and `EUR/MWh` parse.
+
+The rules of the change:
+
+- Each unit with a prefix is an atom of its own, from a list. The parser does not take a prefix off a symbol, because `min`, `ft` and `Pa` then read as a prefix and a unit.
+- A gray and a sievert have the same vector, J/kg, but a sievert is a weighted dose. Thus a sievert does not convert to a gray. A becquerel counts decays, thus it does not convert to a hertz.
+- Each currency stays apart, as the note of the bases says: currencies have no fixed rate. Thus EUR does not convert to USD. JPY keeps no decimals, and each other currency keeps the cent.
+
+The release is a PATCH (`0.4.2`) when the change adds atoms only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21. If this item has not merged by then, it moves to that repository with quantity.
+
+The test: each unit of the list parses, converts in its dimension and formats again. The conversions from a sievert to a gray, from a becquerel to a hertz and from EUR to USD are refused. Each test of `0.4.1` passes with no change.
+
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
 - **Status:** blocked
