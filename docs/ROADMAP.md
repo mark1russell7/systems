@@ -2614,7 +2614,7 @@ The copy comes from one Cells run of the ten cells at main `43219db`, on Linux 7
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
 - **Shipped:**
-- **Links:**
+- **Links:** [the read of PR.7 with 40 runs](https://github.com/mark1russell7/systems/actions/runs/44163293814)
 
 A client that opens many connections to one destination uses up its local ports. The page shows the search of a free port, the ports in `TIME_WAIT` and the connect that fails with `EADDRNOTAVAIL`.
 
@@ -2642,6 +2642,17 @@ The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](http
 - A gate of 4 runs passes with a chance of 0.95 only for a loss of 0.0127 or less in each run. The lower Wilson bound of 2 of 12 is 0.047.
 - Each run of a port cell gives the counters of the network stack of each end, before its first round and after its last round. A finding of a retransmission names each counter of a drop, a skip or a reset that moved. Thus the next lost ACK tells its side and its cause.
 - The input `runs` of the workflow of the cells gives each selected cell from 1 to 100 runs. A read of `PR.7` with 40 runs measures the rate of the loss. The record of the gate keeps that rate next to its decision, and [SYS-102](#sys-102--the-port-that-last_ack-holds) takes the cause into the law.
+
+**The record of the gate of `PR.7` (2026-11-17).** The read with 40 runs ([run 44163293814](https://github.com/mark1russell7/systems/actions/runs/44163293814)) counted 40 runs and voided 0. The law failed in 7 runs of 40. That rate is 0.175, and its Wilson interval at 95 % is 0.087 to 0.319. The limit of the prediction was 4 failed runs, thus it missed.
+
+- Each failed run is the case of `LAST_ACK`. The prober records one retransmission in each of the 7 runs, and none in a run that holds.
+- That retransmission is a loss probe of a FIN with no data, from a socket of the client in `LAST_ACK`.
+- In six runs, the probe comes during the rounds. The counters `TcpExt.TCPLossProbes` and `Tcp.RetransSegs` of the client rise by 1, and a later round gets 3 ports, not 4.
+- In env 0, run 19, the probe comes 201 ms after the last `LAST_ACK`, after the last round. Thus each round got 4 ports, and the counters at the end of the run do not show the probe.
+- In the 7 runs, no counter of a drop moved at either end. The target counts one `TIME_WAIT` for each connection.
+- A RST of the client to a segment with no socket occurs in 16 runs, and 14 of them hold. Thus that RST does not mark the failure.
+
+A gate of 4 runs holds `PR.7` with a chance of 0.46 at the rate of 0.175. Thus the copy of part 3 shows `PR.7` with its decision of that read and this rate. `PR.7` can gate only when the term of SYS-102 explains the lost ACK.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
