@@ -1,4 +1,4 @@
-import type { Cell, Fault, Topology } from "./cell.ts";
+import type { Fault, Topology } from "./cell.ts";
 
 // This module imports no `node:` module, thus a page in a browser can read the layers (`@mark1russell7/harness/layers`).
 
@@ -38,11 +38,13 @@ export interface LayerFacts {
   readonly tools: readonly string[];
   readonly state: LayerState;
   /**
-   * These faults are the faults that a cell of the harness injects on the layer, in the order of
-   * `Fault`. The labs of E2 are in `@mark1russell7/kind`, and their steps are not faults of the harness.
+   * These names are the faults that the cells of the layer inject, each one time. A name is in the
+   * vocabulary of the lab of the layer. The cells of E1 and E3 name a `Fault` of the harness. The cells of
+   * E2 are in `@mark1russell7/kind`, and they name the kind of their trigger (`TriggerKind`). The two
+   * vocabularies share the names of the faults that they share, for example `blackhole` and `rst`.
    */
-  readonly faults: readonly Fault[];
-  /** These limits are the resources that a cell of the harness fills on the layer, in the order of `LIMITS`. */
+  readonly faults: readonly string[];
+  /** These limits are the resources that the load of the cells of the layer fills, in the order of `LIMITS`. */
   readonly limits: readonly Limit[];
 }
 
@@ -68,6 +70,31 @@ const ONE_KERNEL: readonly Fault[] = [
   "step-down",
   "drain",
   "hop-event",
+];
+
+/** These are the faults of a cell of kind: each kind of a trigger of `@mark1russell7/kind`, in the order of `TriggerKind`. */
+const ON_KIND: readonly string[] = [
+  "pod-deletion",
+  "rolling-update",
+  "node-drain",
+  "scale-in",
+  "crash",
+  "liveness-restart",
+  "freeze-process",
+  "rst",
+  "blackhole",
+  "peer-gone-without-close",
+  "app-stall",
+  "rollout",
+  "cpu-throttle",
+  "authorization-policy",
+  "idle",
+  "ztunnel-restart",
+  "certificate-expiry",
+  "cannot-serve",
+  "zone-loss",
+  "latency",
+  "dns-blackhole",
 ];
 
 /** These are the facts of each layer. The texts come from the table of the layers in `docs/S7.md`. */
@@ -96,7 +123,7 @@ export const LAYER_FACTS: Readonly<Record<Layer, LayerFacts>> = {
     cannot: ["A kernel for each node", "A loss of a node with no signal"],
     tools: ["kind", "k3d"],
     state: "today",
-    faults: [],
+    faults: ON_KIND,
     limits: [],
   },
   E3: {
@@ -105,7 +132,7 @@ export const LAYER_FACTS: Readonly<Record<Layer, LayerFacts>> = {
     cannot: ["The kernel or the forwarding hardware of a router"],
     tools: ["containerlab with FRR"],
     state: "new",
-    faults: ["blackhole", "stall", "silence"],
+    faults: ["blackhole", "stall", "silence"] satisfies readonly Fault[],
     limits: [],
   },
   E4: {
@@ -140,8 +167,11 @@ export const LAYER_FACTS: Readonly<Record<Layer, LayerFacts>> = {
 /** This function gives the layer of a lab of the harness from its topology: E3 with a fabric, E1 without one. */
 export const layerOf = (topology: Topology | undefined): Layer => (topology?.fabric === undefined ? "E1" : "E3");
 
-/** This function gives the limits that the law of a cell names, in the order of `LIMITS`. */
-export const limitsOf = (cell: Pick<Cell, "prediction">): readonly Limit[] => {
-  const laws: Readonly<Record<string, unknown>> = cell.prediction;
-  return LIMITS.filter((limit) => laws[limit] !== undefined);
+/**
+ * This function gives the limits that the prediction of a cell names, in the order of `LIMITS`. It reads
+ * a cell of the harness or of `@mark1russell7/kind`.
+ */
+export const limitsOf = (cell: { readonly prediction: object }): readonly Limit[] => {
+  const laws = new Map(Object.entries(cell.prediction));
+  return LIMITS.filter((limit) => laws.get(limit) !== undefined);
 };

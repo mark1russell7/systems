@@ -3503,7 +3503,7 @@ export interface LayerFacts {
   readonly cannot: readonly string[];
   readonly tools: readonly string[];
   readonly state: LayerState;
-  readonly faults: readonly Fault[];
+  readonly faults: readonly string[];
   readonly limits: readonly Limit[];
 }
 
@@ -3517,7 +3517,9 @@ export type Limit = (typeof LIMITS)[number];
 export declare const layerOf: (topology: Topology | undefined) => Layer;
 
 ### build/layers.d.ts#limitsOf
-export declare const limitsOf: (cell: Pick<Cell, "prediction">) => readonly Limit[];
+export declare const limitsOf: (cell: {
+  readonly prediction: object;
+}) => readonly Limit[];
 
 ### build/schema.d.ts#clientImageSchema
 export declare const clientImageSchema: z.ZodType<ClientImage>;

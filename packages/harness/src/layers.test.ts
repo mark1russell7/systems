@@ -64,8 +64,7 @@ describe("the layer of a lab", () => {
 
 describe("the limits of a cell", () => {
   it("are the laws of a limit that its prediction names, in the order of LIMITS", () => {
-    const prediction = { detects: null, window: { value: 30, unit: "s" }, why: "a test", memory: {}, queue: {} } as unknown as Cell["prediction"];
-    expect(limitsOf({ prediction })).toEqual(["queue", "memory"]);
-    expect(limitsOf({ prediction: { detects: null, window: { value: 30, unit: "s" }, why: "none" } as unknown as Cell["prediction"] })).toEqual([]);
+    expect(limitsOf({ prediction: { detects: null, why: "a test", memory: {}, queue: {}, ports: undefined } })).toEqual(["queue", "memory"]);
+    expect(limitsOf({ prediction: { kind: "stays", why: "a cell of kind" } })).toEqual([]);
   });
 });

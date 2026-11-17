@@ -3629,9 +3629,9 @@ A consumer of the labs kept its own copy of the table of the layers of S7. Each 
 
 The entry `@mark1russell7/harness/layers` gives `LAYER_FACTS`. Each layer gets its texts from the table of S7, the faults that its cells inject and the limits that their load fills. The entry imports no `node:` module, thus a page in a browser can read it. `layerOf` gives the layer of a lab from its topology, and the lab writes its substrate with the same rule.
 
-The test: a test of the harness holds each text equal to the table of S7. A test of the cells holds the faults and the limits of each layer equal to the cells of `ALL`.
+The faults of E1 and E3 are faults of the harness. The cells of E2 are in the kind package, and their faults are the kinds of their triggers. The two vocabularies share the names of the faults that they share.
 
-The labs of E2 are in the kind package, and their steps are not faults of the harness. Thus E2 lists no fault. The end of this gap: each step of the kind package names its fault, and the test of the cells reads them.
+The test: a test of the harness holds each text equal to the table of S7. A test of the cells holds the faults and the limits of each layer equal to the cells of `ALL` and of the kind catalog.
 
 ## The items of the scale ladder
 
