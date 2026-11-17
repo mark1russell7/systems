@@ -12,7 +12,7 @@ import { useMemo, useState, type ReactElement } from "react";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { say, type LaneNames } from "../model/lens.ts";
 import { DATAPLANES, DEFAULTS, PRESETS, lensOf, requestPath, type Fault, type LayerId, type PathResult, type Settings } from "../model/request.ts";
-import { Choice, CountKnob, LensKnobs, OptionalTimeKnob, TimeKnob, hzKnob, rttKnob, type KnobRegistry } from "./Knobs.tsx";
+import { Choice, CountKnob, LensKnobs, OptionalTimeKnob, TimeKnob, hzKnob, mtuKnob, rttKnob, type KnobRegistry } from "./Knobs.tsx";
 import { EventsTable, LaneCard, PlayerBar, Timeline, TimelineLegend, axisOf, isLit, scaleCaption, usePlayer, type FaultSpan, type Scale } from "./Lens.tsx";
 import Term, { type TermName } from "./Term.tsx";
 
@@ -63,7 +63,7 @@ export const PATH_KNOBS: KnobRegistry<Settings> = {
   rate: (value, set) => (
     <Choice label="Link rate" name="Link rate" options={[1, 10, 25, 100].map((rate) => ({ id: rate, label: `${rate} Gbit/s` }))} value={valueIn(value, "Gbit/s")} onChange={(rate) => set(quantity(rate, "Gbit/s"))} />
   ),
-  mtu: (value, set) => <Choice label={<Term name="MTU" />} name="MTU" options={[1500, 9000].map((mtu) => ({ id: mtu, label: `${mtu} B` }))} value={valueIn(value, "B")} onChange={(mtu) => set(quantity(mtu, "B"))} />,
+  mtu: mtuKnob,
 };
 
 /** This function gives the fault of the timeline: from 0 to the heal of a partition, or to the end of the axis. */
