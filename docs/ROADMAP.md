@@ -2609,12 +2609,12 @@ The copy comes from one Cells run of the ten cells at main `43219db`, on Linux 7
 
 ### SYS-121 · The port range: a lens and its page
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
-- **Shipped:**
-- **Links:** [the read of PR.7 with 40 runs](https://github.com/mark1russell7/systems/actions/runs/44163293814)
+- **Shipped:** 2026-11-17
+- **Links:** [#593](https://github.com/mark1russell7/systems/pull/593), [the port range cells](https://mark1russell7.github.io/systems/results/port-range/), [the read of PR.7 with 40 runs](https://github.com/mark1russell7/systems/actions/runs/44163293814)
 
 A client that opens many connections to one destination uses up its local ports. The page shows the search of a free port, the ports in `TIME_WAIT` and the connect that fails with `EADDRNOTAVAIL`.
 
@@ -2652,7 +2652,14 @@ The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](http
 - In the 7 runs, no counter of a drop moved at either end. The target counts one `TIME_WAIT` for each connection.
 - A RST of the client to a segment with no socket occurs in 16 runs, and 14 of them hold. Thus that RST does not mark the failure.
 
-A gate of 4 runs holds `PR.7` with a chance of 0.46 at the rate of 0.175. Thus the copy of part 3 shows `PR.7` with its decision of that read and this rate. `PR.7` can gate only when the term of SYS-102 explains the lost ACK.
+A gate of 4 runs holds `PR.7` with a chance of 0.46 at the rate of 0.175. Thus the page of part 3 shows the decision of `PR.7` in its read of 4 runs, and this rate next to it. `PR.7` can gate only when the term of SYS-102 explains the lost ACK.
+
+Part 3 is the page [the port range cells](https://mark1russell7.github.io/systems/results/port-range/). The copy `port-range-2026-11-17.json` comes from the cells at main `9398ddb` ([run 44177444372](https://github.com/mark1russell7/systems/actions/runs/44177444372)), on Linux 7.0 at HZ 1000. Each of the eight cells holds, with 4 counted runs and no void run.
+
+- Each cell has a frame with its settings, its prediction, its verdict and its runs. A cell of a held port also has a strip of the first free port of each run against its band.
+- The lenses of the lab page read the copy. Each orange dot links to the frame of its cell.
+- The page is in the ledger, in the stamps and in round 1 of the refresh. Thus a round reads the eight cells again each 28 days.
+- A data test holds each figure that the page gives.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
