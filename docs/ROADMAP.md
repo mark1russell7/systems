@@ -2709,6 +2709,15 @@ Part 2 is the egress tier of the harness 0.16.8 and the cells `EQ.1` to `EQ.7` (
 
 The first read of the seven cells checks the late slack against the records. Then the lens and its page come in part 3.
 
+Part 3 is the page [the egress queue](https://mark1russell7.github.io/systems/lab/egress/) of the site. It has three lanes: the program, the qdisc and the device.
+
+- The program lane shows each burst. With `IP_RECVERR` on, it shows the first `ENOBUFS`. With the default of Linux, each send succeeds, and the lane stays silent.
+- The qdisc lane shows the first drop and its cause: a full queue, or a frame longer than the bucket of tbf.
+- The device lane ends when the last frame leaves.
+- A chart under the timeline has one row for each datagram, from its send to its departure, and what the qdisc holds at each time.
+- The presets are the settings of `EQ.1` to `EQ.7`. A test holds each outcome and each departure of the page inside the law of its cell.
+- The measured values come with the copy of the first records of the cells.
+
 ## The items of S3
 
 [The plan of S3](S3.md) gives the law, the source and the measure of each item. The lines of work are Q17 (the writes), Q19 (the exhaustion), Q18 (the storms) and the new systems.
