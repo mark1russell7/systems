@@ -113,7 +113,9 @@ type KafkaLab: build/index.d.ts#KafkaLab
 type KafkaMember: build/index.d.ts#KafkaMember
 type KafkaPause: build/cell.chunk.d.ts#KafkaPause
 type KernelRecord: @mark1russell7/prober#KernelRecord (external)
-LAYERS: build/index.d.ts#LAYERS
+LAYERS: build/layers.d.ts#LAYERS
+LAYER_FACTS: build/layers.d.ts#LAYER_FACTS
+LIMITS: build/layers.d.ts#LIMITS
 LINGER_MS: build/index.d.ts#LINGER_MS
 LISTING: build/index.d.ts#LISTING
 LOAD_FORMAT: build/index.d.ts#LOAD_FORMAT
@@ -121,8 +123,11 @@ LOAD_PATH: build/index.d.ts#LOAD_PATH
 LOCK_NAMES: build/index.d.ts#LOCK_NAMES
 LOSS_MARGIN: build/index.d.ts#LOSS_MARGIN
 type Lab: build/index.d.ts#Lab
-type Layer: build/index.d.ts#Layer
+type Layer: build/layers.d.ts#Layer
+type LayerFacts: build/layers.d.ts#LayerFacts
+type LayerState: build/layers.d.ts#LayerState
 type LeafViews: build/index.d.ts#LeafViews
+type Limit: build/layers.d.ts#Limit
 type LineCount: build/cell.chunk.d.ts#LineCount
 type LineMatch: build/cell.chunk.d.ts#LineMatch
 type LoadBand: build/cell.chunk.d.ts#LoadBand
@@ -338,8 +343,10 @@ kafkaViewOf: build/index.d.ts#kafkaViewOf
 lagsOf: build/index.d.ts#lagsOf
 laterMove: build/index.d.ts#laterMove
 latestEndOf: build/cell.chunk.d.ts#latestEndOf
+layerOf: build/layers.d.ts#layerOf
 leafLacks: build/index.d.ts#leafLacks
 leftAfter: build/index.d.ts#leftAfter
+limitsOf: build/layers.d.ts#limitsOf
 loadOf: build/index.d.ts#loadOf
 loadPlanOf: build/index.d.ts#loadPlanOf
 loadVerdict: build/index.d.ts#loadVerdict
@@ -472,6 +479,18 @@ clientImageSchema: build/schema.d.ts#clientImageSchema
 clientSchema: build/schema.d.ts#clientSchema
 imageSourceSchema: build/schema.d.ts#imageSourceSchema
 subjectSchema: build/schema.d.ts#subjectSchema
+
+## ./layers (build/layers.d.ts): names
+
+LAYERS: build/layers.d.ts#LAYERS
+LAYER_FACTS: build/layers.d.ts#LAYER_FACTS
+LIMITS: build/layers.d.ts#LIMITS
+Layer: build/layers.d.ts#Layer
+LayerFacts: build/layers.d.ts#LayerFacts
+LayerState: build/layers.d.ts#LayerState
+Limit: build/layers.d.ts#Limit
+layerOf: build/layers.d.ts#layerOf
+limitsOf: build/layers.d.ts#limitsOf
 
 ## Declarations
 
@@ -2018,9 +2037,6 @@ interface KafkaMember extends GroupClient {
   signal(signal: "STOP" | "CONT", at?: number): Promise<Stamp>;
 }
 
-### build/index.d.ts#LAYERS
-export declare const LAYERS: readonly ["E0", "E1", "E2", "E3", "E4", "E5", "E6"];
-
 ### build/index.d.ts#LINGER_MS
 export declare const LINGER_MS = 1e3;
 
@@ -2107,9 +2123,6 @@ interface Lab {
   manifest(sysctls: Readonly<Record<string, string>>, settings?: Readonly<Record<string, string>>, targetSysctls?: Readonly<Record<string, string>>): Promise<Manifest>;
   close(): Promise<void>;
 }
-
-### build/index.d.ts#Layer
-type Layer = (typeof LAYERS)[number];
 
 ### build/index.d.ts#LeafViews
 interface LeafViews {
@@ -3470,6 +3483,41 @@ export declare const viewOf: (group: Group, ips: Readonly<Record<string, string>
 
 ### build/index.d.ts#writesOf
 export declare const writesOf: (run: Run, after: number, primary: string) => Writes;
+
+### build/layers.d.ts#LAYERS
+export declare const LAYERS: readonly ["E0", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+### build/layers.d.ts#LAYER_FACTS
+export declare const LAYER_FACTS: Readonly<Record<Layer, LayerFacts>>;
+
+### build/layers.d.ts#LIMITS
+export declare const LIMITS: readonly ["queue", "ports", "conntrack", "memory"];
+
+### build/layers.d.ts#Layer
+export type Layer = (typeof LAYERS)[number];
+
+### build/layers.d.ts#LayerFacts
+export interface LayerFacts {
+  readonly name: string;
+  readonly proves: string;
+  readonly cannot: readonly string[];
+  readonly tools: readonly string[];
+  readonly state: LayerState;
+  readonly faults: readonly Fault[];
+  readonly limits: readonly Limit[];
+}
+
+### build/layers.d.ts#LayerState
+export type LayerState = "today" | "new" | "later" | "waiting";
+
+### build/layers.d.ts#Limit
+export type Limit = (typeof LIMITS)[number];
+
+### build/layers.d.ts#layerOf
+export declare const layerOf: (topology: Topology | undefined) => Layer;
+
+### build/layers.d.ts#limitsOf
+export declare const limitsOf: (cell: Pick<Cell, "prediction">) => readonly Limit[];
 
 ### build/schema.d.ts#clientImageSchema
 export declare const clientImageSchema: z.ZodType<ClientImage>;

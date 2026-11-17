@@ -28,6 +28,7 @@ import type {
 import type { FabricLab } from "./fabric.ts";
 import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
 import { SHIPPED_CLIENTS, buildRecordOf, harnessImage, harnessVersion, imageOf, routerImage, shippedSource, targetImageOf, targetSourceOf, type BuildRecord } from "./image.ts";
+import { layerOf } from "./layers.ts";
 import type { Substrate } from "./substrate.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -1405,7 +1406,7 @@ export const openLab = async (
           })()),
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
-          substrate: substrateHere(fabric === undefined ? "E1" : "E3"),
+          substrate: substrateHere(layerOf(topology)),
           ...(fabric === undefined ? {} : { fabric: fabric.manifest() }),
           target: {
             image: targetImage,
