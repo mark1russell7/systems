@@ -2609,12 +2609,12 @@ The copy comes from one Cells run of the ten cells at main `43219db`, on Linux 7
 
 ### SYS-121 · The port range: a lens and its page
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-17
+- **Links:** [#593](https://github.com/mark1russell7/systems/pull/593), [the port range cells](https://mark1russell7.github.io/systems/results/port-range/), [the read of PR.7 with 40 runs](https://github.com/mark1russell7/systems/actions/runs/44163293814)
 
 A client that opens many connections to one destination uses up its local ports. The page shows the search of a free port, the ports in `TIME_WAIT` and the connect that fails with `EADDRNOTAVAIL`.
 
@@ -2642,6 +2642,24 @@ The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](http
 - A gate of 4 runs passes with a chance of 0.95 only for a loss of 0.0127 or less in each run. The lower Wilson bound of 2 of 12 is 0.047.
 - Each run of a port cell gives the counters of the network stack of each end, before its first round and after its last round. A finding of a retransmission names each counter of a drop, a skip or a reset that moved. Thus the next lost ACK tells its side and its cause.
 - The input `runs` of the workflow of the cells gives each selected cell from 1 to 100 runs. A read of `PR.7` with 40 runs measures the rate of the loss. The record of the gate keeps that rate next to its decision, and [SYS-102](#sys-102--the-port-that-last_ack-holds) takes the cause into the law.
+
+**The record of the gate of `PR.7` (2026-11-17).** The read with 40 runs ([run 44163293814](https://github.com/mark1russell7/systems/actions/runs/44163293814)) counted 40 runs and voided 0. The law failed in 7 runs of 40. That rate is 0.175, and its Wilson interval at 95 % is 0.087 to 0.319. The limit of the prediction was 4 failed runs, thus it missed.
+
+- Each failed run is the case of `LAST_ACK`. The prober records one retransmission in each of the 7 runs, and none in a run that holds.
+- That retransmission is a loss probe of a FIN with no data, from a socket of the client in `LAST_ACK`.
+- In six runs, the probe comes during the rounds. The counters `TcpExt.TCPLossProbes` and `Tcp.RetransSegs` of the client rise by 1, and a later round gets 3 ports, not 4.
+- In env 0, run 19, the probe comes 201 ms after the last `LAST_ACK`, after the last round. Thus each round got 4 ports, and the counters at the end of the run do not show the probe.
+- In the 7 runs, no counter of a drop moved at either end. The target counts one `TIME_WAIT` for each connection.
+- A RST of the client to a segment with no socket occurs in 16 runs, and 14 of them hold. Thus that RST does not mark the failure.
+
+A gate of 4 runs holds `PR.7` with a chance of 0.46 at the rate of 0.175. Thus the page of part 3 shows the decision of `PR.7` in its read of 4 runs, and this rate next to it. `PR.7` can gate only when the term of SYS-102 explains the lost ACK.
+
+Part 3 is the page [the port range cells](https://mark1russell7.github.io/systems/results/port-range/). The copy `port-range-2026-11-17.json` comes from the cells at main `9398ddb` ([run 44177444372](https://github.com/mark1russell7/systems/actions/runs/44177444372)), on Linux 7.0 at HZ 1000. Each of the eight cells holds, with 4 counted runs and no void run.
+
+- Each cell has a frame with its settings, its prediction, its verdict and its runs. A cell of a held port also has a strip of the first free port of each run against its band.
+- The lenses of the lab page read the copy. Each orange dot links to the frame of its cell.
+- The page is in the ledger, in the stamps and in round 1 of the refresh. Thus a round reads the eight cells again each 28 days.
+- A data test holds each figure that the page gives.
 
 ### SYS-122 · The whole path: all lenses on one timeline
 
@@ -3866,6 +3884,39 @@ A flush of the sync of `@procedures` writes many items in one call, thus it take
 - **Links:**
 
 Mark decided on 2026-11-09 that one math repository holds the math packages. `@mark1russell7/quantity` moves there with its history and the same npm name, thus a user of quantity changes nothing. When that repository publishes the next PATCH of quantity, this item removes `packages/quantity` from systems. Eight packages use it with `workspace:^`: algebra, cells, harness, kind, machines, prober, service and site. Each takes the npm release with a caret range. The release of systems no longer packs quantity. The test: `pnpm why @mark1russell7/quantity` shows one copy from npm, and CI passes on main.
+
+### SYS-131 · More units in quantity for the feeds of public data
+
+- **Status:** todo
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A consumer of public data feeds reads the unit of each measure with `tryParseUnit` of `@mark1russell7/quantity`. Version `0.4.1` does not parse these units of the feeds:
+
+- Power and energy with the prefixes M and G: `MW`, `GW`, `MWh` and `GWh`.
+- Dose and dose rate: `Gy`, and `Sv` with the prefixes m, µ and n. Thus `µSv/h` parses.
+- The microgram `µg`, with the spellings `ug` and `mcg`. Thus `µg/m^3` parses.
+- Pressure: `Pa` and `hPa`. Activity: `Bq`, thus `Bq/m^3` parses. Ratios: `ppm` and `ppb`.
+- Currencies other than USD: `EUR`, `GBP`, `CHF`, `SEK` and `JPY`. Thus `EUR/L` and `EUR/MWh` parse.
+- The millihertz `mHz`, for the deviation of the frequency of a grid. The magnetic field `nT`. The level `dB`.
+- The spelling `Cel` of UCUM for `degC`, and the `.` of UCUM between two factors.
+- Last: the radiance of night lights, `nW/(cm^2.sr)`. It needs `nW` and the steradian `sr`.
+
+The rules of the change:
+
+- Each unit with a prefix is an atom of its own, from a list. The parser does not take a prefix off a symbol, because `min`, `ft` and `Pa` then read as a prefix and a unit.
+- A gray and a sievert have the same vector, J/kg, but a sievert is a weighted dose. Thus a sievert does not convert to a gray. A becquerel counts decays, thus it does not convert to a hertz.
+- Each currency stays apart, as the note of the bases says: currencies have no fixed rate. Thus EUR does not convert to USD. JPY keeps no decimals, and each other currency keeps the cent.
+- A decibel is a level, as `dBA` is. Thus it converts only to itself.
+- A steradian is a ratio of two areas, but it stays apart from a plain ratio. Thus a radiance does not convert to an irradiance.
+- The grammar takes a spelling of UCUM when it does not clash with a symbol of the table. Feeds of public data often give their units in UCUM.
+
+The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21. If this item has not merged by then, it moves to that repository with quantity.
+
+The test: each unit of the list parses, converts in its dimension and formats again. The parser refuses five conversions: Sv to Gy, Bq to Hz, EUR to USD, dB to a ratio and a radiance to an irradiance. Each test of `0.4.1` passes with no change.
 
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
