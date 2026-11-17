@@ -435,10 +435,11 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **An in-flight bound.** `{ type: "in-flight", limit, lease, retryAfter }` gives a key at most `limit` units in flight. This bound needs no service rate.
 - **The lease.** A permitted take of an in-flight bound gives a `lease`. Its units stay held until `release(key, decision)`, or until the lease ends.
 - **No lost units.** A unit that no caller releases leaves the count at the end of its lease. Thus a caller that stops before its release does not hold the bound.
+- **The length of the lease.** The units of a call that outlives its lease leave the count. Then a key can have more than `limit` units in flight. Set a lease of at least the deadline of the call. A lease has no renewal.
 - **One release.** Release each permitted decision one time, with the key of its take. A second release of a decision releases nothing.
 - **The release errors.** A release with another key rejects, and the units stay held. A failure of the store rejects the release, and the units count until their lease ends.
 - **No release.** A refusal, and a decision of a rate policy, have no lease. Their release does nothing.
-- **The wait of a refusal.** The limiter cannot know when a call ends. Thus the policy declares `retryAfter`, at most the lease. A refusal gives less when enough leases end first.
+- **The wait of a refusal.** The limiter cannot know when a call ends. Thus the policy declares `retryAfter`, at most the lease. A refusal gives less when enough leases end first. A retry at `retryAfter` can get a refusal again when no release came first.
 - **A store with a release.** An in-flight bound needs a store with `release`. `keyedLimiter` refuses a store without it. `memoryStore` and `redisLimiterStore` have it.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or a refusal. The type of a refusal is a union on its `cause`, thus the compiler checks each branch.
 - **A wait refusal.** `{ allowed: false, cause, retryAfter }` has the cause `limit`, `cap` or `store`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in.

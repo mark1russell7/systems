@@ -3811,7 +3811,7 @@ The test: the self-test of the disk tier passes in CI with the import, and the w
 
 A rate policy needs the service rate of the calls that it bounds. A bound on the calls in flight does not. The policy `{ type: "in-flight", limit, lease, retryAfter }` gives each key at most `limit` units in flight. A permitted take gives a lease, and `release(key, decision)` gives its units back. A unit with no release leaves the count at the end of its lease. Thus a caller that stops before its release does not hold the bound.
 
-The memory store and the Redis script do the same arithmetic (`releaseLease`). The document `IN_FLIGHT_MACHINE` gives the machine of one key. The new policy is a new member of the unions `LimitPolicy`, `LimitRule` and `KeyState`. It breaks an exhaustive switch of a caller, thus the release is `0.10.0` (MINOR before 1.0).
+The memory store and the Redis script do the same arithmetic (`releaseLease`). The document `IN_FLIGHT_MACHINE` gives the machine of one key. The new policy is a new member of the unions `LimitPolicy`, `LimitRule` and `KeyState`, and an exhaustive switch of a caller fails. `KeyedLimiter` and `MemoryStore` get the new member `release`, and an implementation of them outside the package fails its type check. Thus the release is `0.10.0` (MINOR before 1.0).
 
 The test: seeded property tests hold the bound, the lease and the release on the memory store. The Redis tests check the script against `decide` and `releaseLease` on a real Redis. The machine test replays each take and each release against the document.
 

@@ -33,6 +33,9 @@ export interface SlidingWindow {
  * - Each take has a lease. A unit that no caller releases leaves the count at the end of its lease.
  *   Thus a caller that stops before its release does not hold the bound.
  * - The limiter cannot know when a call ends. Thus the policy declares the `retryAfter` of a refusal.
+ * - The units of a call that outlives its lease leave the count. Then a key can have more than
+ *   `limit` units in flight. Thus set a lease of at least the deadline of the call. A lease has no
+ *   renewal.
  */
 export interface InFlightBound {
   readonly type: "in-flight";
@@ -134,9 +137,12 @@ export interface Lease {
 }
 
 /**
- * A wait refusal used nothing. `retryAfter` is the time until the limiter lets the same take in, when
- * no other take comes first. It is always above zero. An in-flight bound can let the take in earlier,
- * at a release.
+ * A wait refusal used nothing. Its `retryAfter` is always above zero.
+ * - For a rate policy, `retryAfter` is the time until the limiter lets the same take in, when no
+ *   other take comes first.
+ * - For an in-flight bound, `retryAfter` is the lesser of the declared `retryAfter` and the time until
+ *   enough leases end for the take. A release can let the take in earlier. A retry at `retryAfter`
+ *   can get a refusal again when no release came first.
  */
 export interface WaitRefused {
   readonly allowed: false;
@@ -148,8 +154,8 @@ export interface WaitRefused {
 
 /**
  * A capacity refusal used nothing, and the same take is refused at each time. Its `units` are over
- * the `capacity` of the policy: the `burst` of a bucket, or the `limit` of a window. A caller can
- * split the take into parts of at most `capacity` units.
+ * the `capacity` of the policy: the `burst` of a bucket, or the `limit` of a window or of an
+ * in-flight bound. A caller can split the take into parts of at most `capacity` units.
  */
 export interface CapacityRefused {
   readonly allowed: false;
