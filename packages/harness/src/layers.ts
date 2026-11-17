@@ -15,11 +15,11 @@ export type Layer = (typeof LAYERS)[number];
 export type LayerState = "today" | "new" | "later" | "waiting";
 
 /**
- * A limit is a resource that the load of a cell fills, with no fault. The four limits are the accept
- * queue, the port range, the conntrack table and the memory of a cgroup. The name of a limit is the key
- * of its law in `Prediction`.
+ * A limit is a resource that the load of a cell fills, with no fault. The five limits are the accept
+ * queue, the port range, the conntrack table, the memory of a cgroup and the egress queue of an
+ * interface. The name of a limit is the key of its law in `Prediction`.
  */
-export const LIMITS = ["queue", "ports", "conntrack", "memory"] as const;
+export const LIMITS = ["queue", "ports", "conntrack", "memory", "egress"] as const;
 export type Limit = (typeof LIMITS)[number];
 
 /**

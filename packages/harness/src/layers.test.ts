@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import type { Cell } from "./cell.ts";
-import type { LayerState } from "./layers.ts";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { Cell, Prediction } from "./cell.ts";
+import type { LayerState, Limit } from "./layers.ts";
 import { LAYERS, LAYER_FACTS, LIMITS, layerOf, limitsOf } from "./layers.ts";
 
 /** This file is the plan of the layers. Its table "The layers" is the source of each text of `LAYER_FACTS`. */
@@ -62,7 +62,24 @@ describe("the layer of a lab", () => {
   });
 });
 
+/** A measured prediction is the prediction of a cell with no detection. Only it has the laws of a limit. */
+type Measured = Extract<Prediction, { readonly detects: null }>;
+
+/**
+ * These keys of a measured prediction are not the laws of a limit. They are the frame of the measure,
+ * the laws of a group, a request or a reconnect, the counts of lines, a paused consumer and the schedule
+ * of a load.
+ */
+const NOT_LIMITS = ["detects", "window", "why", "from", "ends", "group", "request", "reconnects", "counts", "pause", "load"] as const;
+
 describe("the limits of a cell", () => {
+  it("are each law of a resource in a measured prediction, and no other key", () => {
+    // A new key of `Prediction` fails this check until it is in LIMITS or in NOT_LIMITS.
+    expectTypeOf<Exclude<keyof Measured, Limit | (typeof NOT_LIMITS)[number]>>().toEqualTypeOf<never>();
+    expectTypeOf<Exclude<Limit, keyof Measured>>().toEqualTypeOf<never>();
+    expect(LIMITS.filter((limit) => (NOT_LIMITS as readonly string[]).includes(limit))).toEqual([]);
+  });
+
   it("are the laws of a limit that its prediction names, in the order of LIMITS", () => {
     expect(limitsOf({ prediction: { detects: null, why: "a test", memory: {}, queue: {}, ports: undefined } })).toEqual(["queue", "memory"]);
     expect(limitsOf({ prediction: { kind: "stays", why: "a cell of kind" } })).toEqual([]);
