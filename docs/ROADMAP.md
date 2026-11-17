@@ -3813,6 +3813,8 @@ A rate policy needs the service rate of the calls that it bounds. A bound on the
 
 The memory store and the Redis script do the same arithmetic (`releaseLease`). The document `IN_FLIGHT_MACHINE` gives the machine of one key. The new policy is a new member of the unions `LimitPolicy`, `LimitRule` and `KeyState`, and an exhaustive switch of a caller fails. `KeyedLimiter` and `MemoryStore` get the new member `release`, and an implementation of them outside the package fails its type check. Thus the release is `0.10.0` (MINOR before 1.0).
 
+The package `kind` depends on `service`, and its packed `package.json` changes. Its public API does not change, thus `kind` gets `0.14.12` (PATCH).
+
 The test: seeded property tests hold the bound, the lease and the release on the memory store. The Redis tests check the script against `decide` and `releaseLease` on a real Redis. The machine test replays each take and each release against the document.
 
 ### SYS-106 · The units of a take in the keyed limiter
