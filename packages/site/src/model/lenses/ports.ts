@@ -13,6 +13,7 @@ import { PORT_SEARCH_CHAIN_LARGEST, portSearchShares, portSearchSpan, timerOf } 
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { format, quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { median } from "@mark1russell7/rigor-statistics";
+import copy from "../../data/port-range-2026-11-17.json";
 import { bandOf, memo, say, sayBand, type Band, type Fact, type Lens, type Lane, type Mark, type Measured, type Verdict } from "../lens.ts";
 import { ZERO, bandOfTimer, count, linuxTcpValues, ms, s } from "../path.ts";
 
@@ -84,6 +85,40 @@ export interface PortCopy {
   readonly hz: number;
   readonly cells: readonly PortCopyCell[];
 }
+
+/** The copy of the cells PR.1 to PR.8 at one commit, as `scripts/port-range.ts` writes it. The page of results reads all of it. */
+export const PORT_COPY_RAW = copy;
+
+/** This function gives the ID of the frame of a cell on the page of results: "PR.1" is "pr-1". */
+export const portCellAnchor = (plan: string): string => plan.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+/** This function reads a copy for the lenses. It stops at a close, a value of `tcp_tw_reuse` or a fault that the lenses do not know. */
+export const portCopyOf = (raw: typeof copy): PortCopy => ({
+  ranAt: raw.ranAt,
+  hz: raw.hz,
+  cells: raw.cells.map((cell): PortCopyCell => {
+    const close: string = cell.settings.close;
+    const reuse: number = cell.settings.reuse;
+    const fault: string | null = cell.settings.fault;
+    if (close !== "reset" && close !== "client" && close !== "target") throw new Error(`${cell.plan}: the lenses know no close ${close}`);
+    if (reuse !== 1 && reuse !== 2) throw new Error(`${cell.plan}: the lenses know no tcp_tw_reuse ${reuse}`);
+    if (fault !== null && fault !== "fin-ack") throw new Error(`${cell.plan}: the lenses know no fault ${fault}`);
+    const result = cell.result;
+    return {
+      plan: cell.plan,
+      name: cell.name,
+      settings: { size: cell.settings.size, close, destinations: cell.settings.destinations, reuse, fault },
+      result:
+        result === null
+          ? null
+          : {
+              decision: result.decision,
+              counted: result.counted,
+              runs: result.runs.map((run) => ({ searches: run.searches, counts: run.counts as Readonly<Record<string, number>>, firstFreed: run.firstFreed, retransmissions: run.retransmissions })),
+            },
+    };
+  }),
+});
 
 // ---------------------------------------------------------------------------------------------
 // the law
@@ -221,7 +256,7 @@ const searchMeasured = (copy: PortCopy | null, settings: PortSettings, model: Po
   if (cell === undefined) return [];
   const { counts, share } = model.search;
   const top = share === null ? "" : `, ${counts.at(-1)} in ${format(quantity(100 * share, "%"), { digits: 1 })} of the rounds`;
-  return [{ cell: `${cell.plan} ${cell.name}`, measured: countsOf(cell), computed: `${counts.join(" or ")} connects to each destination${top}`, href: CELLS_PAGE, at: null }];
+  return [{ cell: `${cell.plan} ${cell.name}`, measured: countsOf(cell), computed: `${counts.join(" or ")} connects to each destination${top}`, href: `${CELLS_PAGE}#${portCellAnchor(cell.plan)}`, at: null }];
 };
 
 /**
@@ -242,7 +277,7 @@ const holdMeasured = (copy: PortCopy | null, settings: PortSettings, model: Port
   const name = `${cell.plan} ${cell.name}`;
   if (freed.length === 0) {
     const sent = runs.reduce((sum, run) => sum + run.retransmissions, 0);
-    return [{ cell: name, measured: `${format(count(sent))} retransmissions in ${format(count(runs.length))} runs`, computed: `${format(count(model.hold.retransmissions))} for each port`, href: CELLS_PAGE, at: null }];
+    return [{ cell: name, measured: `${format(count(sent))} retransmissions in ${format(count(runs.length))} runs`, computed: `${format(count(model.hold.retransmissions))} for each port`, href: `${CELLS_PAGE}#${portCellAnchor(cell.plan)}`, at: null }];
   }
   const middle = median(freed);
   return [
@@ -250,7 +285,7 @@ const holdMeasured = (copy: PortCopy | null, settings: PortSettings, model: Port
       cell: name,
       measured: `${say(s(middle))} (median of ${format(count(freed.length))} runs)`,
       computed: model.hold.band === null ? "no port comes back" : sayBand(model.hold.band),
-      href: CELLS_PAGE,
+      href: `${CELLS_PAGE}#${portCellAnchor(cell.plan)}`,
       at: s(middle),
     },
   ];
@@ -373,5 +408,5 @@ export const portLenses = (copy: PortCopy | null): { readonly search: Lens<PortS
   },
 });
 
-/** The lenses of the port range on each page of the site: the page of the port range, and the page of the whole path. */
-export const PORT_LENSES = portLenses(null);
+/** The lenses of the port range, with the measured values of the copy. The page of the port range and the page of the whole path show them. */
+export const PORT_LENSES = portLenses(portCopyOf(copy));

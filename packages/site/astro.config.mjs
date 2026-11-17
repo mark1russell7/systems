@@ -74,6 +74,7 @@ export default defineConfig({
             "results/mesh",
             "results/kind",
             "results/r3",
+            "results/port-range",
             "results/timers",
             "results/harness",
             "results/ci",

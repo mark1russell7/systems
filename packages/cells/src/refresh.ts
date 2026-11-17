@@ -9,6 +9,7 @@ import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
+import { PORT_RANGE_CELLS } from "./port-range.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { T02_CELLS } from "./t02.ts";
@@ -57,6 +58,7 @@ export const REFRESHES: readonly Refresh[] = [
   { page: "results/sentinel/index.html", cells: [...T12_CELLS, T12_CAL], exporter: "sentinel", round: 1 },
   { page: "results/topologies/index.html", cells: [...T03_CELLS, ...T02_CELLS, ...TOX_CELLS], exporter: "topologies", round: 1 },
   { page: "results/http/index.html", cells: HTTP_HARNESS_CELLS, exporter: "http", round: 1 },
+  { page: "results/port-range/index.html", cells: PORT_RANGE_CELLS, exporter: "port-range", round: 1 },
   { page: "results/pg/index.html", cells: [...T01_PG, ...T01_HIKARI, ...T03_HIKARI, ...T10_PG, ...T10_HIKARI], exporter: "pg", round: 2 },
   { page: "results/grpc/index.html", cells: [...T01_GRPC, ...T03_GRPC, ...T02_GRPC], exporter: "grpc", round: 3 },
 ];

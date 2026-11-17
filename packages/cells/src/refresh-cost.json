@@ -6,7 +6,8 @@
   39288251967,
   39319194195,
   39356655803,
-  39384829327
+  39384829327,
+  44177444372
  ],
  "seconds": {
   "CAL agent, the handling of the first reply: a free socket timer of 1 ms (1 of 4)": 35,
@@ -20,6 +21,14 @@
   "CAL undici, the handling of the first reply: a keep-alive timer of 1 ms (2 of 4)": 35,
   "CAL undici, the handling of the first reply: a keep-alive timer of 1 ms (3 of 4)": 35,
   "CAL undici, the handling of the first reply: a keep-alive timer of 1 ms (4 of 4)": 35,
+  "PR.1 an even range of 16 gives 16 connects to one destination, then EADDRNOTAVAIL at once": 115,
+  "PR.2 an odd range of 3 gives 2 connects, and the top port is never used": 123,
+  "PR.3 an odd range of 5 gives 4 or 5 connects, and the share of each count comes from the search": 121,
+  "PR.4 the count is for each destination: a range of 16 gives 32 connects to two ports of one target": 124,
+  "PR.5 the client closes first: each port stays held for 60 s from the FIN of the target, plus the wheel": 377,
+  "PR.6 tcp_tw_reuse 1: the client closes first, and each port comes back 1000 ms after the FIN of the target": 20,
+  "PR.7 the target closes first: the client holds no port, and each round gets each port at once": 14,
+  "PR.8 the target closes first and the first ACK of each FIN of the client drops: each port comes back one RTO after that FIN": 14,
   "T01 agent, a GET 5 s after the reply, between C (4 s) and S (6 s)": 94,
   "T01 agent, keepAliveTimeout 1500 ms (a hint of 1), a GET 1 s after the reply": 42,
   "T01 client idle, blackhole": 275,
