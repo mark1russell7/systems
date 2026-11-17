@@ -221,8 +221,9 @@ function EgressChart(props: { readonly settings: EgressSettings; readonly now: n
             );
           })}
 
+          {/* An SVG text does not wrap. Thus the title stays short, and the legend gives a limit above the chart. */}
           <text className="eq-panel" x={left} y={backTop - 14}>
-            {`What the qdisc holds, in ${tbfQueue ? "bytes" : "packets"}${showLimit ? "" : `. Its limit of ${limitText(settings)} is above the chart`}`}
+            {`What the qdisc holds, in ${tbfQueue ? "bytes" : "packets"}`}
           </text>
           <path className="eq-area" d={area} />
           <path className="eq-level" d={path} />
@@ -266,7 +267,7 @@ function EgressChart(props: { readonly settings: EgressSettings; readonly now: n
           dropped
         </li>
         <li>
-          <span className="eq-key eq-key-limit" /> the limit of the queue
+          <span className="eq-key eq-key-limit" /> {showLimit ? "the limit of the queue" : `the limit of the queue: ${limitText(settings)}, above the chart`}
         </li>
       </ul>
     </figure>
