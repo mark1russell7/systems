@@ -3491,7 +3491,7 @@ export declare const LAYERS: readonly ["E0", "E1", "E2", "E3", "E4", "E5", "E6"]
 export declare const LAYER_FACTS: Readonly<Record<Layer, LayerFacts>>;
 
 ### build/layers.d.ts#LIMITS
-export declare const LIMITS: readonly ["queue", "ports", "conntrack", "memory"];
+export declare const LIMITS: readonly ["queue", "ports", "conntrack", "memory", "egress"];
 
 ### build/layers.d.ts#Layer
 export type Layer = (typeof LAYERS)[number];

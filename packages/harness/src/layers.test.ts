@@ -66,9 +66,9 @@ describe("the layer of a lab", () => {
 type Measured = Extract<Prediction, { readonly detects: null }>;
 
 /**
- * These keys of a measured prediction are not the laws of a limit. They are the frame of the measure,
- * the laws of a group, a request or a reconnect, the counts of lines, a paused consumer and the schedule
- * of a load.
+ * These keys of a measured prediction are not the laws of a limit. Some keys are the frame of the
+ * measure. The other keys are the laws of a group, a request, a reconnect, the counts of lines, a paused
+ * consumer and a load.
  */
 const NOT_LIMITS = ["detects", "window", "why", "from", "ends", "group", "request", "reconnects", "counts", "pause", "load"] as const;
 

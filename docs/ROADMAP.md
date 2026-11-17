@@ -11,7 +11,7 @@ At most three items are in progress at one time. A score puts the items in order
 1. **SYS-121** (P1): the loss of `PR.7` is a gap in the law. Each run gives the counters of the stack of each end, and a read of 40 runs measures the rate. Then the measured values of the page come.
 2. **SYS-124** (P2): the egress tier of the harness and the cells `EQ.1` to `EQ.7` (#583), then the page of the egress queue (#585). The first read of the cells waits for free CI slots.
 
-SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). The other open items are `later`, in the order of the score:
+SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
@@ -3622,7 +3622,7 @@ The provider of [`@mark1russell7/runner-dispatch`](https://www.npmjs.com/package
 - **Area:** harness
 - **Depends on:** SYS-76
 - **Started:** 2026-11-16
-- **Shipped:** 2026-11-16
+- **Shipped:** 2026-11-17
 - **Links:** [#586, `@mark1russell7/harness` 0.16.10](https://github.com/mark1russell7/systems/pull/586)
 
 A consumer of the labs kept its own copy of the table of the layers of S7. Each layer also needs a list of the faults that it applies, as data. A query of the coverage of each fault on each layer reads that list.
@@ -3631,7 +3631,9 @@ The entry `@mark1russell7/harness/layers` gives `LAYER_FACTS`. Each layer gets i
 
 The faults of E1 and E3 are faults of the harness. The cells of E2 are in the kind package, and their faults are the kinds of their triggers. The two vocabularies share the names of the faults that they share.
 
-The test: a test of the harness holds each text equal to the table of S7. A test of the cells holds the faults and the limits of each layer equal to the cells of `ALL` and of the kind catalog.
+The limits are the accept queue, the port range, the conntrack table, the memory of a cgroup and the egress queue of an interface.
+
+The test: a test of the harness holds each text equal to the table of S7. A test of the cells holds the faults and the limits of each layer equal to the cells of `ALL` and of the kind catalog. A type check holds each key of a measured prediction in `LIMITS` or in a list of the keys that are not limits. A new law of a limit thus fails the typecheck until `LIMITS` names it.
 
 ## The items of the scale ladder
 
