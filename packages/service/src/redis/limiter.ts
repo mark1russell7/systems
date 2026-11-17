@@ -111,7 +111,7 @@ return {1, remaining}
 
 /**
  * This script releases the units of one lease of an in-flight bound in one atomic step of Redis. It
- * does the arithmetic of `release`, on the clock of `LIMITER_SCRIPT`.
+ * does the arithmetic of `releaseLease`, on the clock of `LIMITER_SCRIPT`.
  * - KEYS are the keys of `LIMITER_SCRIPT`.
  * - ARGV is the lease of the rule, the key, the time or "", the start of the lease and its units.
  * - A unit whose lease ended is not held, thus the script keeps only the units in their lease.

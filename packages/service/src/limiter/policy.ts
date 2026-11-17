@@ -365,7 +365,7 @@ export const idleSpan = (policy: LimitPolicy): Quantity => {
 };
 
 /**
- * This function gives the longest `retryAfter` of a refusal by the policy: one interval of the
+ * This function gives the longest `retryAfter` of a refusal by the policy. It is one interval of the
  * bucket (`1 / rate`), one window, or the declared `retryAfter` of an in-flight bound. A refusal at
  * the cap of keys can be longer, up to `idleSpan`.
  */

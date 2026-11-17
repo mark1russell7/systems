@@ -398,6 +398,7 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
 
   it("gives its functions, and the root gives them too", () => {
     expect(Object.keys(limiterEntry).sort()).toEqual([
+      "IN_FLIGHT_MACHINE",
       "SLIDING_WINDOW_MACHINE",
       "TOKEN_BUCKET_MACHINE",
       "capacityOf",
@@ -417,6 +418,7 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
       "quotaProblems",
       "quotaRule",
       "quotaStep",
+      "releaseLease",
       "retryAfterSeconds",
       "takeQuotas",
       "unitsOf",

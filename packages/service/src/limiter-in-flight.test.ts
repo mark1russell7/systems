@@ -224,7 +224,11 @@ describe("a keyed limiter releases the leases of an in-flight bound", () => {
         memory.release(request);
       },
     };
-    const shared: LimiterSpec = { ...BOUND, policy: { ...BOUND.policy, limit: count(1) }, store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" } };
+    const shared: LimiterSpec = {
+      ...BOUND,
+      policy: { type: "in-flight", limit: count(1), lease: s(30), retryAfter: s(1) },
+      store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" },
+    };
     const limiter = keyedLimiter("calls", shared, store);
     const taken = await limiter.take("a");
     failing = true;

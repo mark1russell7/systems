@@ -47,7 +47,7 @@ export interface LimiterStore {
   take(request: TakeRequest): Decision | Promise<Decision>;
   /**
    * This method releases the units of one lease of an in-flight bound in one atomic step, with the
-   * arithmetic of `release`. A unit whose lease ended is not held, thus a late release changes
+   * arithmetic of `releaseLease`. A unit whose lease ended is not held, thus a late release changes
    * nothing. A failure rejects the release, and the units then count until their lease ends. A store
    * with no release cannot keep an in-flight bound: `keyedLimiter` refuses that pair.
    */

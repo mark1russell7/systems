@@ -63,8 +63,10 @@ type Heartbeat: build/heartbeat.d.ts#Heartbeat
 type HeartbeatOptions: build/heartbeat.d.ts#HeartbeatOptions
 type HostStream: build/process.d.ts#HostStream
 IDENTITY_TYPES: build/identity.d.ts#IDENTITY_TYPES
+IN_FLIGHT_MACHINE: build/limiter/machine.d.ts#IN_FLIGHT_MACHINE
 type Idempotency: build/operation.d.ts#Idempotency
 type IdentityType: build/identity.d.ts#IdentityType
+type InFlightBound: build/limiter/policy.d.ts#InFlightBound
 type IncomingHeaders: build/call-context.d.ts#IncomingHeaders
 type Inequality: build/law.d.ts#Inequality
 type IterationContext: build/worker.d.ts#IterationContext
@@ -81,6 +83,7 @@ LATCH_MACHINE: build/machines.d.ts#LATCH_MACHINE
 LAW_STATISTIC: build/lint.d.ts#LAW_STATISTIC
 LIMITER_RULES: build/lint.d.ts#LIMITER_RULES
 LOG_LEVELS: build/logger.d.ts#LOG_LEVELS
+type Lease: build/limiter/policy.d.ts#Lease
 type Lifecycle: build/lifecycle.d.ts#Lifecycle
 type LifecycleEvent: build/events.d.ts#LifecycleEvent
 type LifecycleState: build/lifecycle.d.ts#LifecycleState
@@ -155,6 +158,7 @@ type Recorder: build/events.d.ts#Recorder
 type RedeliveryPolicy: build/queue.d.ts#RedeliveryPolicy
 type RefusalCause: build/limiter/policy.d.ts#RefusalCause
 type Refused: build/limiter/policy.d.ts#Refused
+type ReleaseRequest: build/limiter/store.d.ts#ReleaseRequest
 type RepeatSignal: build/description.d.ts#RepeatSignal
 type RequestEnd: build/requests.d.ts#RequestEnd
 type RequestEvent: build/requests.d.ts#RequestEvent
@@ -278,6 +282,7 @@ realClock: @mark1russell7/algebra/clock#realClock (external)
 recoverSpan: build/timing.d.ts#recoverSpan
 redact: build/metrics.d.ts#redact
 redeliverOnce: build/queue.d.ts#redeliverOnce
+releaseLease: build/limiter/policy.d.ts#releaseLease
 replay: @mark1russell7/algebra/replay#replay (external)
 retrier: build/retrier.d.ts#retrier
 retry: build/retrier.d.ts#retry
@@ -345,6 +350,7 @@ type Detector: build/client/meets.d.ts#Detector
 type DialFn: build/client/core.d.ts#DialFn
 type Factory: build/client/core.d.ts#Factory
 type Join: build/redis/client.d.ts#Join
+LIMITER_RELEASE_SCRIPT: build/redis/limiter.d.ts#LIMITER_RELEASE_SCRIPT
 LIMITER_SCRIPT: build/redis/limiter.d.ts#LIMITER_SCRIPT
 MANIFESTATIONS: build/client/meets.d.ts#MANIFESTATIONS
 type Manifestation: build/client/meets.d.ts#Manifestation
@@ -358,6 +364,7 @@ type RedisConnection: build/redis/connection.d.ts#RedisConnection
 type RedisConnectionOptions: build/redis/connection.d.ts#RedisConnectionOptions
 type RedisKnobs: build/redis/client.d.ts#RedisKnobs
 type RedisLimiterOptions: build/redis/limiter.d.ts#RedisLimiterOptions
+type RedisLimiterStore: build/redis/limiter.d.ts#RedisLimiterStore
 type RedisSender: build/redis/limiter.d.ts#RedisSender
 type RedisSocket: build/redis/connection.d.ts#RedisSocket
 type Sent: build/client/core.d.ts#Sent
@@ -832,9 +839,12 @@ type Allowed: build/limiter/policy.d.ts#Allowed
 type CalendarWindow: build/limiter/quota.d.ts#CalendarWindow
 type CapacityRefused: build/limiter/policy.d.ts#CapacityRefused
 type Decision: build/limiter/policy.d.ts#Decision
+IN_FLIGHT_MACHINE: build/limiter/machine.d.ts#IN_FLIGHT_MACHINE
+type InFlightBound: build/limiter/policy.d.ts#InFlightBound
 type KeyState: build/limiter/policy.d.ts#KeyState
 type KeyedLimiter: build/limiter/store.d.ts#KeyedLimiter
 type KeyedQuota: build/limiter/quota.d.ts#KeyedQuota
+type Lease: build/limiter/policy.d.ts#Lease
 type LimitPolicy: build/limiter/policy.d.ts#LimitPolicy
 type LimitRule: build/limiter/policy.d.ts#LimitRule
 type Limiter: build/limiter/policy.d.ts#Limiter
@@ -867,6 +877,7 @@ type QuotaWindow: build/limiter/quota.d.ts#QuotaWindow
 type QuotasVerdict: build/limiter/quota.d.ts#QuotasVerdict
 type RefusalCause: build/limiter/policy.d.ts#RefusalCause
 type Refused: build/limiter/policy.d.ts#Refused
+type ReleaseRequest: build/limiter/store.d.ts#ReleaseRequest
 type RollingWindow: build/limiter/quota.d.ts#RollingWindow
 SLIDING_WINDOW_MACHINE: build/limiter/machine.d.ts#SLIDING_WINDOW_MACHINE
 type SlidingWindow: build/limiter/policy.d.ts#SlidingWindow
@@ -895,6 +906,7 @@ overCapacity: build/limiter/policy.d.ts#overCapacity
 quotaProblems: build/limiter/quota.d.ts#quotaProblems
 quotaRule: build/limiter/quota.d.ts#quotaRule
 quotaStep: build/limiter/quota.d.ts#quotaStep
+releaseLease: build/limiter/policy.d.ts#releaseLease
 retryAfterSeconds: build/limiter/policy.d.ts#retryAfterSeconds
 takeQuotas: build/limiter/quota.d.ts#takeQuotas
 unitsOf: build/limiter/policy.d.ts#unitsOf
@@ -3144,6 +3156,9 @@ export declare const cooperativeAbortAt: (cap: number, window: Extent, floor?: C
 ### build/lifecycle.d.ts#stageRank
 export declare const stageRank: (name: string) => number;
 
+### build/limiter/machine.d.ts#IN_FLIGHT_MACHINE
+export declare const IN_FLIGHT_MACHINE: Machine;
+
 ### build/limiter/machine.d.ts#LimiterState
 export type LimiterState = "new" | "open" | "limited";
 
@@ -3164,6 +3179,7 @@ export interface Allowed {
   readonly allowed: true;
   readonly remaining: number;
   readonly failure?: string | undefined;
+  readonly lease?: Lease | undefined;
 }
 
 ### build/limiter/policy.d.ts#CapacityRefused
@@ -3177,6 +3193,14 @@ export interface CapacityRefused {
 ### build/limiter/policy.d.ts#Decision
 export type Decision = Allowed | Refused;
 
+### build/limiter/policy.d.ts#InFlightBound
+export interface InFlightBound {
+  readonly type: "in-flight";
+  readonly limit: Quantity;
+  readonly lease: Quantity;
+  readonly retryAfter: Quantity;
+}
+
 ### build/limiter/policy.d.ts#KeyState
 export type KeyState = {
   readonly type: "token-bucket";
@@ -3184,10 +3208,19 @@ export type KeyState = {
 } | {
   readonly type: "sliding-window";
   readonly stamps: readonly number[];
+} | {
+  readonly type: "in-flight";
+  readonly starts: readonly number[];
 };
 
+### build/limiter/policy.d.ts#Lease
+export interface Lease {
+  readonly start: number;
+  readonly units: number;
+}
+
 ### build/limiter/policy.d.ts#LimitPolicy
-export type LimitPolicy = TokenBucket | SlidingWindow;
+export type LimitPolicy = TokenBucket | SlidingWindow | InFlightBound;
 
 ### build/limiter/policy.d.ts#LimitRule
 export type LimitRule = {
@@ -3198,6 +3231,11 @@ export type LimitRule = {
   readonly type: "sliding-window";
   readonly limit: number;
   readonly window: number;
+} | {
+  readonly type: "in-flight";
+  readonly limit: number;
+  readonly lease: number;
+  readonly retryAfter: number;
 };
 
 ### build/limiter/policy.d.ts#Limiter
@@ -3290,6 +3328,9 @@ export declare const longestRetryAfter: (policy: LimitPolicy) => Quantity;
 
 ### build/limiter/policy.d.ts#overCapacity
 export declare const overCapacity: (rule: LimitRule, units: number) => CapacityRefused | undefined;
+
+### build/limiter/policy.d.ts#releaseLease
+export declare const releaseLease: (rule: LimitRule, state: KeyState | undefined, now: number, lease: Lease) => KeyState | undefined;
 
 ### build/limiter/policy.d.ts#retryAfterSeconds
 export declare const retryAfterSeconds: (retryAfter: Quantity) => number;
@@ -3504,12 +3545,14 @@ export interface KeyedLimiter {
   readonly maxKeys: number;
   take(key: string, units?: number): Promise<Decision>;
   tryTakeSync?(key: string, units?: number): Decision;
+  release(key: string, decision: Decision): Promise<void>;
 }
 
 ### build/limiter/store.d.ts#LimiterStore
 export interface LimiterStore {
   readonly kind: "local" | "shared";
   take(request: TakeRequest): Decision | Promise<Decision>;
+  release?(request: ReleaseRequest): void | Promise<void>;
 }
 
 ### build/limiter/store.d.ts#LocalLimiter
@@ -3520,7 +3563,16 @@ export interface LocalLimiter extends KeyedLimiter {
 ### build/limiter/store.d.ts#MemoryStore
 export interface MemoryStore extends LimiterStore {
   readonly kind: "local";
+  release(request: ReleaseRequest): void;
   size(limiter: string): number;
+}
+
+### build/limiter/store.d.ts#ReleaseRequest
+export interface ReleaseRequest {
+  readonly limiter: string;
+  readonly key: string;
+  readonly rule: LimitRule;
+  readonly lease: Lease;
 }
 
 ### build/limiter/store.d.ts#TakeRequest
@@ -4526,8 +4578,11 @@ export type RedisSocket = ClientSocket;
 ### build/redis/connection.d.ts#ioredis
 export declare const ioredis: ConnectionFactory;
 
+### build/redis/limiter.d.ts#LIMITER_RELEASE_SCRIPT
+export declare const LIMITER_RELEASE_SCRIPT = "\nlocal lease = tonumber(ARGV[1])\nlocal member = ARGV[2]\nlocal start = tonumber(ARGV[4])\nlocal units = tonumber(ARGV[5])\nlocal now\nif ARGV[3] == '' then\n  local t = redis.call('TIME')\n  now = tonumber(t[1]) * 1000 + tonumber(t[2]) / 1000\nelse\n  now = tonumber(ARGV[3])\nend\nlocal TOL = 1e-6\nlocal function num(x) return string.format('%.6f', x) end\nlocal raw = redis.call('GET', KEYS[1])\nif not raw then return 0 end\nlocal kept = {}\nlocal left = units\nfor x in string.gmatch(raw, '[^,]+') do\n  local stamp = tonumber(x)\n  if stamp + lease > now + TOL then\n    if left > 0 and math.abs(stamp - start) <= TOL then\n      left = left - 1\n    else\n      kept[#kept + 1] = stamp\n    end\n  end\nend\nif #kept == 0 then\n  redis.call('DEL', KEYS[1])\n  redis.call('ZREM', KEYS[2], member)\n  return units - left\nend\nlocal parts = {}\nfor i, stamp in ipairs(kept) do parts[i] = num(stamp) end\nlocal free = kept[#kept] + lease\nlocal ttl = math.ceil(free - now)\nif ttl < 1 then ttl = 1 end\nredis.call('SET', KEYS[1], table.concat(parts, ','), 'PX', ttl)\nredis.call('ZADD', KEYS[2], num(free), member)\nreturn units - left\n";
+
 ### build/redis/limiter.d.ts#LIMITER_SCRIPT
-export declare const LIMITER_SCRIPT = "\nlocal kind = ARGV[1]\nlocal a = tonumber(ARGV[2])\nlocal b = tonumber(ARGV[3])\nlocal cap = tonumber(ARGV[4])\nlocal member = ARGV[5]\nlocal units = tonumber(ARGV[7])\nlocal now\nif ARGV[6] == '' then\n  local t = redis.call('TIME')\n  now = tonumber(t[1]) * 1000 + tonumber(t[2]) / 1000\nelse\n  now = tonumber(ARGV[6])\nend\nlocal TOL = 1e-6\nlocal function num(x) return string.format('%.6f', x) end\nlocal raw = redis.call('GET', KEYS[1])\nlocal full = nil\nlocal stamps = nil\nif raw then\n  if kind == 'token-bucket' then\n    full = tonumber(raw)\n  else\n    stamps = {}\n    for x in string.gmatch(raw, '[^,]+') do stamps[#stamps + 1] = tonumber(x) end\n  end\nend\nlocal function freeAt()\n  if kind == 'token-bucket' then return full end\n  if #stamps == 0 then return -math.huge end\n  return stamps[#stamps] + b\nend\nif raw and freeAt() <= now then\n  redis.call('DEL', KEYS[1])\n  redis.call('ZREM', KEYS[2], member)\n  raw = nil\n  full = nil\n  stamps = nil\nend\nif not raw then\n  if redis.call('ZCARD', KEYS[2]) >= cap then\n    redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', num(now))\n    if redis.call('ZCARD', KEYS[2]) >= cap then\n      local first = redis.call('ZRANGE', KEYS[2], 0, 0, 'WITHSCORES')\n      return {0, num(tonumber(first[2]) - now), 'cap'}\n    end\n  end\nend\nlocal remaining\nlocal state\nif kind == 'token-bucket' then\n  local span = a * b\n  local base = now\n  if full and full > now then base = full end\n  local nxt = base + a * units\n  if nxt - now > span + TOL then\n    return {0, num(nxt - span - now), 'limit'}\n  end\n  remaining = math.floor((span - (nxt - now)) / a + TOL)\n  if remaining < 0 then remaining = 0 end\n  full = nxt\n  state = num(full)\nelse\n  local live = {}\n  for _, stamp in ipairs(stamps or {}) do\n    if stamp + b > now + TOL then live[#live + 1] = stamp end\n  end\n  if #live + units > a then\n    return {0, num(live[#live + units - a] + b - now), 'limit'}\n  end\n  for _ = 1, units do live[#live + 1] = now end\n  remaining = a - #live\n  stamps = live\n  local parts = {}\n  for i, stamp in ipairs(live) do parts[i] = num(stamp) end\n  state = table.concat(parts, ',')\nend\nlocal free = freeAt()\nlocal ttl = math.ceil(free - now)\nif ttl < 1 then ttl = 1 end\nredis.call('SET', KEYS[1], state, 'PX', ttl)\nredis.call('ZADD', KEYS[2], num(free), member)\nif redis.call('PTTL', KEYS[2]) < ttl then redis.call('PEXPIRE', KEYS[2], ttl) end\nreturn {1, remaining}\n";
+export declare const LIMITER_SCRIPT = "\nlocal kind = ARGV[1]\nlocal a = tonumber(ARGV[2])\nlocal b = tonumber(ARGV[3])\nlocal cap = tonumber(ARGV[4])\nlocal member = ARGV[5]\nlocal units = tonumber(ARGV[7])\nlocal declared = tonumber(ARGV[8])\nlocal now\nif ARGV[6] == '' then\n  local t = redis.call('TIME')\n  now = tonumber(t[1]) * 1000 + tonumber(t[2]) / 1000\nelse\n  now = tonumber(ARGV[6])\nend\nlocal TOL = 1e-6\nlocal function num(x) return string.format('%.6f', x) end\nlocal raw = redis.call('GET', KEYS[1])\nlocal full = nil\nlocal stamps = nil\nif raw then\n  if kind == 'token-bucket' then\n    full = tonumber(raw)\n  else\n    stamps = {}\n    for x in string.gmatch(raw, '[^,]+') do stamps[#stamps + 1] = tonumber(x) end\n  end\nend\nlocal function freeAt()\n  if kind == 'token-bucket' then return full end\n  if #stamps == 0 then return -math.huge end\n  return stamps[#stamps] + b\nend\nif raw and freeAt() <= now then\n  redis.call('DEL', KEYS[1])\n  redis.call('ZREM', KEYS[2], member)\n  raw = nil\n  full = nil\n  stamps = nil\nend\nif not raw then\n  if redis.call('ZCARD', KEYS[2]) >= cap then\n    redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', num(now))\n    if redis.call('ZCARD', KEYS[2]) >= cap then\n      local first = redis.call('ZRANGE', KEYS[2], 0, 0, 'WITHSCORES')\n      return {0, num(tonumber(first[2]) - now), 'cap'}\n    end\n  end\nend\nlocal remaining\nlocal state\nif kind == 'token-bucket' then\n  local span = a * b\n  local base = now\n  if full and full > now then base = full end\n  local nxt = base + a * units\n  if nxt - now > span + TOL then\n    return {0, num(nxt - span - now), 'limit'}\n  end\n  remaining = math.floor((span - (nxt - now)) / a + TOL)\n  if remaining < 0 then remaining = 0 end\n  full = nxt\n  state = num(full)\nelse\n  local live = {}\n  for _, stamp in ipairs(stamps or {}) do\n    if stamp + b > now + TOL then live[#live + 1] = stamp end\n  end\n  if #live + units > a then\n    local wait = live[#live + units - a] + b - now\n    if kind == 'in-flight' and declared < wait then wait = declared end\n    return {0, num(wait), 'limit'}\n  end\n  for _ = 1, units do live[#live + 1] = now end\n  remaining = a - #live\n  stamps = live\n  local parts = {}\n  for i, stamp in ipairs(live) do parts[i] = num(stamp) end\n  state = table.concat(parts, ',')\nend\nlocal free = freeAt()\nlocal ttl = math.ceil(free - now)\nif ttl < 1 then ttl = 1 end\nredis.call('SET', KEYS[1], state, 'PX', ttl)\nredis.call('ZADD', KEYS[2], num(free), member)\nif redis.call('PTTL', KEYS[2]) < ttl then redis.call('PEXPIRE', KEYS[2], ttl) end\nif kind == 'in-flight' then return {1, remaining, num(now)} end\nreturn {1, remaining}\n";
 
 ### build/redis/limiter.d.ts#RedisLimiterOptions
 export interface RedisLimiterOptions {
@@ -4535,11 +4590,17 @@ export interface RedisLimiterOptions {
   readonly clock?: Clock | undefined;
 }
 
+### build/redis/limiter.d.ts#RedisLimiterStore
+export interface RedisLimiterStore extends LimiterStore {
+  readonly kind: "shared";
+  release(request: ReleaseRequest): Promise<void>;
+}
+
 ### build/redis/limiter.d.ts#RedisSender
 export type RedisSender = Pick<RedisClient, "send">;
 
 ### build/redis/limiter.d.ts#redisLimiterStore
-export declare const redisLimiterStore: (client: RedisSender, options: RedisLimiterOptions) => LimiterStore;
+export declare const redisLimiterStore: (client: RedisSender, options: RedisLimiterOptions) => RedisLimiterStore;
 
 ### build/redis/machine.d.ts#REDIS_CLIENT_MACHINE
 export declare const REDIS_CLIENT_MACHINE: Machine;
