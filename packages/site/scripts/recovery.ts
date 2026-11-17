@@ -17,7 +17,8 @@
 // locked rung must be beyond. The check runs again on the clean folder and on three copies: one with
 // a record gone, one with a target by the tag redis:7.4 and no digest, and one with a checkout with
 // changes. It exits with 0 only if the clean check passes, each fault turns each rung red, and each
-// copy exits with 1.
+// copy exits with 1 and names its cause. A crash also exits with 1, thus a red read that names no
+// cause fails the flip.
 
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,7 +28,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { measureGroup, recordProblems } from "../../harness/src/index.ts";
 import { FAULT_FACTOR } from "../../cells/src/held.ts";
 import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, recoveryFlip, recoveryRecord, recoveryVerdict } from "../../cells/src/recovery.ts";
-import { byTag, changed, dirty, exitOf, withoutOne } from "./flip.ts";
+import type { Read } from "./flip.ts";
+import { byTag, changed, dirty, readOf, rightFor, withoutOne } from "./flip.ts";
 import type { CellRecord, Summary } from "./judged.ts";
 import { read, resultOf } from "./judged.ts";
 import { dateOf, readFolders, runnerOf, stringify } from "./records.ts";
@@ -93,19 +95,21 @@ if (flip) {
   // the flip needs one folder for its copies: the Sunday run has one shard
   if (folders.length !== 1) throw new Error("--flip needs the folder of one shard");
   const scratch = mkdtempSync(join(tmpdir(), "recovery-"));
-  const again = (given: string): number | null => exitOf(fileURLToPath(import.meta.url), ["--check", "--run", runText, "--commit", commit, given]);
-  const results: ReadonlyArray<readonly [string, number | null, number]> = [
-    ["the clean copy", again(folders[0]!), 0],
-    ["a copy with one record gone", again(withoutOne(folders[0]!, scratch)), 1],
-    ["a copy with a target by the tag redis:7.4 and no digest", again(changed(folders[0]!, scratch, "tag", byTag)), 1],
-    ["a copy from a checkout with changes", again(changed(folders[0]!, scratch, "dirty", dirty)), 1],
+  const again = (given: string): Read => readOf(fileURLToPath(import.meta.url), ["--check", "--run", runText, "--commit", commit, given]);
+  // each red read names its cause, thus a crash does not pass as red
+  const reads: ReadonlyArray<readonly [string, Read, string | null]> = [
+    ["the clean copy", again(folders[0]!), null],
+    ["a copy with one record gone", again(withoutOne(folders[0]!, scratch)), "the folders have no record of"],
+    ["a copy with a target by the tag redis:7.4 and no digest", again(changed(folders[0]!, scratch, "tag", byTag)), "not a record: "],
+    ["a copy from a checkout with changes", again(changed(folders[0]!, scratch, "dirty", dirty)), "not a record: "],
   ];
   rmSync(scratch, { recursive: true, force: true });
+  const results = reads.map(([what, done, cause]) => ({ what, exit: done.status, cause, right: rightFor(done, cause) }));
   const flips = recoveryFlip(records, at);
-  for (const [what, exit, wanted] of results) process.stdout.write(`${what}: exit ${exit}, wanted ${wanted}\n`);
+  for (const each of results) process.stdout.write(`${each.right ? "right" : "WRONG"}: ${each.what}: exit ${each.exit}${each.cause === null ? "" : `, cause "${each.cause}"`}\n`);
   for (const each of flips)
     process.stdout.write(`a fault of ${FAULT_FACTOR} x the limit of "${each.measure}": ${each.stayed.length === 0 ? "each rung is beyond" : `the fault left these rungs green: ${each.stayed.join(", ")}`}\n`);
-  process.exit(results.every(([, exit, wanted]) => exit === wanted) && flips.every((each) => each.stayed.length === 0) ? 0 : 1);
+  process.exit(results.every((each) => each.right) && flips.every((each) => each.stayed.length === 0) ? 0 : 1);
 }
 
 // the facts of each run of a drill for the page, from the records and from what the backups wrote

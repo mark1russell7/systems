@@ -20,7 +20,8 @@
 // --flip is the flip test of this check. It runs this script on the clean folders and with --fault.
 // It also runs it on three copies: one with a record gone, one with an image by the tag redis:7.4 and
 // no digest, and one with a checkout with changes. It exits with 0 only if the clean read passes, each
-// cell turns red under the fault, and each other read exits with 1.
+// cell turns red under the fault, and each other read exits with 1 and names its cause. A crash also
+// exits with 1, thus a red read that names no cause fails the flip.
 
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -35,8 +36,8 @@ import { catalogs, SCHEDULED_CELLS, selectedOf } from "../../cells/src/all.ts";
 import type { Decided } from "../../cells/src/held.ts";
 import { FAULT_FACTOR, faultedVerdict, heldRead, slowdownSeen } from "../../cells/src/held.ts";
 import { KIND_CATALOG } from "../../cells/src/kinds.ts";
-import type { Named } from "./flip.ts";
-import { byTag, changed, dirty, exitOf as runScript, withoutOne } from "./flip.ts";
+import type { Named, Read } from "./flip.ts";
+import { byTag, changed, dirty, readOf, rightFor, withoutOne } from "./flip.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
 import { readFolders } from "./records.ts";
@@ -190,28 +191,30 @@ const kindSource = (pattern: string): Source => {
 
 const source = kindOnly === undefined ? cellsSource(selection!) : kindSource(kindOnly);
 
-/** This function starts this script on the folders that it gets, and it gives its exit code. */
-const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null =>
-  runScript(fileURLToPath(import.meta.url), [...source.select, "--shard", shardText, ...flags, ...given]);
+/** This function starts this script on the folders that it gets, and it gives its exit code and its output. */
+const again = (given: readonly string[], ...flags: readonly string[]): Read =>
+  readOf(fileURLToPath(import.meta.url), [...source.select, "--shard", shardText, ...flags, ...given]);
 
 if (flip) {
   // the flip needs one folder for its copy: each shard of the schedule gives one folder
   if (folders.length !== 1) throw new Error("--flip needs the folder of one shard");
   const scratch = mkdtempSync(join(tmpdir(), "held-"));
   const stayed = heldRead(source.expected, source.verdicts(true)).cells.filter((cell) => cell.held);
-  const results: ReadonlyArray<readonly [string, number | null, number]> = [
-    ["the clean copy", exitOf(folders), 0],
-    [source.fault, exitOf(folders, "--fault"), 1],
-    ["a copy with one record gone", exitOf([withoutOne(folders[0]!, scratch)]), 1],
-    ["a copy with an image by the tag redis:7.4 and no digest", exitOf([changed(folders[0]!, scratch, "tag", source.byTag)]), 1],
-    ["a copy from a checkout with changes", exitOf([changed(folders[0]!, scratch, "dirty", dirty)]), 1],
+  // each red read names its cause in the line "not held", thus a crash does not pass as red
+  const reads: ReadonlyArray<readonly [string, Read, string | null]> = [
+    ["the clean copy", again(folders), null],
+    [source.fault, again(folders, "--fault"), "did not hold"],
+    ["a copy with one record gone", again([withoutOne(folders[0]!, scratch)]), "had no record"],
+    ["a copy with an image by the tag redis:7.4 and no digest", again([changed(folders[0]!, scratch, "tag", source.byTag)]), "with no pin of the programs"],
+    ["a copy from a checkout with changes", again([changed(folders[0]!, scratch, "dirty", dirty)]), "with no pin of the programs"],
   ];
   rmSync(scratch, { recursive: true, force: true });
-  for (const [what, exit, wanted] of results) process.stdout.write(`${what}: exit ${exit}, wanted ${wanted}\n`);
+  const results = reads.map(([what, done, cause]) => ({ what, exit: done.status, cause, right: rightFor(done, cause) }));
+  for (const each of results) process.stdout.write(`${each.right ? "right" : "WRONG"}: ${each.what}: exit ${each.exit}${each.cause === null ? "" : `, cause "${each.cause}"`}\n`);
   for (const cell of stayed) process.stdout.write(`the fault left this cell green: ${cell.name}\n`);
   const { seen } = source;
   if (seen.length > 0) process.stdout.write(`a slowdown turns a cell red from ${Math.min(...seen).toFixed(3)} x to ${Math.max(...seen).toFixed(3)} x\n`);
-  process.exit(results.every(([, exit, wanted]) => exit === wanted) && stayed.length === 0 ? 0 : 1);
+  process.exit(results.every((each) => each.right) && stayed.length === 0 ? 0 : 1);
 }
 
 const result = heldRead(source.expected, source.verdicts(fault), source.problems);
