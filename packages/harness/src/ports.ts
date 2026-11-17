@@ -32,8 +32,9 @@ export interface PortsReading {
 }
 
 /**
- * A stack change is the change of each counter of the network stack of each end, from the `stack`
- * line before the first round to the one after the last round. A counter that did not move is absent.
+ * A stack change is the change of each counter of the network stack at each end. The change goes from
+ * the `stack` line before the first round to the line after the last round. A counter that did not move
+ * is absent.
  */
 export interface StackChange {
   readonly client: Readonly<Record<string, number>>;
