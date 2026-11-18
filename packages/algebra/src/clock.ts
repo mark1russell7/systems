@@ -233,7 +233,7 @@ export interface FakeClock extends Clock {
  */
 export interface SyncFakeClock extends FakeClock {
   /**
-   * This method moves the clock forward by `ms`, and it starts each timer that comes due, in sequence,
+   * This method moves the clock forward by `ms`. It starts each timer that comes due, in sequence,
    * with no turn of the promises between two timers. A model test with synchronous steps uses it. A
    * timer whose work waits on a promise needs `advance`.
    */

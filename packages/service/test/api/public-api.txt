@@ -4837,8 +4837,8 @@ export declare class ScopeCloseError extends AggregateError {
 
 ### build/scope.d.ts#ScopeError
 export declare class ScopeError extends Error {
-  readonly code: "rank" | "closed";
   override readonly name = "ScopeError";
+  readonly code: "rank" | "closed";
   constructor(code: "rank" | "closed", message: string);
 }
 
