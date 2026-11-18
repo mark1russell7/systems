@@ -3846,14 +3846,16 @@ The change: the harness takes rigor-testkit `^0.1.18`. The self-test copies `bui
 
 The test: the self-test of the disk tier passes in CI with the import, and the writer has no code of the protocol.
 
-### SYS-131 · An in-flight bound in the keyed limiter
+### SYS-132 · An in-flight bound in the keyed limiter
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-106
 - **Started:** 2026-11-16
-- **Shipped:**
-- **Links:** [#589](https://github.com/mark1russell7/systems/pull/589)
+- **Shipped:** 2026-11-17
+- **Links:** [#589](https://github.com/mark1russell7/systems/pull/589), [the release run of service 0.10.0](https://github.com/mark1russell7/systems/actions/runs/44204796977), [service 0.10.0 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.10.0), [kind 0.14.12 on npm](https://www.npmjs.com/package/@mark1russell7/kind/v/0.14.12)
+
+The pull request #589 gave this item the id SYS-131. SYS-131 is the item of the units of quantity, thus this item has the id SYS-132.
 
 A rate policy needs the service rate of the calls that it bounds. A bound on the calls in flight does not. The policy `{ type: "in-flight", limit, lease, retryAfter }` gives each key at most `limit` units in flight. A permitted take gives a lease, and `release(key, decision)` gives its units back. A unit with no release leaves the count at the end of its lease. Thus a caller that stops before its release does not hold the bound.
 
