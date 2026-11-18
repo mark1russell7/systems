@@ -55,6 +55,7 @@ export type {
   KernelRecord,
   Prediction,
   ConntrackPrediction,
+  ContainerLimits,
   HostSysctl,
   LoadBand,
   LoadPlan,
@@ -141,6 +142,36 @@ export type { EgressPacketReading, EgressReading } from "./egress.ts";
 export { measureEgress } from "./egress.ts";
 export type { PortsReading, StackChange } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
+export type {
+  HostLimits,
+  ResourceChange,
+  ResourceCpu,
+  ResourceDevice,
+  ResourceLimits,
+  ResourceMemory,
+  ResourceNetwork,
+  ResourceOptions,
+  ResourceReader,
+  ResourceReading,
+  ResourceTraffic,
+} from "./resources.ts";
+export {
+  RESOURCES_EVENT,
+  RESOURCES_PROGRAM,
+  cgroupKeyed,
+  cgroupLimit,
+  cgroupNumber,
+  cpuMaxOf,
+  cpuStatOf,
+  hostLimitsOf,
+  limitsProblems,
+  memoryStatOf,
+  networkOf,
+  resourceArgs,
+  resourceChange,
+  resourceReadingIn,
+  resourceReadingOf,
+} from "./resources.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
 export { measureQueue } from "./queue.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
@@ -179,7 +210,7 @@ export {
   verdictOf,
 } from "./verdict.ts";
 export type { Agent, FaultOptions, FaultSide, HostSetting, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
-export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
+export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, resourceReader, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
 export { INSERT, RESTART, STANDBY_READY, cancelsOf, numbersOf, openStandby, pairArgs, pairOnce, standbyCommand } from "./standby.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
 export {

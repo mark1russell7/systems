@@ -9,6 +9,7 @@ import type {
   Client,
   ClientCapability,
   ClientImage,
+  ContainerLimits,
   FabricManifest,
   FaultPlace,
   Hop,
@@ -29,6 +30,8 @@ import type { FabricLab } from "./fabric.ts";
 import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
 import { SHIPPED_CLIENTS, buildRecordOf, harnessImage, harnessVersion, imageOf, routerImage, shippedSource, targetImageOf, targetSourceOf, type BuildRecord } from "./image.ts";
 import { layerOf } from "./layers.ts";
+import type { HostLimits, ResourceOptions, ResourceReader, ResourceReading } from "./resources.ts";
+import { RESOURCES_EVENT, hostLimitsOf, resourceArgs, resourceReadingIn, resourceReadingOf } from "./resources.ts";
 import type { Substrate } from "./substrate.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -335,6 +338,13 @@ export interface Probe {
   /** This method stops the process of the client with SIGKILL. Its kernel then closes its socket with a FIN, or a reset. */
   kill(): Promise<void>;
   readonly events: readonly ProbeEvent[];
+  /**
+   * This method starts a reader of the resources of the container of the client (`resourceReader`).
+   * The devices are the devices of the network namespace of the client, which each client of the
+   * lab shares. Docker removes the cgroup of the client when its program ends. After that, a `read`
+   * throws, and a reading of a series has no values. The stop of the probe stops the reader.
+   */
+  resources(options?: ResourceOptions): Promise<ResourceReader>;
   stop(): Promise<void>;
 }
 
@@ -474,13 +484,20 @@ export interface Lab {
   /**
    * This method starts the client with `args`. Each file is in its container before it starts. With
    * `cgroup`, the lab writes each file of the client cgroup and reads it back. Then it makes the file
-   * `/tmp/cgroup` in the container: the client waits for it.
+   * `/tmp/cgroup` in the container: the client waits for it. With `limits`, the container of the
+   * client starts with a CPU quota, a list of CPUs or a memory limit.
    */
   probe(
     args: readonly string[],
     files?: ReadonlyArray<{ readonly content: string; readonly target: string }>,
     cgroup?: Readonly<Record<string, string>>,
+    limits?: ContainerLimits,
   ): Promise<Probe>;
+  /**
+   * This method starts a reader of the resources of the target (`resourceReader`): its CPU time,
+   * its memory and the traffic of its devices. The close of the lab stops the reader.
+   */
+  resources(options?: ResourceOptions): Promise<ResourceReader>;
   /**
    * This method waits for the next clock line of the prober, which gives the count of lost
    * records. It gives null when no clock line comes in 5 s, because then nothing tells the count.
@@ -527,6 +544,60 @@ export const writeCgroup = async (
     const reads = await output(admin, ["cat", `${found}/${name}`]);
     if (reads !== value) throw new Error(`${name} of the cgroup reads ${reads} after the write, not ${value}`);
   }
+};
+
+/** This function gives a container its limits: its CPU quota, its CPUs and its memory, with no swap (`hostLimitsOf`). */
+export const withLimits = <T extends Testcontainers.GenericContainer>(container: T, limits: ContainerLimits | undefined): T => {
+  if (limits !== undefined) Object.assign((container as unknown as { hostConfig: HostLimits }).hostConfig, hostLimitsOf(limits));
+  return container;
+};
+
+/** This time is how long a new reader waits for the first reading of its series, in milliseconds. */
+const FIRST_READING_MS = 15_000;
+
+/**
+ * This function starts a reader of the resources of one container, by the full id of the
+ * container. The sidecar of the reader is in the network namespace of the container `network`,
+ * which is the same container without it. A container that shares the namespace of a holder names
+ * that holder. With a period, the series starts before the function gives the reader.
+ */
+export const resourceReader = async (id: string, options: ResourceOptions = {}, network: string = id): Promise<ResourceReader> => {
+  const { GenericContainer } = await containers();
+  const dirs = cgroupDirs(id);
+  const series: ResourceReading[] = [];
+  const events = lines<ProbeEvent>((line) => {
+    const reading = resourceReadingOf(line);
+    if (reading !== null) series.push(reading);
+  });
+  // privileged in the cgroup namespace of the host, as the admin of a cgroup is: it sees the cgroup of each container
+  const stock = withLimits(
+    withCgroupns(new GenericContainer(await harnessImage()).withNetworkMode(`container:${network}`).withPrivilegedMode(), "host"),
+    options.cpuset === undefined ? undefined : { cpuset: options.cpuset },
+  );
+  const sidecar = await (
+    options.period === undefined ? stock : stock.withCommand(resourceArgs(dirs, options.period)).withLogConsumer(events.consume)
+  ).start();
+  const stop = (): Promise<void> =>
+    sidecar
+      .stop(STOP)
+      .then(() => undefined)
+      .catch(() => undefined);
+  if (options.period !== undefined) {
+    // an error line tells why a reader has no series, for example a container with no cgroup folder
+    const first = await events.until([RESOURCES_EVENT, "error"], FIRST_READING_MS, "reader of the resources").catch(async (error: unknown) => {
+      await stop();
+      throw error;
+    });
+    if (first.ev === "error") {
+      await stop();
+      throw new Error(`the reader of the resources of the container ${id}: ${String(first["what"])}`);
+    }
+  }
+  return {
+    series,
+    read: async () => resourceReadingIn(await output(sidecar, resourceArgs(dirs))),
+    stop,
+  };
 };
 
 /** This container class can share the process namespace of another container. */
@@ -761,6 +832,8 @@ export const openLab = async (
   const runtime = await getContainerRuntimeClient();
   const opened: StartedTestContainer[] = [];
   const networks: StartedNetwork[] = [];
+  // the readers of the resources of the target and of the clients: the lab stops them before their containers
+  const readers: ResourceReader[] = [];
   // the lines of a target that writes them, on the clock of the VM
   const serverLines = lines<ProbeEvent>();
   // the values of the host that this lab changed, which each path out of the lab puts back
@@ -773,6 +846,7 @@ export const openLab = async (
       (error: unknown) => error,
     );
     await fabric?.close();
+    for (const reader of readers.splice(0)) await reader.stop();
     for (const container of opened.reverse()) await container.stop(STOP).catch(() => undefined);
     for (const network of networks.reverse()) await network.stop().catch(() => undefined);
     if (restored !== null) throw restored;
@@ -802,7 +876,7 @@ export const openLab = async (
     const last = networks[hops.length]!;
     // a stock image, or an image of the harness that holds the script of the server
     const targetImage = await targetImageOf(target);
-    let stock = new GenericContainer(targetImage)
+    let stock = withLimits(new GenericContainer(targetImage), target.limits)
       .withNetwork(last)
       .withWaitStrategy(Wait.forLogMessage(target.ready));
     // the files of the target go in before it starts, for example the script of a server on a stock image
@@ -1319,9 +1393,11 @@ export const openLab = async (
         const { port, user, database } = event.console;
         return stamped(hop.injector, ["/opt/harness/inject", "query", `127.0.0.1:${port}`, user, database, query]);
       },
-      async probe(args, files = [], cgroup) {
+      async probe(args, files = [], cgroup, limits) {
         const events = lines<ProbeEvent>();
-        const prober = new GenericContainer(clientImage)
+        // the readers of the resources of this client, which the stop of the probe stops
+        const own: ResourceReader[] = [];
+        const prober = withLimits(new GenericContainer(clientImage), limits)
           .withNetworkMode(`container:${client.getId()}`)
           .withCommand([...command, ...args])
           .withCopyContentToContainer(files.map((file) => ({ ...file })))
@@ -1355,13 +1431,24 @@ export const openLab = async (
               .getById(container.getId())
               .kill({ signal: "SIGKILL" })
               .then(() => undefined),
+          async resources(options) {
+            // the client is in the network namespace of its holder, thus the reader names the holder
+            const reader = await resourceReader(container.getId(), options, client.getId());
+            own.push(reader);
+            readers.push(reader);
+            return reader;
+          },
           // a killed client has no container to stop
-          stop: () =>
-            container
-              .stop(STOP)
-              .then(() => undefined)
-              .catch(() => undefined),
+          async stop() {
+            for (const reader of own.splice(0)) await reader.stop();
+            await container.stop(STOP).catch(() => undefined);
+          },
         };
+      },
+      async resources(options) {
+        const reader = await resourceReader(server.getId(), options);
+        readers.push(reader);
+        return reader;
       },
       async settle() {
         // the prober drains its ring each 20 ms, and it writes a clock line each second

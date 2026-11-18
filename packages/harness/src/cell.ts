@@ -1282,6 +1282,25 @@ export interface Target {
    * and the script of its server.
    */
   readonly subject?: ImageSource;
+  /**
+   * These are the limits of the container of the target: its CPU quota, its CPUs and its memory.
+   * Without them, the target has no limit.
+   */
+  readonly limits?: ContainerLimits;
+}
+
+/**
+ * These are the limits of one container of a lab, as Docker writes them into the cgroup of the
+ * container. A measurement of the cost of a server gives the server a CPU limit and a memory
+ * limit. It keeps the client on other CPUs.
+ */
+export interface ContainerLimits {
+  /** This count is the CPUs that the container can use, for example 1 or 0.5. It becomes the quota of `cpu.max`. */
+  readonly cpus?: number;
+  /** This list is the CPUs that the kernel puts the container on, as `cpuset.cpus` takes it: `0`, `2-3` or `0,2`. */
+  readonly cpuset?: string;
+  /** This amount is the memory limit of the container (`memory.max`), for example 512 MiB. The container gets no swap. */
+  readonly memory?: Quantity;
 }
 
 /**
