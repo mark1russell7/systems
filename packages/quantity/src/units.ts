@@ -1,121 +1,15 @@
 import type { Rational } from "@mark1russell7/rational";
-import { ONE, div, fromDecimal, mul, pow, rational } from "@mark1russell7/rational";
+import { ONE, div, mul, pow, rational } from "@mark1russell7/rational";
+import type { Atom, Vector } from "./dimensions.ts";
+import { JOULE, KINDS, atom, decimal as r } from "./dimensions.ts";
+import type { UnitSystem } from "./system.ts";
+import { unitSystem } from "./system.ts";
+import { DIMENSIONLESS_ATOMS, FREQUENCY_ATOMS, TIME_ATOMS, TIME_SPELLINGS } from "./time-atoms.ts";
 
-/**
- * These are the base dimensions. A dimension is an exponent vector over them, as in SI, with two
- * more: data (the bit) and money (one currency). A second currency is a second base, because
- * currencies have no fixed rate. Counts and ratios have no dimension, thus a duration times a
- * count is still a duration. The electric current (the ampere) is the last base, thus a volt is
- * a watt per ampere.
- */
-export const BASES = ["time", "length", "mass", "temperature", "data", "money", "current"] as const;
-export type Base = (typeof BASES)[number];
-export type Vector = Readonly<Partial<Record<Base, number>>>;
+export { BASES, KINDS, KIND_NAMES } from "./dimensions.ts";
+export type { Atom, Base, Kind, Vector } from "./dimensions.ts";
+export { DIMENSIONLESS_ATOMS, FREQUENCY_ATOMS, TIME_ATOMS } from "./time-atoms.ts";
 
-/**
- * A kind is a named dimension, which is what a schema asks for: "a time", "an amount of money".
- * A kind has one vector, and a vector can have more than one kind. A transfer rate is a frequency
- * of transfers, and it stays apart, thus 8 GT/s is not a clock. A unit with no dimension is a
- * count, a ratio or a level, by what it is made of.
- */
-export type Kind =
-  | "time"
-  | "length"
-  | "mass"
-  | "temperature"
-  | "data"
-  | "money"
-  | "count"
-  | "ratio"
-  | "level"
-  | "frequency"
-  | "transfer-rate"
-  | "data-rate"
-  | "speed"
-  | "area"
-  | "volume"
-  | "energy"
-  | "power"
-  | "current"
-  | "voltage"
-  | "charge"
-  | "resistance"
-  | "specific-power"
-  | "specific-volume-rate"
-  | "money-rate"
-  | "energy-price";
-
-export const KINDS: Readonly<Record<Kind, Vector>> = {
-  time: { time: 1 },
-  length: { length: 1 },
-  mass: { mass: 1 },
-  temperature: { temperature: 1 },
-  data: { data: 1 },
-  money: { money: 1 },
-  count: {},
-  ratio: {},
-  level: {},
-  frequency: { time: -1 },
-  "transfer-rate": { time: -1 },
-  "data-rate": { data: 1, time: -1 },
-  speed: { length: 1, time: -1 },
-  area: { length: 2 },
-  volume: { length: 3 },
-  energy: { mass: 1, length: 2, time: -2 },
-  power: { mass: 1, length: 2, time: -3 },
-  /** The electric current is the rating of a breaker or of a cable, as A. */
-  current: { current: 1 },
-  /** The voltage of a circuit, as V. A volt times an ampere is a watt. */
-  voltage: { mass: 1, length: 2, time: -3, current: -1 },
-  /** The charge is the capacity of a battery, as Ah. */
-  charge: { current: 1, time: 1 },
-  /** The resistance is a volt per ampere, as ohm. */
-  resistance: { mass: 1, length: 2, time: -3, current: -2 },
-  /** The power per body mass is the cost of an exertion, as kcal/(h·kg). */
-  "specific-power": { length: 2, time: -3 },
-  /** The volume per body mass per time is a VO2 max, as mL/(kg·min). */
-  "specific-volume-rate": { length: 3, mass: -1, time: -1 },
-  /** The money per time is a monthly limit of a budget, or a subscription. */
-  "money-rate": { money: 1, time: -1 },
-  /** The money per energy is the price of electricity, as USD/kWh. */
-  "energy-price": { money: 1, mass: -1, length: -2, time: 2 },
-};
-
-export const KIND_NAMES: readonly Kind[] = Object.keys(KINDS) as Kind[];
-
-/** An atom is one named unit. Its factor converts one of it to the base units of its vector, exactly. */
-export interface Atom {
-  readonly symbol: string;
-  readonly name: string;
-  /** This text is how it prints, where that is not its symbol: °F, µs. */
-  readonly display?: string;
-  readonly vector: Vector;
-  readonly factor: Rational;
-  /** An affine unit (a temperature) has an offset: base = (value + offset) × factor. */
-  readonly offset?: Rational;
-  /** A logarithmic level converts only to itself, and it averages by energy. */
-  readonly log?: true;
-  /** This name is what it counts, when it is a count of something: a GT is 10⁹ transfers, a bpm counts beats. */
-  readonly counts?: string;
-  /** A percentage makes a unit with no dimension a ratio. */
-  readonly percent?: true;
-  /** Its size changes with the system that it measures: a jiffy is 1/HZ seconds. */
-  readonly param?: "hz";
-  /** An amount keeps this many decimal places: money keeps the cent. */
-  readonly decimals?: number;
-  readonly aliases?: readonly string[];
-}
-
-const r = (text: string): Rational => fromDecimal(text);
-const atom = (
-  symbol: string,
-  name: string,
-  vector: Vector,
-  factor: Rational,
-  extra: Omit<Partial<Atom>, "symbol" | "name" | "vector" | "factor"> = {},
-): Atom => ({ symbol, name, vector, factor, ...extra });
-
-const T: Vector = { time: 1 };
 const L: Vector = { length: 1 };
 const M: Vector = { mass: 1 };
 const D: Vector = { data: 1 };
@@ -131,28 +25,8 @@ const NONE: Vector = {};
 const GALLON = mul(r("231"), pow(r("0.0254"), 3));
 const kitchen = (parts: number): Rational => div(GALLON, rational(BigInt(parts)));
 
-/** This is the mean Gregorian year. A month is exactly a twelfth of it, thus USD/mo × 12 is USD/yr. */
-const YEAR = r("31556952");
-
-/** The base of mass is the gram, thus a joule (kg·m²/s²) is 1000 base units. */
-const JOULE = r("1000");
-
 export const ATOMS: readonly Atom[] = [
-  // time
-  atom("ns", "nanosecond", T, r("1e-9"), { aliases: ["nsec", "nanoseconds"] }),
-  atom("us", "microsecond", T, r("1e-6"), {
-    display: "µs",
-    aliases: ["µs", "μs", "usec", "microseconds"],
-  }),
-  atom("ms", "millisecond", T, r("0.001"), { aliases: ["msec", "milliseconds"] }),
-  atom("s", "second", T, ONE, { aliases: ["sec", "secs", "second", "seconds"] }),
-  atom("min", "minute", T, r("60"), { aliases: ["mins", "minute", "minutes"] }),
-  atom("h", "hour", T, r("3600"), { aliases: ["hr", "hrs", "hour", "hours"] }),
-  atom("d", "day", T, r("86400"), { aliases: ["day", "days"] }),
-  atom("wk", "week", T, r("604800"), { aliases: ["week", "weeks"] }),
-  atom("mo", "month", T, div(YEAR, r("12")), { aliases: ["month", "months"] }),
-  atom("yr", "year", T, YEAR, { aliases: ["year", "years"] }),
-  atom("jiffy", "jiffy", T, ONE, { param: "hz", aliases: ["jiffies"] }),
+  ...TIME_ATOMS,
   // length
   atom("mm", "millimetre", L, r("0.001"), { aliases: ["millimeter", "millimeters"] }),
   atom("cm", "centimetre", L, r("0.01"), { aliases: ["centimeter", "centimeters"] }),
@@ -209,12 +83,7 @@ export const ATOMS: readonly Atom[] = [
   atom("MiB", "mebibyte", D, r(String(8 * 1024 ** 2))),
   atom("GiB", "gibibyte", D, r(String(8 * 1024 ** 3))),
   atom("TiB", "tebibyte", D, r(String(8 * 1024 ** 4))),
-  // frequency, and counts per time that say what they count
-  atom("Hz", "hertz", { time: -1 }, ONE, { aliases: ["hertz"] }),
-  atom("kHz", "kilohertz", { time: -1 }, r("1e3")),
-  atom("MHz", "megahertz", { time: -1 }, r("1e6")),
-  atom("GHz", "gigahertz", { time: -1 }, r("1e9")),
-  atom("bpm", "beats per minute", { time: -1 }, div(ONE, r("60")), { counts: "beat" }),
+  ...FREQUENCY_ATOMS,
   // bus transfers: a count, kept apart from bits and from clocks
   atom("transfer", "transfer", NONE, ONE, { counts: "transfer", aliases: ["transfers"] }),
   atom("MT", "megatransfer", NONE, r("1e6"), { counts: "transfer" }),
@@ -246,10 +115,7 @@ export const ATOMS: readonly Atom[] = [
     decimals: 2,
     aliases: ["$", "usd", "dollar", "dollars"],
   }),
-  // dimensionless
-  atom("count", "count", NONE, ONE),
-  atom("%", "percent", NONE, r("0.01"), { percent: true, aliases: ["percent", "pct"] }),
-  atom("dBA", "A-weighted decibel", NONE, ONE, { log: true, aliases: ["dBASPL"] }),
+  ...DIMENSIONLESS_ATOMS,
 ];
 
 /**
@@ -259,8 +125,7 @@ export const ATOMS: readonly Atom[] = [
  */
 export const SPELLINGS: Readonly<Record<string, string>> = {
   "kcal/hr·kg": "kcal/(h·kg)",
-  "beats/min": "bpm",
-  "dB(A)": "dBA",
+  ...TIME_SPELLINGS,
   mph: "mi/h",
   kph: "km/h",
   "km/hr": "km/h",
@@ -269,18 +134,10 @@ export const SPELLINGS: Readonly<Record<string, string>> = {
   kbps: "kbit/s",
 };
 
-const bySpelling = new Map<string, Atom>();
-for (const a of ATOMS) {
-  for (const spelling of [a.symbol, ...(a.aliases ?? [])]) {
-    const taken = bySpelling.get(spelling);
-    if (taken !== undefined && taken !== a) {
-      throw new Error(`unit spelling ${spelling} names both ${taken.symbol} and ${a.symbol}`);
-    }
-    bySpelling.set(spelling, a);
-  }
-}
+/** This is the unit system of all atoms. The functions of the root entry use it. */
+export const UNITS: UnitSystem = unitSystem(ATOMS, SPELLINGS);
 
-export const atomBySymbol: ReadonlyMap<string, Atom> = new Map(ATOMS.map((a) => [a.symbol, a]));
+export const atomBySymbol: ReadonlyMap<string, Atom> = UNITS.atomBySymbol;
 
 /** This function gives the atom that a spelling names: its symbol or one of its aliases. */
-export const lookupAtom = (spelling: string): Atom | undefined => bySpelling.get(spelling);
+export const lookupAtom: (spelling: string) => Atom | undefined = UNITS.lookupAtom;

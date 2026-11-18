@@ -38,6 +38,10 @@ The schemas are in the entry `@mark1russell7/quantity/schema`. That entry uses `
 pnpm add @mark1russell7/quantity zod
 ```
 
+The entry `@mark1russell7/quantity/time` has a smaller table: the times, the frequencies and the units with no dimension (`count`, `%`, `dBA`). It converts these units exactly, as the root entry does. A bundle for a browser that converts only times and counts uses this entry. Its code is 3.8 kB smaller than the code of the full table before gzip, and 1.2 kB smaller after gzip. A unit outside the table, for example `m` or `USD`, gives a `UnitError`.
+
+`unitSystem(atoms, spellings)` makes the functions of the units (`parseUnit`, `convertExact` and the others) over a table that you choose. `UNITS` is the system of the full table, and `TIME_UNITS` is the system of the entry of the times.
+
 ## Example
 
 ```ts

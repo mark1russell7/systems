@@ -8,6 +8,15 @@ const none = (): string => {
 };
 
 describe("the needs of a shard of the workflow Cells", () => {
+  it("stops a run whose selection matches no cell, and keeps a shard with no cell", () => {
+    // the name of a cell is its id and its words, thus a $ after the id matches no cell (run 43957250955)
+    expect(() => needsOf({ CELLS_ONLY: "^PR\\.7$" }, none)).toThrow('matches no cell of the catalogs. The name of a cell is its id and its words, for example "');
+    expect(() => needsOf({ CELLS_ONLY: "^PR[.]7[^0-9]" }, none)).not.toThrow();
+    expect(() => needsOf({ CELLS_FILE: "cells.json", CELLS_ONLY: "^NONE" }, () => JSON.stringify([FABRIC_CELLS[0]]))).toThrow("matches no cell of cells.json");
+    // one cell on two shards: the second shard has no cell, and that is correct
+    expect(needsOf({ CELLS_ONLY: "^PR[.]7[^0-9]", CELLS_SHARD: "1/2" }, none).cells).toEqual([]);
+  });
+
   it("gives containerlab to each cell on a fabric, and to no other cell", () => {
     expect(ALL.filter(needsContainerlab).map((each) => each.name)).toEqual(FABRIC_CELLS.map((each) => each.name));
   });

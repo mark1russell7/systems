@@ -27,7 +27,40 @@ export {
   machineProblems,
   readsFired,
 } from "./machine.ts";
+export { acceptQueueHeld, acceptQueueLimit } from "./accept-queue.ts";
 export { conntrackFloor } from "./conntrack.ts";
+export type {
+  EgressOutcome,
+  EgressPacket,
+  NetemQueue,
+  NetemRate,
+  PschedFactor,
+  PschedRate,
+  TbfBuckets,
+  TbfPeak,
+  TbfQueue,
+} from "./egress.ts";
+export {
+  fifoDefaultLimit,
+  gsoQdiscLength,
+  netemPacketTime,
+  netemSchedule,
+  pschedFactor,
+  pschedLengthTime,
+  tbfBuckets,
+  tbfSchedule,
+  udpFrameLength,
+} from "./egress.ts";
+export type { MemcgLevel, MemcgSleepBounds, MemcgThrottle, OomTask } from "./memcg.ts";
+export {
+  memcgHighDelay,
+  memcgHighSleep,
+  memcgSleepBounds,
+  memcgThrottle,
+  oomBadness,
+  oomVictim,
+} from "./memcg.ts";
+export { PORT_SEARCH_CHAIN_LARGEST, portSearchChain, portSearchShares, portSearchSpan } from "./port-search.ts";
 export type { Replayable, ReplayOptions, Transition } from "./replay.ts";
 export { replay } from "./replay.ts";
 export type { MachineRun, RunMachineOptions } from "./run.ts";

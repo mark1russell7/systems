@@ -12,6 +12,7 @@ import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-18.json";
 import mongodb from "../data/mongodb-2026-10-18.json";
 import pg from "../data/pg-2026-10-19.json";
+import portRange from "../data/port-range-2026-11-17.json";
 import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
@@ -124,6 +125,16 @@ interface TopologyCell {
 }
 const topologyCells: readonly TopologyCell[] = topologies.cells;
 
+/** The verdict of a cell of the port range. `first` is the decision of its first run when the harness repeated it, or null. */
+interface PortVerdict {
+  readonly decision: string;
+  readonly counted: number;
+  readonly voided: number;
+  readonly first: string | null;
+}
+/** The verdicts of the cells of the port range that have a record. A cell with no record keeps its place in the copy, with no verdict. */
+const portJudged: readonly PortVerdict[] = portRange.cells.flatMap((cell) => (cell.result === null ? [] : [cell.result]));
+
 /** The entries of the ledger, in the sequence of the program: the calibration first, then each step. */
 export const LEDGER: readonly Entry[] = [
   harnessEntry("calibration", "results/calibration/", "Calibration", ["Stage 0"], stage0),
@@ -205,6 +216,21 @@ export const LEDGER: readonly Entry[] = [
     heldOnRerun: r3.cells.filter((cell) => cell.first === "fails" && cell.decision === "holds").length,
     counted: sum(r3.cells, (cell) => cell.counted),
     voided: sum(r3.cells, (cell) => cell.voided),
+  },
+  {
+    key: "port-range",
+    href: "results/port-range/",
+    label: "The port range",
+    tags: ["PR"],
+    ranAt: portRange.ranAt,
+    kernel: short(portRange.kernel),
+    hz: portRange.hz,
+    cells: portRange.cells.length,
+    tally: tallyOf(portJudged.map((result) => result.decision)),
+    // a re-run replaces its first run in the copy: the counts are of the re-run
+    heldOnRerun: portJudged.filter((result) => result.first === "fails" && result.decision === "holds").length,
+    counted: sum(portJudged, (result) => result.counted),
+    voided: sum(portJudged, (result) => result.voided),
   },
 ];
 

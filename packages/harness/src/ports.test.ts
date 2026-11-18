@@ -93,7 +93,42 @@ describe("the reading of a port cell", () => {
       { ev: "retrans", mono: 1, netns: CLIENT },
       { ev: "retrans", mono: 2, netns: 22 },
     ] as KernelRecord[];
-    expect(measure(cellOf(law), runOf(CLEAN, { kernel: sent })).finding).toMatch(/1 retransmissions, not 0/);
+    expect(measure(cellOf(law), runOf(CLEAN, { kernel: sent })).finding).toMatch(/1 retransmissions, not 0 \(the run has no stack lines\)/);
+  });
+
+  describe("the counters of the stack of each end", () => {
+    const law = { ...LAW, retransmissions: 0 };
+    const sent = [{ ev: "retrans", mono: 1, netns: CLIENT }] as KernelRecord[];
+    const stack = (side: string, at: string, counters: Record<string, unknown>) => line("stack", 1.5 * NS, { side, at, counters });
+    const start = [
+      stack("client", "start", { "Tcp.OutSegs": 10, "Tcp.RetransSegs": 3, "Softnet.dropped": 0 }),
+      stack("target", "start", { "Tcp.InSegs": 9, "TcpExt.TCPACKSkippedFinWait2": 0, "Tcp.MaxConn": "x" }),
+    ];
+
+    it("gives the change of each counter that moved, by end", () => {
+      const end = [
+        stack("client", "end", { "Tcp.OutSegs": 30, "Tcp.RetransSegs": 4, "Softnet.dropped": 0 }),
+        stack("target", "end", { "Tcp.InSegs": 28, "TcpExt.TCPACKSkippedFinWait2": 1, "Tcp.MaxConn": "x" }),
+      ];
+      const read = measure(cellOf(law), runOf([...start, ...CLEAN, ...end], { kernel: sent }));
+      expect(read.ports?.stack).toEqual({
+        client: { "Tcp.OutSegs": 20, "Tcp.RetransSegs": 1 },
+        target: { "Tcp.InSegs": 19, "TcpExt.TCPACKSkippedFinWait2": 1 },
+      });
+      expect(read.finding).toMatch(/not 0 \(the client: Tcp.RetransSegs \+1; the target: TcpExt.TCPACKSkippedFinWait2 \+1\)/);
+    });
+
+    it("says so when no counter of a loss moved, and gives no change for an end with one line", () => {
+      const quiet = [
+        stack("client", "end", { "Tcp.OutSegs": 30, "Tcp.RetransSegs": 3, "Softnet.dropped": 0 }),
+        stack("target", "end", { "Tcp.InSegs": 28, "TcpExt.TCPACKSkippedFinWait2": 0 }),
+      ];
+      expect(measure(cellOf(law), runOf([...start, ...CLEAN, ...quiet], { kernel: sent })).finding).toMatch(/no counter of a loss moved at either end/);
+      const half = measure(cellOf(LAW), runOf([...start, ...CLEAN, quiet[0]!]));
+      expect(half.ports?.stack).toBeNull();
+      const refused = [stack("client", "end", {}), line("stack", 2 * NS, { side: "target", at: "end", counters: null })];
+      expect(measure(cellOf(LAW), runOf([...start, ...CLEAN, ...refused])).ports?.stack).toBeNull();
+    });
   });
 
   describe("when each held port comes back", () => {

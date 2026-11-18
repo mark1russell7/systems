@@ -6,9 +6,25 @@ import { cpSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { join } from "node:path";
 import type { CellRecord, Summary } from "./judged.ts";
 
-/** This function starts a script with its arguments in this process of Node.js, and it gives its exit code. */
-export const exitOf = (script: string, args: readonly string[]): number | null =>
-  spawnSync(process.execPath, [...process.execArgv, script, ...args], { stdio: "ignore" }).status;
+/** The read of a start of a script: its exit code and its output. */
+export interface Read {
+  readonly status: number | null;
+  readonly output: string;
+}
+
+/** This function starts a script with its arguments in this process of Node.js, and it gives its exit code and its output. */
+export const readOf = (script: string, args: readonly string[]): Read => {
+  const done = spawnSync(process.execPath, [...process.execArgv, script, ...args], { encoding: "utf8" });
+  return { status: done.status, output: `${done.stdout ?? ""}${done.stderr ?? ""}` };
+};
+
+/**
+ * This function tells if a read of a flip is right. With no cause, the read must exit with 0. With a
+ * cause, it must exit with 1 and name the cause in its output. A crash also exits with 1, and it names
+ * no cause, thus a crash does not pass as red.
+ */
+export const rightFor = (read: Read, cause: string | null): boolean =>
+  cause === null ? read.status === 0 : read.status === 1 && read.output.includes(cause);
 
 /** This function copies a folder into a new folder of a name, and it gives the copy and the file of its first record. */
 const copyOf = (folder: string, into: string, name: string): { readonly copy: string; readonly file: string } => {

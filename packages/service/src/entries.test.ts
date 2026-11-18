@@ -13,6 +13,7 @@ import * as heartbeatEntry from "./heartbeat.ts";
 import * as hostEntry from "./host.ts";
 import * as httpEntry from "./http.ts";
 import * as httpClientEntry from "./http-client.ts";
+import * as httpFolderEntry from "./http-folder.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
 import * as otelEntry from "./otel.ts";
@@ -90,7 +91,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -133,12 +134,13 @@ describe("the timer entries: a client in a browser can import them", () => {
     const algebra = await import("@mark1russell7/algebra/clock");
     expect(clockEntry.platformClock).toBe(algebra.platformClock);
     expect(clockEntry.realClock).toBe(algebra.realClock);
+    expect(clockEntry.unrefClock).toBe(algebra.unrefClock);
     const testing = await import("./testing.ts");
     expect(testing.fakeClock).toBe(algebra.fakeClock);
   });
 
   it("give their functions, and the root gives them too", () => {
-    expect(Object.keys(clockEntry).sort()).toEqual(["platformClock", "realClock"]);
+    expect(Object.keys(clockEntry).sort()).toEqual(["platformClock", "realClock", "unrefClock"]);
     expect(Object.keys(heartbeatEntry).sort()).toEqual(["detectionTime", "heartbeat"]);
     expect(Object.keys(backoffEntry).sort()).toEqual(["backoffBand", "backoffDelay", "backoffProblems"]);
     for (const name of [...Object.keys(clockEntry), ...Object.keys(heartbeatEntry), ...Object.keys(backoffEntry)])
@@ -292,7 +294,7 @@ describe("the http entry: Node only, on node:http and node:net", () => {
   it("loads no node: module other than node:http and node:net, and no package other than quantity", () => {
     const { packages } = reach("http.ts");
     expect(packages.filter((name) => name.startsWith("node:")).every((name) => name === "node:http" || name === "node:net")).toBe(true);
-    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity", "@mark1russell7/quantity/time", "@mark1russell7/rational"]);
   });
 
   it("does not load the fakes of its tests", () => {
@@ -316,6 +318,33 @@ describe("the http entry: Node only, on node:http and node:net", () => {
       "writeOutcome",
     ]);
     for (const name of Object.keys(httpEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+});
+
+describe("the http-folder entry: the files of a folder for the edge, on node:fs, node:path and files", () => {
+  it("loads node:fs/promises and node:path, and of the packages only files and what the transport loads", () => {
+    expect(reach("http-folder.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/files", "@mark1russell7/quantity", "node:fs/promises", "node:path"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("http-folder.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./http-folder"]).toBe("./src/http-folder.ts");
+    expect(manifest.publishConfig.exports["./http-folder"]).toEqual({ types: "./build/http-folder.d.ts", default: "./build/http-folder.js" });
+  });
+
+  it("gives its functions, and the root and the server edge do not give them", () => {
+    expect(Object.keys(httpFolderEntry).sort()).toEqual(["FOLDER_CONTENT_SECURITY_POLICY", "UNKNOWN_CONTENT_TYPE", "WEB_CONTENT_TYPES", "contentTypeOf", "folderHandler"]);
+    for (const name of Object.keys(httpFolderEntry)) {
+      expect(root, name).not.toHaveProperty(name);
+      expect(httpEntry, name).not.toHaveProperty(name);
+    }
   });
 });
 
@@ -362,13 +391,14 @@ describe("the channel entry: a client in a browser can import it (collections C2
 });
 
 describe("the limiter entry: a client in a browser can import it (SYS-28)", () => {
-  it("loads only quantity and the clock of the algebra: no node: module and no zod", () => {
-    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
+  it("loads only the entry of the times of quantity, rational and the clock of the algebra: no node: module and no zod", () => {
+    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity/time", "@mark1russell7/rational"]);
     expect(reachAll("limiter.ts")).toEqual([]);
   });
 
   it("gives its functions, and the root gives them too", () => {
     expect(Object.keys(limiterEntry).sort()).toEqual([
+      "IN_FLIGHT_MACHINE",
       "SLIDING_WINDOW_MACHINE",
       "TOKEN_BUCKET_MACHINE",
       "capacityOf",
@@ -388,6 +418,7 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
       "quotaProblems",
       "quotaRule",
       "quotaStep",
+      "releaseLease",
       "retryAfterSeconds",
       "takeQuotas",
       "unitsOf",

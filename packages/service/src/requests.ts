@@ -341,6 +341,7 @@ export const tracker = (
           resolve();
         };
         idle.add(done);
+        // the drain awaits its deadline, thus the timer keeps the process alive (SYS-126)
         const cancel = clock.after(Math.max(0, deadline - clock.now()), () => {
           for (const flight of [...flights]) flight.cut("the drain reached its deadline");
           done();

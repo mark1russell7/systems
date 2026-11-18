@@ -40,10 +40,25 @@ export interface WallClock {
   after(ms: number, run: () => void): Cancel;
 }
 
-/** These options make a clock of the platform. */
+/**
+ * These options make a clock of the platform. With a speed or a start, the clock is scaled: it
+ * counts from its start on the monotonic time of the platform, `speed` times faster. Thus a test
+ * runs a long schedule in a short real time, on the real timers.
+ */
 export interface PlatformClockOptions {
   /** True makes each timer not keep a Node process alive. The default is false, as with `setTimeout`. */
   readonly unref?: boolean | undefined;
+  /**
+   * The milliseconds of the clock in one real millisecond: a finite number above 0. The default is 1.
+   * At the speed 60, `now()` moves 60 ms in each real millisecond, and a timer of 60 s ends after 1
+   * real second. A speed below 1 gives a slow clock.
+   */
+  readonly speed?: number | undefined;
+  /**
+   * The time of `now()` when the clock is made, in milliseconds: a finite number. A wall clock reads
+   * it as an instant. The default is the time of the platform at that moment.
+   */
+  readonly start?: number | undefined;
 }
 
 /** This function gives the monotonic time: `performance.now()`, or `Date.now()` on a platform without `performance`. */
@@ -55,53 +70,134 @@ const monotonic = (): number => {
 /** This delay is the longest that `setTimeout` takes, in milliseconds. A longer delay starts the function after 1 ms. */
 const LONGEST_DELAY = 0x7fffffff;
 
+/** This function gives the speed of the options. It throws a `RangeError` for a bad speed or a bad start. */
+const speedOf = (options: PlatformClockOptions): number => {
+  const speed = options.speed ?? 1;
+  if (typeof speed !== "number" || !Number.isFinite(speed) || speed <= 0) throw new RangeError(`The speed ${String(speed)} is not a finite number above 0.`);
+  const start = options.start;
+  if (start !== undefined && (typeof start !== "number" || !Number.isFinite(start))) throw new RangeError(`The start ${String(start)} is not a finite number.`);
+  return speed;
+};
+
 /**
- * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
- * that it gives also has `unref`. A delay longer than `setTimeout` takes waits in steps.
+ * This function makes the timers of a clock of the platform. A timer of `ms` milliseconds on the
+ * clock waits `ms / speed` real milliseconds, in steps when `setTimeout` does not take that delay.
+ * With `now`, the timer reads the clock when the platform starts it. When the clock is before the
+ * due time, the timer waits again for the rest. Thus `run` reads its due time or a later time.
  */
-export const platformClock = (options: PlatformClockOptions = {}): Clock => ({
-  now: monotonic,
-  after(ms, run) {
-    let unrefed = options.unref === true;
+const timersOf =
+  (unrefAll: boolean, speed: number, now?: () => number): Clock["after"] =>
+  (ms, run) => {
+    let unrefed = unrefAll;
+    const due = now === undefined ? 0 : now() + Math.max(0, ms);
+    const fire = (): void => {
+      const early = now === undefined ? 0 : due - now();
+      if (early > 0) timer = arm(early / speed);
+      else run();
+    };
     const arm = (left: number): ReturnType<typeof setTimeout> => {
       const step =
-        left > LONGEST_DELAY ? setTimeout(() => (timer = arm(left - LONGEST_DELAY)), LONGEST_DELAY) : setTimeout(run, Math.max(0, left));
+        left > LONGEST_DELAY ? setTimeout(() => (timer = arm(left - LONGEST_DELAY)), LONGEST_DELAY) : setTimeout(fire, Math.max(0, left));
       if (unrefed) (step as { unref?: () => void }).unref?.();
       return step;
     };
-    let timer = arm(ms);
+    let timer = arm(ms / speed);
     const unref = (): void => {
       unrefed = true;
       (timer as { unref?: () => void }).unref?.();
     };
     return Object.assign(() => clearTimeout(timer), { unref });
-  },
-});
+  };
 
 /**
- * This clock reads `performance.now()` and uses `setTimeout`. Its timers do not keep a Node
- * process alive, thus a timer that is not stopped cannot stop the exit of the process.
+ * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
+ * that it gives also has `unref`. A delay longer than `setTimeout` takes waits in steps.
+ *
+ * The rule of `unref`: each timer keeps a Node process alive, as `setTimeout` does. Thus a process
+ * does not end in a wait that a caller awaits. A hang shows, but a silent exit with lost work does not.
+ *
+ * The owner of a timer uses its `unref` only when a socket, a child process or another hold keeps the
+ * process alive. An example is the heartbeat of a connection. Each other timer stays referenced, a
+ * ticker too: its caller stops it. The option `unref` makes each timer of the clock an exception.
+ *
+ * With a speed or a start, `now()` is the start plus the monotonic time since the call, times the
+ * speed. A scaled clock reads `performance.now()` at each timer. Thus the fake timers of a test
+ * also fake `performance`, else its timers wait again and again.
+ *
+ * @throws {RangeError} for a speed that is not a finite number above 0, and for a start that is not finite.
  */
-export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });
+export const platformClock = (options: PlatformClockOptions = {}): Clock => {
+  const speed = speedOf(options);
+  const unref = options.unref === true;
+  if (speed === 1 && options.start === undefined) return { now: monotonic, after: timersOf(unref, 1) };
+  const origin = monotonic();
+  const start = options.start ?? origin;
+  const now = (): number => start + (monotonic() - origin) * speed;
+  return { now, after: timersOf(unref, speed, now) };
+};
+
+/**
+ * This clock reads `performance.now()` and uses `setTimeout`. It is `platformClock()`, thus its
+ * timers keep a Node process alive, as `setTimeout` does. A process does not end in a wait that a
+ * caller awaits, for example a retry.
+ *
+ * The owner of a timer uses its `unref` only when a socket, a child process or another hold keeps the
+ * process alive. Each other timer stays referenced: its caller stops it. A timer that is not stopped
+ * delays the exit, and that delay shows.
+ *
+ * Before algebra 0.9.0, the timers of this clock did not keep the process alive. A process then ended
+ * with the code 0 in a wait, and lost its work.
+ */
+export const realClock: Clock = /* @__PURE__ */ platformClock();
+
+/**
+ * This function gives a clock with the time of `clock`. Its timers do not keep a Node process alive:
+ * each timer uses the `unref` of its cancel. The owner of a part gives it to the part only
+ * when a socket, a child process or another hold keeps the process alive. An example is the
+ * heartbeat of a connection. A wall clock stays a wall clock. The timers of a fake clock have no
+ * `unref`, thus they do not change.
+ */
+export function unrefClock(clock: Clock): Clock;
+export function unrefClock(clock: WallClock): WallClock;
+export function unrefClock(clock: Clock | WallClock): Clock | WallClock {
+  const after = (ms: number, run: () => void): Cancel => {
+    const cancel = clock.after(ms, run);
+    cancel.unref?.();
+    return cancel;
+  };
+  const now = (): number => clock.now();
+  return clock.time === "wall" ? { time: "wall", now, after } : { now, after };
+}
 
 /**
  * This function makes the wall clock of the platform: `Date.now()`, and the timers of
  * `platformClock`. The options are the options of `platformClock`.
+ *
+ * With a speed or a start, `now()` is the start plus the monotonic time since the call, times the
+ * speed. It gives whole milliseconds, as `Date.now()` does. The default start is `Date.now()`.
+ * A step of the wall clock of the platform does not move a scaled clock.
+ *
+ * @throws {RangeError} for a speed that is not a finite number above 0, and for a start that is not finite.
  */
-export const wallClock = (options: PlatformClockOptions = {}): WallClock => ({
-  time: "wall",
-  now: () => Date.now(),
-  after: platformClock(options).after,
-});
+export const wallClock = (options: PlatformClockOptions = {}): WallClock => {
+  const speed = speedOf(options);
+  const unref = options.unref === true;
+  if (speed === 1 && options.start === undefined) return { time: "wall", now: () => Date.now(), after: timersOf(unref, 1) };
+  const origin = monotonic();
+  const start = options.start ?? Date.now();
+  const now = (): number => Math.floor(start + (monotonic() - origin) * speed);
+  return { time: "wall", now, after: timersOf(unref, speed, now) };
+};
 
 /**
  * This function gives a promise that resolves after `ms` milliseconds on the clock. When the signal
  * aborts, the promise stops its timer and rejects with the reason of the signal. A signal that
  * aborted before the call rejects at once, and starts no timer. Each end removes the listener from
- * the signal. A timer of `realClock` does not keep a Node process alive: give `platformClock()` to
- * keep the process alive until the delay ends.
+ * the signal. A timer of `realClock` keeps a Node process alive until the delay ends. The clock is
+ * a `Clock` or a `WallClock`: the function uses only its timers, and each timer of the two waits
+ * on the monotonic time.
  */
-export const delay = (clock: Clock, ms: number, signal?: AbortSignal): Promise<void> =>
+export const delay = (clock: Pick<Clock, "after">, ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise<void>((resolve, reject) => {
     if (signal?.aborted === true) {
       reject(signal.reason);
@@ -198,10 +294,14 @@ export interface FakeWallClock extends WallClock {
 /**
  * This function makes a fake wall clock. Its instant starts at `start`, in milliseconds from the
  * epoch. Its timers are the timers of a `fakeClock`, thus a step of the instant moves no timer.
+ *
+ * With `monotonic`, the wall clock reads that fake clock and uses its timers. Then the wall clock and
+ * the monotonic clock of a test have one queue of timers, and `advance` of either clock moves both.
+ * Without it, the wall clock makes its own fake clock.
  */
-export const fakeWallClock = (start: number): FakeWallClock => {
-  const monotonicTime = fakeClock(0);
-  let offset = start;
+export const fakeWallClock = (start: number, monotonic?: FakeClock): FakeWallClock => {
+  const monotonicTime = monotonic ?? fakeClock(0);
+  let offset = start - monotonicTime.now();
   return {
     time: "wall",
     now: () => monotonicTime.now() + offset,
@@ -218,6 +318,75 @@ export const fakeWallClock = (start: number): FakeWallClock => {
     },
   };
 };
+
+/**
+ * A frame clock is a wall clock in frames. A frame starts at a mark. In a frame, the time is the wall
+ * time at the mark plus the monotonic time since the mark. Thus the time does not go back in a frame,
+ * also when the wall clock steps. At the next mark, `step` gives the change of the wall clock.
+ */
+export interface FrameClock extends WallClock {
+  /**
+   * This method gives the step of the wall clock since the last mark, in whole milliseconds. The step is the
+   * change of the wall time against the monotonic time. A change of the drift limit or less gives 0. A read
+   * does not end the step. Only `mark` ends it.
+   */
+  step(): number;
+  /** This method starts a new frame. The time of the frame is then the wall time again. */
+  mark(): void;
+}
+
+/** These options make a frame clock. */
+export interface FrameClockOptions {
+  /**
+   * This value is the largest change of the wall clock against the monotonic clock that is a drift, not a
+   * step, in milliseconds. The default is `FRAME_DRIFT_LIMIT`.
+   */
+  readonly driftLimit?: number | undefined;
+}
+
+/**
+ * This value is the default drift limit of a frame clock, in milliseconds. A slew of NTP changes the wall
+ * clock by 0.5 ms in each second at most. Thus a frame of 2000 seconds or less sees no slew as a step.
+ */
+export const FRAME_DRIFT_LIMIT = 1000;
+
+/** This function tells if a wall clock is a frame clock: a clock that also gives the steps of the wall clock. */
+export function isFrameClock(clock: WallClock): clock is FrameClock {
+  const frame = clock as Partial<FrameClock>;
+  return typeof frame.step === "function" && typeof frame.mark === "function";
+}
+
+/**
+ * This function makes a frame clock on a wall clock and a monotonic clock. The first frame starts at
+ * once. `now()` gives whole milliseconds. The timers are the timers of the wall clock, thus they wait
+ * on the monotonic time, and a step does not move them.
+ *
+ * A runtime marks a frame at the start of each pass. Then each instant of the pass is in one frame,
+ * and the runtime reads the step of the wall clock once, before the mark.
+ *
+ * @throws {RangeError} for a drift limit that is not a finite number of 0 or more.
+ */
+export function frameClock(wall: WallClock, monotonic: Pick<Clock, "now">, options: FrameClockOptions = {}): FrameClock {
+  const limit = options.driftLimit ?? FRAME_DRIFT_LIMIT;
+  if (!(Number.isFinite(limit) && limit >= 0)) {
+    throw new RangeError(`The drift limit of a frame clock is ${String(limit)}. It must be a finite number of 0 or more.`);
+  }
+  let wallAt = wall.now();
+  let monotonicAt = monotonic.now();
+  return {
+    time: "wall",
+    now: () => wallAt + Math.floor(monotonic.now() - monotonicAt),
+    after: (ms, run) => wall.after(ms, run),
+    step() {
+      const size = Math.round(wall.now() - monotonic.now() - (wallAt - monotonicAt));
+      return Math.abs(size) > limit ? size : 0;
+    },
+    mark() {
+      wallAt = wall.now();
+      monotonicAt = monotonic.now();
+    },
+  };
+}
 
 // Civil time: the wall-clock time of an instant in a time zone, and windows of local time. A clock
 // gives instants, and civil time maps an instant to the time on the wall of a zone. It uses only
@@ -500,6 +669,29 @@ export function firstInstantOf(wall: number, zone: string): number | undefined {
     if (before !== undefined && after !== undefined && change + before <= wall && wall < change + after) return change;
   }
   return undefined;
+}
+
+/** The calendar month of an instant on the wall clock of a time zone. The start is in the month, and the end is not. */
+export interface LocalMonth {
+  /** The first instant of the 1st of the month at 00:00. When 00:00 is in a gap, it is the end of the gap. */
+  readonly start: number;
+  /** The `start` of the next month. */
+  readonly end: number;
+}
+
+/**
+ * This function gives the calendar month of `at` on the wall clock of `zone`. `firstInstantOf` gives each bound
+ * from 00:00 on the 1st. A month with a change of the offset is shorter or longer than its days. A name that
+ * is not a time zone, or an instant that is not a date, gives `undefined`.
+ */
+export function monthOf(at: number, zone: string): LocalMonth | undefined {
+  const local = localTime(at, zone);
+  if (local === undefined) return undefined;
+  // December goes on to January of the next year
+  const next = local.month === 12 ? { year: local.year + 1, month: 1 } : { year: local.year, month: local.month + 1 };
+  const start = firstInstantOf(wallOf(local.year, local.month, 1, 0, 0, 0), zone);
+  const end = firstInstantOf(wallOf(next.year, next.month, 1, 0, 0, 0), zone);
+  return start === undefined || end === undefined ? undefined : { start, end };
 }
 
 /**

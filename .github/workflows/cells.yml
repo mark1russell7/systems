@@ -25,22 +25,28 @@
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
 # Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
-# The step of the locked rungs fails that run when a rung is not within its budgets. The Sunday run
-# does not hold the drill of 8 GB (SYS-97) until a run of '^RD[.]' on one shard measures its time.
+# The step of the locked rungs fails that run when a rung is not within its budgets. A drill that does
+# not hold fails the run too. The Sunday run does not hold the drill of 8 GB (SYS-97) until a run of
+# '^RD[.]' on one shard measures its time. Start the run of the Sunday by hand with this command.
+#   gh workflow run cells.yml -R mark1russell7/systems -f selection=drills -f shards=1
 # Each Wednesday, the schedule runs one round of the refresh of the studies of the site (SYS-101).
 # There are 4 rounds, thus each study operates again each 28 days, inside its age limit of 30 days.
 # The file packages/cells/src/refresh.ts gives the studies of each round. Then the job export writes
 # the new copy of each study of the round, and it uploads the copies as the artifact refresh.
 # Start a round by hand with this command.
 #   gh workflow run cells.yml -R mark1russell7/systems -f selection=refresh-2 -f shards=8
+# A dispatch that names no cells (no only, selection, pair or file) is the gate of a pull request: the
+# probe only. The queue starts this dispatch on each pull request that is behind main (SYS-118).
+# To run each cell of the catalogs, give -f only=. by name.
+# A rate: -f runs=40 gives each selected cell 40 runs, for example -f only='^PR[.]7[^0-9]' -f shards=1.
 name: Cells
 
 on:
   workflow_dispatch:
     inputs:
       only:
-        description: A regular expression of the cell names to run
-        default: "."
+        description: A regular expression of the cell names to run (. for each cell, empty with no selection, pair or file for the gate of a pull request)
+        default: ""
       shards:
         description: How many runners share the cells (1 to 20)
         default: "4"
@@ -55,6 +61,9 @@ on:
         default: ""
       selection:
         description: A scheduled selection by its name, for example refresh-2, in place of only (empty for only)
+        default: ""
+      runs:
+        description: A count of runs for each selected cell, from 1 to 100, for the rate of a rare outcome (empty for the count of each cell)
         default: ""
   schedule:
     - cron: "30 3 * * *"
@@ -75,17 +84,18 @@ env:
   REFRESH_EPOCH: 2026-11-11
   REFRESH_SHARDS: 8
 
-# The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch and each
-# schedule has a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a
-# dispatch of other cells.
+# The runs of a pull request share a group, and a newer push cancels the older run. The gate dispatches of
+# one branch (each names no cells) share a group in the same way. Each other dispatch and each schedule has
+# a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of
+# other cells.
 # With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
 defaults:
   run:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '' && inputs.selection == '' && inputs.pair == '' && inputs.file == '')) && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '' && inputs.selection == '' && inputs.pair == '' && inputs.file == '') }}
 
 jobs:
   changes:
@@ -98,7 +108,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -123,7 +133,7 @@ jobs:
       # a fresh network namespace starts at the kernel's compiled defaults, as each cell's does
       - name: The defaults of a fresh network namespace
         run: |
-          sudo unshare --net sh -c 'for knob in tcp_keepalive_time tcp_keepalive_intvl tcp_keepalive_probes tcp_retries1 tcp_retries2 tcp_syn_retries tcp_syn_linear_timeouts tcp_fin_timeout tcp_rto_min_us tcp_rto_max_ms tcp_mtu_probing; do echo "net.ipv4.$knob: $(sysctl -n net.ipv4.$knob 2>/dev/null || echo absent)"; done'
+          sudo unshare --net sh -c 'for knob in tcp_keepalive_time tcp_keepalive_intvl tcp_keepalive_probes tcp_retries1 tcp_retries2 tcp_syn_retries tcp_syn_linear_timeouts tcp_synack_retries tcp_abort_on_overflow tcp_fin_timeout tcp_rto_min_us tcp_rto_max_ms tcp_mtu_probing; do echo "net.ipv4.$knob: $(sysctl -n net.ipv4.$knob 2>/dev/null || echo absent)"; done; echo "net.core.somaxconn: $(sysctl -n net.core.somaxconn)"'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -175,9 +185,10 @@ jobs:
           sysctl kernel.unprivileged_bpf_disabled kernel.perf_event_paranoid kernel.kptr_restrict 2>&1 || true
           sudo dmesg | tail -n 40 || true
 
+  # a schedule, or a dispatch that names its cells: the gate dispatch of the queue runs the probe only
   plan:
     needs: changes
-    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'pull_request') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.only != '' || inputs.selection != '' || inputs.pair != '' || inputs.file != ''))) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -235,7 +246,7 @@ jobs:
 
   cells:
     needs: [changes, probe, plan]
-    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'pull_request') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.only != '' || inputs.selection != '' || inputs.pair != '' || inputs.file != ''))) }}
     strategy:
       max-parallel: 3
       fail-fast: false
@@ -388,6 +399,7 @@ jobs:
           CELLS_FILE_AT: ${{ inputs.file }}
           CELLS_PAIR: ${{ inputs.pair }}
           CELLS_PAIR_DIR: ${{ runner.temp }}/limiter-pair
+          CELLS_RUNS: ${{ inputs.runs }}
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
           CELLS_SUBJECT="$(cat "$RUNNER_TEMP/subject.json")"
@@ -415,6 +427,13 @@ jobs:
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || ((inputs.only == '^RD[.]' || inputs.selection == 'drills') && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+      # The Sunday claims that its drills hold, as the night claims for its cells. This step judges each
+      # record again, with the same flip test, and it fails on a record that does not pin its programs.
+      # A run of '^RD[.]' also starts the drill of 8 GB, which the selection drills does not hold. Thus
+      # a manual run of this step takes the selection drills on one shard.
+      - name: The drills of the Sunday hold
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.selection == 'drills' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells drills --shard 0/1 "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()
@@ -477,7 +496,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells export

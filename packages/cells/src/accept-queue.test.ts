@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
-import { ACCEPT_QUEUE_CELLS, BACKLOG_SERVICE, SERVICE_QUEUE_CELLS, synAckFiring, synAckWait, synGiveup, synWait, wheelOf } from "./accept-queue.ts";
+import { ACCEPT_QUEUE_CELLS, BACKLOG_SERVICE, SERVICE_QUEUE_CELLS, synAckExpiry, synAckFiring, synAckWait, synGiveup, synWait, wheelOf } from "./accept-queue.ts";
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
@@ -25,6 +25,19 @@ describe("the cells of the accept queue", () => {
       expect(cell.targetSysctls).toHaveProperty("net.core.somaxconn");
       expect(cell.targetSysctls).toHaveProperty("net.ipv4.tcp_abort_on_overflow");
     }
+  });
+
+  it("takes the SYN-ACK bands from the timers of Linux TCP, with the values of the closed forms before them (SYS-120)", () => {
+    const round = (value: number) => Math.round(value * 1e6) / 1e6;
+    // one way of the path is 20 ms on the first wait, and the slack of each band is 10 ms
+    for (const k of [0, 1, 2, 3, 4, 5]) {
+      const wait = 2 ** k + (k === 0 ? 0.02 : 0);
+      expect(seconds(synAckWait(k))).toEqual([round(wait - 1 / HZ - 0.01), round(wait + wheelOf(2 ** k) + 0.01)]);
+    }
+    const late = [1, 2, 4, 8, 16, 32].reduce((total, wait) => total + wheelOf(wait), 0);
+    expect(seconds(synAckExpiry())).toEqual([round(63 - 6 / HZ - 0.01), round(63 + late + 0.01)]);
+    expect(synAckExpiry()).toEqual(synAckFiring(6));
+    expect(seconds(synAckFiring(2, 0.02))).toEqual([round(3.02 - 2 / HZ - 0.01), round(3.02 + wheelOf(1) + wheelOf(2) + 0.01)]);
   });
 
   it("predicts the limit plus one in each cell of the count", () => {

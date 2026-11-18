@@ -25,6 +25,10 @@ import type { DriverStepTime } from "./driver.ts";
 import { countFinding, measureDriver, proxiedClose } from "./driver.ts";
 import type { ConntrackReading } from "./conntrack.ts";
 import { measureConntrack } from "./conntrack.ts";
+import type { MemoryReading } from "./memory.ts";
+import { measureMemory } from "./memory.ts";
+import type { EgressReading } from "./egress.ts";
+import { measureEgress } from "./egress.ts";
 import { estimateOf, loadOf, streamsLoadOf } from "./load.ts";
 import type { PauseReading } from "./pause.ts";
 import { measurePause } from "./pause.ts";
@@ -121,6 +125,16 @@ export interface Measured {
   readonly ports?: PortsReading;
   /** This record is what a run of a conntrack cell measured: the flows, the count, and when a slot came back. */
   readonly conntrack?: ConntrackReading;
+  /**
+   * This record is what a run of a memory cell measured: each step of a growth, or the end of each task of an OOM.
+   * A void run has it too when the judge read the lines of the client.
+   */
+  readonly memory?: MemoryReading;
+  /**
+   * This record is what a run of an egress cell measured: the arrival and the departure of each datagram in the qdisc.
+   * A void run has it too when the judge read the stamps of the client.
+   */
+  readonly egress?: EgressReading;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
   /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
@@ -531,6 +545,10 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     return measurePorts(run, cell.prediction.ports);
   if (cell.prediction.detects === null && cell.prediction.conntrack !== undefined)
     return measureConntrack(run, cell.prediction.conntrack);
+  if (cell.prediction.detects === null && cell.prediction.memory !== undefined)
+    return measureMemory(run, cell.prediction.memory);
+  if (cell.prediction.detects === null && cell.prediction.egress !== undefined)
+    return measureEgress(run, cell.prediction.egress);
   // a driver with more than one socket: its bands name their socket and their line
   if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;

@@ -41,7 +41,7 @@ export { BOUND_RULES, CLOSE_BOUND_RULE, DECLARATION_RULE, LAW_STATISTIC, LIMITER
 export type { IdentityType } from "./identity.ts";
 export { IDENTITY_TYPES } from "./identity.ts";
 export type { Cancel, Clock, PlatformClockOptions } from "./clock.ts";
-export { platformClock, realClock } from "./clock.ts";
+export { platformClock, realClock, unrefClock } from "./clock.ts";
 export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";
 export { detectionTime, heartbeat } from "./heartbeat.ts";
 export type { Backoff, DelayBand, Jitter } from "./backoff.ts";
@@ -52,8 +52,10 @@ export type {
   Allowed,
   CapacityRefused,
   Decision,
+  InFlightBound,
   KeyState,
   KeyedLimiter,
+  Lease,
   LimitPolicy,
   LimitRule,
   Limiter,
@@ -66,6 +68,7 @@ export type {
   MemoryStore,
   RefusalCause,
   Refused,
+  ReleaseRequest,
   SlidingWindow,
   StoreFailure,
   TakeStep,
@@ -102,6 +105,7 @@ export type {
 } from "./limiter.ts";
 export { keyedQuota, memoryQuotaStore, quotaProblems, quotaRule, quotaStep, takeQuotas } from "./limiter.ts";
 export {
+  IN_FLIGHT_MACHINE,
   SLIDING_WINDOW_MACHINE,
   TOKEN_BUCKET_MACHINE,
   capacityOf,
@@ -116,6 +120,7 @@ export {
   longestRetryAfter,
   memoryStore,
   overCapacity,
+  releaseLease,
   retryAfterSeconds,
   unitsOf,
 } from "./limiter.ts";

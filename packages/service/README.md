@@ -317,11 +317,15 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 
 | Entry | Exports |
 | --- | --- |
-| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock` |
+| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock`, `unrefClock` |
 | `@mark1russell7/service/heartbeat` | `heartbeat`, `detectionTime` |
 | `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
 
-- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
+- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is `platformClock()`: its timers keep the process alive, as `setTimeout` does. Each cancel also has `unref`, for one timer.
+- **The rule of `unref`.** The service uses the `unref` of a timer only when a socket, a child process or the hold of the lifecycle keeps the process alive. Each other timer stays referenced. Thus a wait that a caller awaits, for example `retry` or `within`, ends before the process exits.
+- **The timers that do not keep the process alive.** These timers only watch other work. Examples are the heartbeat of a connection, the checks and the watchdog of a service, and the sweep of a listener. The timers of a supervisor for a live child are also examples. `unrefClock(clock)` gives a part such a clock.
+- **The timers that keep the process alive.** These timers are work, or they bound work that a caller awaits. Examples are a retry, a ticker, the sleeps of a worker loop and the polls of `watchTargets`. The owner stops each one.
+- **Before 0.9.0.** The default clock did not keep the process alive. Thus a command-line tool ended in the wait of a retry, with the code 0 and lost work.
 - **The home of the clock.** The clock lives in `@mark1russell7/algebra/clock`, beside its fake. This entry gives the same functions. Thus a package that the service imports, for example collections, can use the clock with no cycle.
 - **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
 - **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.
@@ -413,24 +417,34 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 | Export | Function |
 | --- | --- |
 | `svc.limiter(name, spec)` | The declaration of a limiter, as data. `describe()` shows it in `limiters`. |
-| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key, units?)` gives a `Decision`, and `tryTakeSync(key, units?)` gives it at once on a memory store |
+| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key, units?)` gives a `Decision`, `tryTakeSync(key, units?)` gives it at once on a memory store, and `release(key, decision)` ends a take of an in-flight bound |
 | `memoryStore(clock)` | The store of one replica, on the injected monotonic clock |
 | `decide(rule, state, now, units?)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
+| `releaseLease(rule, state, now, lease)` | The arithmetic of the release of one lease of an in-flight bound, for a store of your own |
 | `capacityOf(rule)`, `overCapacity(rule, units)`, `unitsOf(units)` | The most units of one take, its refusal, and the check of the units |
 | `idleSpan(policy)`, `longestRetryAfter(policy)`, `retryAfterSeconds(retryAfter)` | The times of a policy, and `Retry-After` in whole seconds |
 | `limiterProblems(name, spec)` | The problems of a spec that `describe()` and `keyedLimiter` refuse |
 | `LIMITER_RULES` | The rules O29 and O30 of the law, as data. Their identifiers are provisional. |
-| `TOKEN_BUCKET_MACHINE`, `SLIDING_WINDOW_MACHINE`, `limiterMachine(policy)` | The machine of one key of each policy, as a `mark1russell7.machine/1` document |
+| `TOKEN_BUCKET_MACHINE`, `SLIDING_WINDOW_MACHINE`, `IN_FLIGHT_MACHINE`, `limiterMachine(policy)` | The machine of one key of each policy, as a `mark1russell7.machine/1` document |
 | `limiterStateOf(rule, state, now)` | The state of a key of a store, as its document names it: `new`, `open` or `limited` |
 
 - **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store, the failure policy of a shared store or its bound. The error names the part.
 - **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
 - **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time.
+- **An in-flight bound.** `{ type: "in-flight", limit, lease, retryAfter }` gives a key at most `limit` units in flight. This bound needs no service rate.
+- **The lease.** A permitted take of an in-flight bound gives a `lease`. Its units stay held until `release(key, decision)`, or until the lease ends.
+- **No lost units.** A unit that no caller releases leaves the count at the end of its lease. Thus a caller that stops before its release does not hold the bound.
+- **The length of the lease.** The units of a call that outlives its lease leave the count. Then a key can have more than `limit` units in flight. Set a lease of at least the deadline of the call. A lease has no renewal.
+- **One release.** Release each permitted decision one time, with the key of its take. A second release of a decision releases nothing.
+- **The release errors.** A release with another key rejects, and the units stay held. A failure of the store rejects the release, and the units count until their lease ends.
+- **No release.** A refusal, and a decision of a rate policy, have no lease. Their release does nothing.
+- **The wait of a refusal.** The limiter cannot know when a call ends. Thus the policy declares `retryAfter`, at most the lease. A refusal gives less when enough leases end first. A retry at `retryAfter` can get a refusal again when no release came first.
+- **A store with a release.** An in-flight bound needs a store with `release`. `keyedLimiter` refuses a store without it. `memoryStore` and `redisLimiterStore` have it.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or a refusal. The type of a refusal is a union on its `cause`, thus the compiler checks each branch.
 - **A wait refusal.** `{ allowed: false, cause, retryAfter }` has the cause `limit`, `cap` or `store`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in.
 - **The units of a take.** `take(key, units)` takes `units` units in one atomic step, or none. The units are a whole number of 1 or more, and 1 when absent. Other units throw a `RangeError`.
-- **The capacity.** The capacity of a policy is its `burst` or its `limit` (`capacityOf`). No wait lets in a take of more units, thus the limiter refuses it before the store with `{ allowed: false, cause: "capacity", units, capacity }`. Split such work into parts of at most the capacity.
+- **The capacity.** The capacity of a policy is its `burst`, the `limit` of its window or the `limit` of its in-flight bound (`capacityOf`). No wait lets in a take of more units, thus the limiter refuses it before the store with `{ allowed: false, cause: "capacity", units, capacity }`. Split such work into parts of at most the capacity.
 - **A take with no promise.** `tryTakeSync(key)` gives the same `Decision` at once. `keyedLimiter` on a `memoryStore` gives a `LocalLimiter`, whose type has it. On `KeyedLimiter`, it is optional.
 - **Only a local store.** `tryTakeSync` throws for a shared store, before the take. It also throws for a local store whose take gives a promise. That take still counts, thus use `take()` with such a store.
 - **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
@@ -441,20 +455,22 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **A failure of the store.** A shared store declares what a take does when the store fails (`onStoreFailure`). The field has no default, and `describe()` refuses a shared store without it.
 - **Open or closed.** With `"open"`, the limiter lets the take in, with `remaining` 0. With `"closed"`, it refuses the take with the cause `store` and the longest `retryAfter` of the policy. Each decision gives the failure as text (`failure`).
 - **A local store.** A local store does not fail, thus it needs no `onStoreFailure`, and the limiter ignores one. A failure of a local store of your own rejects the take.
-- **Exact eviction.** A store removes a key only when its state is equal to the state of a new key. A bucket is new again after `burst / rate` idle, and a window after one window idle (`idleSpan`). Thus an eviction changes no decision.
+- **Exact eviction.** A store removes a key only when its state is equal to the state of a new key. A bucket is new again after `burst / rate` idle, a window after one window idle, and an in-flight bound after one lease idle (`idleSpan`). Thus an eviction changes no decision.
 - **A bound on the keys.** `evict.maxKeys` is the most keys that the store holds for the limiter. `describe()` refuses a count without a bound.
 - **The cost of a new key at the cap.** At the cap, the store refuses a new key with the cause `cap`. Its `retryAfter` is at most the time until the earliest held key is free. That time is at most `idleSpan`, and a held key keeps its count.
-- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times.
+- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times. An in-flight bound keeps the start of each held unit, with the same bound.
 - **The HTTP edge.** `retryAfterSeconds(retryAfter)` gives whole seconds, rounded up, for `Retry-After` (RFC 9110). `limitedResponse(refused)` of `@mark1russell7/service/http` gives 429 with that header (RFC 6585). For the cause `capacity`, it gives 413 with no `Retry-After`, and the body gives the units and the capacity.
 - **The law.** `lint()` applies O29 and O30 (`LIMITER_RULES`) one time for each limiter. The scenario gives the values of the callers of each limiter (`scenario.limiters`).
 - **Provisional identifiers.** The corpus of the law has the rules O01 to O28. It does not have these two rules yet, thus O29 and O30 are provisional identifiers.
 - **O29.** The longest `Retry-After` of a limiter (`retry_after@limiter`) is at most the retry window of its caller (`client_retry_window@caller`). Its second inequality applies the same bound to a new key at the cap (`retry_after_at_cap@limiter`). Otherwise the caller stops before the limit lets its call in.
 - **O30.** The least delay of a caller before a retry (`retry_delay@caller`) is at least the longest `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too early.
 - **A closed failure.** The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy. Thus O29 and O30 apply to it too.
-- **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds: one interval of the bucket, or one window. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
+- **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds. It is one interval of the bucket, one window, or the declared `retryAfter` of an in-flight bound. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
 - **The machine of a key.** Each policy has a document of one key, which `@mark1russell7/algebra` reads. A key is `new` (the store holds no count, or a count equal to a new key), `open` (its next take is permitted) or `limited` (its next take is refused).
 - **The timers of a token bucket.** `token` fires at most `1 / rate` after the take that used the last token. That time is the longest `Retry-After`. `full` fires from one to `burst` intervals after a permitted take: the bucket is full, and the key is new again.
 - **The timers of a sliding window.** `oldest` fires at most one window after the take that filled the window. `last` fires one window after the last permitted take, and the key is new again.
+- **The timers of an in-flight bound.** `oldest` fires at most one lease after the take that filled the bound. `last` fires one lease after the last permitted take, and the key is new again.
+- **A release in the machine.** A release is an event of the application. It removes the held units of its take, thus the key can become open or new before a timer fires.
 - **The other transitions.** A refused take leaves a limited key limited. A new key at the cap stays new, with the cause `cap`. A failure of a shared store leaves each state as it is.
 - **The replay.** The tests drive the runtime on a fake clock and replay each take and each change of state against the document. The scenarios reach each transition. The times of the runtime are inside the bounds of the timers that the algebra gives.
 
@@ -478,6 +494,25 @@ const decision = await limiter.take(tenantOf(req));
 if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-After from 1 to 60
 ```
 
+### The quota of a key
+
+A quota is the limit of a provider of an API: at most `limit` units in each window. The window is a calendar window or a rolling window. The gate refuses a take over it before the provider does.
+
+| Export | Function |
+| --- | --- |
+| `keyedQuota(name, spec, store, clock)` | The runtime of a quota on a store and a wall clock: `take`, `note`, `giveBack` and `state` for each key |
+| `quotaStep(rule, stored, instant, event)` | The pure step of one key, for a store of your own |
+| `quotaRule(name, spec)`, `quotaProblems(name, spec)` | The spec in numbers, and the problems of a spec that `keyedQuota` refuses |
+| `memoryQuotaStore()` | The store of one process |
+| `takeQuotas(parts, options?)` | A take of several quotas, all or none |
+
+- **No defaults.** A spec has a limit, a reserve and a window. A rolling window has a span and a count of buckets. A calendar window has a unit (`day` or `month`), a time zone and a time of day that starts it.
+- **A reading of the provider.** `note(key, reading)` adds what an answer of the provider tells. The count can only become larger. A reset with no units left blocks the key until the reset.
+- **The longest block.** `maxBlock` in the spec is a time above zero, or `window`. A reading at the instant `t` blocks the key until `t` plus that time at the latest. With `window`, the block ends at the latest when the bucket of `t` stops counting.
+- **Why a bound.** A provider can give a reset in a wrong form, for example milliseconds in a header of seconds. Without a bound, such a reset stops the key for hours or for centuries.
+- **The step applies the bound.** `quotaStep` caps the block of the stored record before each event, and the block of a note after it. The store keeps the capped record. When `maxBlock` is absent, no block has a bound.
+- **A gate of your own.** A part of `takeQuotas` needs only `sync`, `take` and `giveBack`. Thus a gate of your own with these members can be a part, next to a `KeyedQuota`.
+
 ## The HTTP edge
 
 `@mark1russell7/service/http` is the edge of a service in Node. Of the modules of Node, it imports only `node:http` and `node:net`. The root of the package does not import it. It is not a framework: it has no routing language, no body parser and no middleware.
@@ -493,6 +528,8 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 | `ndjson`, `sse` | The formats of a stream: NDJSON, and server-sent events |
 | `outcomeResponse`, `endRecord`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
 | `limitedResponse(refused)` | The answer to a take that a keyed limiter refused: 429, with `Retry-After` in whole seconds, or 413 for the cause `capacity` |
+
+The files of a folder, for example a built page, have their own entry: [The files of a folder](#the-files-of-a-folder).
 
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` or `node:http2` (`EdgeServer`) a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
 - **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
@@ -590,6 +627,36 @@ app.controller("orders").requires("db").route("POST /orders", { idempotent: fals
 const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 ```
 
+### The files of a folder
+
+`@mark1russell7/service/http-folder` serves the files of one folder, for example a built page next to the routes of a service. Its handler goes in the list of mounts of `./http`. Thus the page and its API have one origin. The entry `./http` imports only `node:http` and `node:net`, thus this handler has an entry of its own.
+
+| Export | Function |
+| --- | --- |
+| `folderHandler(root, options)` | A request handler that serves the files of the folder `root` |
+| `contentTypeOf(file, types)` | The content type of a file from its extension |
+| `WEB_CONTENT_TYPES` | The content types of the files of a web page, the default table |
+| `UNKNOWN_CONTENT_TYPE` | The content type of a file with an extension that the table does not have |
+| `FOLDER_CONTENT_SECURITY_POLICY` | The default content security policy of each file |
+
+- **The paths.** A path that ends with `/` gives the index file, `index.html` by default. The option `prefix` puts the folder under a path, for example `/page`.
+- **The next handler.** A path that is not for a file of the folder goes to the next handler. Thus a route after it still answers, and a request that no handler takes gets 404.
+- **The paths out of the folder.** The handler refuses an encoded `..`, a NUL, a backslash and a path that does not decode. It also refuses a link in the folder that points out of the folder. Each refused path goes to the next handler.
+- **The methods.** The handler answers GET and HEAD. HEAD gets the headers of GET and no body. Another method on a file gets 405 with `Allow: GET, HEAD`.
+- **The stat.** Only GET reads the body of the file. HEAD and the 405 take the kind and the length of the file from its stat.
+- **The headers.** Each file gets its content type, its length, the content security policy, `X-Content-Type-Options: nosniff` and `Cache-Control: no-cache`.
+- **The policy.** The default policy lets the page load only its own scripts, styles, images and fonts. The page connects only to its own origin, and it has no inline script.
+- **The options.** `index`, `contentType` and `contentSecurityPolicy` change the answers. `readFile`, `realpath` and `stat` change the file functions, for example in a test.
+
+```ts
+import { fileURLToPath } from "node:url";
+import { folderHandler } from "@mark1russell7/service/http-folder";
+
+// the routes of the service first, then the files of the built page
+http.mount(handle("orders", "POST /orders", (req, signal) => createOrder(req, signal)));
+http.mount(folderHandler(fileURLToPath(new URL("./web/", import.meta.url))));
+```
+
 ## The host
 
 `@mark1russell7/service/host` keeps programs alive on one computer, without a container platform. It installs a Windows scheduled task or a systemd user unit. A group supervisor then starts each program in sequence and starts it again after it stops. Of the modules of Node, the entry imports only `node:child_process`, `node:fs/promises`, `node:net`, `node:os` and `node:path`. The root of the package does not import it.
@@ -613,6 +680,8 @@ Each effect goes through a port (`HostPorts`): the commands, the files, the proc
 
 - **The task.** On Windows, `installService` writes the XML of a scheduled task and gives it to `schtasks /Create`. The task starts at logon, at boot or each day, as the user, without a window. It starts the program again after a failure.
 - **The unit.** On Linux, `installService` writes a systemd user unit in `$XDG_CONFIG_HOME/systemd/user` and enables it. A daily start also gets a timer. Other platforms get `unsupported`, and nothing changes.
+- **The restart on Linux.** A unit with a restart has `Restart=always`. Thus the program starts again after each exit, also with the code 0. A stop of `stopService` keeps it stopped.
+- **The stop on Linux.** `stopGrace` is the most time of the stop (`TimeoutStopSec`). After it, systemd stops each process of the unit with `SIGKILL`. `stopsChildren: true` sends the stop signal only to the program (`KillMode=mixed`), thus a supervisor stops its children in stages. Give a supervisor both.
 - **The start at boot.** `start: "boot"` starts the program when the computer starts, before a logon. Thus a program starts again after a power cut, and it does not wait for the user. A boot start is in the background.
 - **The background.** `background: true` runs the program when the user is not logged on. On Windows, the task gets an S4U logon, and Windows keeps no password. Thus the task has no access to a network share that needs the credentials of the user. On Linux, the install starts `loginctl enable-linger`. Thus the user manager of systemd starts at boot and stays after the logout. The removal keeps the linger, because other units can need it.
 - **The elevation.** Task Scheduler refuses a boot trigger and an S4U logon from a shell that is not elevated (`Access is denied`). Thus the owner of the computer starts the install of a task in the background one time, in a shell of an administrator. The problem of the outcome tells so.

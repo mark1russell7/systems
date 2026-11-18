@@ -8,6 +8,7 @@
 //!
 //! The target listens on PORT and on PORT + 2, the two destinations of a cell. It serves one command
 //! on PORT + 1, its control port: `close COUNT` waits until it holds COUNT connections, and closes them.
+//! `stack` gives the counters of the network stack of the target (`stack_counters`).
 //!
 //! The client does these steps in each round:
 //!
@@ -22,6 +23,10 @@
 //!    closes it, and waits `--settle-ms`. With `--reclaim`, the client reads each FIN first. It then
 //!    writes `closing` and closes each connection. It connects again as after `--close client`.
 //!
+//! Before its first round and after its last round, the client writes two `stack` lines: the counters
+//! of its own network stack, then those of the target. The change of a counter between the two lines
+//! tells where a segment went, for example a drop at a full backlog or an ACK that the target skipped.
+//!
 //! With `--mode inflight`, the client writes `ready` and waits for the file `/tmp/go` before its first
 //! round. The harness makes this file after it applies the fault, thus the fault acts on each round.
 //!
@@ -30,7 +35,7 @@
 //! reset and holds no port. A FIN at the exit of the client holds that port in TIME_WAIT for 60 s. A
 //! range of 3 has only 2 ports for a search. Thus the third run of an environment had no control port.
 
-use harness_native::emit;
+use harness_native::{emit, stack_counters};
 use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
 use std::error::Error;
@@ -83,6 +88,7 @@ fn serve(stream: TcpStream, held: &Mutex<Vec<TcpStream>>) -> Result<(), Box<dyn 
         let mut words = line.split_whitespace();
         let reply = match (words.next(), words.next().and_then(|word| word.parse::<usize>().ok())) {
             (Some("close"), Some(count)) => json!({ "closed": close_held(held, count) }),
+            (Some("stack"), None) if line.trim() == "stack" => json!({ "stack": stack_counters() }),
             _ => json!({ "refused": line }),
         };
         writeln!(writer, "{reply}")?;
@@ -193,6 +199,14 @@ impl Control {
         self.reader.read_line(&mut line)?;
         Ok(serde_json::from_str(&line)?)
     }
+}
+
+/// Writes the two `stack` lines: the counters of the client, then those of the target, at the point `at`.
+fn stack_lines(at: &str, control: &mut Control) -> Result<(), Box<dyn Error>> {
+    emit("stack", json!({ "side": "client", "at": at, "counters": stack_counters() }));
+    let reply = control.ask("stack")?;
+    emit("stack", json!({ "side": "target", "at": at, "counters": reply["stack"] }));
+    Ok(())
 }
 
 /// Closes a connection with a reset: SO_LINGER with a time of 0, then close(2).
@@ -340,6 +354,7 @@ fn client(args: &[String]) -> Result<(), Box<dyn Error>> {
             std::thread::sleep(Duration::from_millis(1));
         }
     }
+    stack_lines("start", &mut control)?;
     for index in 0..plan.rounds {
         let mut held = Vec::new();
         for destination in &destinations {
@@ -347,6 +362,7 @@ fn client(args: &[String]) -> Result<(), Box<dyn Error>> {
         }
         close_round(&plan, destinations[0], &mut control, held)?;
     }
+    stack_lines("end", &mut control)?;
     emit("done", json!({}));
     Ok(())
 }
@@ -387,6 +403,22 @@ mod tests {
         assert!(plan.go && plan.reclaim);
         assert!(plan_of(&["--no-such".to_string()]).is_err());
         assert!(plan_of(&["--close".to_string(), "soon".to_string(), "h".to_string(), "1".to_string()]).is_err());
+    }
+
+    #[test]
+    fn the_control_port_gives_the_counters_of_the_stack_and_refuses_another_word() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("a listener");
+        let address = listener.local_addr().expect("an address");
+        let held = Arc::new(Mutex::new(Vec::new()));
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("an accept");
+            serve(stream, &held).expect("the control lines");
+        });
+        let stream = TcpStream::connect(address).expect("a connect");
+        let mut control = Control { reader: BufReader::new(stream.try_clone().expect("a clone")), writer: stream };
+        let reply = control.ask("stack").expect("a reply");
+        assert!(reply["stack"]["Tcp.ActiveOpens"].as_u64().is_some(), "{reply}");
+        assert_eq!(control.ask("stack now").expect("a reply")["refused"], "stack now");
     }
 
     #[test]

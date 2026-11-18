@@ -2,7 +2,7 @@
 # Each job makes its own kind clusters with the pinned kind and node image, then deletes them.
 # A cell of T15 gets Istio 1.31.3 in its cluster, from the pinned istioctl and images pinned by digest.
 #
-#   plan    Gives the shards: the input of a dispatch, or one.
+#   plan    Gives the shards: the input of a dispatch that names its cells, or one.
 #   kind    Writes what the runner is, and which kube-proxy modes its kernel can do. Then it runs
 #           the cells whose names match `only` (KIND_LAB=1), a shard on each runner. It uploads each
 #           raw record and `summary.ndjson` as an artifact. A cell of a mode that the kernel cannot
@@ -10,12 +10,15 @@
 #           module of istio-cni does not load.
 #   capture Makes a cluster with the dataplane cilium. It dumps the services of the agent of each
 #           node in three states of the backends. The test is `src/cilium.capture.test.ts`, and the
-#           dump is the artifact cilium-capture. It starts on a pull request, and on a dispatch with
-#           capture=true.
+#           dump is the artifact cilium-capture. It starts on a pull request, on a dispatch with no
+#           only, and on a dispatch with capture=true.
 #
 # Start it with `gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10`.
 # The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
 # A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
+# A dispatch with no only is the gate of a pull request: the same smoke on one shard, and the capture.
+# The queue starts this dispatch on each pull request that is behind main (SYS-118).
+# To run each cell of the catalogs, give -f only=. by name.
 #
 # The step The cells stops after `minutes` (36 by default), approximately 3 times the 12 min of a
 # shard of the backlog cells. Thus a shard that does not end fails fast, and the job still uploads
@@ -29,8 +32,8 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: A regular expression of the cell names to run
-        default: "."
+        description: A regular expression of the cell names to run (. for each cell, empty for the gate of a pull request)
+        default: ""
       shards:
         description: How many runners share the cells (1 to 20)
         default: "10"
@@ -56,16 +59,17 @@ on:
 permissions:
   contents: read
 
-# The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch has a group
-# of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of other cells.
+# The runs of a pull request share a group, and a newer push cancels the older run. The gate dispatches of one
+# branch (each with no only) share a group in the same way. Each other dispatch has a group of its own.
+# GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of other cells.
 # With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
 defaults:
   run:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '')) && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '') }}
 
 jobs:
   changes:
@@ -78,7 +82,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           paths: |
             .github/workflows/kind.yml
@@ -94,8 +98,9 @@ jobs:
     steps:
       - id: shards
         env:
-          SHARDS: ${{ github.event_name == 'workflow_dispatch' && inputs.shards || '1' }}
-          MINUTES: ${{ github.event_name == 'workflow_dispatch' && inputs.minutes || '36' }}
+          # a pull request and a dispatch with no only (the gate) get the smoke: one shard, 36 minutes
+          SHARDS: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '1' || inputs.shards }}
+          MINUTES: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '36' || inputs.minutes }}
         run: |
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
@@ -123,10 +128,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 340
     env:
-      KIND_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '^T07 (iptables|ipvs|nftables), the propagation' }}
-      # an empty count of a dispatch keeps the count of the catalog
-      KIND_RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.runs || (github.event_name != 'workflow_dispatch' && '2' || '') }}
-      KIND_ENVIRONMENTS: ${{ github.event_name == 'workflow_dispatch' && inputs.environments || '1' }}
+      # the smoke of a pull request and of a dispatch with no only (the gate): 2 runs, one cluster
+      KIND_ONLY: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '^T07 (iptables|ipvs|nftables), the propagation' || inputs.only }}
+      # an empty count of a dispatch that names its cells keeps the count of the catalog
+      KIND_RUNS: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '2' || inputs.runs }}
+      KIND_ENVIRONMENTS: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '1' || inputs.environments }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -282,7 +288,7 @@ jobs:
           fi
       - name: The cells
         # a bound for a shard that does not end (SYS-43): the step fails, and the steps below still run
-        timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.minutes || '36') }}
+        timeout-minutes: ${{ fromJSON((github.event_name != 'workflow_dispatch' || inputs.only == '') && '36' || inputs.minutes) }}
         env:
           KIND_LAB: "1"
           KIND_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
@@ -320,7 +326,7 @@ jobs:
 
   capture:
     needs: changes
-    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'pull_request' || inputs.capture == 'true') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'workflow_dispatch' || inputs.only == '' || inputs.capture == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -373,7 +379,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: capture

@@ -30,6 +30,10 @@ describe("the file kpi.json reads the roadmap", () => {
     expect(() => roadmapMeasures("### SYS-58 · A title\n")).toThrow(/no entry SYS-/);
   });
 
+  it("stops the build when two entries have one id, so no entry hides another", () => {
+    expect(() => roadmapMeasures(`${roadmap(() => "done")}### SYS-58 · A second title\n`)).toThrow(/two entries SYS-58/);
+  });
+
   it("reads the real roadmap", () => {
     const measures = roadmapMeasures(readFileSync(new URL("../../../../docs/ROADMAP.md", import.meta.url), "utf8"));
     expect(measures.map((measure) => measure.id)).toEqual(["s3-items-done", "environment-layers-live", "recovery-rungs-held"]);

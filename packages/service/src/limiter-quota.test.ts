@@ -303,6 +303,10 @@ describe("the quota of a key", () => {
       [{ ...calendar("day", "UTC", 0), window: { kind: "calendar", unit: "week", zone: "UTC", start: { value: 0, unit: "h" } } as never }, "unit is not day or month"],
       [{ ...calendar("day", "UTC", 0), window: { kind: "fixed" } as never }, "window is not rolling or calendar"],
       [{ limit: count(1), reserve: count(0) }, "does not declare its window"],
+      [{ ...rolling(10, 1000), maxBlock: { value: 0, unit: "ms" } }, "maxBlock is not a finite time above zero"],
+      [{ ...rolling(10, 1000), maxBlock: { value: Number.POSITIVE_INFINITY, unit: "s" } }, "maxBlock is not a finite time above zero"],
+      [{ ...rolling(10, 1000), maxBlock: count(5) }, 'maxBlock is not a time or "window"'],
+      [{ ...rolling(10, 1000), maxBlock: "day" as never }, 'maxBlock is not a time or "window"'],
     ];
     for (const [spec, problem] of bad) {
       expect(quotaProblems("example", spec).join("; "), problem).toContain(problem);
@@ -310,6 +314,7 @@ describe("the quota of a key", () => {
     }
     expect(quotaProblems("example", rolling(10, 1000))).toEqual([]);
     expect(quotaProblems("example", calendar("month", "America/Chicago", 0))).toEqual([]);
+    expect(quotaProblems("example", { ...rolling(10, 1000), maxBlock: "window" })).toEqual([]);
   });
 
   it("refuses units that are not a finite count of 0 or more, and an instant that is not a date", () => {
@@ -354,6 +359,67 @@ describe("the quota of a key", () => {
     expect(quotaStep(rule, stored, instant, { type: "take", units: 2 })).toEqual(one);
     expect(stored).toEqual(copy);
     expect(one.record).toEqual({ spent: [[at("2026-03-07T08:00:00Z"), 3]], readAt: at("2026-03-07T09:00:00Z") });
+  });
+});
+
+describe("the longest block of the provider (maxBlock)", () => {
+  // 6 buckets of 10 s in a window of 1 min: the bucket of 12:00:00 stops counting at 12:01:10
+  const windowEnd = at("2026-11-14T12:01:10Z");
+  const capped = (maxBlock: QuotaSpec["maxBlock"]): QuotaSpec => ({ ...rolling(10, 60_000, 6), maxBlock });
+  // 15 digits of milliseconds: a reset in the year 33658
+  const far = 999_999_999_999_999;
+
+  it("ends a block of the provider at the latest one window after the reading", () => {
+    const { quota, set } = quotaAt(capped("window"), "2026-11-14T12:00:00Z");
+    expect(new Date(far).getUTCFullYear()).toBe(33658);
+    expect(quota.note("k", { resetAt: far }).blockedUntil).toBe(windowEnd);
+    expect(quota.take("k")).toMatchObject({ allowed: false, cause: "provider", resetAt: windowEnd });
+    set("2026-11-14T12:01:10Z");
+    expect(quota.take("k")).toMatchObject({ allowed: true, state: { used: 1, left: 9 } });
+  });
+
+  it("ends a block of seconds that the provider gave as milliseconds, and keeps a block in the window", () => {
+    const { quota } = quotaAt(capped("window"), "2026-11-14T12:00:00Z");
+    // 30 s read as 30,000 s: 8 h 20 min
+    expect(quota.note("k", { resetAt: at("2026-11-14T20:20:00Z") }).blockedUntil).toBe(windowEnd);
+    expect(quota.note("k", { resetAt: at("2026-11-14T12:00:30Z") }).blockedUntil).toBe(windowEnd);
+    expect(quota.note("other", { resetAt: at("2026-11-14T12:00:30Z") }).blockedUntil).toBe(at("2026-11-14T12:00:30Z"));
+  });
+
+  it("ends a block at the end of a calendar window, or after a time", () => {
+    const day = quotaAt({ ...calendar("day", "UTC", 0, 100), maxBlock: "window" }, "2026-11-14T12:00:00Z").quota;
+    expect(day.note("k", { resetAt: far }).blockedUntil).toBe(at("2026-11-15T00:00:00Z"));
+    const longer = quotaAt(capped({ value: 24, unit: "h" }), "2026-11-14T12:00:00Z").quota;
+    expect(longer.spec.maxBlock).toEqual({ value: 24, unit: "h" });
+    expect(longer.rule.maxBlock).toBe(86_400_000);
+    expect(longer.note("k", { resetAt: at("2026-11-14T20:20:00Z") }).blockedUntil).toBe(at("2026-11-14T20:20:00Z"));
+    expect(longer.note("k", { resetAt: far }).blockedUntil).toBe(at("2026-11-15T12:00:00Z"));
+  });
+
+  it("ends the block of a stored record before the event, and writes the capped record back", () => {
+    const { quota, store, record, set } = quotaAt(capped("window"), "2026-11-14T12:00:00Z");
+    store.change("example", "k", () => ({ record: { spent: [], blockedUntil: far }, result: undefined }));
+    expect(quota.take("k")).toMatchObject({ allowed: false, cause: "provider", resetAt: windowEnd });
+    expect(record()).toEqual({ spent: [], blockedUntil: windowEnd });
+    // a later step does not move the end
+    set("2026-11-14T12:00:30Z");
+    expect(quota.state("k").blockedUntil).toBe(windowEnd);
+    set("2026-11-14T12:01:10Z");
+    expect(quota.take("k")).toMatchObject({ allowed: true, state: { used: 1 } });
+  });
+
+  it("applies the bound in the pure step to the stored block at each event", () => {
+    const rule = quotaRule("example", capped({ value: 60, unit: "s" }));
+    const t = at("2026-11-14T12:00:00Z");
+    const stored: QuotaRecord = { spent: [], blockedUntil: t + 3_600_000 };
+    const events = [{ type: "read" }, { type: "take", units: 1 }, { type: "give-back", units: 1, at: t }, { type: "note", reading: { remaining: 3 } }] as const;
+    for (const event of events) expect(quotaStep(rule, stored, t, event).record.blockedUntil, event.type).toBe(t + 60_000);
+  });
+
+  it("keeps each block when the spec has no maxBlock", () => {
+    const { quota } = quotaAt(rolling(10, 60_000, 6), "2026-11-14T12:00:00Z");
+    expect(quota.rule.maxBlock).toBeUndefined();
+    expect(quota.note("k", { resetAt: far }).blockedUntil).toBe(far);
   });
 });
 
@@ -500,6 +566,30 @@ describe("a take of several quotas, all or none", () => {
       { quota: minute, key: "k", units: 11 },
     ]);
     expect(verdict).toMatchObject({ allowed: false, index: 1, refusal: { cause: "capacity", units: 11, capacity: 10 } });
+  });
+
+  it("takes a part whose quota is a gate of your own with sync, take and giveBack", () => {
+    const { minute, day } = two();
+    const calls: string[] = [];
+    const own: Pick<KeyedQuota<true>, "sync" | "take" | "giveBack"> = {
+      sync: true,
+      take: (key, units) => {
+        calls.push("take");
+        return minute.take(key, units);
+      },
+      giveBack: (key, units, instant) => {
+        calls.push("giveBack");
+        return minute.giveBack(key, units, instant);
+      },
+    };
+    day.take("k", 20);
+    const verdict = takeQuotas([
+      { quota: own, key: "k", units: 2 },
+      { quota: day, key: "k", units: 1 },
+    ]);
+    expect(verdict).toMatchObject({ allowed: false, index: 1, refusal: { cause: "limit" } });
+    expect(calls).toEqual(["take", "giveBack"]);
+    expect(minute.state("k").used).toBe(0);
   });
 
   it("gives back the parts before a failed take, and gives its error", () => {

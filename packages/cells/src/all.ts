@@ -3,6 +3,8 @@ import { ACCEPT_QUEUE_CELLS, SERVICE_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { CONNTRACK_CELLS } from "./conntrack.ts";
+import { EGRESS_CELLS } from "./egress.ts";
+import { MEMORY_CELLS } from "./memory.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
@@ -64,7 +66,8 @@ export interface Subjects {
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
  * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder is last.
+ * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder
+ * follows them, and the cells of the memory controller of a cgroup are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -114,6 +117,8 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...OPEN_LOOP_CELLS,
     ...BORDER_CELLS,
     ...LADDER_CELLS,
+    ...MEMORY_CELLS,
+    ...EGRESS_CELLS,
   ];
 };
 
@@ -152,3 +157,18 @@ export const needsContainerlab = (cell: Cell): boolean => cell.topology?.fabric 
  */
 export const selectedOf = (source: readonly Cell[], only: RegExp, shard: number, of: number): readonly Cell[] =>
   source.filter((each) => only.test(each.name)).filter((_, at) => at % of === shard);
+
+/** This count is the most runs that CELLS_RUNS can give a cell: 25 times the 4 runs of most cells. */
+export const MOST_RUNS = 100;
+
+/**
+ * This function gives each cell the count of runs in `text`, the variable CELLS_RUNS. The rate of a
+ * rare outcome needs more runs than its cell has (SYS-121). The record of each cell holds its count.
+ * Empty text keeps the count of each cell.
+ */
+export const withRuns = (cells: readonly Cell[], text: string | undefined): readonly Cell[] => {
+  if (text === undefined || text === "") return cells;
+  const runs = Number(text);
+  if (!Number.isInteger(runs) || runs < 1 || runs > MOST_RUNS) throw new Error(`CELLS_RUNS is ${text}: give a whole count of runs from 1 to ${MOST_RUNS}`);
+  return cells.map((cell) => ({ ...cell, runs }));
+};

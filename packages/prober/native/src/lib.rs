@@ -54,6 +54,7 @@ pub fn errno_name(code: i32) -> String {
         libc::EPIPE => "EPIPE".into(),
         libc::ECONNABORTED => "ECONNABORTED".into(),
         libc::EADDRNOTAVAIL => "EADDRNOTAVAIL".into(),
+        libc::ENOBUFS => "ENOBUFS".into(),
         other => format!("E{other}"),
     }
 }
@@ -65,6 +66,7 @@ mod tests {
     #[test]
     fn names_the_errors_a_detector_raises() {
         assert_eq!(errno_name(libc::ETIMEDOUT), "ETIMEDOUT");
+        assert_eq!(errno_name(libc::ENOBUFS), "ENOBUFS");
         assert_eq!(errno_name(9999), "E9999");
     }
 

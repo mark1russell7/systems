@@ -8,6 +8,7 @@
       "dependencies": {
         "@grpc/grpc-js": "1.14.6",
         "@mark1russell7/collections": "0.7.0",
+        "@mark1russell7/files": "0.0.3",
         "@mark1russell7/rational": "0.1.0",
         "@mark1russell7/rigor-generators": "0.1.0",
         "@mark1russell7/text": "0.0.2",
@@ -72,6 +73,15 @@
       },
       "engines": {
         "node": ">=22.12"
+      }
+    },
+    "node_modules/@mark1russell7/files": {
+      "version": "0.0.3",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/files/-/files-0.0.3.tgz",
+      "integrity": "sha512-FiiKK/sAbp39ypGv+2XzYRc+s911pdCtu97UQ4LiKmQKHjqPiyocGO48r2YObucxUkQhnm9mCdkiQxW6rFjiAg==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22"
       }
     },
     "node_modules/@mark1russell7/optional": {

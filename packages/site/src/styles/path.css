@@ -576,3 +576,258 @@
     min-width: 0;
   }
 }
+
+/* The whole path: the stages of one connection on one timeline (SYS-122). */
+
+.rp-group-line {
+  stroke: var(--color-rule-strong);
+  stroke-width: 1;
+}
+
+.rp-group-name {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--color-ink-muted);
+}
+
+.rp-group-start {
+  stroke: var(--color-ink-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.wp-trail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wp-trail > li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.wp-trail > li[data-kind="pass"] {
+  border-color: var(--status-good);
+  background: var(--status-good-wash);
+}
+
+.wp-trail > li[data-kind="end"] {
+  border-color: var(--color-mark);
+  background: var(--color-mark-wash);
+}
+
+.wp-trail > li[data-kind="none"] {
+  border-style: dashed;
+  background: transparent;
+  color: var(--color-ink-muted);
+}
+
+.wp-step {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 2px solid var(--color-rule-strong);
+  color: var(--color-ink-secondary);
+}
+
+.wp-trail > li[data-kind="pass"] .wp-step {
+  border-color: var(--status-good);
+  color: var(--status-good-ink);
+}
+
+.wp-trail > li[data-kind="end"] .wp-step {
+  border-color: var(--color-mark);
+  color: var(--color-mark);
+}
+
+.wp-trail-text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.wp-trail-text strong {
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.wp-trail > li[data-kind="none"] .wp-trail-text strong {
+  color: var(--color-ink-muted);
+}
+
+.wp-stage {
+  display: grid;
+  gap: var(--space-4);
+  margin-block: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-rule);
+}
+
+.wp-stage-head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.wp-stage-head h2 {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.wp-stage-head p {
+  margin: 0;
+}
+
+.wp-stage:not([data-reached]) .wp-stage-head h2 {
+  color: var(--color-ink-muted);
+}
+
+.wp-knobs {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 40rem) {
+  .wp-trail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------------ the chart of the datagrams (lab/egress) */
+
+.eq-chart {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+}
+
+.eq-panel {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  fill: var(--color-ink-secondary);
+}
+
+.eq-frame {
+  transition: opacity 160ms ease-out;
+}
+
+/* the row of a datagram is the target of its tooltip: larger than its marks */
+.eq-hit {
+  fill: transparent;
+}
+
+.eq-frame:hover .eq-hit {
+  fill: var(--chart-band);
+}
+
+.eq-wait {
+  stroke: var(--series-1);
+  stroke-opacity: 0.45;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.eq-leave {
+  fill: var(--series-1);
+}
+
+.eq-later {
+  fill: var(--color-surface);
+  stroke: var(--series-1);
+  stroke-width: 1.2;
+}
+
+.eq-cross {
+  fill: none;
+  stroke: var(--status-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.eq-area {
+  fill: var(--chart-band);
+}
+
+.eq-level {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.eq-limit {
+  stroke: var(--status-critical);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.eq-limit-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--status-critical-ink);
+}
+
+.eq-key {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.eq-key-wait {
+  height: 2px;
+  background: color-mix(in srgb, var(--series-1) 45%, transparent);
+}
+
+.eq-key-leave {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--series-1);
+}
+
+.eq-key-drop {
+  width: auto;
+  height: auto;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--status-critical);
+}
+
+.eq-key-limit {
+  height: 0;
+  border-top: 1.5px dashed var(--status-critical);
+}
+
+/* the controls of the bursts flow in the grid of the knobs of their card */
+.eq-train {
+  display: contents;
+}
+
+.eq-note {
+  margin: 0;
+}

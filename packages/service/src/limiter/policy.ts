@@ -1,5 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
-import { convertExact, convertible, rationals as r } from "@mark1russell7/quantity";
+import { convertExact, convertible } from "@mark1russell7/quantity/time";
+import { ONE, div, fromNumber, toNumber } from "@mark1russell7/rational";
 
 /**
  * A token bucket gives each key a bucket of `burst` tokens. The bucket refills at `rate`, and each
@@ -26,8 +27,28 @@ export interface SlidingWindow {
   readonly window: Quantity;
 }
 
+/**
+ * An in-flight bound gives each key at most `limit` units in flight. A permitted take holds its
+ * units until its release. A rate policy needs the service rate, but this bound does not.
+ * - Each take has a lease. A unit that no caller releases leaves the count at the end of its lease.
+ *   Thus a caller that stops before its release does not hold the bound.
+ * - The limiter cannot know when a call ends. Thus the policy declares the `retryAfter` of a refusal.
+ * - The units of a call that outlives its lease leave the count. Then a key can have more than
+ *   `limit` units in flight. Thus set a lease of at least the deadline of the call. A lease has no
+ *   renewal.
+ */
+export interface InFlightBound {
+  readonly type: "in-flight";
+  /** This count is the most units of one key in flight: taken, not released, and in their lease. */
+  readonly limit: Quantity;
+  /** This time is the lease of each take: the longest time that a unit stays in flight with no release. */
+  readonly lease: Quantity;
+  /** This time is the `retryAfter` of a refusal, at most the lease. A refusal gives less when enough leases end first. */
+  readonly retryAfter: Quantity;
+}
+
 /** A limit policy is the rule that a keyed limiter applies to each key, as data. It has no defaults. */
-export type LimitPolicy = TokenBucket | SlidingWindow;
+export type LimitPolicy = TokenBucket | SlidingWindow | InFlightBound;
 
 /**
  * A store failure policy tells what a take does when a shared store fails. It has no default.
@@ -52,8 +73,8 @@ export type LimiterStoreSpec =
 
 /**
  * The eviction of a limiter bounds its keys. A store removes a key only when its state is equal to
- * the state of a new key. That is a bucket that is full again, or a window with no take in it.
- * Thus an eviction changes no decision.
+ * the state of a new key. That is a bucket that is full again, a window with no take in it, or a
+ * bound with no unit in flight. Thus an eviction changes no decision.
  */
 export interface LimiterEviction {
   /**
@@ -100,11 +121,28 @@ export interface Allowed {
   readonly remaining: number;
   /** This text is the failure of a shared store, when `onStoreFailure: "open"` lets the take in. */
   readonly failure?: string | undefined;
+  /**
+   * This lease is the held units of a permitted take of an in-flight bound. When the call ends, the
+   * caller gives the decision to the release of the limiter. A rate policy gives no lease. A take
+   * that `onStoreFailure: "open"` lets in gives no lease either.
+   */
+  readonly lease?: Lease | undefined;
+}
+
+/** A lease is the units of one permitted take of an in-flight bound, and the time of the take on the clock of its store. */
+export interface Lease {
+  /** This time is the take, in milliseconds on the clock of the store. The release finds the units of the take by it. */
+  readonly start: number;
+  readonly units: number;
 }
 
 /**
- * A wait refusal used nothing. `retryAfter` is the time until the limiter lets the same take in, when
- * no other take comes first. It is always above zero.
+ * A wait refusal used nothing. Its `retryAfter` is always above zero.
+ * - For a rate policy, `retryAfter` is the time until the limiter lets the same take in, when no
+ *   other take comes first.
+ * - For an in-flight bound, `retryAfter` is the lesser of the declared `retryAfter` and the time until
+ *   enough leases end for the take. A release can let the take in earlier. A retry at `retryAfter`
+ *   can get a refusal again when no release came first.
  */
 export interface WaitRefused {
   readonly allowed: false;
@@ -116,8 +154,8 @@ export interface WaitRefused {
 
 /**
  * A capacity refusal used nothing, and the same take is refused at each time. Its `units` are over
- * the `capacity` of the policy: the `burst` of a bucket, or the `limit` of a window. A caller can
- * split the take into parts of at most `capacity` units.
+ * the `capacity` of the policy: the `burst` of a bucket, or the `limit` of a window or of an
+ * in-flight bound. A caller can split the take into parts of at most `capacity` units.
  */
 export interface CapacityRefused {
   readonly allowed: false;
@@ -151,16 +189,27 @@ export type LimitRule =
       readonly limit: number;
       /** This time is the length of the window, in milliseconds. */
       readonly window: number;
+    }
+  | {
+      readonly type: "in-flight";
+      readonly limit: number;
+      /** This time is the lease of each take, in milliseconds. */
+      readonly lease: number;
+      /** This time is the declared `retryAfter` of a refusal, in milliseconds. */
+      readonly retryAfter: number;
     };
 
 /**
  * A key state is what a store keeps for one key:
  * - A token bucket keeps the time at which its bucket is full again (`full`, in milliseconds).
  * - A sliding window keeps the time of each permitted take in the window, the oldest first.
+ * - An in-flight bound keeps the start of each held unit, the oldest first. A unit stays held from
+ *   its start until its release, or until the end of its lease.
  */
 export type KeyState =
   | { readonly type: "token-bucket"; readonly full: number }
-  | { readonly type: "sliding-window"; readonly stamps: readonly number[] };
+  | { readonly type: "sliding-window"; readonly stamps: readonly number[] }
+  | { readonly type: "in-flight"; readonly starts: readonly number[] };
 
 /** A step is the decision of one take, and the state of its key after the take. A refusal keeps the count of the key. */
 export interface TakeStep {
@@ -187,7 +236,7 @@ export const safely = (test: (amount: Quantity | undefined) => boolean, amount: 
   }
 };
 export const finiteAbove = (amount: Quantity): boolean => typeof amount.value === "number" && Number.isFinite(amount.value) && amount.value > 0;
-export const wholeCount = (amount: Quantity): boolean => finiteAbove(amount) && Number.isInteger(r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count")));
+export const wholeCount = (amount: Quantity): boolean => finiteAbove(amount) && Number.isInteger(toNumber(convertExact(fromNumber(amount.value), amount.unit, "count")));
 
 /** A loose policy is a policy from any source, with each part optional, for the check of its parts. */
 interface LoosePolicy {
@@ -196,7 +245,36 @@ interface LoosePolicy {
   readonly burst?: Quantity;
   readonly limit?: Quantity;
   readonly window?: Quantity;
+  readonly lease?: Quantity;
+  readonly retryAfter?: Quantity;
 }
+
+/**
+ * This function checks one time part of a policy, and adds each problem of it. It gives the time in
+ * milliseconds for a part with no problem, and `undefined` for each other part.
+ */
+const timePart = (
+  owner: string,
+  name: string,
+  what: string,
+  amount: Quantity | undefined,
+  missing: (part: string) => void,
+  problems: string[],
+): number | undefined => {
+  if (amount === undefined) {
+    missing(what);
+    return undefined;
+  }
+  if (!safely(isTime, amount)) {
+    problems.push(`${owner}'s ${name} is not a time`);
+    return undefined;
+  }
+  if (!finiteAbove(amount)) {
+    problems.push(`${owner}'s ${name} is not a finite time above zero`);
+    return undefined;
+  }
+  return milliseconds(amount);
+};
 
 /**
  * This function gives the problems of a limiter spec. `describe()` and `keyedLimiter` refuse a spec
@@ -227,7 +305,16 @@ export const limiterProblems = (name: string, spec: Partial<LimiterSpec> | undef
     if (policy.window === undefined) missing("the length of its window (policy.window)");
     else if (!safely(isTime, policy.window)) problems.push(`${owner}'s window is not a time`);
     else if (!finiteAbove(policy.window)) problems.push(`${owner}'s window is not a finite time above zero`);
-  } else problems.push(`${owner}'s policy ${String(policy.type)} is not "token-bucket" or "sliding-window"`);
+  } else if (policy.type === "in-flight") {
+    if (policy.limit === undefined) missing("the most units in flight of a key (policy.limit)");
+    else if (!safely(isCount, policy.limit)) problems.push(`${owner}'s limit is not a count`);
+    else if (!wholeCount(policy.limit)) problems.push(`${owner}'s limit is not a whole count above zero`);
+    const lease = timePart(owner, "lease", "the lease of each take (policy.lease)", policy.lease, missing, problems);
+    const retry = timePart(owner, "retryAfter", "the retryAfter of a refusal (policy.retryAfter)", policy.retryAfter, missing, problems);
+    // a refusal waits at most one lease: each unit in flight leaves by the end of its lease
+    if (lease !== undefined && retry !== undefined && retry > lease + TOLERANCE)
+      problems.push(`${owner}'s retryAfter is longer than its lease: each unit in flight leaves by the end of its lease`);
+  } else problems.push(`${owner}'s policy ${String(policy.type)} is not "token-bucket", "sliding-window" or "in-flight"`);
   const store = spec.store as { kind?: string; dependency?: unknown; onStoreFailure?: unknown } | undefined;
   if (store === undefined) missing(`its store, { kind: "local" } or { kind: "shared", dependency, onStoreFailure } (store)`);
   else if (store.kind === "shared") {
@@ -245,9 +332,9 @@ export const limiterProblems = (name: string, spec: Partial<LimiterSpec> | undef
 };
 
 /** This function gives an amount in milliseconds, exactly where the units permit, as one number. */
-export const milliseconds = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "ms"));
+export const milliseconds = (amount: Quantity): number => toNumber(convertExact(fromNumber(amount.value), amount.unit, "ms"));
 /** This function gives a count as one number. */
-export const countOf = (amount: Quantity): number => r.toNumber(convertExact(r.fromNumber(amount.value), amount.unit, "count"));
+export const countOf = (amount: Quantity): number => toNumber(convertExact(fromNumber(amount.value), amount.unit, "count"));
 
 /**
  * This function gives the rule of a policy in numbers. The interval of a bucket is exact as a
@@ -255,33 +342,42 @@ export const countOf = (amount: Quantity): number => r.toNumber(convertExact(r.f
  */
 export const limitRule = (policy: LimitPolicy): LimitRule => {
   if (policy.type === "token-bucket") {
-    const perMs = convertExact(r.fromNumber(policy.rate.value), policy.rate.unit, "count/ms");
-    return { type: "token-bucket", interval: r.toNumber(r.div(r.ONE, perMs)), burst: countOf(policy.burst) };
+    const perMs = convertExact(fromNumber(policy.rate.value), policy.rate.unit, "count/ms");
+    return { type: "token-bucket", interval: toNumber(div(ONE, perMs)), burst: countOf(policy.burst) };
   }
+  if (policy.type === "in-flight")
+    return { type: "in-flight", limit: countOf(policy.limit), lease: milliseconds(policy.lease), retryAfter: milliseconds(policy.retryAfter) };
   return { type: "sliding-window", limit: countOf(policy.limit), window: milliseconds(policy.window) };
 };
+
+/** A stamp rule is a rule that keeps a time for each unit: a sliding window or an in-flight bound. */
+type StampRule = Exclude<LimitRule, { type: "token-bucket" }>;
+
+/** This function gives how long each stamp of a stamp rule counts: one window, or one lease. */
+const stampSpan = (rule: StampRule): number => (rule.type === "sliding-window" ? rule.window : rule.lease);
 
 /** This function gives a time in milliseconds as a quantity. */
 const ms = (value: number): Quantity => ({ value, unit: "ms" });
 
 /**
  * This function gives the span after which an idle key is equal to a new key. That span is
- * `burst / rate` for a token bucket, and one window for a sliding window. A store can remove the key
- * after it, and no decision changes. It is also the longest `retryAfter` of a new key that the store
- * refuses at its cap.
+ * `burst / rate` for a token bucket, one window for a sliding window, and one lease for an in-flight
+ * bound. A store can remove the key after it, and no decision changes. It is also the longest
+ * `retryAfter` of a new key that the store refuses at its cap.
  */
 export const idleSpan = (policy: LimitPolicy): Quantity => {
   const rule = limitRule(policy);
-  return ms(rule.type === "token-bucket" ? rule.interval * rule.burst : rule.window);
+  return ms(rule.type === "token-bucket" ? rule.interval * rule.burst : stampSpan(rule));
 };
 
 /**
- * This function gives the longest `retryAfter` of a refusal by the policy: one interval of the
- * bucket (`1 / rate`), or one window. A refusal at the cap of keys can be longer, up to `idleSpan`.
+ * This function gives the longest `retryAfter` of a refusal by the policy. It is one interval of the
+ * bucket (`1 / rate`), one window, or the declared `retryAfter` of an in-flight bound. A refusal at
+ * the cap of keys can be longer, up to `idleSpan`.
  */
 export const longestRetryAfter = (policy: LimitPolicy): Quantity => {
   const rule = limitRule(policy);
-  return ms(rule.type === "token-bucket" ? rule.interval : rule.window);
+  return ms(rule.type === "token-bucket" ? rule.interval : rule.type === "in-flight" ? rule.retryAfter : rule.window);
 };
 
 /**
@@ -290,18 +386,22 @@ export const longestRetryAfter = (policy: LimitPolicy): Quantity => {
  * because that part is an error of floating point.
  */
 export const retryAfterSeconds = (retryAfter: Quantity): number => {
-  const seconds = r.toNumber(convertExact(r.fromNumber(retryAfter.value), retryAfter.unit, "s"));
+  const seconds = toNumber(convertExact(fromNumber(retryAfter.value), retryAfter.unit, "s"));
   return Math.max(0, Math.ceil(seconds - TOLERANCE / 1000));
 };
 
 /** This function gives the time at which a key state is equal to the state of a new key, in milliseconds. */
 export const freeAt = (rule: LimitRule, state: KeyState): number => {
   if (state.type === "token-bucket") return state.full;
-  const last = state.stamps[state.stamps.length - 1];
-  return last === undefined ? Number.NEGATIVE_INFINITY : last + (rule.type === "sliding-window" ? rule.window : 0);
+  const stamps = state.type === "sliding-window" ? state.stamps : state.starts;
+  const last = stamps[stamps.length - 1];
+  return last === undefined ? Number.NEGATIVE_INFINITY : last + (rule.type === "token-bucket" ? 0 : stampSpan(rule));
 };
 
-/** This function gives the capacity of a rule: the most units of one take. That is the `burst` of a bucket, or the `limit` of a window. */
+/**
+ * This function gives the capacity of a rule: the most units of one take. That is the `burst` of a
+ * bucket, the `limit` of a window, or the `limit` of an in-flight bound.
+ */
 export const capacityOf = (rule: LimitRule): number => (rule.type === "token-bucket" ? rule.burst : rule.limit);
 
 /**
@@ -331,6 +431,9 @@ export const overCapacity = (rule: LimitRule, units: number): CapacityRefused | 
  *   again in at most `burst` intervals. A refusal waits until `units` tokens are back.
  * - A sliding window: the store lets the take in when at most `limit - units` takes are in the
  *   window. A refusal waits until enough of the oldest takes leave the window.
+ * - An in-flight bound: the store lets the take in when at most `limit - units` units are held. A
+ *   permitted take gives its lease. A refusal waits for the declared `retryAfter`, or less when
+ *   enough leases end first. A release can let the take in earlier.
  * - A take of `units` units is the same as `units` takes of 1 at one time, when all of them are let in.
  */
 export const decide = (rule: LimitRule, state: KeyState | undefined, now: number, units?: number): TakeStep => {
@@ -346,16 +449,55 @@ export const decide = (rule: LimitRule, state: KeyState | undefined, now: number
     const remaining = Math.max(0, Math.floor((span - (next - now)) / rule.interval + TOLERANCE));
     return { decision: { allowed: true, remaining }, state: { type: "token-bucket", full: next } };
   }
-  const held = state?.type === "sliding-window" ? state.stamps : [];
-  // a take counts for one window from its time: it leaves the window at stamp + window
-  const live = held.filter((stamp) => stamp + rule.window > now + TOLERANCE);
-  if (over !== undefined) return { decision: over, state: { type: "sliding-window", stamps: live } };
-  // the take fits when the oldest (live + n - limit) takes have left the window
+  const span = stampSpan(rule);
+  // a stamp counts for one span from its time: it leaves the count at stamp + span
+  const live = liveStamps(rule, state, now);
+  if (over !== undefined) return { decision: over, state: stampState(rule, live) };
+  // the take fits when the oldest (live + n - limit) stamps have left the count
   const excess = live.length + n - rule.limit;
-  if (excess > 0)
-    return { decision: { allowed: false, retryAfter: ms(live[excess - 1]! + rule.window - now), cause: "limit" }, state: { type: "sliding-window", stamps: live } };
+  if (excess > 0) {
+    const free = live[excess - 1]! + span - now;
+    const wait = rule.type === "in-flight" ? Math.min(rule.retryAfter, free) : free;
+    return { decision: { allowed: false, retryAfter: ms(wait), cause: "limit" }, state: stampState(rule, live) };
+  }
+  const remaining = rule.limit - live.length - n;
   return {
-    decision: { allowed: true, remaining: rule.limit - live.length - n },
-    state: { type: "sliding-window", stamps: [...live, ...Array.from({ length: n }, () => now)] },
+    decision: rule.type === "in-flight" ? { allowed: true, remaining, lease: { start: now, units: n } } : { allowed: true, remaining },
+    state: stampState(rule, [...live, ...Array.from({ length: n }, () => now)]),
   };
+};
+
+/** This function gives the stamps of a key that still count at the time `now`, the oldest first. */
+const liveStamps = (rule: StampRule, state: KeyState | undefined, now: number): number[] => {
+  const span = stampSpan(rule);
+  const held = rule.type === "sliding-window" ? (state?.type === "sliding-window" ? state.stamps : []) : state?.type === "in-flight" ? state.starts : [];
+  return held.filter((stamp) => stamp + span > now + TOLERANCE);
+};
+
+/** This function gives the key state of a stamp rule from its stamps. */
+const stampState = (rule: StampRule, stamps: readonly number[]): KeyState =>
+  rule.type === "sliding-window" ? { type: "sliding-window", stamps } : { type: "in-flight", starts: stamps };
+
+/**
+ * This function gives the state of a key after the release of one lease of an in-flight bound, at the
+ * time `now`. It removes the held units of the lease. It is the one release of each store in this
+ * process. A store in another process does the same arithmetic in its own atomic step.
+ * - A unit whose lease ended left the count at that end. Thus a late release changes nothing.
+ * - The release finds the units by the start of the lease. Each unit with that start counts the
+ *   same, thus the release can remove the units of another take at that start. The count is correct.
+ * - Release each lease one time only. A second release removes the units of another take.
+ * - A rate policy keeps no lease, thus its state does not change.
+ */
+export const releaseLease = (rule: LimitRule, state: KeyState | undefined, now: number, lease: Lease): KeyState | undefined => {
+  if (rule.type !== "in-flight") return state;
+  const live = liveStamps(rule, state, now);
+  let left = lease.units;
+  const kept = live.filter((start) => {
+    if (left > 0 && Math.abs(start - lease.start) <= TOLERANCE) {
+      left--;
+      return false;
+    }
+    return true;
+  });
+  return { type: "in-flight", starts: kept };
 };

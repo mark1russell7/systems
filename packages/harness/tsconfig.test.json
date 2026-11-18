@@ -10,6 +10,6 @@
     "isolatedDeclarations": false,
     "types": ["node"]
   },
-  "include": ["src/**/*", "*.config.ts"],
+  "include": ["src/**/*", "image/**/*.mts", "*.config.ts"],
   "exclude": []
 }

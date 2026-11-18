@@ -1,8 +1,8 @@
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { KeyState, LimiterSpec } from "../index.ts";
-import { capacityOf, decide, freeAt, keyedLimiter, limitRule } from "../index.ts";
+import type { Decision, KeyState, Lease, LimiterSpec } from "../index.ts";
+import { capacityOf, decide, freeAt, keyedLimiter, limitRule, releaseLease } from "../index.ts";
 import type { RedisKnobs } from "../redis.ts";
 import { redisClient, redisLimiterStore, tcpDial } from "../redis.ts";
 import { fakeClock, seeded } from "../testing.ts";
@@ -126,6 +126,62 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
       const held = await cache.send<number>("ZCARD", [`it:{${name}}:keys`]);
       expect(held.outcome === "ok" ? held.value : -1).toBeLessThanOrEqual(8);
     }
+    await cache.handle.close();
+  }, 120_000);
+
+  const BOUND: LimiterSpec = {
+    ...BUCKET,
+    policy: { type: "in-flight", limit: count(3), lease: { value: 30, unit: "s" }, retryAfter: { value: 2, unit: "s" } },
+  };
+
+  it("decides each take and each release of an in-flight bound as decide() and releaseLease() do, at the cap too (CLI-132)", async () => {
+    const cache = client("cache-in-flight");
+    await cache.handle.connect(new AbortController().signal);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const clock = fakeClock();
+    const limiter = keyedLimiter("bound", BOUND, redisLimiterStore(cache, { prefix: "it:", clock }));
+    const rule = limitRule(BOUND.policy);
+    const states = new Map<string, KeyState>();
+    const held: Array<{ readonly key: string; readonly decision: Decision; readonly lease: Lease }> = [];
+    const random = seeded(11);
+    let caps = 0;
+    let limits = 0;
+    let releases = 0;
+    for (let step = 0; step < 1500; step += 1) {
+      const now = clock.now();
+      if (held.length > 0 && random() < 0.35) {
+        const [{ key, decision, lease }] = held.splice(Math.floor(random() * held.length), 1) as [(typeof held)[number]];
+        await limiter.release(key, decision);
+        const after = releaseLease(rule, states.get(key), now, lease);
+        if (after !== undefined) states.set(key, after);
+        releases += 1;
+      } else {
+        const key = `k${Math.floor(random() * 24)}`;
+        const units = random() < 0.6 ? 1 : 1 + Math.floor(random() * (capacityOf(rule) + 1));
+        const decision = await limiter.take(key, units);
+        const busy = [...states.values()].map((state) => freeAt(rule, state)).filter((free) => free > now);
+        if (!decision.allowed && decision.cause === "cap") {
+          caps += 1;
+          expect(busy).toHaveLength(8);
+          expect(decision.retryAfter.value).toBeCloseTo(Math.min(...busy) - now, 3);
+        } else {
+          const next = decide(rule, states.get(key), now, units);
+          expect(decision, `step ${step}: take of ${key}, ${units} units`).toEqual(next.decision);
+          states.set(key, next.state);
+          if (decision.allowed && decision.lease !== undefined) held.push({ key, decision, lease: decision.lease });
+          if (!decision.allowed && decision.cause === "limit") limits += 1;
+        }
+      }
+      await clock.advance(Math.floor(random() * 3000));
+    }
+    expect(caps).toBeGreaterThan(5);
+    expect(limits).toBeGreaterThan(20);
+    expect(releases).toBeGreaterThan(200);
+    // the index holds only busy keys: a release of the last held unit of a key removes its entry
+    const indexed = await cache.send<number>("ZCARD", ["it:{bound}:keys"]);
+    const busy = [...states.values()].filter((state) => freeAt(rule, state) > clock.now()).length;
+    expect(indexed.outcome === "ok" ? indexed.value : -1).toBeLessThanOrEqual(8);
+    expect(indexed.outcome === "ok" ? indexed.value : -1).toBeGreaterThanOrEqual(busy);
     await cache.handle.close();
   }, 120_000);
 

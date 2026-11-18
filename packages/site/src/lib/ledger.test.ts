@@ -34,6 +34,8 @@ describe("the ledger of the results", () => {
     // held on a re-run, and 6 canonical cells: 1 holds and 5 measure
     expect(tally("r3")).toEqual([121, 115, 0, 6, 0]);
     expect(entryOf("r3").heldOnRerun).toBe(9);
+    // port-range: "Each of the 8 cells holds against the prediction of the algebra"
+    expect(tally("port-range")).toEqual([8, 8, 0, 0, 0]);
   });
 
   it("counts the runs of each page as the text of the page gives them", () => {
@@ -54,11 +56,13 @@ describe("the ledger of the results", () => {
     expect([entryOf("kind").counted, entryOf("kind").voided]).toEqual([341, 0]);
     // mesh: "The cells counted 176 runs, and no run was void"
     expect([entryOf("mesh").counted, entryOf("mesh").voided]).toEqual([176, 0]);
+    // port-range: "The cells have 32 counted runs, and no run is void"
+    expect([entryOf("port-range").counted, entryOf("port-range").voided]).toEqual([32, 0]);
   });
 
   it("gives the kernel, the clock and the catalogs of each page", () => {
     // the gRPC page: its T03 run met the rollout of Linux 7.0 on the runners
-    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 and 7.0 1000", "6.17 1000", "6.17 1000", "6.17 1000"]);
+    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 and 7.0 1000", "6.17 1000", "6.17 1000", "6.17 1000", "7.0 1000"]);
     expect(entryOf("pg").tags).toEqual(["T01", "T03", "T10"]);
     expect(entryOf("rabbitmq").tags).toEqual(["T01", "T11"]);
     expect(entryOf("grpc").tags).toEqual(["T01", "T03", "T02"]);
@@ -67,12 +71,13 @@ describe("the ledger of the results", () => {
     expect(entryOf("sentinel").tags).toEqual(["T12"]);
     expect(entryOf("kind").tags).toEqual(["T07", "T18"]);
     expect(entryOf("mesh").tags).toEqual(["T15"]);
+    expect(entryOf("port-range").tags).toEqual(["PR"]);
   });
 
   it("adds the pages into one total", () => {
-    expect([TOTAL.pages, TOTAL.cells]).toEqual([13, 533]);
-    expect(TOTAL.tally).toEqual({ holds: 499, fails: 0, measured: 29, calibration: 5 });
+    expect([TOTAL.pages, TOTAL.cells]).toEqual([14, 541]);
+    expect(TOTAL.tally).toEqual({ holds: 507, fails: 0, measured: 29, calibration: 5 });
     expect(TOTAL.tally.holds + TOTAL.tally.fails + TOTAL.tally.measured + TOTAL.tally.calibration).toBe(TOTAL.cells);
-    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-25"]);
+    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-11-17"]);
   });
 });

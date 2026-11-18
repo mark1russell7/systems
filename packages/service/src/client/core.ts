@@ -316,6 +316,7 @@ export const trackWithTimer = <T>(
     signal,
     abandoned,
     (settle) => {
+      // the caller awaits the attempt, thus its bound keeps the process alive (SYS-126)
       stop = clock.after(bound, () => settle({ outcome: "indeterminate", error: timedOut }));
       start(settle);
     },
@@ -338,6 +339,7 @@ export const withinBound = (clock: Clock, bound: number, work: Promise<unknown>)
   );
   let cancel: Cancel = () => {};
   const timer = new Promise<boolean>((resolve) => {
+    // the caller awaits this bound, thus it keeps the process alive (SYS-126)
     cancel = clock.after(bound, () => resolve(false));
   });
   return Promise.race([done, timer]).then((ended) => {
@@ -377,6 +379,7 @@ export const readyWait = (clock: Clock, ready: () => boolean): ReadyWait => {
         const wake = (): void => done(true);
         const aborted = (): void => done(false);
         waiters.add(wake);
+        // the caller awaits the readiness, thus this bound keeps the process alive (SYS-126)
         cancel = clock.after(within, () => done(ready()));
         signal?.addEventListener("abort", aborted, { once: true });
       }),
@@ -595,6 +598,7 @@ export const sendWithReissue = async <T>(call: Reissue<T>): Promise<Sent<T>> => 
   if (call.beforeAgain !== undefined && !(await call.beforeAgain(left, signal))) return { ...first, attempts: 1 };
   call.onReissue();
   const end = new AbortController();
+  // the caller awaits the second try, thus its bound keeps the process alive (SYS-126)
   const stop = clock.after(Math.max(0, bound - (clock.now() - started)), () => end.abort());
   const forward = (): void => end.abort();
   signal?.addEventListener("abort", forward, { once: true });

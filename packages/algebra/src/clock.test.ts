@@ -7,14 +7,19 @@ import {
   delay,
   fakeClock,
   fakeWallClock,
+  FRAME_DRIFT_LIMIT,
+  frameClock,
+  isFrameClock,
   firstInstantOf,
   inWindow,
   instantsOf,
   localTime,
+  monthOf,
   nextBoundary,
   offsetChanges,
   platformClock,
   realClock,
+  unrefClock,
   wallClock,
   windowProblems,
 } from "./clock.ts";
@@ -109,6 +114,48 @@ describe("the clock of the platform", () => {
   });
 });
 
+describe("unrefClock (SYS-126)", () => {
+  it("unrefs each timer at its start, and its cancel still stops the timer", () => {
+    const unrefs: string[] = [];
+    const stops: string[] = [];
+    const runs: Array<() => void> = [];
+    const given: Clock = {
+      now: () => 42,
+      after(ms, run) {
+        runs.push(run);
+        return Object.assign(() => void stops.push(`stop ${ms}`), { unref: () => void unrefs.push(`unref ${ms}`) });
+      },
+    };
+    const clock = unrefClock(given);
+    expect(clock.now()).toBe(42);
+    expect(clock.time).toBeUndefined();
+    const cancel = clock.after(10, () => {});
+    clock.after(20, () => {});
+    expect(unrefs).toEqual(["unref 10", "unref 20"]);
+    cancel();
+    expect(stops).toEqual(["stop 10"]);
+    expect(runs).toHaveLength(2);
+  });
+
+  it("moves with a fake clock, whose timers have no unref", async () => {
+    const fake = fakeClock(5);
+    const clock = unrefClock(fake);
+    const runs: number[] = [];
+    clock.after(10, () => runs.push(clock.now()));
+    const stopped = clock.after(10, () => runs.push(-1));
+    stopped();
+    await fake.advance(10);
+    expect(runs).toEqual([15]);
+  });
+
+  it("keeps a wall clock a wall clock, with its instant", () => {
+    const wall = fakeWallClock(1_700_000_000_000);
+    const clock: WallClock = unrefClock(wall);
+    expect(clock.time).toBe("wall");
+    expect(clock.now()).toBe(1_700_000_000_000);
+  });
+});
+
 describe("the wall clock", () => {
   it("reads the instant of Date.now, and starts its timers as the clock of the platform does", async () => {
     const clock = wallClock({ unref: true });
@@ -159,11 +206,44 @@ describe("the wall clock", () => {
     await clock.advance(0);
     expect(runs).toEqual([start - 3_600_000 + 1000, -1]);
   });
+
+  it("shares one queue of timers with a given fake monotonic clock, and a step of the instant moves no timer", async () => {
+    const start = Date.UTC(2026, 10, 15, 12);
+    const mono = fakeClock(5000);
+    const wall = fakeWallClock(start, mono);
+    expect(wall.now()).toBe(start);
+    const runs: string[] = [];
+    mono.after(20, () => runs.push(`mono ${String(mono.now())} wall ${String(wall.now() - start)}`));
+    wall.after(10, () => runs.push(`wall ${String(wall.now() - start)}`));
+    expect(mono.pending).toBe(2);
+    expect(wall.pending).toBe(2);
+    // the advance of the monotonic clock moves the instant too, and starts the timers of both clocks in order
+    await mono.advance(10);
+    expect(runs).toEqual(["wall 10"]);
+    // a step back of one hour changes only the instant
+    wall.set(start - 3_600_000);
+    expect(mono.now()).toBe(5010);
+    await wall.advance(10);
+    expect(runs).toEqual(["wall 10", `mono 5020 wall ${String(-3_600_000 + 10)}`]);
+    wall.block(5);
+    expect(mono.now()).toBe(5025);
+    expect(wall.now()).toBe(start - 3_600_000 + 15);
+  });
+
+  it("keeps two fake wall clocks on one monotonic clock apart in their instants", async () => {
+    const mono = fakeClock();
+    const first = fakeWallClock(1000, mono);
+    const second = fakeWallClock(9000, mono);
+    second.set(500);
+    await mono.advance(7);
+    expect([first.now(), second.now()]).toEqual([1007, 507]);
+  });
 });
 
 // Civil time. The oracle below takes the offsets of each zone in 2026 from a table, not from Intl.
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 const utc = (month: number, day: number, hour: number, minute = 0, second = 0): number => Date.UTC(2026, month - 1, day, hour, minute, second);
 
 /** The zones of the tests: their offsets in minutes and the two changes of 2026. */
@@ -212,6 +292,194 @@ const oracleIn = (window: TimeWindow & { zone: Zone }, at: number): boolean => {
   if (start < end) return start <= minute && minute < end && startsOn(local.weekday);
   return (minute >= start && startsOn(local.weekday)) || (minute < end && startsOn((local.weekday + 6) % 7));
 };
+
+describe("the frame clock", () => {
+  const T0 = Date.UTC(2026, 3, 1, 18);
+  const MINUTE = 60_000;
+  const HOUR = 60 * MINUTE;
+
+  it("keeps the time of the frame through a step, and takes the wall time again at the mark", () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    expect(frame.time).toBe("wall");
+    expect(frame.now()).toBe(T0);
+    wall.set(T0 - HOUR);
+    expect(frame.now()).toBe(T0);
+    expect(frame.step()).toBe(-HOUR);
+    // A read does not end the step. Only the mark ends it.
+    expect(frame.step()).toBe(-HOUR);
+    frame.mark();
+    expect(frame.now()).toBe(T0 - HOUR);
+    expect(frame.step()).toBe(0);
+  });
+
+  it("moves with the monotonic time in a frame", async () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    await monotonic.advance(MINUTE);
+    wall.set(T0 + MINUTE + HOUR);
+    expect(frame.now()).toBe(T0 + MINUTE);
+    expect(frame.step()).toBe(HOUR);
+    frame.mark();
+    await monotonic.advance(MINUTE);
+    expect(frame.now()).toBe(T0 + 2 * MINUTE + HOUR);
+  });
+
+  it("gives whole milliseconds on a monotonic clock with fractions", () => {
+    let monotonic = 0.25;
+    const frame = frameClock(fakeWallClock(T0), { now: () => monotonic });
+    monotonic = 1000.75;
+    expect(frame.now()).toBe(T0 + 1000);
+    expect(Number.isInteger(frame.step())).toBe(true);
+  });
+
+  it("gives 0 for a change of the drift limit or less, and the size for a larger change", () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    wall.set(T0 + FRAME_DRIFT_LIMIT);
+    expect(frame.step()).toBe(0);
+    wall.set(T0 + FRAME_DRIFT_LIMIT + 1);
+    expect(frame.step()).toBe(FRAME_DRIFT_LIMIT + 1);
+    frame.mark();
+    wall.set(T0 + 1);
+    expect(frame.step()).toBe(0);
+    wall.set(T0);
+    expect(frame.step()).toBe(-FRAME_DRIFT_LIMIT - 1);
+    const exact = frameClock(wall, monotonic, { driftLimit: 0 });
+    expect(exact.step()).toBe(0);
+    wall.set(wall.now() + 1);
+    expect(exact.step()).toBe(1);
+    const wide = frameClock(wall, monotonic, { driftLimit: 2 * HOUR });
+    wall.set(wall.now() - HOUR);
+    expect(wide.step()).toBe(0);
+  });
+
+  it("waits with the timers of the wall clock, and a step does not move a timer", async () => {
+    const monotonic = fakeClock(0);
+    const wall = fakeWallClock(T0, monotonic);
+    const frame = frameClock(wall, monotonic);
+    let fired = 0;
+    frame.after(MINUTE, () => {
+      fired += 1;
+    });
+    wall.set(T0 + HOUR);
+    await monotonic.advance(MINUTE - 1);
+    expect(fired).toBe(0);
+    await monotonic.advance(1);
+    expect(fired).toBe(1);
+  });
+
+  it("tells a frame clock from a wall clock, and refuses a drift limit that is not a finite number of 0 or more", () => {
+    const monotonic = fakeClock(0);
+    expect(isFrameClock(frameClock(fakeWallClock(T0), monotonic))).toBe(true);
+    expect(isFrameClock(fakeWallClock(T0))).toBe(false);
+    for (const driftLimit of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => frameClock(fakeWallClock(T0), monotonic, { driftLimit })).toThrow(RangeError);
+    }
+  });
+});
+
+describe("the scaled clock", () => {
+  // the fake timers also fake performance, as the doc of platformClock asks
+  const fake = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance", "Date"] });
+
+  it("moves speed times faster from its start, and a timer of ms ends after ms / speed real milliseconds", () => {
+    fake();
+    try {
+      const clock = platformClock({ speed: 60, start: 1000 });
+      expect(clock.now()).toBe(1000);
+      vi.advanceTimersByTime(10);
+      expect(clock.now()).toBe(1600);
+      const runs: number[] = [];
+      clock.after(60_000, () => runs.push(clock.now()));
+      vi.advanceTimersByTime(999);
+      expect(runs).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(runs).toEqual([61_600]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives whole milliseconds on a wall clock, the fractions on a monotonic clock, and starts at the time of the platform", () => {
+    fake();
+    try {
+      const start = Date.UTC(2026, 10, 15, 12);
+      const wall = wallClock({ speed: 1.5, start });
+      const monotonicClock = platformClock({ speed: 1.5, start: 0 });
+      const instant = Date.now();
+      const fromNow = wallClock({ speed: 2 });
+      const origin = performance.now();
+      const fromOrigin = platformClock({ speed: 2 });
+      vi.advanceTimersByTime(1);
+      expect(wall.time).toBe("wall");
+      expect(wall.now()).toBe(start + 1);
+      expect(monotonicClock.now()).toBe(1.5);
+      expect(fromNow.now()).toBe(instant + 2);
+      expect(fromOrigin.now()).toBe(origin + 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits ms / speed real milliseconds at a slow speed, in steps above the longest delay of setTimeout", () => {
+    fake();
+    try {
+      const clock = platformClock({ speed: 0.5, start: 0, unref: true });
+      const runs: number[] = [];
+      clock.after(2 ** 31, () => runs.push(clock.now()));
+      vi.advanceTimersByTime(2 ** 32 - 1);
+      expect(runs).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(runs).toEqual([2 ** 31]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits again when the platform starts a timer before its due time on the clock", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let real = 0;
+    vi.stubGlobal("performance", { now: () => real });
+    try {
+      const clock = platformClock({ speed: 10, start: 0 });
+      const runs: number[] = [];
+      clock.after(100, () => runs.push(clock.now()));
+      // the platform starts the timer of 10 real ms while performance.now reads 9 ms: the clock reads 90
+      real = 9;
+      vi.advanceTimersByTime(10);
+      expect(runs).toEqual([]);
+      // the rest of 10 ms on the clock is 1 real ms
+      real = 11;
+      vi.advanceTimersByTime(1);
+      expect(runs).toEqual([110]);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts a timer on the real timers, and its cancel stops the timer and has unref", async () => {
+    const clock = wallClock({ speed: 1000, unref: true });
+    const runs: string[] = [];
+    const kept = clock.after(5000, () => runs.push("kept"));
+    clock.after(5000, () => runs.push("stopped"))();
+    expect(typeof kept.unref).toBe("function");
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(runs).toEqual(["kept"]);
+  });
+
+  it("refuses a speed that is not a finite number above 0, and a start that is not finite", () => {
+    for (const make of [platformClock, wallClock]) {
+      for (const speed of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "60" as unknown as number]) expect(() => make({ speed })).toThrow(RangeError);
+      for (const start of [Number.NaN, Number.NEGATIVE_INFINITY, "0" as unknown as number]) expect(() => make({ start })).toThrow(RangeError);
+      expect(() => make({ speed: 0.25, start: -5 })).not.toThrow();
+    }
+  });
+});
 
 describe("localTime", () => {
   it("gives the wall-clock time, the day of the week and the offset", () => {
@@ -545,6 +813,67 @@ describe("firstInstantOf", () => {
   });
 });
 
+describe("monthOf (SYS-133)", () => {
+  const at = (iso: string): number => Date.parse(iso);
+
+  it("gives a month with a change of the offset: New York in March and in November", () => {
+    // 2026-03-08: the clock goes from 02:00 to 03:00, thus March is one hour shorter than 31 days
+    const march = { start: at("2026-03-01T05:00:00Z"), end: at("2026-04-01T04:00:00Z") };
+    expect(monthOf(at("2026-03-15T12:00:00Z"), "America/New_York")).toEqual(march);
+    expect(march.end - march.start).toBe(31 * DAY - HOUR);
+    // 2026-11-01: 01:00 occurs two times, and both are in November, which is one hour longer than 30 days
+    const november = { start: at("2026-11-01T04:00:00Z"), end: at("2026-12-01T05:00:00Z") };
+    expect(monthOf(at("2026-11-01T05:30:00Z"), "America/New_York")).toEqual(november);
+    expect(monthOf(at("2026-11-01T06:30:00Z"), "America/New_York")).toEqual(november);
+    expect(november.end - november.start).toBe(30 * DAY + HOUR);
+  });
+
+  it("starts a month whose 1st has no 00:00 at the end of the gap: Asuncion in October 2017 and 2023", () => {
+    for (const year of [2017, 2023]) {
+      // the clock goes from 00:00 to 01:00 at 04:00 UTC, thus October starts at 01:00 on the wall
+      const change = at(`${year}-10-01T04:00:00Z`);
+      expect(monthOf(at(`${year}-10-15T12:00:00Z`), "America/Asuncion")).toEqual({ start: change, end: at(`${year}-11-01T03:00:00Z`) });
+      expect(monthOf(change - 1, "America/Asuncion")).toEqual({ start: at(`${year}-09-01T04:00:00Z`), end: change });
+      expect(localTime(change, "America/Asuncion")).toMatchObject({ month: 10, day: 1, hour: 1, minute: 0 });
+    }
+  });
+
+  it("goes from December to January of the next year, on the wall clock and not in UTC", () => {
+    const december = { start: at("2026-12-01T05:00:00Z"), end: at("2027-01-01T05:00:00Z") };
+    expect(monthOf(at("2026-12-31T12:00:00Z"), "America/New_York")).toEqual(december);
+    // 03:00 UTC on 2027-01-01 is 22:00 on 2026-12-31 in New York
+    expect(monthOf(at("2027-01-01T03:00:00Z"), "America/New_York")).toEqual(december);
+    expect(monthOf(december.end, "America/New_York")).toEqual({ start: december.end, end: at("2027-02-01T05:00:00Z") });
+    expect(monthOf(at("2026-12-31T23:59:59.999Z"), "UTC")).toEqual({ start: at("2026-12-01T00:00:00Z"), end: at("2027-01-01T00:00:00Z") });
+  });
+
+  it("gives undefined for a name that is not a time zone, and for an instant that is not a date", () => {
+    expect(monthOf(0, "Mars/Olympus")).toBeUndefined();
+    expect(monthOf(Number.NaN, "UTC")).toBeUndefined();
+    expect(monthOf(1e20, "UTC")).toBeUndefined();
+  });
+
+  it("chains each month to the next from 2015 to 2026, and each month holds its instants", () => {
+    // zones with gaps, offsets of 30 and 45 minutes, and a change of a full day (Apia, 2011, is before the range)
+    const zones = ["America/Asuncion", "America/Santiago", "America/Havana", "America/New_York", "Asia/Beirut", "Asia/Tehran", "Australia/Lord_Howe", "Asia/Kathmandu", "Pacific/Apia", "UTC"];
+    for (const zone of zones) {
+      let month = monthOf(at("2015-01-15T12:00:00Z"), zone);
+      for (let step = 0; step < 12 * 12; step += 1) {
+        expect(month, `${zone} ${step}`).toBeDefined();
+        if (month === undefined) break;
+        const first = localTime(month.start, zone);
+        const last = localTime(month.end - 1, zone);
+        expect(first?.day, `${zone} ${new Date(month.start).toISOString()}`).toBe(1);
+        expect(last?.month, `${zone} ${new Date(month.end).toISOString()}`).toBe(first?.month);
+        expect(monthOf(Math.floor((month.start + month.end) / 2), zone)).toEqual(month);
+        const next = monthOf(month.end, zone);
+        expect(next?.start, `${zone} ${new Date(month.end).toISOString()}`).toBe(month.end);
+        month = next;
+      }
+    }
+  });
+});
+
 describe("delay", () => {
   it("resolves after its time on the clock, and removes its listener", async () => {
     const clock = fakeClock();
@@ -592,5 +921,18 @@ describe("delay", () => {
     await clock.advance(10);
     await Promise.all(waits);
     expect(order).toEqual(["-5", "10"]);
+  });
+
+  it("waits on the timers of a wall clock", async () => {
+    const clock = fakeWallClock(Date.UTC(2026, 10, 15));
+    let done = false;
+    const waited = delay(clock, 1000).then(() => {
+      done = true;
+    });
+    await clock.advance(999);
+    expect(done).toBe(false);
+    await clock.advance(1);
+    await waited;
+    expect(done).toBe(true);
   });
 });

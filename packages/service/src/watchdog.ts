@@ -34,7 +34,11 @@ export interface Watchdog {
   stop(): void;
 }
 
-/** This function starts a watchdog on a clock. */
+/**
+ * This function starts a watchdog on a clock. The tick only watches the event loop. Thus a service
+ * gives the watchdog `unrefClock(clock)`, and the work of the service keeps the process alive. A
+ * watchdog on a clock that keeps the process alive keeps it alive until `stop()`.
+ */
 export const watchdog = (clock: Clock, spec: WatchdogSpec, trace?: Trace): Watchdog => {
   const tick = valueIn(spec.tick, "ms");
   const threshold = valueIn(spec.threshold, "ms");

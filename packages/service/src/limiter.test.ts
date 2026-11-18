@@ -110,7 +110,7 @@ describe("a limiter is declared as data, with no defaults (SYS-28)", () => {
     refuses({ ...WINDOW, policy: { ...WINDOW.policy, window: count(60) } }, /window is not a time/);
     refuses({ ...WINDOW, policy: { ...WINDOW.policy, window: s(0) } }, /window is not a finite time above zero/);
     refuses({ ...BUCKET, evict: { maxKeys: { value: "infinite", unit: "count" } } }, /maxKeys is not a whole count above zero: the count of keys has a bound/);
-    refuses({ ...BUCKET, policy: { type: "leaky" } }, /policy leaky is not "token-bucket" or "sliding-window"/);
+    refuses({ ...BUCKET, policy: { type: "leaky" } }, /policy leaky is not "token-bucket", "sliding-window" or "in-flight"/);
     refuses({ ...BUCKET, store: { kind: "shared", dependency: "cache", onStoreFailure: "open" } }, /keeps its counts in cache, which is not a dependency/);
     refuses({ ...BUCKET, store: { kind: "disk" } }, /store disk is not "local" or "shared"/);
   });

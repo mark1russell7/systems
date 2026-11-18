@@ -754,4 +754,48 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       await lab.close();
     }
   }, 300_000);
+
+  it("lets the handshake of a reset pass: the target accepts each connection, and the first send of the client gets the reset", async () => {
+    const lab = await openLab(REDIS, "tcp");
+    const connect = async () => {
+      const probe = await lab.probe([lab.targetIp, String(lab.targetPort), "--mode", "inflight", "--max-s", "10"]);
+      const end = await probe.until(["ready", "fail"], 15_000);
+      const local = probe.events.find((event) => event.ev === "connected")?.["local"];
+      await probe.stop();
+      return { end, local };
+    };
+    try {
+      await lab.warm();
+      const pass = { handshake: "pass" } as const;
+      await lab.fault("rst", "target", pass);
+      // 20 connections, each with its own port: the u32 test of data reads each header from the packet
+      const ends = [];
+      for (let i = 0; i < 20; i += 1) ends.push(await connect());
+      await lab.lift("rst", "target", pass);
+      for (const [i, { end, local }] of ends.entries()) {
+        // the connect succeeded, and the request, the first segment with data, got the reset
+        expect(local, `connection ${i}`).toBeDefined();
+        expect(end, `connection ${i}`).toMatchObject({ ev: "fail" });
+        expect(String(end["why"]), `connection ${i}`).toMatch(/reset/i);
+        // the last ACK of the handshake passed: the socket of the target went to ESTABLISHED
+        const accepted = lab.kernel.some(
+          (record) =>
+            record.netns === lab.netns.target &&
+            record.ev === "state" &&
+            (record as { readonly new?: number }).new === 1 &&
+            (record.src === local || record.dst === local),
+        );
+        expect(accepted, `connection ${i}`).toBe(true);
+      }
+      // without the option, the SYN also gets the reset: the connect fails, and the target accepts nothing
+      await lab.fault("rst", "target");
+      const refused = await connect();
+      await lab.lift("rst", "target");
+      expect(refused.local).toBeUndefined();
+      expect(refused.end).toMatchObject({ ev: "fail" });
+      expect(String(refused.end["why"])).toMatch(/refused/i);
+    } finally {
+      await lab.close();
+    }
+  }, 300_000);
 });

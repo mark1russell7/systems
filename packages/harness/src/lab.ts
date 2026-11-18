@@ -28,6 +28,7 @@ import type {
 import type { FabricLab } from "./fabric.ts";
 import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
 import { SHIPPED_CLIENTS, buildRecordOf, harnessImage, harnessVersion, imageOf, routerImage, shippedSource, targetImageOf, targetSourceOf, type BuildRecord } from "./image.ts";
+import { layerOf } from "./layers.ts";
 import type { Substrate } from "./substrate.ts";
 import { substrateHere } from "./substrate.ts";
 
@@ -69,16 +70,40 @@ const CONFIRM_MS = 10_000;
  * directions, or one), or a reset on the next segment. It can also be an ICMP unreachable for each
  * segment, or a drop of each segment that is longer than a length. It can also be a drop of the
  * first ACK of each FIN that the namespace sends.
+ *
+ * A silence drops each packet of the namespace of a hop, in its three chains, and it names no peer.
+ * The links stay up and ARP continues, thus a connect through a silent router times out.
  */
-export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack";
+export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack" | "silence";
 
-/** These are the options of a network fault: the direction of a black hole, the code of a reject, the length of an MTU drop. */
+/**
+ * These are the options of a network fault: its direction and its protocol. A reject takes a code,
+ * an MTU drop a length, and a reset its handshake.
+ */
 export interface FaultOptions {
-  /** This direction is relative to the namespace of the rule: `in` drops what comes from the peer, `out` what goes to it. */
+  /**
+   * This direction is relative to the namespace of the rule: `in` acts on what comes from the peer,
+   * `out` on what goes to it. A black hole without it acts on both. A reject without it acts on `in`.
+   * At a router, `out` acts on what the router forwards through its device to the peer.
+   */
   readonly direction?: "in" | "out";
+  /**
+   * This protocol limits a black hole, a reject or an MTU drop. A black hole without it drops each
+   * protocol. A reject or an MTU drop without it acts only on TCP. The value `all` acts on each
+   * protocol. An MTU drop with `all` is a real black hole.
+   * Thus a path-MTU search with ping also sees it.
+   */
+  readonly protocol?: "tcp" | "udp" | "icmp" | "all";
   readonly code?: "host" | "net" | "port" | "admin";
   /** This length is the longest segment in bytes that an MTU drop lets through. */
   readonly above?: number;
+  /**
+   * This value lets each SYN of a reset pass, and each segment with no data. The connect then
+   * succeeds, the target accepts the connection, and the first segment of the peer with data gets
+   * the reset. Without it, the SYN also gets the reset. The match needs an IP header of an odd
+   * number of words: a header with no options has 5, as in each lab.
+   */
+  readonly handshake?: "pass";
   /** These are the addresses that the rule faces, in place of the peer of its place. */
   readonly peers?: readonly string[];
 }
@@ -86,8 +111,10 @@ export interface FaultOptions {
 /** This function gives the arguments of the injector for the options of a fault. */
 export const optionArgs = (options: FaultOptions): string[] => [
   ...(options.direction === undefined ? [] : ["--direction", options.direction]),
+  ...(options.protocol === undefined ? [] : ["--protocol", options.protocol]),
   ...(options.code === undefined ? [] : ["--code", options.code]),
   ...(options.above === undefined ? [] : ["--above", String(options.above)]),
+  ...(options.handshake === undefined ? [] : ["--handshake", options.handshake]),
 ];
 
 /** These are the actions of the injector that lift each network fault. */
@@ -97,6 +124,32 @@ export const LIFT: Readonly<Record<NetworkFault, string>> = {
   reject: "clear-reject",
   mtu: "clear-mtu",
   "fin-ack": "clear-fin-ack",
+  silence: "clear-silence",
+};
+
+/**
+ * This function gives the argv of the injector for a network fault at a place, or for its lift. The
+ * lab gives the peer of the place and, at a router, its device (`--via`). The peers of the options
+ * replace the peer.
+ *
+ * A silence names no peer and takes no option. It acts only at a hop, and the side of the hop has no
+ * effect on it.
+ */
+export const faultArgs = (
+  kind: NetworkFault,
+  at: FaultPlace,
+  peer: string,
+  via: readonly string[],
+  options: FaultOptions = {},
+  lift = false,
+): string[] => {
+  const action = lift ? LIFT[kind] : kind;
+  if (kind === "silence") {
+    if (!isHopPlace(at)) throw new Error(`a silence drops each packet of the namespace of a hop, not of ${JSON.stringify(at)}`);
+    if (Object.values(options).some((value) => value !== undefined)) throw new Error("a silence takes no options");
+    return ["/opt/harness/inject", action];
+  }
+  return ["/opt/harness/inject", action, options.peers?.join(",") ?? peer, ...optionArgs(options), ...via];
 };
 
 /**
@@ -354,6 +407,9 @@ export interface Lab {
    * of the target. The fault is a black hole, or a reset that answers the next segment of the
    * client. At a proxy of a topology, the rules face the peer of the proxy on one side. The stamps
    * of the injector bracket it.
+   *
+   * A silence at a hop drops each packet of the hop. Thus a router stops its forward and its
+   * answers, and ARP continues.
    */
   fault(
     kind: NetworkFault,
@@ -415,8 +471,16 @@ export interface Lab {
    * instant on CLOCK_MONOTONIC (`at`), as the thaw at the end of a hold does.
    */
   event(event: HopEvent, undo?: boolean, at?: number): Promise<{ t0: number; t1: number } | null>;
-  /** This method starts the client with `args`. Each file is in its container before it starts. */
-  probe(args: readonly string[], files?: ReadonlyArray<{ readonly content: string; readonly target: string }>): Promise<Probe>;
+  /**
+   * This method starts the client with `args`. Each file is in its container before it starts. With
+   * `cgroup`, the lab writes each file of the client cgroup and reads it back. Then it makes the file
+   * `/tmp/cgroup` in the container: the client waits for it.
+   */
+  probe(
+    args: readonly string[],
+    files?: ReadonlyArray<{ readonly content: string; readonly target: string }>,
+    cgroup?: Readonly<Record<string, string>>,
+  ): Promise<Probe>;
   /**
    * This method waits for the next clock line of the prober, which gives the count of lost
    * records. It gives null when no clock line comes in 5 s, because then nothing tells the count.
@@ -434,6 +498,35 @@ export interface Lab {
 export const withPid = <T extends Testcontainers.GenericContainer>(container: T, mode: string): T => {
   (container as unknown as { hostConfig: { PidMode?: string } }).hostConfig.PidMode = mode;
   return container;
+};
+
+/** This function puts a container in the cgroup namespace of the host: it sees the cgroup of each container. */
+export const withCgroupns = <T extends Testcontainers.GenericContainer>(container: T, mode: "host" | "private"): T => {
+  (container as unknown as { hostConfig: { CgroupnsMode?: string } }).hostConfig.CgroupnsMode = mode;
+  return container;
+};
+
+/** These are the folders of the cgroup of a container under the cgroup driver of systemd, and under the driver cgroupfs. */
+export const cgroupDirs = (id: string): readonly string[] => [`/sys/fs/cgroup/system.slice/docker-${id}.scope`, `/sys/fs/cgroup/docker/${id}`];
+
+/**
+ * This function writes the files of the cgroup of a container from an admin in the host cgroup
+ * namespace, and reads each one back. It throws when no folder of the container is there, or when a
+ * file reads another value after its write.
+ */
+export const writeCgroup = async (
+  admin: StartedTestContainer,
+  id: string,
+  files: Readonly<Record<string, string>>,
+): Promise<void> => {
+  const found = await output(admin, ["sh", "-c", 'for d in "$@"; do if [ -d "$d" ]; then echo "$d"; break; fi; done', "sh", ...cgroupDirs(id)]);
+  if (found === "") throw new Error(`no cgroup folder of the container ${id}: ${cgroupDirs(id).join(", ")}`);
+  for (const [name, value] of Object.entries(files)) {
+    if (!/^[a-z.]+$/.test(name)) throw new Error(`not a file of a cgroup: ${name}`);
+    await output(admin, ["sh", "-c", 'printf %s "$2" > "$1"', "sh", `${found}/${name}`, value]);
+    const reads = await output(admin, ["cat", `${found}/${name}`]);
+    if (reads !== value) throw new Error(`${name} of the cgroup reads ${reads} after the write, not ${value}`);
+  }
 };
 
 /** This container class can share the process namespace of another container. */
@@ -496,6 +589,31 @@ export const endpointAfter = (hops: readonly Pick<Hop, "kind">[], element: numbe
   while (at <= hops.length && hops[at - 1]!.kind === "router") at += 1;
   return at;
 };
+
+/**
+ * This function gives the run topology of a chain of hops, or null for a direct pair. Each hop gets
+ * its namespace, its peer on each side and its own address on each side.
+ */
+export const runTopologyOf = (
+  targetPeer: string,
+  hops: ReadonlyArray<{
+    readonly hop: Pick<Hop, "name">;
+    readonly netns: number;
+    readonly peer: { readonly client: string; readonly target: string };
+    readonly ip: { readonly client: string; readonly target: string };
+  }>,
+): RunTopology | null =>
+  hops.length === 0
+    ? null
+    : {
+        targetPeer,
+        hops: Object.fromEntries(
+          hops.map((hop) => [
+            hop.hop.name,
+            { netns: hop.netns, client: hop.peer.client, target: hop.peer.target, address: { client: hop.ip.client, target: hop.ip.target } },
+          ]),
+        ),
+      };
 
 // each container here is a holder, a probe or the prober: nothing drains, thus the stop is immediate
 export const STOP = { timeout: 0 };
@@ -902,15 +1020,7 @@ export const openLab = async (
     const targetIp = fabric !== undefined ? FABRIC_TARGET : first === hops.length + 1 ? serverIp : inChain[first - 1]!.ip.client;
     const targetPort = first === hops.length + 1 ? target.port : (inChain[first - 1]!.hop as ProxyHop).port;
     const targetPeer = inChain.length === 0 ? clientIp : inChain.at(-1)!.ip.target;
-    const placed: RunTopology | null =
-      inChain.length === 0
-        ? null
-        : {
-            targetPeer,
-            hops: Object.fromEntries(
-              inChain.map((hop) => [hop.hop.name, { netns: hop.netns, client: hop.peer.client, target: hop.peer.target }]),
-            ),
-          };
+    const placed = runTopologyOf(targetPeer, inChain);
     const paused = runtime.container.getById(server.getId());
     let targetAdmin: StartedTestContainer | undefined;
     let signaller: StartedTestContainer | undefined;
@@ -959,6 +1069,7 @@ export const openLab = async (
     };
     const proxies = inChain.filter((hop) => hop.hop.kind === "proxy");
     let hostAdmin: StartedTestContainer | undefined;
+    let cgroupAdmin: StartedTestContainer | undefined;
     const hostChanges: HostSetting[] = [];
     let hostDone: readonly HostSetting[] | undefined;
     restoreHost = async () => {
@@ -1048,11 +1159,11 @@ export const openLab = async (
       },
       async fault(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        return stamped(where, ["/opt/harness/inject", kind, options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
+        return stamped(where, faultArgs(kind, at, peer, via, options));
       },
       async lift(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        await output(where, ["/opt/harness/inject", LIFT[kind], options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
+        await output(where, faultArgs(kind, at, peer, via, options, true));
       },
       async netem(spec, at = "target") {
         const [where, device] = deviceAt(at);
@@ -1208,7 +1319,7 @@ export const openLab = async (
         const { port, user, database } = event.console;
         return stamped(hop.injector, ["/opt/harness/inject", "query", `127.0.0.1:${port}`, user, database, query]);
       },
-      async probe(args, files = []) {
+      async probe(args, files = [], cgroup) {
         const events = lines<ProbeEvent>();
         const prober = new GenericContainer(clientImage)
           .withNetworkMode(`container:${client.getId()}`)
@@ -1216,6 +1327,15 @@ export const openLab = async (
           .withCopyContentToContainer(files.map((file) => ({ ...file })))
           .withLogConsumer(events.consume);
         const container = await (capabilities === undefined ? prober : prober.withAddedCapabilities(...capabilities)).start();
+        if (cgroup !== undefined) {
+          // privileged in the cgroup namespace of the host, with no network, and only when a cell asks for it
+          if (cgroupAdmin === undefined) {
+            cgroupAdmin = await withCgroupns(new GenericContainer(image).withNetworkMode("none").withPrivilegedMode(), "host").start();
+            opened.push(cgroupAdmin);
+          }
+          await writeCgroup(cgroupAdmin, container.getId(), cgroup);
+          await output(container, ["touch", "/tmp/cgroup"]);
+        }
         return {
           events: events.seen,
           until: (kinds, within) => events.until(kinds, within, "client"),
@@ -1297,7 +1417,7 @@ export const openLab = async (
           })()),
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
-          substrate: substrateHere(fabric === undefined ? "E1" : "E3"),
+          substrate: substrateHere(layerOf(topology)),
           ...(fabric === undefined ? {} : { fabric: fabric.manifest() }),
           target: {
             image: targetImage,

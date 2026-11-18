@@ -56,7 +56,7 @@ export default defineConfig({
       },
       sidebar: [
         { label: "Thesis", items: ["thesis"] },
-        { label: "Lab", items: ["lab/request", "lab/detection", "lab/quota"] },
+        { label: "Lab", items: ["lab/request", "lab/detection", "lab/ports", "lab/queue", "lab/egress", "lab/path", "lab/quota"] },
         {
           label: "Results",
           items: [
@@ -74,6 +74,7 @@ export default defineConfig({
             "results/mesh",
             "results/kind",
             "results/r3",
+            "results/port-range",
             "results/timers",
             "results/harness",
             "results/ci",

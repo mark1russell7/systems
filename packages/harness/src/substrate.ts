@@ -1,15 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { release } from "node:os";
 import { join } from "node:path";
-
-/**
- * A layer is a rung of the laboratory (`docs/S7.md`). E1 is containers on one kernel, and E2 is a
- * cluster of containers on one kernel. A lab with `Topology.fabric` writes E3: routers in containers.
- * A lab in a guest of QEMU writes E4 (`substrateHere`). The other layers do not have a runner at this
- * time.
- */
-export const LAYERS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6"] as const;
-export type Layer = (typeof LAYERS)[number];
+import type { Layer } from "./layers.ts";
 
 /** A cloud is where the runner operates. GitHub can schedule a standard Linux job on Azure or on AWS. */
 export const CLOUDS = ["azure", "aws", "unknown"] as const;

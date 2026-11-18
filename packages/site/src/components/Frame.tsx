@@ -16,6 +16,8 @@ export type View = "chart" | "table";
 export interface ReadoutItem {
   readonly label: string;
   readonly value: ReactNode;
+  /** A wide item takes a whole row on a narrow page. Give this to a value that does not fit in half of a phone screen. */
+  readonly wide?: boolean;
 }
 
 /** The readout of a result: the main numbers in one row, as an instrument shows them. */
@@ -24,7 +26,7 @@ export function Readout(props: { readonly items: readonly ReadoutItem[] }): Reac
   return (
     <dl className="sy-readout">
       {props.items.map((item) => (
-        <div key={item.label}>
+        <div key={item.label} className={item.wide === true ? "sy-readout-wide" : undefined}>
           <dt>{item.label}</dt>
           <dd>{item.value}</dd>
         </div>

@@ -1,6 +1,6 @@
 import { delay } from "@mark1russell7/algebra/clock";
 import type { Clock } from "./clock.ts";
-import { platformClock, realClock } from "./clock.ts";
+import { realClock } from "./clock.ts";
 import type { ContractCase } from "./contract.ts";
 import { ownStream } from "./drains.ts";
 import { fakeClock } from "./fakes.ts";
@@ -164,9 +164,8 @@ interface Tracked {
 }
 
 const realNow = (): number => performance.now();
-// The waits of the case keep the process alive, as a plain setTimeout does. A timer of realClock does not.
-const alive = platformClock();
-const turn = (): Promise<void> => delay(alive, 0);
+// The waits of the case keep the process alive: each timer of realClock does (SYS-126).
+const turn = (): Promise<void> => delay(realClock, 0);
 
 /** This function waits on the real clock, until the test is true or the bound ends. It gives the test at the end. */
 const within = async (bound: number, test: () => boolean): Promise<boolean> => {
@@ -238,7 +237,7 @@ export const transportConformance = (make: SubjectFactory, options: ConformanceO
   const holds = options.holds ?? 3;
 
   const timeOf = (): Time => {
-    if (!fake) return { clock: realClock, pass: (ms: number) => delay(alive, ms) };
+    if (!fake) return { clock: realClock, pass: (ms: number) => delay(realClock, ms) };
     const clock = fakeClock();
     return { clock, pass: (ms) => clock.advance(ms) };
   };

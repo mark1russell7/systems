@@ -44,6 +44,7 @@ const LINUX_66: Readonly<Record<string, Extent | Unknown>> = {
   tcp_syn_retries: { value: 6, unit: "count" },
   tcp_syn_linear_timeouts: { value: 4, unit: "count" },
   tcp_fin_timeout: { value: 60, unit: "s" },
+  tcp_synack_retries: { value: 5, unit: "count" },
 };
 const given = (values: Readonly<Record<string, Extent | Unknown>>) => (name: string) =>
   values[name];
@@ -98,6 +99,12 @@ describe("the algebra's first closed forms", () => {
       duration: { value: 924.6, unit: "s" },
       lateness: { value: 141.344, unit: "s" },
     });
+    // TIME_WAIT is a plain timer of the wheel: 60 s is 15000 jiffies at HZ 250, on the level of 512 jiffies
+    expect(timerOf(tcp, "time_wait", given(HERE))).toEqual({
+      duration: { value: 60, unit: "s" },
+      lateness: { value: 2.048, unit: "s" },
+      early: { value: 0.004, unit: "s" },
+    });
     // each wait of the SYN is a timer of the wheel: five 1 s waits at 8 jiffies, 2 s at 8, 4, 8 and 16 s
     // at 64, and 32 and 64 s at 512. Thus 1264 jiffies, 5.056 s at HZ 250
     expect(timerOf(tcp, "syn_giveup", given(HERE))).toEqual({
@@ -127,6 +134,21 @@ describe("the algebra's first closed forms", () => {
     expect(timerOf(tcp, "syn_retransmit", KIND, 0)).toEqual({ duration: { value: 1, unit: "s" }, lateness: { value: 0.064, unit: "s" }, early: { value: 0.001, unit: "s" } });
     // through a stall of 1.309 s from the first SYN, the second retransmission is the first after it
     expect(recovery(tcp, "syn_retransmit", KIND, { value: 1.309, unit: "s" })).toMatchObject({ first: [1], low: { value: 1.998, unit: "s" }, high: { value: 2.128, unit: "s" } });
+  });
+
+  it("sends the SYN-ACK of a request again at 1, 3, 7, 15 and 31 s, and drops the request at 63 s", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const KIND = given({ ...HERE, hz: { value: 1000, unit: "Hz" } });
+    const waits = Array.from({ length: 9 }, (_, fired) => timerOf(tcp, "synack_retransmit", KIND, fired).duration);
+    // the wait doubles from 1 s at each firing, up to TCP_RTO_MAX of 120 s
+    expect(waits.map((wait) => (wait as { value: number }).value)).toEqual([1, 2, 4, 8, 16, 32, 64, 120, 120]);
+    expect(timerOf(tcp, "synack_retransmit", KIND, 0)).toEqual({ duration: { value: 1, unit: "s" }, lateness: { value: 0.064, unit: "s" }, early: { value: 0.001, unit: "s" } });
+    // 1 + 2 + 4 + 8 + 16 + 32 s, each wait late by the granularity of its level of the wheel, each one jiffy early at most
+    expect(timerOf(tcp, "synack_giveup", given(LINUX_66)).duration).toEqual({ value: 63, unit: "s" });
+    expect(timerOf(tcp, "synack_giveup", KIND)).toEqual({ duration: { value: 63, unit: "s" }, lateness: { value: 1.728, unit: "s" }, early: { value: 0.006, unit: "s" } });
+    // tcp_synack_retries 2: three waits, 7 s
+    const two = given({ ...HERE, tcp_synack_retries: { value: 2, unit: "count" } });
+    expect(timerOf(tcp, "synack_giveup", two).duration).toEqual({ value: 7, unit: "s" });
   });
 
   it("predicts the harness's scaled cells, where the RTO is the round trip plus 200 ms, in jiffies", async () => {
