@@ -152,6 +152,12 @@ export class ScopeCloseError extends AggregateError {
   override readonly name = "ScopeCloseError";
 }
 
+/**
+ * This function tells a `ScopeCloseError` by its name, not by its class. A scope of another copy of the package
+ * throws a `ScopeCloseError` of its own class, and the check holds for it too.
+ */
+const isCloseError = (error: unknown): error is ScopeCloseError => error instanceof AggregateError && error.name === "ScopeCloseError";
+
 /** This function makes the reason of an abort at the deadline. */
 const timeoutReason = (scope: Scope): DOMException => new DOMException(`The deadline of the scope "${scope.name}" passed.`, "TimeoutError");
 
@@ -326,7 +332,7 @@ class ScopeNode implements Scope {
     const children = [...this.#open].reverse();
     const reason = closedReason(this);
     for (const child of children) child.abort(reason);
-    for (const child of children) await child.close().catch((error: unknown) => void errors.push(...(error instanceof ScopeCloseError ? error.errors : [error])));
+    for (const child of children) await child.close().catch((error: unknown) => void errors.push(...(isCloseError(error) ? error.errors : [error])));
     for (let at = this.#closes.length - 1; at >= 0; at -= 1) {
       try {
         await this.#closes[at]!();
