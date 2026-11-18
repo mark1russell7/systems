@@ -40,6 +40,8 @@ export const GUEST_WORK = "/work";
 export const GUEST_OUT = "/out";
 /** A run that passes its time limit gives this exit code, as `timeout` of coreutils does. */
 export const LIMIT_STATUS = 124;
+/** At the time limit, the processes of a run get SIGTERM. After this time, the processes that remain get SIGKILL. */
+export const GRACE_MS = 10_000;
 /** The cells workflow gives the runner this size of the conntrack table, thus each layer has one size. */
 const KERNEL_LINE = "console=ttyS0 root=/dev/vda rw net.ifnames=0 panic=1 nf_conntrack.hashsize=16384";
 
@@ -334,19 +336,20 @@ const stopGuest = async (out: string): Promise<void> => {
   rmSync(file, { force: true });
 };
 
-/** This function stops each process of a group. The group can be empty already. */
-const stopGroup = (pid: number | undefined): void => {
+/** This function sends a signal to each process of a group. The group can be empty already. */
+const signalGroup = (pid: number | undefined, signal: NodeJS.Signals): void => {
   if (pid === undefined) return;
   try {
-    process.kill(-pid, "SIGKILL");
+    process.kill(-pid, signal);
   } catch {
     // the group has no process
   }
 };
 
 /**
- * This function operates an argv in its own process group, in a time limit. At the end, each process
- * of the group stops. A process that keeps the output of ssh open thus does not keep ssh open.
+ * This function operates an argv in its own process group, in a time limit. At the limit, the group gets
+ * SIGTERM, and SIGKILL after `GRACE_MS`. At the end, each process of the group stops. A process that
+ * keeps the output of ssh open thus does not keep ssh open.
  */
 const runArgv = (argv: Command, limitMs: number, env: NodeJS.ProcessEnv): Promise<RunEnd> =>
   new Promise((resolve) => {
@@ -354,17 +357,20 @@ const runArgv = (argv: Command, limitMs: number, env: NodeJS.ProcessEnv): Promis
     const child = spawn(file, args, { cwd: GUEST_WORK, env, stdio: ["ignore", "inherit", "inherit"], detached: true });
     let limited = false;
     let done = false;
+    let grace: NodeJS.Timeout | undefined;
     const finish = (end: RunEnd): void => {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      stopGroup(child.pid);
+      clearTimeout(grace);
+      signalGroup(child.pid, "SIGKILL");
       resolve(end);
     };
-    // the run awaits this timer, thus it keeps the process alive
+    // the run awaits these timers, thus they keep the process alive
     const timer = setTimeout(() => {
       limited = true;
-      stopGroup(child.pid);
+      signalGroup(child.pid, "SIGTERM");
+      grace = setTimeout(() => signalGroup(child.pid, "SIGKILL"), GRACE_MS);
     }, limitMs);
     child.once("error", (error) => finish(startErrorOf(error)));
     child.once("exit", (code, signal) => finish(endOf(code, signal, limited)));

@@ -105,6 +105,7 @@ describe("a run of one command in the guest", () => {
     expect(endOf(3, null, false)).toEqual({ ended: "exit", status: 3 });
     expect(endOf(null, "SIGTERM", false)).toEqual({ ended: "signal", status: 143 });
     expect(endOf(null, "SIGKILL", true)).toEqual({ ended: "limit", status: LIMIT_STATUS });
+    expect(endOf(null, "SIGTERM", true)).toEqual({ ended: "limit", status: LIMIT_STATUS });
     expect(startErrorOf(Object.assign(new Error("spawn x ENOENT"), { code: "ENOENT" }))).toEqual({ ended: "error", status: 127 });
     expect(startErrorOf(Object.assign(new Error("spawn x EACCES"), { code: "EACCES" }))).toEqual({ ended: "error", status: 126 });
   });

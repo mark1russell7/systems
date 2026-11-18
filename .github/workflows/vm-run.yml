@@ -8,6 +8,9 @@
 #       harness: <the same commit>
 #       argv: '["node", "src/main.ts", "--out", "/out/lab"]'
 #
+# A void run ends green. A gate thus reads the outputs: present is false for a void run, and ended
+# and status come from run.json.
+#
 #   kvm     A runner with no KVM ends here as void, as in vm.yml (rule 8).
 #   kernel  The pin of packages/harness/vm/linux.json, at the HZ of the input. The cache keeps it.
 #   root    Writes the guest's disk from packages/harness/vm/Dockerfile.
@@ -46,9 +49,19 @@ on:
         type: string
         default: vm-run
       harness:
-        description: The commit of mark1russell7/systems that gives the VM tier.
+        description: The commit of mark1russell7/systems that gives the VM tier, the commit of the uses line.
         type: string
-        default: main
+        required: true
+    outputs:
+      present:
+        description: true when the runner has KVM, and false for a void run with no guest.
+        value: ${{ jobs.run.outputs.present }}
+      ended:
+        description: Why the run ended, from run.json. It is empty when the guest gave no record.
+        value: ${{ jobs.run.outputs.ended }}
+      status:
+        description: The exit code of the run, from run.json. It is empty when the guest gave no record.
+        value: ${{ jobs.run.outputs.status }}
   workflow_dispatch:
     inputs:
       argv:
@@ -73,6 +86,11 @@ on:
 permissions:
   contents: read
 
+# In a call, the github context is of the caller. The artifact name keeps two calls of one caller apart.
+concurrency:
+  group: vm-run-${{ github.workflow }}-${{ inputs.artifact || 'vm-run' }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
 defaults:
   run:
@@ -87,6 +105,10 @@ jobs:
     name: VM run
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    outputs:
+      present: ${{ steps.kvm.outputs.present }}
+      ended: ${{ steps.record.outputs.ended }}
+      status: ${{ steps.record.outputs.status }}
     steps:
       - name: The caller's checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -202,6 +224,7 @@ jobs:
           echo "run: $(($(date +%s) - started)) s, status $code" | tee -a "$VM/runner.txt"
           exit "$code"
       - name: The record of the run
+        id: record
         if: always() && steps.kvm.outputs.present == 'true'
         run: |
           record="$VM/out/run.json"
@@ -210,6 +233,10 @@ jobs:
             exit 1
           fi
           jq . "$record"
+          {
+            echo "ended=$(jq -r .ended "$record")"
+            echo "status=$(jq -r .status "$record")"
+          } >> "$GITHUB_OUTPUT"
           kernel="$(jq -r .kernel "$record")"
           if [ "$kernel" != "$(cat "$VM/release")" ]; then
             echo "::error::the run operated on the kernel $kernel, not on the pinned kernel $(cat "$VM/release")"
