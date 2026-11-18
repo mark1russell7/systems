@@ -5,13 +5,15 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * SYS-21, A14 and SYS-126: child processes on the process of Node, opt-in with PROCESS_IT=1.
+ * SYS-21, A14, SYS-126 and SYS-134: child processes on the process of Node, opt-in with PROCESS_IT=1.
  * - The parent sends the IPC message "shutdown", and the child stops through its staged shutdown,
  *   as at SIGTERM.
  * - A child whose only part is a worker on the real clock stays alive through the hold of its
  *   lifecycle. The timers of the worker do not keep it alive.
  * - A child whose only work is a wait that it awaits (retry, a retrier, within) ends each wait.
  *   The default clock of each wait keeps the process alive.
+ * - A child whose only work is the wait for the deadline of a scope gets the abort at the deadline.
+ *   The timer of the deadline keeps the process alive.
  * These tests start real processes, thus only CI starts them (.github/workflows/process.yml), on
  * Linux and on Windows. The same parts on the fake process run in the unit tests (runner.test.ts).
  */
@@ -21,6 +23,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const IPC_CHILD = join(here, "..", "test", "ipc", "child.mjs");
 const HELD_CHILD = join(here, "..", "test", "ipc", "hold.mjs");
 const WAIT_CHILD = join(here, "..", "test", "ipc", "wait.ts");
+const DEADLINE_CHILD = join(here, "..", "test", "ipc", "deadline.ts");
 const STAGES = ["start", "ready", "stop intake", "drain", "close"];
 const WINDOWS = process.platform === "win32";
 
@@ -108,6 +111,21 @@ describe.skipIf(!RUN)("the waits that a caller awaits keep the process alive", (
 
   it("exits in the first wait on a clock with unref, with the code of a top-level await that does not settle (the control)", async () => {
     const run = watch(spawn(process.execPath, [WAIT_CHILD, "unref"], { stdio: ["ignore", "pipe", "ignore"] }));
+    expect(await run.closed).toEqual({ code: 13, signal: null });
+    expect(run.lines).toEqual([]);
+  }, 30_000);
+});
+
+describe.skipIf(!RUN)("the deadline of a scope keeps the process alive (SYS-134)", () => {
+  it("aborts the scope at its deadline in a child whose only work is the wait for the abort", async () => {
+    // no socket, no IPC channel and no other timer: only the timer of the deadline keeps the child alive
+    const run = watch(spawn(process.execPath, [DEADLINE_CHILD], { stdio: ["ignore", "pipe", "inherit"] }));
+    expect(await run.closed).toEqual({ code: 0, signal: null });
+    expect(run.lines).toEqual(["TimeoutError"]);
+  }, 30_000);
+
+  it("exits before the deadline on unrefClock(realClock), with the code of a top-level await that does not settle (the control)", async () => {
+    const run = watch(spawn(process.execPath, [DEADLINE_CHILD, "unrefClock"], { stdio: ["ignore", "pipe", "ignore"] }));
     expect(await run.closed).toEqual({ code: 13, signal: null });
     expect(run.lines).toEqual([]);
   }, 30_000);
