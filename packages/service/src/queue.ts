@@ -5,8 +5,9 @@ import { realClock } from "./clock.ts";
 import type { ServiceDescription } from "./description.ts";
 import { boundedMillisecondsOf, countOf, millisecondsOf } from "./knobs.ts";
 import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
+import type { Principal, Scope } from "./scope.ts";
 import type { UnitEnd, UnitRequest } from "./units.ts";
-import { boundProblems, flights, retryOf, runUnit, settleWithin, sleeper, untilAbort } from "./units.ts";
+import { boundProblems, closeWork, flights, retryOf, runUnit, settleWithin, sleeper, untilAbort } from "./units.ts";
 
 /**
  * These are the knobs of a queue drain, by the names of the ordering law where the law has them.
@@ -82,10 +83,13 @@ export interface JobSettle<J> {
   delivery(job: J): number;
 }
 
-/** A job context is what the drain gives the handler of each job. */
-export interface JobContext {
-  /** This signal aborts at the cooperative abort of the drain, at the bound of the job, and at the close. */
-  readonly signal: AbortSignal;
+/**
+ * A job context is the scope of one job, with the facts of the job. The scope is a `job` entry under the work
+ * scope of the drain, with the trace and the identity of the option `entry`. Its timeout is the bound of the
+ * job. Its signal aborts at the cooperative abort of the drain, at the bound of the job (with a `TimeoutError`),
+ * and at the close. The scope closes after the handler.
+ */
+export interface JobContext extends Scope {
   /** This signal aborts when the intake stops. */
   readonly intake: AbortSignal;
   /** This count is the delivery of the job, 1 at the first. */
@@ -114,8 +118,15 @@ export interface QueueDrainOptions<J> {
    */
   readonly request?: UnitRequest<J> | undefined;
   /**
-   * This function receives each failure: of a take, of a job, of a settle and of a policy. It also
-   * receives the end of a source while the intake is open. The job is undefined for a take and for that end.
+   * This function gives the trace and the identity of the scope of a job, for example from the headers of a
+   * message. A throw is a failure of the job, and the handler does not start. Without it, the scope of a job has
+   * no trace and no identity.
+   */
+  readonly entry?: ((job: J) => { readonly trace: unknown; readonly identity: Principal | undefined }) | undefined;
+  /**
+   * This function receives each failure: of a take, of a job, of a settle, of a policy and of the close of a
+   * scope. It also receives the end of a source while the intake is open. The job is undefined for a take, for
+   * that end and for the close of the work scope.
    */
   readonly onError?: ((error: unknown, job: J | undefined) => void) | undefined;
 }
@@ -256,12 +267,35 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
     return once(unit, () => (action === "ack" ? settle.ack(job) : settle.reject(job, error)));
   };
 
+  /** This function does one job in its scope, and gives its end. A throw of the option `entry` is a failure, and the handler does not start. */
+  const jobEnd = async (job: J, delivery: number, work: Scope, life: Lifecycle): Promise<UnitEnd> => {
+    let from: { readonly trace: unknown; readonly identity: Principal | undefined };
+    try {
+      from = options.entry?.(job) ?? { trace: undefined, identity: undefined };
+    } catch (error) {
+      return { kind: "failed", error };
+    }
+    return runUnit({
+      work,
+      kind: "job",
+      name: typeof options.request?.route === "string" ? options.request.route : "job",
+      trace: from.trace,
+      identity: from.identity,
+      facts: { intake: intake.signal, delivery, life },
+      bound,
+      life,
+      request: options.request,
+      unit: job,
+      onError: (error) => report(error, job),
+      handle: (scope) => options.handle(job, scope),
+    });
+  };
+
   /** This function starts one job in a slot. The slot stays in flight until the queue has the end of the job. */
-  const runJob = (job: J, life: Lifecycle): void => {
+  const runJob = (job: J, work: Scope, life: Lifecycle): void => {
     const unit: Active<J> = { job, settled: false };
     active.add(unit);
-    const abort = new AbortController();
-    const remove = running.add(abort);
+    const remove = running.add();
     let delivery: number;
     try {
       delivery = settle.delivery(job);
@@ -272,15 +306,7 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
     }
     keep(
       (async () => {
-        const end = await runUnit({
-          clock,
-          bound,
-          abort,
-          life,
-          request: options.request,
-          unit: job,
-          work: (signal) => options.handle(job, { signal, intake: intake.signal, delivery, life }),
-        });
+        const end = await jobEnd(job, delivery, work, life);
         // a refusal of the service stops the takes for a backoff, thus a controller that is not ready does not get each job
         if (end.kind === "refused") {
           refusals += 1;
@@ -319,7 +345,7 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
   };
 
   /** This function is the taker: it takes a job while a slot is free, until the intake stops or the source ends. */
-  const taker = async (life: Lifecycle): Promise<void> => {
+  const taker = async (work: Scope, life: Lifecycle): Promise<void> => {
     const take = takeOf();
     let failures = 0;
     for (;;) {
@@ -362,7 +388,7 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
         await rests.sleep(poll, since);
         continue;
       }
-      runJob(first.job, life);
+      runJob(first.job, work, life);
     }
   };
 
@@ -380,11 +406,13 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
       if (closing !== null) throw new Error(`${OWNER}: a closed drain does not start again`);
       if (started) throw new Error(`${OWNER}: the drain started already`);
       started = true;
+      // the work scope: each job is an entry under it, and the cooperative abort and the close abort it
+      const work = running.open(life.scope, OWNER);
       // the first take waits for the end of the startup, because a request before it gets a refusal
       void life.started.then(() => {
         if (intake.signal.aborted || life.state !== "running") return;
         // the taker catches each failure of the source: a rejection here is a defect, and it does not end the process (A5)
-        taker(life).catch((error: unknown) => report(error, undefined));
+        taker(work, life).catch((error: unknown) => report(error, undefined));
       });
     },
     stopIntake() {
@@ -410,6 +438,8 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
         if (ended.kind === "bound")
           for (const unit of [...active])
             void once(unit, () => settle.reject(unit.job, new Error(`${OWNER} closed with the job in flight`)));
+        // the scope of each job that did not end closes with the work scope
+        await closeWork(running, clock, Math.max(0, closeBound - (clock.now() - began)), OWNER, (error) => report(error, undefined));
         const shut = options.close;
         const down = await settleWithin(
           clock,

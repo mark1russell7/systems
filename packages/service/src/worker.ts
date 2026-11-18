@@ -5,8 +5,9 @@ import { realClock } from "./clock.ts";
 import type { ServiceDescription } from "./description.ts";
 import { boundedMillisecondsOf, countOf, millisecondsOf } from "./knobs.ts";
 import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
+import type { Scope } from "./scope.ts";
 import type { UnitRequest } from "./units.ts";
-import { boundProblems, flights, retryOf, runUnit, settleWithin, sleeper } from "./units.ts";
+import { boundProblems, closeWork, flights, retryOf, runUnit, settleWithin, sleeper } from "./units.ts";
 
 /**
  * These are the knobs of a worker loop, by the names of the ordering law where the law has them.
@@ -35,10 +36,13 @@ export interface WorkerKnobs {
   readonly [knob: string]: Extent;
 }
 
-/** An iteration context is what the loop gives each iteration. */
-export interface IterationContext<S> {
-  /** This signal aborts at the cooperative abort of the drain, at the bound of the iteration, and at the close. */
-  readonly signal: AbortSignal;
+/**
+ * An iteration context is the scope of one iteration, with the facts of the iteration. The scope is a `round`
+ * entry under the work scope of the loop, with no trace and the identity of the work scope. Its timeout is the
+ * bound of the iteration. Its signal aborts at the cooperative abort of the drain, at the bound of the iteration
+ * (with a `TimeoutError`), and at the close. The scope closes after the iteration.
+ */
+export interface IterationContext<S> extends Scope {
   /** This signal aborts when the intake stops. A long iteration can end at it in its own way. */
   readonly intake: AbortSignal;
   /** This value is the state that the setup gave, or undefined without a setup. */
@@ -71,7 +75,10 @@ export interface WorkerLoopOptions<S> {
    * drains it and can cut it. The unit of a route function is the number of the lane.
    */
   readonly request?: UnitRequest<number> | undefined;
-  /** This function receives each failure, with the count of failures in sequence of its lane. A refusal of the service is a failure too. */
+  /**
+   * This function receives each failure, with the count of failures in sequence of its lane. A refusal of the
+   * service is a failure too. An error of the close of a scope comes with the count 0.
+   */
   readonly onError?: ((error: unknown, failures: number) => void) | undefined;
 }
 
@@ -151,7 +158,7 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
   };
 
   /** This function is one lane: an iteration, then its sleep or its backoff, until the intake stops. */
-  const lane = async (index: number, life: Lifecycle): Promise<void> => {
+  const lane = async (index: number, work: Scope, life: Lifecycle): Promise<void> => {
     let failures = 0;
     let since = rests.wakes;
     // the first iteration comes after a zero sleep on the clock: a wake starts it at once
@@ -159,21 +166,20 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
     for (;;) {
       if (intake.signal.aborted) return;
       since = rests.wakes;
-      const abort = new AbortController();
-      const remove = running.add(abort);
-      const count = failures;
+      const remove = running.add();
       const end = await runUnit({
-        clock,
+        work,
+        kind: "round",
+        name: `lane ${index}`,
+        trace: undefined,
+        identity: work.identity,
+        facts: { intake: intake.signal, state: state as S, lane: index, failures, life },
         bound,
-        abort,
         life,
         request: options.request,
         unit: index,
-        work: (signal) =>
-          keep(
-            (async () =>
-              options.iteration({ signal, intake: intake.signal, state: state as S, lane: index, failures: count, life }))(),
-          ),
+        onError: (error) => report(error, 0),
+        handle: (scope) => keep((async () => options.iteration(scope))()),
       });
       remove();
       // the shutdown cut the iteration: that is not a failure, and the lane ends (A10)
@@ -195,6 +201,8 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
       if (closing !== null) throw new Error(`${OWNER}: a closed loop does not start again`);
       if (started) throw new Error(`${OWNER}: the loop started already`);
       started = true;
+      // the work scope: each iteration is an entry under it, and the cooperative abort and the close abort it
+      const work = running.open(life.scope, OWNER);
       const make = options.setup;
       // without a setup function, the setup is empty, and the teardown still occurs at the close
       setup = make === undefined ? Promise.resolve(undefined) : new Promise<S>((resolve) => resolve(make(signal)));
@@ -211,7 +219,7 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
       void life.started.then(() => {
         if (intake.signal.aborted || life.state !== "running") return;
         // a lane catches each failure of its work: a rejection here is a defect, and it does not end the process (A5)
-        for (let index = 0; index < lanes; index += 1) lane(index, life).catch((error: unknown) => report(error, 0));
+        for (let index = 0; index < lanes; index += 1) lane(index, work, life).catch((error: unknown) => report(error, 0));
       });
     },
     stopIntake() {
@@ -237,6 +245,8 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
       closing = (async () => {
         const began = clock.now();
         const ended = await settleWithin(clock, closeBound, Promise.allSettled([...pending]));
+        // the scope of each iteration that did not end closes with the work scope
+        await closeWork(running, clock, Math.max(0, closeBound - (clock.now() - began)), OWNER, (error) => report(error, 0));
         // the teardown occurs also after an iteration that did not end, because the setup started (A10)
         const down = await settleWithin(clock, Math.max(0, closeBound - (clock.now() - began)), teardown());
         if (ended.kind === "bound")

@@ -10,6 +10,7 @@ import type { LateHold } from "../drains.ts";
 import { holdLate, noteOutside } from "../drains.ts";
 import { millisecondsOf as knobMilliseconds } from "../knobs.ts";
 import type { Lifecycle, TransportImpl } from "../lifecycle.ts";
+import { rootScope, type Scope } from "../scope.ts";
 import { answerOwner, watchAnswers } from "./answers.ts";
 
 /**
@@ -57,13 +58,17 @@ export interface HttpTransportKnobs extends HttpKnobs {
 /** A mount stage is the stage of the shutdown at which a mount stops: the stop of the intake, or the close. */
 export type MountStage = "stop intake" | "close transports";
 
-/** A mount context gives each handler the signals of the shutdown, the lifecycle and the time of a retry. */
-export interface MountContext {
+/**
+ * A mount context is the scope of one request, with the facts of the transport. The scope is a `request` entry
+ * under the work scope of the transport, named by the method and the path of the request. Its trace comes from
+ * the call context of the options, and its deadline from the header `timeout-ms`. Its signal aborts at the
+ * cooperative abort of the drain, at the close, and at its deadline. The scope closes when the response closes.
+ * An upgraded connection gets a scope too, and the scope closes with its socket.
+ */
+export interface MountContext extends Scope {
   /** This signal aborts when the intake stops. A long stream ends in its own protocol at it. */
   readonly intake: AbortSignal;
-  /** This signal aborts at the cooperative abort of the drain, or at the close. The work in flight stops at it. */
-  readonly signal: AbortSignal;
-  /** This lifecycle is the lifecycle that the transport got at its start, or null before the start. */
+  /** This lifecycle is the lifecycle that the transport got at its start, or null for a request before the start. */
   readonly life: Lifecycle | null;
   /** This time is the knob `server_retry_after`: the `Retry-After` of each 503 of the handlers. */
   readonly retryAfter: Quantity;
@@ -132,8 +137,9 @@ export interface HttpTransportOptions<S extends EdgeServer = Server> {
   /** This function receives each error of a handler. The transport then answers 500, or it destroys the response. */
   readonly onError?: ((error: unknown, req: IncomingMessage) => void) | undefined;
   /**
-   * With this call context, each handler runs in the context of the headers of its request. The context
-   * has the trace of `traceparent`, and the baggage of a trusted request. `callContext` of the entry `/otel` gives one.
+   * With this call context, the scope of each request has the trace of the headers of the request. Each handler
+   * operates with the scope of its request as the active scope. The trace has `traceparent`, and the
+   * baggage of a trusted request. `callContext` of the entry `/otel` gives one.
    */
   readonly callContext?: CallContext | undefined;
   /**
@@ -278,6 +284,9 @@ const goaway = (session: Http2Session): void => {
   if (!session.closed && !session.destroyed) session.close();
 };
 
+/** This name is the name of the work scope of each transport. */
+const OWNER = "httpTransport";
+
 /**
  * This function makes a server of `node:http` or `node:http2` a transport of the lifecycle (S6 A8 and
  * A13). It is not a framework: it has no routes, no body parser and no middleware.
@@ -286,11 +295,14 @@ const goaway = (session: Http2Session): void => {
  * - `stopIntake` closes the listener, and new connections get a refusal. It closes the idle connections
  *   at once and at each `server_idle_sweep_interval`. Each later response gets `Connection: close`.
  *   A connection is not idle while the bytes of its answer go (SYS-33).
+ * - Each request gets a scope of its own, which closes when its response closes. The scope of each request
+ *   is a child of the work scope of the transport, a `phase` child of the service scope.
  * - `drain` waits until no work is in flight, or until the deadline. It gives the cooperative abort to
- *   the handlers through their context. At the deadline, it also waits for each answer that is to come
+ *   the handlers through the work scope. At the deadline, it also waits for each answer that is to come
  *   or to go out (SYS-29). The cap of the phase bounds that wait. Answers that did not go out by the
  *   cap are not a failure of the phase. A stream outside the lifecycle of the transport does not hold it.
- * - `close` destroys each connection. A second close gives the same promise.
+ * - `close` aborts the work scope and destroys each connection. Then it closes the work scope. A second
+ *   close gives the same promise.
  * - The mounts share one port. The first request handler that gives true answers. After the stop of
  *   the intake, only the mounts until `close transports` answer, and each other request gets a 503.
  * - HTTP/2 has no `Connection` header (RFC 9113, section 8.2.2). Thus a close of a connection is a
@@ -353,24 +365,21 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
   const drainers = new Set<() => void>();
   const closedWaiters = new Set<() => void>();
   const intake = new AbortController();
-  const cooperative = new AbortController();
-  // the lifecycle comes at the start, thus the context reads it at each request
+  // the lifecycle comes at the start, thus the scope of each request reads it at its open
   let life: Lifecycle | null = null;
-  const context: MountContext = {
-    intake: intake.signal,
-    signal: cooperative.signal,
-    get life() {
-      return life;
-    },
-    retryAfter: knobs.server_retry_after,
-    // the option keepAlive decides for each handler too, thus a handled route does not close by itself
-    keepAlive: () => keepsAlive(),
-  };
+  // the work scope: a phase child of the service scope at the start. A request before the start has a root of its own
+  let work: Scope | null = null;
+  let early: Scope | null = null;
+  // the reason of the cooperative abort or of the close: a work scope after it starts aborted
+  let stopped: { readonly reason: unknown } | null = null;
+  // the close of the scope of each request: the close of the work scope waits for them
+  const scopeCloses = new Set<Promise<void>>();
   let intakeOpen = true;
   let listenerOpen = server.listening;
   let serverClosed = !server.listening;
   let sweep: Cancel | null = null;
   let closing: Promise<void> | null = null;
+  let closed: Promise<void> | null = null;
 
   const inFlight = (): number => responses.size + upgraded.size;
   /**
@@ -480,7 +489,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
   };
   const refuse = (res: ServerResponse): void => answer(res, 503, { "retry-after": retryAfterHeader, connection: "close" });
 
-  const route = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  const route = async (req: IncomingMessage, res: ServerResponse, context: MountContext): Promise<void> => {
     const mounts = live(requestMounts);
     try {
       for (const mount of mounts) {
@@ -498,21 +507,62 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
     else refuse(res);
   };
 
-  // each handler runs in the context of the headers of its request, when the options give a call context
+  // the scope of each request has the trace of its headers, and its handler operates in it, when the options give a call context
   const callContext = options.callContext;
   const trustBaggage = options.trustBaggage ?? (() => false);
-  const inCall = <T>(req: IncomingMessage, fn: () => T): T => (callContext === undefined ? fn() : callContext.run(req.headers, trustBaggage(req), fn));
+  const inScope = <T>(scope: Scope, fn: () => T): T => (callContext === undefined ? fn() : callContext.run(scope, fn));
+  /** This function gives the parent of the scope of a request: the work scope, or before the start a root of the transport. */
+  const parent = (): Scope => {
+    if (work !== null) return work;
+    if (early === null) {
+      early = rootScope({ name: OWNER, kind: "service", clock });
+      if (stopped !== null) early.abort(stopped.reason);
+    }
+    return early;
+  };
+  /** This function aborts the work scope, and the scope of each request with it: the cooperative abort, or the close. */
+  const abortWork = (reason: unknown): void => {
+    stopped ??= { reason };
+    work?.abort(stopped.reason);
+    early?.abort(stopped.reason);
+  };
+  /** This function makes the scope of a request, with the trace and the time of its headers. */
+  const openScope = (req: IncomingMessage): MountContext =>
+    parent().entry("request", `${req.method ?? "GET"} ${pathOf(req.url)}`, {
+      trace: callContext?.trace(req.headers, trustBaggage(req)),
+      identity: undefined,
+      headers: req.headers,
+      // the option keepAlive decides for each handler too, thus a handled route does not close by itself
+      facts: { intake: intake.signal, life, retryAfter: knobs.server_retry_after, keepAlive: () => keepsAlive() },
+    });
+  /** This function closes the scope of a request. The close of the work scope waits for it, and each error goes to `onError`. */
+  const closeScope = (scope: Scope, req: IncomingMessage): void => {
+    const ended = scope.close().catch((error: unknown) => report(error, req));
+    scopeCloses.add(ended);
+    void ended.then(() => scopeCloses.delete(ended));
+  };
 
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     responses.add(res);
+    let scope: MountContext | undefined;
     // the bytes of an answer went: a drain after its deadline can end
     res.once("finish", settled);
     res.once("close", () => {
       responses.delete(res);
+      if (scope !== undefined) closeScope(scope, req);
       settled();
     });
     watchHeaders(res);
-    void inCall(req, () => route(req, res));
+    try {
+      scope = openScope(req);
+    } catch (error) {
+      // a call context or a trust function that throws: the request gets no handler
+      report(error, req);
+      answer(res, 500);
+      return;
+    }
+    const context = scope;
+    void inScope(context, () => route(req, res, context));
   };
 
   const onUpgrade = (req: IncomingMessage, socket: UpgradeSocket, head: UpgradeArgs[2]): void => {
@@ -526,12 +576,16 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
     }
     if (socket.destroyed) return;
     upgraded.add(socket);
+    let scope: MountContext | undefined;
     socket.once("close", () => {
       upgraded.delete(socket);
+      if (scope !== undefined) closeScope(scope, req);
       settled();
     });
     try {
-      inCall(req, () => mount.handler(req, socket, head, context));
+      scope = openScope(req);
+      const context = scope;
+      inScope(context, () => mount.handler(req, socket, head, context));
     } catch (error) {
       report(error, req);
       socket.destroy();
@@ -621,6 +675,11 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       // a listener that another owner adds after the transport answers too, thus the start refuses it
       if (server.listenerCount("request") > 1 || server.listenerCount("upgrade") > 1)
         throw new Error("the server has a request or upgrade listener of its own: mount it as a handler");
+      // the work scope: each later request is an entry under it, and the cooperative abort and the close abort it
+      if (work === null) {
+        work = given.scope.child("phase", OWNER);
+        if (stopped !== null) work.abort(stopped.reason);
+      }
       if (server.listening) return;
       const listen = options.listen;
       if (listen === undefined) throw new Error("the server does not listen, and the transport has no listen options");
@@ -651,9 +710,7 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       startSweep();
     },
     drain(deadline, signal) {
-      const abort = (): void => {
-        if (!cooperative.signal.aborted) cooperative.abort(signal.reason);
-      };
+      const abort = (): void => abortWork(signal.reason);
       if (signal.aborted) abort();
       else signal.addEventListener("abort", abort, { once: true });
       // nothing in flight: the drain ends at once, with no timer
@@ -701,10 +758,10 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
     },
     inFlight,
     close() {
-      if (closing !== null) return closing;
+      if (closed !== null) return closed;
       intakeOpen = false;
       if (!intake.signal.aborted) intake.abort(new Error("the transport closed"));
-      if (!cooperative.signal.aborted) cooperative.abort(new Error("the transport closed"));
+      abortWork(new Error("the transport closed"));
       sweep?.();
       sweep = null;
       closing = new Promise<void>((resolve) => {
@@ -716,7 +773,12 @@ export const httpTransport = <S extends EdgeServer = Server>(edge: S, knobs: Htt
       for (const socket of [...upgraded]) socket.destroy();
       for (const socket of [...sockets]) socket.destroy();
       settled();
-      return closing;
+      // after the last connection, the scope of each request closed: then the work scope closes. Its errors reject the close
+      closed = closing.then(async () => {
+        await Promise.all([...scopeCloses]);
+        for (const scope of [work, early]) if (scope !== null) await scope.close();
+      });
+      return closed;
     },
   };
 };
