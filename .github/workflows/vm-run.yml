@@ -21,17 +21,18 @@
 #   record  /out/run.json tells why the run ended, its exit code and the kernel of the guest. The job
 #           fails if that kernel is not the pinned kernel.
 #
-# In this repository, a pull request that changes this tier operates the test argv: uname -r and one
-# container. Each of the two must give the release of the pinned kernel.
+# With no argv, the run operates the test argv of this tier: uname -r and one container. Each of the two
+# must give the release of the pinned kernel. vm-run-test.yml operates it on each pull request that
+# changes this tier.
 name: VM run
 
 on:
   workflow_call:
     inputs:
       argv:
-        description: The command, as a JSON list of strings. No shell splits it.
+        description: The command, as a JSON list of strings. No shell splits it. The default is the test argv.
         type: string
-        required: true
+        default: ""
       folder:
         description: The folder of the caller's checkout that goes into the guest. The default is the root.
         type: string
@@ -77,11 +78,6 @@ on:
         type: choice
         options: ["100", "250", "1000"]
         default: "1000"
-  pull_request:
-    paths:
-      - .github/workflows/vm-run.yml
-      - packages/harness/src/vm.ts
-      - packages/harness/vm/**
 
 permissions:
   contents: read
