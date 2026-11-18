@@ -179,8 +179,9 @@ export interface Loop {
   start(): void;
   /**
    * This method makes a round due at once on each lane that waits for its period. It does not end a backoff or the wait of
-   * a budget. A lane from `end` with a round in flight starts its next round at once after that round. It gives true
-   * when it changed a lane, and false before the start and after the stop.
+   * a budget. A lane from `end` with a round in flight starts its next round at once after that round, in its settle,
+   * with no timer. A failure with a backoff comes first: then the lane waits its backoff. It gives true when it changed a
+   * lane, and false before the start and after the stop.
    */
   wake(): boolean;
   /** This method gives the count of rounds whose scope did not close yet. */

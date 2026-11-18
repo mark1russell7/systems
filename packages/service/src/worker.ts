@@ -1,13 +1,14 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { backoffDelay } from "./backoff.ts";
 import type { Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { ServiceDescription } from "./description.ts";
 import { boundedMillisecondsOf, countOf, millisecondsOf } from "./knobs.ts";
 import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
+import type { RoundContext } from "./loop.ts";
+import { loop, workerSchedule } from "./loop.ts";
 import type { Scope } from "./scope.ts";
-import type { UnitRequest } from "./units.ts";
-import { boundProblems, closeWork, flights, retryOf, runUnit, settleWithin, sleeper } from "./units.ts";
+import type { UnitEnd, UnitRequest } from "./units.ts";
+import { boundProblems, closeWork, flights, retryOf, runUnit, settleWithin } from "./units.ts";
 
 /**
  * These are the knobs of a worker loop, by the names of the ordering law where the law has them.
@@ -96,28 +97,33 @@ export interface WorkerLoop extends TransportImpl {
 }
 
 const OWNER = "workerLoop";
+/** The unit scope of each iteration has the bound of the iteration, thus the loop core has no timeout of its own. */
+const UNBOUNDED: Extent = { value: "infinite", unit: "s" };
 
 /**
  * This function makes a worker loop as a transport (S6 A10). It has a setup, an iteration and a
  * teardown, and each lane does its iterations one at a time.
  * - The start does the setup. A failed setup gets its teardown, and the start throws.
- * - The first iteration of each lane comes after the startup ends. Each sleep and each backoff is on the clock.
+ * - The first iteration of each lane comes after the startup ends. The loop core gives the timing of each lane on the
+ *   clock, with `workerSchedule`. Each sleep starts at the end of an iteration, and each failure gets the backoff.
  * - `stopIntake` starts no new iteration, and it ends each sleep and each backoff.
  * - `drain` waits for each iteration in flight until the deadline, and gives it the cooperative
  *   abort. A throw after that abort is not a failure.
  * - `close` aborts each iteration, waits for its end, and does the teardown, all in `close_bound`.
+ * - A cut is not a failure, and it ends the loop: no lane starts an iteration after it. Each cut comes from the shutdown,
+ *   and the lifecycle stops the intake before the shutdown. Thus in the lifecycle, the loop stopped already.
  */
 export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoopOptions<S>): WorkerLoop => {
-  const sleep = millisecondsOf(knobs, "worker_sleep", OWNER);
+  // these checks name the worker loop. workerSchedule does the same checks with its own name
+  millisecondsOf(knobs, "worker_sleep", OWNER);
   const bound = millisecondsOf(knobs, "unit_processing_time", OWNER);
-  const backoff = retryOf(knobs, OWNER);
+  retryOf(knobs, OWNER);
   const closeBound = boundedMillisecondsOf(knobs, "close_bound", OWNER);
   const lanes = countOf(knobs, "concurrency", OWNER);
   if (!Number.isFinite(lanes)) throw new Error(`${OWNER} needs a concurrency with a bound: each lane is a loop`);
   const clock = options.clock ?? realClock;
   const random = options.random ?? Math.random;
   const running = flights(clock);
-  const rests = sleeper(clock);
   const intake = new AbortController();
   // the work of each iteration until it ends, also after a cut: the teardown waits for it
   const pending = new Set<Promise<unknown>>();
@@ -126,6 +132,8 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
   let state: S | undefined;
   let tornDown: Promise<void> | null = null;
   let closing: Promise<void> | null = null;
+  // the work scope and the lifecycle of the start: each iteration uses them
+  let begun: { readonly work: Scope; readonly life: Lifecycle } | null = null;
 
   const report = (error: unknown, failures: number): void => {
     try {
@@ -157,43 +165,42 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
     return work;
   };
 
-  /** This function is one lane: an iteration, then its sleep or its backoff, until the intake stops. */
-  const lane = async (index: number, work: Scope, life: Lifecycle): Promise<void> => {
-    let failures = 0;
-    let since = rests.wakes;
-    // the first iteration comes after a zero sleep on the clock: a wake starts it at once
-    await rests.sleep(0, since);
-    for (;;) {
-      if (intake.signal.aborted) return;
-      since = rests.wakes;
-      const remove = running.add();
-      const end = await runUnit({
-        work,
-        kind: "round",
-        name: `lane ${index}`,
-        trace: undefined,
-        identity: work.identity,
-        facts: { intake: intake.signal, state: state as S, lane: index, failures, life },
-        bound,
-        life,
-        request: options.request,
-        unit: index,
-        onError: (error) => report(error, 0),
-        handle: (scope) => keep((async () => options.iteration(scope))()),
-      });
-      remove();
-      // the shutdown cut the iteration: that is not a failure, and the lane ends (A10)
-      if (end.kind === "cut") return;
-      if (end.kind === "done") {
-        failures = 0;
-        await rests.sleep(end.value === "more" ? 0 : sleep, end.value === "more" ? rests.wakes : since);
-        continue;
-      }
-      failures += 1;
-      report(end.kind === "failed" ? end.error : new Error(`the service refused the iteration: ${end.cause}`), failures);
-      await rests.backoff(backoffDelay(backoff, failures, random));
+  /**
+   * This function is one round of the loop core: one iteration in its unit scope (SYS-138). The loop core gives the
+   * timing of the lane. The first round comes after a zero delay, and each later round comes one sleep after the end of
+   * the last round. A round comes at once after "more" or after a wake during the round. A failure gets the backoff.
+   * The unit scope gives the bound, the route and the cut. The rounds start after the start, thus `begun` has its value.
+   */
+  const iterate = async (context: RoundContext): Promise<"more" | undefined> => {
+    const { work, life } = begun!;
+    const remove = running.add();
+    const end = await runUnit({
+      work,
+      kind: "round",
+      name: `lane ${context.lane}`,
+      trace: undefined,
+      identity: work.identity,
+      facts: { intake: intake.signal, state: state as S, lane: context.lane, failures: context.failures, life },
+      bound,
+      life,
+      request: options.request,
+      unit: context.lane,
+      onError: (error) => report(error, 0),
+      handle: (scope) => keep((async () => options.iteration(scope))()),
+    }).catch((error: unknown): UnitEnd => ({ kind: "failed", error }));
+    remove();
+    // the shutdown cut the iteration: that is not a failure, and the loop ends (A10): the stop ends each lane
+    if (end.kind === "cut") {
+      void ticks.stop().catch((error: unknown) => report(error, 0));
+      return undefined;
     }
+    if (end.kind === "done") return end.value === "more" ? "more" : undefined;
+    const error = end.kind === "failed" ? end.error : new Error(`the service refused the iteration: ${end.cause}`);
+    // the loop core counts this failure, and the count of the hook includes it
+    report(error, context.failures + 1);
+    throw error;
   };
+  const ticks = loop({ ...workerSchedule(knobs), timeout: UNBOUNDED }, iterate, { name: OWNER, clock, random });
 
   return {
     knobs: { ...knobs },
@@ -215,17 +222,18 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
         await settleWithin(clock, closeBound, teardown());
         throw error;
       }
+      begun = { work, life };
       // the first iterations wait for the end of the startup, because a request before it gets a refusal
       void life.started.then(() => {
         if (intake.signal.aborted || life.state !== "running") return;
-        // a lane catches each failure of its work: a rejection here is a defect, and it does not end the process (A5)
-        for (let index = 0; index < lanes; index += 1) lane(index, work, life).catch((error: unknown) => report(error, 0));
+        ticks.start();
       });
     },
     stopIntake() {
       if (intake.signal.aborted) return;
       intake.abort(new Error(`${OWNER} stopped its intake`));
-      rests.stop();
+      // the stop cancels the timer of each lane. An iteration in flight goes on, and the drain waits for it
+      void ticks.stop().catch((error: unknown) => report(error, 0));
     },
     drain(deadline, signal) {
       return running.drain(deadline, signal);
@@ -233,13 +241,14 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
     inFlight: () => running.size,
     wake() {
       if (intake.signal.aborted) return false;
-      rests.wake();
+      // before the end of the startup and after a cut, the loop core has no lane to wake
+      ticks.wake();
       return true;
     },
     close() {
       if (closing !== null) return closing;
       if (!intake.signal.aborted) intake.abort(new Error(`${OWNER} closed`));
-      rests.stop();
+      void ticks.stop().catch((error: unknown) => report(error, 0));
       running.abort(new Error(`${OWNER} closed`));
       running.clear();
       closing = (async () => {
