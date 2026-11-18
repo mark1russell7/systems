@@ -3688,7 +3688,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** todo
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
@@ -3946,10 +3946,10 @@ The test:
 
 ### SYS-134 · One scope for each request, job and loop round
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-18
 - **Shipped:**
 - **Links:**
 
