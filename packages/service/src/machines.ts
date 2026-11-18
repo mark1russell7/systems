@@ -207,6 +207,114 @@ export const POLLER_MACHINE: Machine = {
 };
 
 /**
+ * The loop core of the entry `/loop` has one instance of this machine for each lane. The rounds of a lane decide
+ * its state first. The state is `hung` when a round in flight is past its timeout, and `calling` when a round is in
+ * flight. A lane with no round in flight is in the state of its next timer. That state is `waiting` for the period,
+ * `backoff` after a failure, and `deferred` for the window of the budget. The schedule gives the value of each knob.
+ */
+export const LOOP_MACHINE: Machine = {
+  ...base("loop", "A lane of a loop"),
+  states: {
+    idle: { initial: true, note: "before the start of the loop" },
+    waiting: { note: "no round is in flight, and the timer of the next round runs" },
+    calling: { note: "a round is in flight, in its timeout" },
+    hung: { note: "a round is past its timeout, and it is still in flight" },
+    backoff: { note: "no round is in flight, and the backoff after a failure runs" },
+    deferred: { note: "a round is due, and it waits for the window of the budget" },
+    stopped: { final: true },
+  },
+  events: {
+    start: { kind: "local" },
+    tick: { kind: "timer" },
+    retry: { kind: "timer" },
+    window: { kind: "timer" },
+    wake: { kind: "local" },
+    answer: { kind: "local" },
+    more: { kind: "local" },
+    fail: { kind: "local" },
+    timeout: { kind: "timer" },
+    "late-answer": { kind: "local" },
+    stop: { kind: "local" },
+  },
+  knobs: {
+    period: { key: "schedule.period", scope: "loop", unit: "s", default: null },
+    first: { key: "schedule.first", scope: "loop", unit: "s", default: null },
+    timeout: { key: "schedule.timeout", scope: "loop", unit: "s", default: null },
+    backoff: { key: "schedule.backoff", scope: "loop", unit: "s", default: null },
+    window: { key: "schedule.budget.per", scope: "loop", unit: "s", default: null },
+  },
+  timers: {
+    first: {
+      duration: { knob: "first", unit: "s" },
+      arms: ["start"],
+      cancels: ["wake", "stop"],
+      fires: "tick",
+      note: "the delay of the first round after the start of the loop",
+    },
+    next: {
+      duration: { knob: "period", unit: "s" },
+      arms: ["enter:waiting"],
+      cancels: ["wake", "stop"],
+      fires: "tick",
+      note: "the period with its jitter: after the planned start of the last round (from start), or after its end (from end)",
+    },
+    round_timeout: {
+      duration: { knob: "timeout", unit: "s" },
+      arms: ["enter:calling"],
+      cancels: ["answer", "more", "fail", "stop"],
+      fires: "timeout",
+      note: "the deadline of the scope of the round",
+    },
+    backoff: {
+      duration: { knob: "backoff", unit: "s" },
+      arms: ["enter:backoff"],
+      cancels: ["stop"],
+      fires: "retry",
+      note: "the delay of the backoff policy for the count of failures in sequence",
+    },
+    window: {
+      duration: { knob: "window", unit: "s" },
+      arms: ["enter:deferred"],
+      cancels: ["stop"],
+      fires: "window",
+      note: "at most this window, until the first start of the budget leaves it",
+    },
+  },
+  transitions: [
+    t("start", "idle", "start", "waiting"),
+    // a round that is due starts, or it waits for the window of the budget
+    t("due", "waiting", ["tick", "wake"], "calling", { guard: "the budget has a start in its window" }),
+    t("due-deferred", "waiting", ["tick", "wake"], "deferred", { guard: "the budget has no start in its window" }),
+    t("retry", "backoff", "retry", "calling", { guard: "the budget has a start in its window" }),
+    t("retry-deferred", "backoff", "retry", "deferred", { guard: "the budget has no start in its window" }),
+    t("window", "deferred", "window", "calling", { guard: "the budget has a start in its window" }),
+    t("window-again", "deferred", "window", "deferred", { guard: "another lane took the start" }),
+    // a round that is due while a round of the lane is in flight: skip, fail or allow (from start only)
+    t("due-busy", "calling", ["tick", "wake", "retry", "window"], "calling", { note: "the overlap of the schedule" }),
+    t("due-hung", "hung", ["tick", "wake", "retry", "window"], "hung", { note: "the overlap of the schedule" }),
+    // the end of a round in its timeout: the lane goes to its next timer, or it keeps its other rounds
+    t("answer", "calling", ["answer", "more"], "waiting"),
+    t("answer-backoff", "calling", "answer", "backoff", { guard: "a round that failed at once armed a backoff" }),
+    t("answer-deferred", "calling", "answer", "deferred", { guard: "a round of the lane waits for the window" }),
+    t("answer-busy", "calling", ["answer", "more"], "calling", { guard: "another round of the lane is in flight" }),
+    t("answer-hung", "hung", ["answer", "more"], "hung", { guard: "another round of the lane is past its timeout" }),
+    t("fail", "calling", "fail", "waiting", { guard: "the schedule has no backoff" }),
+    t("fail-backoff", "calling", "fail", "backoff", { guard: "the schedule has a backoff" }),
+    t("fail-deferred", "calling", "fail", "deferred", { guard: "a round of the lane waits for the window" }),
+    t("fail-busy", "calling", "fail", "calling", { guard: "another round of the lane is in flight" }),
+    t("fail-hung", "hung", "fail", "hung", { guard: "another round of the lane is past its timeout" }),
+    // the deadline of a round: its failure is in the record, and the lane stays hung until the round settles
+    t("timeout", ["calling", "hung"], "timeout", "hung"),
+    t("late-answer", "hung", "late-answer", "waiting", { guard: "no other round is in flight, and no backoff" }),
+    t("late-answer-backoff", "hung", "late-answer", "backoff", { guard: "no other round is in flight, and a backoff" }),
+    t("late-answer-deferred", "hung", "late-answer", "deferred", { guard: "a round of the lane waits for the window" }),
+    t("late-answer-busy", "hung", "late-answer", "calling", { guard: "another round of the lane is in flight" }),
+    t("late-answer-hung", "hung", "late-answer", "hung", { guard: "another round of the lane is past its timeout" }),
+    t("stop", ["idle", "waiting", "calling", "hung", "backoff", "deferred"], "stop", "stopped"),
+  ],
+};
+
+/**
  * The exit manager is the only part that ends the process. The first exit request starts the
  * shutdown. A later request has no effect, but a repeat signal exits at once when the declaration
  * says `onRepeatSignal: "exit"`. The exit code is the code of the exit request, else 1 after an
