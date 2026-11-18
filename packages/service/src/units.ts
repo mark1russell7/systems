@@ -3,7 +3,7 @@
 // abort, the sleeps on the clock, the bound of each unit, and the request tracking of the service for each unit.
 
 import type { Backoff } from "./backoff.ts";
-import { backoffProblems } from "./backoff.ts";
+import { backoffProblems, doublingBackoff } from "./backoff.ts";
 import type { Cancel, Clock } from "./clock.ts";
 import type { ServiceDescription } from "./description.ts";
 import type { KnobRecord } from "./knobs.ts";
@@ -368,7 +368,7 @@ export const untilAbort = <T, S>(promise: Promise<T>, signal: AbortSignal, stop:
 export const retryOf = (knobs: KnobRecord, owner: string): Backoff => {
   const base = boundedMillisecondsOf(knobs, "retry_base", owner);
   const cap = boundedMillisecondsOf(knobs, "retry_cap", owner);
-  const backoff: Backoff = { base, factor: 2, cap, jitter: { kind: "add", amount: base } };
+  const backoff: Backoff = doublingBackoff(base, cap);
   const problems = backoffProblems(backoff);
   if (problems.length > 0) throw new Error(`${owner}: the retry_base and retry_cap give no backoff: ${problems.join(", ")}`);
   return backoff;
