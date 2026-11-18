@@ -3846,6 +3846,23 @@ The change: the harness takes rigor-testkit `^0.1.18`. The self-test copies `bui
 
 The test: the self-test of the disk tier passes in CI with the import, and the writer has no code of the protocol.
 
+### SYS-131 · An in-flight bound in the keyed limiter
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-106
+- **Started:** 2026-11-16
+- **Shipped:**
+- **Links:** [#589](https://github.com/mark1russell7/systems/pull/589)
+
+A rate policy needs the service rate of the calls that it bounds. A bound on the calls in flight does not. The policy `{ type: "in-flight", limit, lease, retryAfter }` gives each key at most `limit` units in flight. A permitted take gives a lease, and `release(key, decision)` gives its units back. A unit with no release leaves the count at the end of its lease. Thus a caller that stops before its release does not hold the bound.
+
+The memory store and the Redis script do the same arithmetic (`releaseLease`). The document `IN_FLIGHT_MACHINE` gives the machine of one key. The new policy is a new member of the unions `LimitPolicy`, `LimitRule` and `KeyState`, and an exhaustive switch of a caller fails. `KeyedLimiter` and `MemoryStore` get the new member `release`, and an implementation of them outside the package fails its type check. Thus the release is `0.10.0` (MINOR before 1.0).
+
+The package `kind` depends on `service`, and its packed `package.json` changes. Its public API does not change, thus `kind` gets `0.14.12` (PATCH).
+
+The test: seeded property tests hold the bound, the lease and the release on the memory store. The Redis tests check the script against `decide` and `releaseLease` on a real Redis. The machine test replays each take and each release against the document.
+
 ### SYS-106 · The units of a take in the keyed limiter
 
 - **Status:** done

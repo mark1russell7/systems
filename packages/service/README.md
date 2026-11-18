@@ -417,24 +417,34 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 | Export | Function |
 | --- | --- |
 | `svc.limiter(name, spec)` | The declaration of a limiter, as data. `describe()` shows it in `limiters`. |
-| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key, units?)` gives a `Decision`, and `tryTakeSync(key, units?)` gives it at once on a memory store |
+| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key, units?)` gives a `Decision`, `tryTakeSync(key, units?)` gives it at once on a memory store, and `release(key, decision)` ends a take of an in-flight bound |
 | `memoryStore(clock)` | The store of one replica, on the injected monotonic clock |
 | `decide(rule, state, now, units?)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
+| `releaseLease(rule, state, now, lease)` | The arithmetic of the release of one lease of an in-flight bound, for a store of your own |
 | `capacityOf(rule)`, `overCapacity(rule, units)`, `unitsOf(units)` | The most units of one take, its refusal, and the check of the units |
 | `idleSpan(policy)`, `longestRetryAfter(policy)`, `retryAfterSeconds(retryAfter)` | The times of a policy, and `Retry-After` in whole seconds |
 | `limiterProblems(name, spec)` | The problems of a spec that `describe()` and `keyedLimiter` refuse |
 | `LIMITER_RULES` | The rules O29 and O30 of the law, as data. Their identifiers are provisional. |
-| `TOKEN_BUCKET_MACHINE`, `SLIDING_WINDOW_MACHINE`, `limiterMachine(policy)` | The machine of one key of each policy, as a `mark1russell7.machine/1` document |
+| `TOKEN_BUCKET_MACHINE`, `SLIDING_WINDOW_MACHINE`, `IN_FLIGHT_MACHINE`, `limiterMachine(policy)` | The machine of one key of each policy, as a `mark1russell7.machine/1` document |
 | `limiterStateOf(rule, state, now)` | The state of a key of a store, as its document names it: `new`, `open` or `limited` |
 
 - **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store, the failure policy of a shared store or its bound. The error names the part.
 - **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
 - **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time.
+- **An in-flight bound.** `{ type: "in-flight", limit, lease, retryAfter }` gives a key at most `limit` units in flight. This bound needs no service rate.
+- **The lease.** A permitted take of an in-flight bound gives a `lease`. Its units stay held until `release(key, decision)`, or until the lease ends.
+- **No lost units.** A unit that no caller releases leaves the count at the end of its lease. Thus a caller that stops before its release does not hold the bound.
+- **The length of the lease.** The units of a call that outlives its lease leave the count. Then a key can have more than `limit` units in flight. Set a lease of at least the deadline of the call. A lease has no renewal.
+- **One release.** Release each permitted decision one time, with the key of its take. A second release of a decision releases nothing.
+- **The release errors.** A release with another key rejects, and the units stay held. A failure of the store rejects the release, and the units count until their lease ends.
+- **No release.** A refusal, and a decision of a rate policy, have no lease. Their release does nothing.
+- **The wait of a refusal.** The limiter cannot know when a call ends. Thus the policy declares `retryAfter`, at most the lease. A refusal gives less when enough leases end first. A retry at `retryAfter` can get a refusal again when no release came first.
+- **A store with a release.** An in-flight bound needs a store with `release`. `keyedLimiter` refuses a store without it. `memoryStore` and `redisLimiterStore` have it.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or a refusal. The type of a refusal is a union on its `cause`, thus the compiler checks each branch.
 - **A wait refusal.** `{ allowed: false, cause, retryAfter }` has the cause `limit`, `cap` or `store`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in.
 - **The units of a take.** `take(key, units)` takes `units` units in one atomic step, or none. The units are a whole number of 1 or more, and 1 when absent. Other units throw a `RangeError`.
-- **The capacity.** The capacity of a policy is its `burst` or its `limit` (`capacityOf`). No wait lets in a take of more units, thus the limiter refuses it before the store with `{ allowed: false, cause: "capacity", units, capacity }`. Split such work into parts of at most the capacity.
+- **The capacity.** The capacity of a policy is its `burst`, the `limit` of its window or the `limit` of its in-flight bound (`capacityOf`). No wait lets in a take of more units, thus the limiter refuses it before the store with `{ allowed: false, cause: "capacity", units, capacity }`. Split such work into parts of at most the capacity.
 - **A take with no promise.** `tryTakeSync(key)` gives the same `Decision` at once. `keyedLimiter` on a `memoryStore` gives a `LocalLimiter`, whose type has it. On `KeyedLimiter`, it is optional.
 - **Only a local store.** `tryTakeSync` throws for a shared store, before the take. It also throws for a local store whose take gives a promise. That take still counts, thus use `take()` with such a store.
 - **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
@@ -445,20 +455,22 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **A failure of the store.** A shared store declares what a take does when the store fails (`onStoreFailure`). The field has no default, and `describe()` refuses a shared store without it.
 - **Open or closed.** With `"open"`, the limiter lets the take in, with `remaining` 0. With `"closed"`, it refuses the take with the cause `store` and the longest `retryAfter` of the policy. Each decision gives the failure as text (`failure`).
 - **A local store.** A local store does not fail, thus it needs no `onStoreFailure`, and the limiter ignores one. A failure of a local store of your own rejects the take.
-- **Exact eviction.** A store removes a key only when its state is equal to the state of a new key. A bucket is new again after `burst / rate` idle, and a window after one window idle (`idleSpan`). Thus an eviction changes no decision.
+- **Exact eviction.** A store removes a key only when its state is equal to the state of a new key. A bucket is new again after `burst / rate` idle, a window after one window idle, and an in-flight bound after one lease idle (`idleSpan`). Thus an eviction changes no decision.
 - **A bound on the keys.** `evict.maxKeys` is the most keys that the store holds for the limiter. `describe()` refuses a count without a bound.
 - **The cost of a new key at the cap.** At the cap, the store refuses a new key with the cause `cap`. Its `retryAfter` is at most the time until the earliest held key is free. That time is at most `idleSpan`, and a held key keeps its count.
-- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times.
+- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times. An in-flight bound keeps the start of each held unit, with the same bound.
 - **The HTTP edge.** `retryAfterSeconds(retryAfter)` gives whole seconds, rounded up, for `Retry-After` (RFC 9110). `limitedResponse(refused)` of `@mark1russell7/service/http` gives 429 with that header (RFC 6585). For the cause `capacity`, it gives 413 with no `Retry-After`, and the body gives the units and the capacity.
 - **The law.** `lint()` applies O29 and O30 (`LIMITER_RULES`) one time for each limiter. The scenario gives the values of the callers of each limiter (`scenario.limiters`).
 - **Provisional identifiers.** The corpus of the law has the rules O01 to O28. It does not have these two rules yet, thus O29 and O30 are provisional identifiers.
 - **O29.** The longest `Retry-After` of a limiter (`retry_after@limiter`) is at most the retry window of its caller (`client_retry_window@caller`). Its second inequality applies the same bound to a new key at the cap (`retry_after_at_cap@limiter`). Otherwise the caller stops before the limit lets its call in.
 - **O30.** The least delay of a caller before a retry (`retry_delay@caller`) is at least the longest `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too early.
 - **A closed failure.** The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy. Thus O29 and O30 apply to it too.
-- **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds: one interval of the bucket, or one window. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
+- **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds. It is one interval of the bucket, one window, or the declared `retryAfter` of an in-flight bound. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
 - **The machine of a key.** Each policy has a document of one key, which `@mark1russell7/algebra` reads. A key is `new` (the store holds no count, or a count equal to a new key), `open` (its next take is permitted) or `limited` (its next take is refused).
 - **The timers of a token bucket.** `token` fires at most `1 / rate` after the take that used the last token. That time is the longest `Retry-After`. `full` fires from one to `burst` intervals after a permitted take: the bucket is full, and the key is new again.
 - **The timers of a sliding window.** `oldest` fires at most one window after the take that filled the window. `last` fires one window after the last permitted take, and the key is new again.
+- **The timers of an in-flight bound.** `oldest` fires at most one lease after the take that filled the bound. `last` fires one lease after the last permitted take, and the key is new again.
+- **A release in the machine.** A release is an event of the application. It removes the held units of its take, thus the key can become open or new before a timer fires.
 - **The other transitions.** A refused take leaves a limited key limited. A new key at the cap stays new, with the cause `cap`. A failure of a shared store leaves each state as it is.
 - **The replay.** The tests drive the runtime on a fake clock and replay each take and each change of state against the document. The scenarios reach each transition. The times of the runtime are inside the bounds of the timers that the algebra gives.
 

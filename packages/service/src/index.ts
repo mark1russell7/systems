@@ -52,8 +52,10 @@ export type {
   Allowed,
   CapacityRefused,
   Decision,
+  InFlightBound,
   KeyState,
   KeyedLimiter,
+  Lease,
   LimitPolicy,
   LimitRule,
   Limiter,
@@ -66,6 +68,7 @@ export type {
   MemoryStore,
   RefusalCause,
   Refused,
+  ReleaseRequest,
   SlidingWindow,
   StoreFailure,
   TakeStep,
@@ -102,6 +105,7 @@ export type {
 } from "./limiter.ts";
 export { keyedQuota, memoryQuotaStore, quotaProblems, quotaRule, quotaStep, takeQuotas } from "./limiter.ts";
 export {
+  IN_FLIGHT_MACHINE,
   SLIDING_WINDOW_MACHINE,
   TOKEN_BUCKET_MACHINE,
   capacityOf,
@@ -116,6 +120,7 @@ export {
   longestRetryAfter,
   memoryStore,
   overCapacity,
+  releaseLease,
   retryAfterSeconds,
   unitsOf,
 } from "./limiter.ts";
