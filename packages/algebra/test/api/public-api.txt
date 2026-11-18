@@ -93,6 +93,20 @@ timerUnder: build/run.chunk.d.ts#timerUnder
 transitionOn: build/run.chunk.d.ts#transitionOn
 udpFrameLength: build/index.d.ts#udpFrameLength
 
+## ./availability (build/availability.d.ts): names
+
+Cause: build/availability.d.ts#Cause
+Chance: build/availability.d.ts#Chance
+ChanceInterval: build/availability.d.ts#ChanceInterval
+Copy: build/availability.d.ts#Copy
+DelayPoint: build/availability.d.ts#DelayPoint
+NeverDown: build/availability.d.ts#NeverDown
+Placement: build/availability.d.ts#Placement
+SendQuery: build/availability.d.ts#SendQuery
+neverDownChances: build/availability.d.ts#neverDownChances
+placementProblems: build/availability.d.ts#placementProblems
+sendChance: build/availability.d.ts#sendChance
+
 ## ./clock (build/clock.d.ts): names
 
 Cancel: build/clock.chunk.d.ts#Cancel
@@ -144,6 +158,65 @@ runMachine: build/run.chunk.d.ts#runMachine
 machineSchema: build/schema.d.ts#machineSchema
 
 ## Declarations
+
+### build/availability.d.ts#Cause
+export interface Cause {
+  readonly id: string;
+  readonly down: Chance;
+  readonly within?: readonly string[];
+}
+
+### build/availability.d.ts#Chance
+export type Chance = number | ChanceInterval;
+
+### build/availability.d.ts#ChanceInterval
+export interface ChanceInterval {
+  readonly lo: number;
+  readonly hi: number;
+}
+
+### build/availability.d.ts#Copy
+export interface Copy {
+  readonly id: string;
+  readonly needs: readonly string[];
+  readonly down: Chance;
+  readonly wait?: number;
+  readonly delay?: readonly DelayPoint[];
+}
+
+### build/availability.d.ts#DelayPoint
+export interface DelayPoint {
+  readonly within: number;
+  readonly chance: Chance;
+}
+
+### build/availability.d.ts#NeverDown
+export interface NeverDown {
+  readonly id: string;
+  readonly of: "cause" | "copy";
+  readonly chance: ChanceInterval;
+}
+
+### build/availability.d.ts#Placement
+export interface Placement {
+  readonly causes: readonly Cause[];
+  readonly copies: readonly Copy[];
+}
+
+### build/availability.d.ts#SendQuery
+export interface SendQuery {
+  readonly atLeast?: number;
+  readonly within?: number;
+}
+
+### build/availability.d.ts#neverDownChances
+export declare const neverDownChances: (placement: Placement, query?: SendQuery) => readonly NeverDown[];
+
+### build/availability.d.ts#placementProblems
+export declare const placementProblems: (placement: Placement) => string[];
+
+### build/availability.d.ts#sendChance
+export declare const sendChance: (placement: Placement, query?: SendQuery) => ChanceInterval;
 
 ### build/clock.chunk.d.ts#Cancel
 type Cancel = (() => void) & {

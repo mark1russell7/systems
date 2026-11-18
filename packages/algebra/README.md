@@ -233,19 +233,55 @@ const next = nextBoundary(Date.now(), night); // { at, opens }: the next change 
 if (next !== undefined) realClock.after(next.at - Date.now(), () => console.log(next.opens ? "quiet" : "loud"));
 ```
 
+## The availability of copies
+
+The entry `@mark1russell7/algebra/availability` gives the chance that copies of a service send in time, when the copies share causes of failure. Examples of causes are a provider, a region, a power feed, a network and a channel of delivery.
+
+- **Causes in order.** A placement has a list of causes and a list of copies. A cause can be in other causes: a region is in its provider. Each cause names only causes before it, thus the causes have no cycle.
+- **Shared failure.** A copy needs causes. When a cause fails, each cause in it and each copy that needs it fail too. Each cause and each copy also fails on its own, independently of the others.
+- **Time.** A copy waits for its rank, then it sends after a delay. The points of a CDF give the distribution of the delay. Between two points, the model uses the chance of the lower point. Thus the result is a lower bound.
+- **At least k copies.** `sendChance(placement, { atLeast, within })` gives the chance that `atLeast` copies or more send within `within` seconds. It conditions on each cause that two or more copies share. Then the Poisson binomial law of [`@mark1russell7/rigor-statistics`](https://www.npmjs.com/package/@mark1russell7/rigor-statistics) gives the count of the copies that send.
+- **Intervals.** A chance can be an interval `{ lo, hi }`, for example a Wilson interval of a measured rate. The result is then an interval. The model is coherent: a smaller chance of failure does not make the result smaller.
+- **The limit of more copies.** `neverDownChances` gives the chance when one cause or one copy does not fail on its own. A shared cause with a large gap limits the gain of more copies.
+- **Problems.** `placementProblems` gives each problem of a placement. `sendChance` refuses a placement with a problem.
+- **One shared core.** With `atLeast` 1, `pathSetReliability` of `@mark1russell7/collections` gives the same chance over the path sets of a graph. The probability core of the two functions moves to `@mark1russell7/rigor-statistics`. Then each package uses that core, and its tests stay the same.
+
+The model has no shared cause of delay: the delays are independent when the state of each cause is known. The time grows with 2 to the count of the causes that two or more copies share in part. A cause that each copy shares costs one step.
+
+```ts
+import { neverDownChances, sendChance } from "@mark1russell7/algebra/availability";
+
+const placement = {
+  causes: [
+    { id: "cloud", down: 0.001 },
+    { id: "cloud/west", down: 0.002, within: ["cloud"] },
+    { id: "grid", down: 0.01 },
+    { id: "push", down: { lo: 0.0005, hi: 0.002 } },
+  ],
+  copies: [
+    { id: "a", needs: ["cloud/west", "push"], down: 0.01, delay: [{ within: 5, chance: 0.9 }, { within: 30, chance: 0.99 }] },
+    { id: "b", needs: ["grid", "push"], down: 0.05, wait: 30 },
+  ],
+};
+
+sendChance(placement, { within: 60 }); // { lo: 0.9966, hi: 0.9981 }
+neverDownChances(placement, { within: 60 })[3]; // the cause push: { lo: 0.9986, hi: 0.9986 }, the largest gain
+```
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/algebra zod
 ```
 
-The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount.
+The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. The entry of the availability uses `@mark1russell7/rigor-statistics` for the Poisson binomial law.
 
 The root entry has the machine types, the consistency checks and the algebra. It does not import `zod`.
 
 | Entry | What it has | `zod` |
 | --- | --- | --- |
 | `@mark1russell7/algebra` | The machine types, the consistency checks, the algebra, `replay` and `runMachine` | No |
+| `@mark1russell7/algebra/availability` | The chance that copies with shared causes of failure send in time | No |
 | `@mark1russell7/algebra/clock` | The clock of a runtime, a fake clock for tests, and civil time | No |
 | `@mark1russell7/algebra/replay` | The replay of a trace against a machine document | No |
 | `@mark1russell7/algebra/run` | The run of a live instance of a machine document | No |
@@ -280,6 +316,8 @@ detection(tcp, idle, { name: "blackhole", passes: [] }, values).first?.timer; //
 `pnpm --filter @mark1russell7/algebra test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault.
 
 The replay tests use a machine with its own names, and they hold the entry of the replay without zod. The tests of the run use a lock, a call with a backoff and a connection with a keepalive, on the fake clock. Each run of the lock with 4 steps or fewer replays against its document with no problem. A test of the root entry fails if the root imports zod.
+
+The tests of the availability compare `sendChance` with the sum over each state. They do this for each structure of 3 causes and 3 copies, and for 5 causes and 5 copies with waits and delays.
 
 The tests of the algebra on the real documents are in `@mark1russell7/machines`.
 
