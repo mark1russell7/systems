@@ -327,7 +327,7 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 | --- | --- |
 | `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock`, `unrefClock` |
 | `@mark1russell7/service/heartbeat` | `heartbeat`, `detectionTime` |
-| `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
+| `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems`, `doublingBackoff` |
 
 - **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is `platformClock()`: its timers keep the process alive, as `setTimeout` does. Each cancel also has `unref`, for one timer.
 - **The rule of `unref`.** The service uses the `unref` of a timer only when a socket, a child process or the hold of the lifecycle keeps the process alive. Each other timer stays referenced. Thus a wait that a caller awaits, for example `retry` or `within`, ends before the process exits.
@@ -399,6 +399,51 @@ const response = await retry(
     delayOf: (error) => (error instanceof Busy ? retryAfterDelay(error.response.headers.get("retry-after"), Date.now()) : null),
   },
 );
+```
+
+## The loop
+
+`@mark1russell7/service/loop` is the one loop core of the service. A loop starts rounds on a schedule, on a clock, with a scope for each round. The entry imports only the quantity package and the clock: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package does not give its functions.
+
+| Entry | Exports |
+| --- | --- |
+| `@mark1russell7/service/loop` | `loop`, `scheduleProblems`, `pollSchedule`, `workerSchedule`, `streamSchedule`, `LOOP_MACHINE` and the types `Schedule`, `Budget`, `Round`, `RoundContext`, `LoopRecord` |
+
+- **In place of `setInterval`.** A schedule from `start` plans each round one period after the planned start of the last round. A round that is late does not move the grid.
+- **In place of `setTimeout` after `await`.** A schedule from `end` plans each round one period after the end of the last round. A lane from `end` has one round at a time.
+- **The schedule is data.** Each field of a `Schedule` is necessary. `scheduleProblems(schedule)` names each value that the loop cannot use, and `loop()` throws for a schedule with problems.
+- **The period and the jitter.** Each period is `period × (1 ± jitter)`. A test gives a seeded `random`, and each gap is then exact. A period without a bound starts a round only at `wake()`.
+- **The timeout.** At `timeout`, the scope of the round aborts, and the round is a failure. A round that does not stop at the abort keeps its lane `hung` until it settles.
+- **The backoff.** After the k-th failure in sequence, the gap is the backoff delay of try k. A pass sets the count to zero. With `backoff: null`, the gap after a failure is the period.
+- **The overlap.** A round can come due while its lane has a round in flight. From `start`, the due round fails at once (`fail`), does not occur (`skip`), or starts beside the other round (`allow`).
+- **The lanes and the budget.** `lanes` is the count of lanes. Each lane is one instance of `LOOP_MACHINE`. A `budget` lets at most `rounds` rounds start in each window of `per`, over all lanes. A due round past the budget waits for the window.
+- **The hold.** With `hold: true`, the timers of the loop keep a Node process alive. With `hold: false`, only the deadline of a round in flight keeps the process alive.
+- **The proof of a stream.** With a `stable` time, a round proves its lane when it uses `reset()`, or when it stays in flight for that time. A round with no proof is a failure, also when it passes. Its error is an `UnprovedRoundError`. Thus a stream that drops after each open backs off up to the cap.
+- **Where to use `reset()`.** Use `reset()` at a proof, for example the first useful message of a stream. Do not use it when a connection opens. Else a server that refuses each connection after the handshake gets a new connection with no backoff.
+- **A round.** A round gets its scope, its signal, its lane, its number, its planned start and the count of failures in sequence. It gives `"more"` for the next round at once, or nothing for a pass. A throw or a rejection is a failure.
+- **The records.** `record` gets one record for each start, end, skip and wait of the budget. `onTransition` gets each transition of each lane, with the instance `<name>#<lane>`. `replay` of `@mark1russell7/algebra/replay` checks them against `LOOP_MACHINE`.
+- **The stop.** `stop()` aborts and closes the scope of each round in flight. No round starts after it, and no timer of the schedule stays. A second stop gives the same promise.
+- **The scope.** The scope of a loop is a `process`, `service` or `phase` scope. An abort of it stops the loop. Without a scope, the loop makes a root scope of the kind `service` and closes it at the stop.
+
+| Function | Schedule |
+| --- | --- |
+| `pollSchedule(poll)` | the health poller: from `start`, the jitter of the poll, no backoff, one lane, and `overlap: "fail"` |
+| `workerSchedule(knobs)` | a worker loop: from `end`, the sleep as the period, the doubling backoff, and one lane for each unit of `concurrency` |
+| `streamSchedule(backoff, { stable })` | a stream: from `end`, no period, no timeout, and a stable time of 30 s by default |
+
+```ts
+import { doublingBackoff } from "@mark1russell7/service/backoff";
+import { loop, streamSchedule } from "@mark1russell7/service/loop";
+
+// one long connection for each round: after a drop, the next open waits for the backoff
+const feed = loop(streamSchedule(doublingBackoff(1000, 30_000)), async ({ signal, reset }) => {
+  for await (const message of openFeed({ signal })) {
+    reset(); // the first useful message is the proof: the count of failures goes to zero
+    handle(message);
+  }
+}, { name: "feed" });
+feed.start();
+life.signal.addEventListener("abort", () => feed.stop().catch(() => undefined)); // the drain stops the feed
 ```
 
 ## The channels
