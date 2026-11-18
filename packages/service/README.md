@@ -465,6 +465,41 @@ const meters = loopMetrics();
 const counted = loop(schedule, round, { name: "feed", ...meters });
 ```
 
+### Move a loop to the core
+
+A loop of a timer in a package of the preset `service` moves to `loop()`. Each case below gives the old form and its schedule. The stop of the loop replaces `clearInterval`, `clearTimeout` and the check of a flag.
+
+| Old form | Schedule |
+| --- | --- |
+| `setInterval(work, ms)` | from `start`, `period` and `first` equal to `ms` |
+| a `setTimeout` that starts its own function again after an `await` | from `end`, `period` equal to the delay |
+| a `for` or `while` loop that awaits a timer after each step | from `end`, `period` equal to the delay, and `backoff` for the wait after a failure |
+
+```ts
+import { doublingBackoff } from "@mark1russell7/service/backoff";
+import type { Schedule } from "@mark1russell7/service/loop";
+import { loop } from "@mark1russell7/service/loop";
+
+// old: const id = setInterval(() => void refresh(), 30_000); ... clearInterval(id);
+const grid: Schedule = {
+  from: "start", period: { value: 30, unit: "s" }, jitter: 0, first: { value: 30, unit: "s" },
+  timeout: { value: 10, unit: "s" }, backoff: null, overlap: "skip", lanes: 1, budget: null, hold: true, stable: null,
+};
+const refresher = loop(grid, ({ signal }) => refresh(signal), { name: "refresh" });
+
+// old: const tick = async () => { await sweep(); timer = setTimeout(tick, 5000); };
+// old: while (!stopped) { try { await sweep(); } catch { await sleep(backoff(k++)); continue; } await sleep(5000); }
+const afterEach: Schedule = {
+  from: "end", period: { value: 5, unit: "s" }, jitter: 0, first: { value: 0, unit: "s" },
+  timeout: { value: 1, unit: "min" }, backoff: doublingBackoff(1000, 60_000), overlap: "skip", lanes: 1, budget: null, hold: true, stable: null,
+};
+const sweeper = loop(afterEach, ({ signal }) => sweep(signal), { name: "sweep" });
+
+refresher.start();
+sweeper.start();
+await Promise.all([refresher.stop(), sweeper.stop()]); // at the drain: no round starts, and no timer stays
+```
+
 ## The channels
 
 `@mark1russell7/service/channel` has channels in the style of Go. The entry imports only the clock and `@mark1russell7/collections`: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package does not give its functions.

@@ -4767,6 +4767,7 @@ The change:
 - The time of a start goes from the start of the process to the first pass of its ready probe. The clock of the ports gives it.
 - The window is `first` until `after` starts have a time. Then it is the worst of the last `keep` times plus the worst minus the best, between `floor` and `cap`.
 - The supervisor reads the window at each start of a program.
+- The times live in `<stateDir>/<name>.ready.json` through the file port, thus they survive a restart of the supervisor. A missing or bad file gives no times and one line at warn.
 - A stopped start has a time of at least its window. The next window is at least two times that window, up to `cap`. Thus a sequence of stopped starts does not keep one window.
 - The statistics go through rigor-statistics only if the rule grows past the worst and the best.
 
