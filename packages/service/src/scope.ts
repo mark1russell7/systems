@@ -22,7 +22,8 @@ export const TIMEOUT_HEADER = "timeout-ms";
 
 /**
  * The principal of a scope: who sent the request of the entry. The shape is the shape of the principal of
- * `@procedures/client`, and a type test in the client holds the two shapes equal.
+ * `@procedures/client`. The reference service of this repository imports the two packages, and its type test
+ * holds the two shapes equal.
  */
 export interface Principal {
   /** The id of the principal. */
@@ -62,9 +63,12 @@ export const bind = <T>(key: ScopeKey<T>, value: T): ScopeBinding => ({ key: key
 
 /** The options of a child. */
 export interface ChildOptions {
-  /** This time is in milliseconds from the start of the child. The deadline of the child is not later than the start plus this time. */
+  /**
+   * This time is in milliseconds from the start of the child. The deadline of the child is not later than the start plus
+   * this time. A time below zero is zero. `NaN` throws a `RangeError`.
+   */
   readonly timeout?: number | undefined;
-  /** These values bind keys in the child. A value for `DEADLINE` is a time on the clock of the scope. */
+  /** These values bind keys in the child. A value for `DEADLINE` is a time on the clock of the scope, and `NaN` throws a `RangeError`. */
   readonly bind?: readonly ScopeBinding[] | undefined;
 }
 
@@ -84,7 +88,11 @@ export interface RootOptions extends ChildOptions {
   readonly name: string;
   /** The kind of the root. The default is `process`. */
   readonly kind?: "process" | "service" | undefined;
-  /** The clock of the tree. Each scope of the tree has this clock. The default is `realClock`. */
+  /**
+   * The clock of the tree. Each scope of the tree has this clock. The default is `realClock`. The timer of a deadline
+   * keeps a Node process alive, as `setTimeout` does. A tree whose deadlines do not hold the process gets
+   * `unrefClock(realClock)`.
+   */
   readonly clock?: Clock | undefined;
   /** The trace of the root. */
   readonly trace?: unknown;
@@ -110,7 +118,7 @@ export interface Scope {
   readonly trace: unknown;
   /** This principal sent the request of the entry above the scope. */
   readonly identity: Principal | undefined;
-  /** This flag is true after the start of `close()`. */
+  /** This flag is true from the start of `close()`. A child of a closed or closing scope starts closed. */
   readonly closed: boolean;
   /** This function gives the value of a key, or `undefined` when no scope of the chain binds the key. */
   get<T>(key: ScopeKey<T>): T | undefined;
@@ -131,7 +139,8 @@ export interface Scope {
   /**
    * This function aborts and closes each open child, the last child first. Then it closes the resources of the
    * scope, the last first, and aborts its signal. Each close starts, also after a throw. The promise rejects
-   * with a `ScopeCloseError` that holds each error. A second `close()` gives the same promise.
+   * with a `ScopeCloseError` that holds each error. A second `close()` gives the same promise, also from a
+   * listener of a signal of the tree during the close.
    */
   close(): Promise<void>;
 }
@@ -139,11 +148,10 @@ export interface Scope {
 /** The error of a wrong use of a scope: a child of a wrong rank, or a resource for a closed scope. */
 export class ScopeError extends Error {
   override readonly name = "ScopeError";
-  constructor(
-    readonly code: "rank" | "closed",
-    message: string,
-  ) {
+  readonly code: "rank" | "closed";
+  constructor(code: "rank" | "closed", message: string) {
     super(message);
+    this.code = code;
   }
 }
 
@@ -184,6 +192,26 @@ export const readTimeout = (headers: IncomingHeaders | undefined): number | unde
  */
 export const timeoutHeaders = (scope: Pick<Scope, "deadline" | "remaining">): Record<string, string> =>
   Number.isFinite(scope.deadline) ? { [TIMEOUT_HEADER]: String(Math.floor(scope.remaining())) } : {};
+
+/**
+ * This function gives the own deadline of a scope: the earliest of its timeout, the time of its header and its bound
+ * deadline. A `NaN` makes each comparison false, and it can erase each deadline of the tree, thus it throws.
+ */
+const ownDeadline = (now: number, options: ChildOptions, header: number | undefined): number => {
+  let own = Infinity;
+  const timeout = options.timeout;
+  if (timeout !== undefined) {
+    if (typeof timeout !== "number" || Number.isNaN(timeout)) throw new RangeError(`The timeout ${String(timeout)} is not a number of milliseconds.`);
+    own = Math.min(own, now + Math.max(0, timeout));
+  }
+  if (header !== undefined) own = Math.min(own, now + header);
+  for (const { key, value } of options.bind ?? []) {
+    if (key !== (DEADLINE as ScopeKey<unknown>)) continue;
+    if (typeof value !== "number" || Number.isNaN(value)) throw new RangeError(`The deadline ${String(value)} is not a time in milliseconds.`);
+    own = Math.min(own, value);
+  }
+  return own;
+};
 
 /** This function checks the rank of a child. */
 const rankOk = (parent: ScopeKind, child: ScopeKind): boolean => SCOPE_RANK[child] > SCOPE_RANK[parent] || (child === "call" && parent === "call");
@@ -233,24 +261,27 @@ class ScopeNode implements Scope {
       const above = parent?.get(key);
       this.#values.set(key, key.meet !== undefined && above !== undefined ? key.meet(above, value) : value);
     }
-    // a child of an aborted or closed parent starts aborted, and the parent does not keep it
-    if (parent?.signal.aborted === true) this.#controller.abort(parent.signal.reason);
-    else if (parent?.closed === true) this.#controller.abort(closedReason(parent));
-    else this.#start(parent);
+    if (parent?.closed === true) {
+      // a child of a closed or closing parent starts closed: it takes no resource, and the parent does not keep it
+      this.#controller.abort(parent.signal.aborted ? parent.signal.reason : closedReason(parent));
+      this.#closed = Promise.resolve();
+    } else this.#start(parent);
   }
 
-  /** This function adds a live child to its parent, and starts the timer of its deadline. */
+  /**
+   * This function adds a child to its parent, and starts the timer of its deadline. The parent keeps each child, also an
+   * aborted child, until the end of its close. Thus the close of the parent also closes its resources.
+   */
   #start(parent: ScopeNode | null): void {
     if (parent !== null) parent.#open.add(this);
+    // a child of an aborted parent starts aborted, with the reason of the parent, and it needs no timer
+    if (parent?.signal.aborted === true) return void this.#controller.abort(parent.signal.reason);
     // only a deadline earlier than the deadline of the parent needs a timer: the timer of the parent covers an equal one
     if (Number.isFinite(this.deadline) && (parent === null || this.deadline < parent.deadline)) {
       const wait = this.deadline - this.clock.now();
+      // the timer keeps the process alive, as each timer of the clock does: a clock with unref is the choice of the root
       if (wait <= 0) this.abort(timeoutReason(this));
-      else {
-        this.#timer = this.clock.after(wait, () => this.abort(timeoutReason(this)));
-        // the work holds the process, not its deadline
-        this.#timer.unref?.();
-      }
+      else this.#timer = this.clock.after(wait, () => this.abort(timeoutReason(this)));
     }
   }
 
@@ -323,16 +354,25 @@ class ScopeNode implements Scope {
   }
 
   close(): Promise<void> {
-    this.#closed ??= this.#close();
+    if (this.#closed !== undefined) return this.#closed;
+    // the flag is set before each listener and each close of the user runs: a close of the same scope from that code
+    // gets this promise, and a child that this code makes starts closed
+    let end!: { resolve: () => void; reject: (error: unknown) => void };
+    this.#closed = new Promise<void>((resolve, reject) => (end = { resolve, reject }));
+    this.#close().then(end.resolve, end.reject);
     return this.#closed;
   }
 
   async #close(): Promise<void> {
     const errors: unknown[] = [];
-    const children = [...this.#open].reverse();
     const reason = closedReason(this);
-    for (const child of children) child.abort(reason);
-    for (const child of children) await child.close().catch((error: unknown) => void errors.push(...(isCloseError(error) ? error.errors : [error])));
+    const collect = (error: unknown): void => void errors.push(...(isCloseError(error) ? error.errors : [error]));
+    // a closing scope takes no child, but the loop holds the law also for a child that starts in another order of events
+    while (this.#open.size > 0) {
+      const children = [...this.#open].reverse();
+      for (const child of children) child.abort(reason);
+      for (const child of children) await child.close().catch(collect);
+    }
     for (let at = this.#closes.length - 1; at >= 0; at -= 1) {
       try {
         await this.#closes[at]!();
@@ -341,9 +381,10 @@ class ScopeNode implements Scope {
       }
     }
     this.#closes.length = 0;
+    // the abort stops the timer of the deadline, and it aborts the signal
+    this.abort(reason);
     this.#timer?.();
     this.#timer = undefined;
-    if (!this.signal.aborted) this.#controller.abort(reason);
     if (this.parent !== null) this.parent.#open.delete(this);
     if (errors.length > 0) throw new ScopeCloseError(errors, `${errors.length} close(s) of the scope "${this.name}" threw.`);
   }
@@ -353,22 +394,15 @@ class ScopeNode implements Scope {
     if (!rankOk(this.kind, kind)) throw new ScopeError("rank", `A ${kind} ("${name}") cannot be a child of a ${this.kind} ("${this.name}").`);
   }
 
-  /** This function gives the own deadline of a child: the earliest of its timeout, the time of its header and its bound deadline. */
+  /** This function gives the own deadline of a child. It throws a `RangeError` for a `NaN` timeout or deadline. */
   #own(options: ChildOptions, header: number | undefined): number {
-    const now = this.clock.now();
-    let own = Infinity;
-    if (options.timeout !== undefined) own = Math.min(own, now + Math.max(0, options.timeout));
-    if (header !== undefined) own = Math.min(own, now + header);
-    for (const { key, value } of options.bind ?? []) if (key === (DEADLINE as ScopeKey<unknown>)) own = Math.min(own, value as number);
-    return own;
+    return ownDeadline(this.clock.now(), options, header);
   }
 }
 
-/** This function makes the root of a tree of scopes: a `process` scope, or a `service` scope. */
+/** This function makes the root of a tree of scopes: a `process` scope, or a `service` scope. It throws a `RangeError` for a `NaN` timeout or deadline. */
 export const rootScope = (options: RootOptions): Scope => {
   const clock = options.clock ?? realClock;
-  const now = clock.now();
-  let own = options.timeout === undefined ? Infinity : now + Math.max(0, options.timeout);
-  for (const { key, value } of options.bind ?? []) if (key === (DEADLINE as ScopeKey<unknown>)) own = Math.min(own, value as number);
+  const own = ownDeadline(clock.now(), options, undefined);
   return new ScopeNode({ kind: options.kind ?? "process", name: options.name, parent: null, clock, trace: options.trace, identity: options.identity, own, bind: options.bind ?? [] });
 };

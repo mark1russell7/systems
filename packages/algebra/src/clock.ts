@@ -227,13 +227,26 @@ export interface FakeClock extends Clock {
   readonly pending: number;
 }
 
+/**
+ * The clock of `fakeClock`: a fake clock that also moves in one synchronous step. A wrapper of a
+ * `FakeClock` keeps the type `FakeClock`, thus this interface adds `tick` and the old type stays.
+ */
+export interface SyncFakeClock extends FakeClock {
+  /**
+   * This method moves the clock forward by `ms`, and it starts each timer that comes due, in sequence,
+   * with no turn of the promises between two timers. A model test with synchronous steps uses it. A
+   * timer whose work waits on a promise needs `advance`.
+   */
+  tick(ms: number): void;
+}
+
 /** This function lets the promises that are ready continue, before the clock moves again. */
 const settle = async (): Promise<void> => {
   for (let turn = 0; turn < 64; turn += 1) await Promise.resolve();
 };
 
 /** This function makes a fake clock. Its time starts at `start` milliseconds. */
-export const fakeClock = (start = 0): FakeClock => {
+export const fakeClock = (start = 0): SyncFakeClock => {
   let now = start;
   let sequence = 0;
   const timers: Array<{ at: number; order: number; run: () => void; live: boolean }> = [];
@@ -243,6 +256,9 @@ export const fakeClock = (start = 0): FakeClock => {
       if (timer.live && timer.at <= end && (best === undefined || timer.at < best.at || (timer.at === best.at && timer.order < best.order)))
         best = timer;
     return best;
+  };
+  const prune = (): void => {
+    for (let at = timers.length - 1; at >= 0; at -= 1) if (!timers[at]!.live) timers.splice(at, 1);
   };
   return {
     now: () => now,
@@ -267,8 +283,20 @@ export const fakeClock = (start = 0): FakeClock => {
         await settle();
       }
       now = Math.max(now, end);
-      for (let at = timers.length - 1; at >= 0; at -= 1) if (!timers[at]!.live) timers.splice(at, 1);
+      prune();
       await settle();
+    },
+    tick(ms) {
+      const end = now + Math.max(0, ms);
+      for (;;) {
+        const timer = due(end);
+        if (timer === undefined) break;
+        timer.live = false;
+        now = Math.max(now, timer.at);
+        timer.run();
+      }
+      now = Math.max(now, end);
+      prune();
     },
     block(ms) {
       now += Math.max(0, ms);
