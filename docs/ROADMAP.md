@@ -4176,7 +4176,17 @@ The parts:
    - The rule starts after part 2, thus the service package passes it on its first day.
 4. **The 11 loops move.** Their owners move them after part 3: 3, 6 and 2 loops in three repositories. The README of the entry `/loop` gives the form for each case. A `setInterval(work, ms)` becomes a schedule from `start`. A `setTimeout` after an `await` becomes a schedule from `end`.
 
-The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`. The metrics are the rounds, the lateness, the time of a round, the failures and the rounds in flight.
+The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema.
+
+| Metric | Kind | Unit | Value |
+| --- | --- | --- | --- |
+| `loop.rounds` | counter | `{round}` | each round that starts |
+| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout |
+| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops |
+| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget |
+| `loop.lateness` | histogram | `ms` | the real start minus the planned start |
+| `loop.round.duration` | histogram | `ms` | the end minus the real start |
+| `loop.inflight` | up-down counter | `{round}` | the rounds in flight |
 
 ### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service
 
@@ -4195,7 +4205,7 @@ The gap:
 - The recovery thus has one action for each fault: the backoff of its loop. A fault of the local network and a fault of the remote copy get the same delay.
 - The package of network diagnosis has probes, a catalog of faults, the probability of each cause and the next probe. No service uses it.
 
-The port. The core names no topic. A cause is an identifier that only the add-on reads. An action is one of a closed set that the core knows:
+The port. The core names no topic. A cause is an identifier of the catalog of the add-on, and only the add-on reads it. An action is one of a closed set that the core knows. A new member breaks each exhaustive switch, thus the set has its seven members from the first release:
 
 ```ts
 interface Failure {
@@ -4215,7 +4225,13 @@ type Action =
   | { readonly kind: "change-path" }                   // a bad route: the transport dials another address of the target
   | { readonly kind: "change-copy" }                   // a bad copy: the transport takes another copy
   | { readonly kind: "wait-network"; readonly key: string } // the local network is down: each loop on this key waits
+  | { readonly kind: "stop"; readonly until: Quantity | null } // a permanent fault: the source stops, for this time at most
   | { readonly kind: "none" };                         // no cause: the recovery of today
+
+interface PortOptions {
+  readonly floors: { readonly [K in Exclude<Action["kind"], "none">]: number }; // the least confidence that takes each action
+  readonly park: Quantity;         // the longest park of a source or a key
+}
 
 interface Verdict {
   readonly cause: string;
@@ -4238,11 +4254,23 @@ The rules of the runner:
 - **One diagnosis for each key.** The failures with one key share one diagnosis in flight. Its verdict holds until `until`. Thus the loss of the network gives one diagnosis, not one for each check and each client.
 - **The budget.** Each diagnosis gets a deadline, a count of probes and a count of bytes. The probes of the port operate on a loop of the core with a budget, thus a diagnosis cannot load a sick network more.
 - **The action.** The runner takes the action of the verdict. A transport tells the actions that it can take. A transport without the action of a verdict backs off, and the record names the action that it could not take.
-- **A wait on the network.** Each loop of that key goes to the state `parked` of `LOOP_MACHINE`. One probe loop asks `recovered(key)`. When it passes, the parked loops start again, each after a jittered delay.
+- **The floor.** The runner takes an action only at or above the floor of its kind. Below the floor, the action is `none`. The floors are data in the options of the port. `wait-network` parks each loop of a key, thus it has the highest floor.
+- **The stop.** The action `stop` is for a permanent fault, for example NXDOMAIN, a bad certificate, a 404 on a fixed path or a revoked key. A retry or a backoff does not heal this fault. The runner parks the source, and the health report names the cause. The alert path gets one event when the source stops, not one for each new verdict. Thus the port does not hide a dead dependency behind a backoff with no end.
+- **A park.** `wait-network` parks each loop of its key, and `stop` parks the loops of its source. Each loop goes to the state `parked` of `LOOP_MACHINE`. One probe loop asks `recovered(key)`. When it passes, the parked loops start again, each after a jittered delay.
+- **The bound of a park.** A park ends at the first of three times. They are the `until` of the verdict, the end of the `until` of a stop, and the longest park of the options. Then each loop goes back to its own backoff and asks the port again. Thus a false `wait-network` costs a bounded time, not an outage of the whole service.
 - **A fault of the port.** A throw, a late verdict or a verdict that does not parse gives the action `none`. The record names the fault of the port, and the service does not stop.
 - **No port.** A service without a port has the null port: each verdict is `none`. Thus the service keeps its behavior of today.
 
-The metrics. The runner gives each verdict as a metric through the entry `/otel`: the cause, the action and the time of the diagnosis. The add-on gives its estimators as metrics, with the trace of the scope of the failure. Its estimators are the delay, the jitter, the loss, the retransmission time-out and the bandwidth. The capacity models read them as load variables.
+The metrics. The runner gives the verdicts as metrics through the entry `/otel`:
+
+| Metric | Kind | Unit | Value |
+| --- | --- | --- | --- |
+| `diagnosis.verdicts` | counter | `{verdict}` | each verdict that the runner takes |
+| `diagnosis.declined` | counter | `{verdict}` | each verdict below the floor of its action |
+| `diagnosis.duration` | histogram | `ms` | the time from the failure to the verdict |
+| `diagnosis.probes` | counter | `{probe}` | each probe of the budget that a diagnosis spends |
+
+Their only attributes are the cause id, the action kind and the source kind. The text of the failure, the facts and the host go only on the span of the failure. Thus the count of series stays bounded by the size of the catalog. The add-on gives its estimators as metrics, with the trace of the scope of the failure. Its estimators are the delay, the jitter, the loss, the retransmission time-out and the bandwidth. The capacity models read them as load variables.
 
 The laws and their gate:
 
@@ -4251,14 +4279,17 @@ The laws and their gate:
 3. **The budget.** No diagnosis gets more probes or bytes than its budget. The labs count the probes from the side of the network.
 4. **The fault of the port.** A port that throws, hangs or gives a bad verdict gives the action `none`, and each loop goes on.
 5. **The degrade.** An action that a transport cannot take gives a backoff and a record with its reason.
-6. **The correct action.** The simulated worlds of the labs hold this law in CI. A lab injects each class of fault under a service with the add-on. The gate holds the rate of correct actions of each class, with an interval from rigor-statistics. The limit of each class is the worst of 5 CI runs or more, plus their spread.
+6. **The floor.** On each seed, a verdict below the floor of its action gives the trace of the null port.
+7. **The bound of a park.** No loop stays parked past the bound of its park. After the bound, each loop asks the port again.
+8. **The correct action.** The simulated worlds of the labs hold this law in CI. A lab injects each class of fault under a service with the add-on. The gate holds the rate of correct actions of each class, with an interval from rigor-statistics. The limit of each class is the worst of 5 CI runs or more, plus their spread.
+9. **The harm.** The same cells hold the rate of harmful actions of each class. A harmful action is worse than `none`. Examples are a park while the network has no fault, a change away from a healthy copy, and a stop of a live source. The harm rate has its own limit with a Wilson interval, because a harmful action costs more than a missed one.
 
 The parts:
 
-1. **The port.** The entry `/diagnosis` with its types, the null port and the conformance cases of a port. The loop core asks it after a failed round. Laws 1, 2, 4 and 5. It is a feature, thus the release is a PATCH before 1.0.
+1. **The port.** The entry `/diagnosis` with its types, its options, the null port and the conformance cases of a port. The loop core asks it after a failed round. Laws 1, 2, 4, 5 and 6. It is a feature, thus the release is a PATCH before 1.0.
 2. **The actions of the transports.** The HTTP and WebSocket clients change the path: they dial the next address of the DNS answer. A driver with copies changes the copy. Each other transport backs off with the record of its reason. A PATCH.
-3. **The wait on the network.** The state `parked`, one probe loop for each key and law 3. A PATCH.
-4. **The gate of the correct action.** A family of cells in the labs, one cell for each class of fault, with law 6. The add-on gives the action of each cause of its catalog. Its first read waits for free CI slots.
+3. **The park.** The state `parked` for `wait-network` and `stop`, one probe loop for each key and the bound of a park. Also the cause in the health report and the one event of a stop. Laws 3 and 7. A PATCH.
+4. **The gate of the actions.** A family of cells in the labs, one cell for each class of fault, with laws 8 and 9. The add-on gives the action of each cause of its catalog. The cells also set the floors. The default floor of each action is the least confidence that keeps the harm rate of each class under its limit. Its first read waits for free CI slots.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
