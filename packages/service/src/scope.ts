@@ -62,7 +62,7 @@ export interface ScopeBinding {
 export const bind = <T>(key: ScopeKey<T>, value: T): ScopeBinding => ({ key: key as ScopeKey<unknown>, value });
 
 /** The options of a child. */
-export interface ChildOptions {
+export interface ChildOptions<F extends object = object> {
   /**
    * This time is in milliseconds from the start of the child. The deadline of the child is not later than the start plus
    * this time. A time below zero is zero. `NaN` throws a `RangeError`.
@@ -70,10 +70,15 @@ export interface ChildOptions {
   readonly timeout?: number | undefined;
   /** These values bind keys in the child. A value for `DEADLINE` is a time on the clock of the scope, and `NaN` throws a `RangeError`. */
   readonly bind?: readonly ScopeBinding[] | undefined;
+  /**
+   * These facts become own read-only properties of the new scope, for example the intake signal of a job. A
+   * child of the scope does not get them. A fact with the name of a member of `Scope` throws a `ScopeError`.
+   */
+  readonly facts?: F | undefined;
 }
 
 /** The options of an entry. The trace and the identity have no default: an entry states both, also when they are `undefined`. */
-export interface EntryOptions extends ChildOptions {
+export interface EntryOptions<F extends object = object> extends ChildOptions<F> {
   /** This value is the trace of the entry, for example the context that the entry `/otel` reads from the headers. */
   readonly trace: unknown;
   /** This principal sent the request. `undefined` is a request without authentication: the entry does not keep the identity of its parent. */
@@ -83,7 +88,7 @@ export interface EntryOptions extends ChildOptions {
 }
 
 /** The options of a root scope. */
-export interface RootOptions extends ChildOptions {
+export interface RootOptions<F extends object = object> extends ChildOptions<F> {
   /** The name of the scope. */
   readonly name: string;
   /** The kind of the root. The default is `process`. */
@@ -126,10 +131,13 @@ export interface Scope {
   remaining(): number;
   /** This function gives the open children, in the order of their start. */
   children(): readonly Scope[];
-  /** This function makes a child with the trace and the identity of this scope. It throws a `ScopeError` for a kind of a lower or equal rank. */
-  child(kind: ScopeKind, name: string, options?: ChildOptions): Scope;
-  /** This function makes an entry: a child with the trace and the identity of an incoming request. */
-  entry(kind: EntryKind, name: string, options: EntryOptions): Scope;
+  /**
+   * This function makes a child with the trace and the identity of this scope, and with the facts of the options.
+   * It throws a `ScopeError` for a kind of a lower or equal rank.
+   */
+  child<F extends object = Record<never, never>>(kind: ScopeKind, name: string, options?: ChildOptions<F>): Scope & Readonly<F>;
+  /** This function makes an entry: a child with the trace and the identity of an incoming request, and with the facts of the options. */
+  entry<F extends object = Record<never, never>>(kind: EntryKind, name: string, options: EntryOptions<F>): Scope & Readonly<F>;
   /** This function adds a close to the scope. A closed scope takes no resource: the function then throws a `ScopeError`. */
   defer(close: () => void | PromiseLike<void>): void;
   /** This function opens a resource and adds its close. A resource whose open throws does not close. */
@@ -148,11 +156,15 @@ export interface Scope {
   close(): Promise<void>;
 }
 
-/** The error of a wrong use of a scope: a child of a wrong rank, or a resource for a closed scope. */
+/**
+ * The error of a wrong use of a scope. The uses are a child of a wrong rank, a resource for a closed scope,
+ * and a fact with the name of a member.
+ */
 export class ScopeError extends Error {
   override readonly name = "ScopeError";
-  readonly code: "rank" | "closed";
-  constructor(code: "rank" | "closed", message: string) {
+  /** This code tells the wrong use. The field is not a parameter property: a package with `erasableSyntaxOnly` reads this file. */
+  readonly code: "rank" | "closed" | "fact";
+  constructor(code: "rank" | "closed" | "fact", message: string) {
     super(message);
     this.code = code;
   }
@@ -197,6 +209,41 @@ export const timeoutHeaders = (scope: Pick<Scope, "deadline" | "remaining">): Re
   Number.isFinite(scope.deadline) ? { [TIMEOUT_HEADER]: String(Math.floor(scope.remaining())) } : {};
 
 /**
+ * These names are the members of a scope. A fact cannot have one of them. The name `then` is also on the list,
+ * because a scope with a `then` is a thenable, and `await` then changes it.
+ */
+const MEMBERS: ReadonlySet<string> = new Set([
+  "kind",
+  "name",
+  "parent",
+  "signal",
+  "deadline",
+  "clock",
+  "trace",
+  "identity",
+  "closed",
+  "get",
+  "remaining",
+  "children",
+  "child",
+  "entry",
+  "defer",
+  "use",
+  "abort",
+  "close",
+  "then",
+]);
+
+/** This function gives the facts of the options. A fact with the name of a member throws a `ScopeError`. */
+const factsOf = (facts: object | undefined, name: string): ReadonlyArray<readonly [string, unknown]> => {
+  if (facts === undefined) return [];
+  const entries = Object.entries(facts);
+  for (const [key] of entries)
+    if (MEMBERS.has(key)) throw new ScopeError("fact", `The fact "${key}" of the scope "${name}" has the name of a member of a scope.`);
+  return entries;
+};
+
+/**
  * This function gives the own deadline of a scope: the earliest of its timeout, the time of its header and its bound
  * deadline. A `NaN` makes each comparison false, and it can erase each deadline of the tree, thus it throws.
  */
@@ -230,6 +277,8 @@ interface Start {
   /** This time is the own deadline of the node, before the meet with the deadline of the parent. */
   readonly own: number;
   readonly bind: readonly ScopeBinding[];
+  /** These facts become own read-only properties of the node. */
+  readonly facts: ReadonlyArray<readonly [string, unknown]>;
 }
 
 /** The scope of the package. */
@@ -256,6 +305,7 @@ class ScopeNode implements Scope {
     this.clock = start.clock;
     this.trace = start.trace;
     this.identity = start.identity;
+    for (const [key, value] of start.facts) Object.defineProperty(this, key, { value, enumerable: true, writable: false, configurable: false });
     const parent = start.parent;
     const meet = DEADLINE.meet!;
     this.deadline = parent === null ? start.own : meet(parent.deadline, start.own);
@@ -311,14 +361,26 @@ class ScopeNode implements Scope {
     return [...this.#open];
   }
 
-  child(kind: ScopeKind, name: string, options: ChildOptions = {}): Scope {
+  child<F extends object = Record<never, never>>(kind: ScopeKind, name: string, options: ChildOptions<F> = {}): Scope & Readonly<F> {
     this.#rank(kind, name);
-    return new ScopeNode({ kind, name, parent: this, clock: this.clock, trace: this.trace, identity: this.identity, own: this.#own(options, undefined), bind: options.bind ?? [] });
+    const facts = factsOf(options.facts, name);
+    return new ScopeNode({
+      kind,
+      name,
+      parent: this,
+      clock: this.clock,
+      trace: this.trace,
+      identity: this.identity,
+      own: this.#own(options, undefined),
+      bind: options.bind ?? [],
+      facts,
+    }) as unknown as Scope & Readonly<F>;
   }
 
-  entry(kind: EntryKind, name: string, options: EntryOptions): Scope {
+  entry<F extends object = Record<never, never>>(kind: EntryKind, name: string, options: EntryOptions<F>): Scope & Readonly<F> {
     if (kind !== "request" && kind !== "job" && kind !== "round") throw new ScopeError("rank", `An entry is a request, a job or a round, not a ${String(kind)}.`);
     this.#rank(kind, name);
+    const facts = factsOf(options.facts, name);
     return new ScopeNode({
       kind,
       name,
@@ -328,7 +390,8 @@ class ScopeNode implements Scope {
       identity: options.identity,
       own: this.#own(options, readTimeout(options.headers)),
       bind: options.bind ?? [],
-    });
+      facts,
+    }) as unknown as Scope & Readonly<F>;
   }
 
   defer(close: () => void | PromiseLike<void>): void {
@@ -398,14 +461,18 @@ class ScopeNode implements Scope {
   }
 
   /** This function gives the own deadline of a child. It throws a `RangeError` for a `NaN` timeout or deadline. */
-  #own(options: ChildOptions, header: number | undefined): number {
+  #own(options: ChildOptions<object>, header: number | undefined): number {
     return ownDeadline(this.clock.now(), options, header);
   }
 }
 
-/** This function makes the root of a tree of scopes: a `process` scope, or a `service` scope. It throws a `RangeError` for a `NaN` timeout or deadline. */
-export const rootScope = (options: RootOptions): Scope => {
+/**
+ * This function makes the root of a tree of scopes: a `process` scope, or a `service` scope, with its facts. It throws a
+ * `RangeError` for a `NaN` timeout or deadline.
+ */
+export const rootScope = <F extends object = Record<never, never>>(options: RootOptions<F>): Scope & Readonly<F> => {
   const clock = options.clock ?? realClock;
   const own = ownDeadline(clock.now(), options, undefined);
-  return new ScopeNode({ kind: options.kind ?? "process", name: options.name, parent: null, clock, trace: options.trace, identity: options.identity, own, bind: options.bind ?? [] });
+  const facts = factsOf(options.facts, options.name);
+  return new ScopeNode({ kind: options.kind ?? "process", name: options.name, parent: null, clock, trace: options.trace, identity: options.identity, own, bind: options.bind ?? [], facts }) as unknown as Scope & Readonly<F>;
 };

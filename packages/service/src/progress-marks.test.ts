@@ -197,7 +197,7 @@ describe("the gap that the rule reads is the longest gap of the runtime, on the 
         }
       },
     });
-    await loop.start(new AbortController().signal, detachedLifecycle());
+    await loop.start(new AbortController().signal, detachedLifecycle(clock));
     for (let step = 0; step < 40; step += 1) await clock.advance(60_000);
     loop.stopIntake();
     await loop.close();
