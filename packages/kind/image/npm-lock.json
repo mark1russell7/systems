@@ -11,6 +11,7 @@
         "@mark1russell7/files": "0.0.3",
         "@mark1russell7/rational": "0.1.0",
         "@mark1russell7/rigor-generators": "0.1.0",
+        "@mark1russell7/rigor-statistics": "0.2.11",
         "@mark1russell7/text": "0.0.2",
         "ioredis": "6.0.0",
         "zod": "4.6.6"
@@ -106,6 +107,27 @@
       "version": "0.1.0",
       "resolved": "https://registry.npmjs.org/@mark1russell7/rigor-generators/-/rigor-generators-0.1.0.tgz",
       "integrity": "sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22"
+      }
+    },
+    "node_modules/@mark1russell7/rigor-statistics": {
+      "version": "0.2.11",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/rigor-statistics/-/rigor-statistics-0.2.11.tgz",
+      "integrity": "sha512-heKnYcMqfQNyPa0F6chPeO0jMGuPpw9ol62Z1tO7kYXDMOcQxdEGunCkWRh2vEDMtNE5MxhSCElKS8YehGINJg==",
+      "license": "MIT",
+      "dependencies": {
+        "@mark1russell7/rigor-generators": "^0.2.0"
+      },
+      "engines": {
+        "node": ">=22"
+      }
+    },
+    "node_modules/@mark1russell7/rigor-statistics/node_modules/@mark1russell7/rigor-generators": {
+      "version": "0.2.0",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/rigor-generators/-/rigor-generators-0.2.0.tgz",
+      "integrity": "sha512-eTyJhK4Nowx1KQ3QrsQqLiAlhFoL+8m1OT6He+X0Lf0G/0f9OyQC8ponQLViQKRkP/ef10B6oACFjtjnKErobg==",
       "license": "MIT",
       "engines": {
         "node": ">=22"
