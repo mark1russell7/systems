@@ -4773,6 +4773,24 @@ The change:
 
 The user writes the pull request, and this repository reviews it. It is a new option, thus service gets a PATCH before 1.0. The test: on the fake clock, starts of 24 s to 50 s end ready with no loop of restarts. A stopped start makes the next window longer, and the cap holds. `groupProblems` names each bad field.
 
+### SYS-143 · Service moves to otel-ts 0.8, on OpenTelemetry JS 3
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-138 part 2
+- **Started:**
+- **Shipped:**
+- **Links:** [otel-ts 0.8.2 on npm](https://www.npmjs.com/package/@mark1russell7/otel-ts/v/0.8.2), [rigor-testkit 0.2.0 on npm](https://www.npmjs.com/package/@mark1russell7/rigor-testkit/v/0.2.0), [the model pull request](https://github.com/mark1russell7/lag/pull/176)
+
+otel-ts 0.8.2 is on the SDK 3 of OpenTelemetry JS. Service takes otel-ts `^0.7.6` as an optional peer and a dev dependency. The range `^0.7.6` does not take 0.8, thus nothing breaks before the move.
+
+- The peer range and the dev range of otel-ts go to `^0.8.2`.
+- The tests of service use the entries `/otel` and `/propagation` of rigor-testkit, thus its dev range goes to `^0.2.0` in the same pull request.
+- A new peer range is a break of service, thus service gets a MINOR before 1.0.
+- The package `kind` depends on service, and its packed `package.json` changes. Its API does not change, thus `kind` gets a PATCH.
+
+It starts after the pull requests of SYS-138 part 2 merge, because they change the version of service. The test: the tests of the entry `/otel` and the gate of the propagation pass on the SDK 3. The API report shows only the new range.
+
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
