@@ -244,6 +244,7 @@ The entry `@mark1russell7/algebra/availability` gives the chance that copies of 
 - **Intervals.** A chance can be an interval `{ lo, hi }`, for example a Wilson interval of a measured rate. The result is then an interval. The model is coherent: a smaller chance of failure does not make the result smaller.
 - **The limit of more copies.** `neverDownChances` gives the chance when one cause or one copy does not fail on its own. A shared cause with a large gap limits the gain of more copies.
 - **Problems.** `placementProblems` gives each problem of a placement. `sendChance` refuses a placement with a problem.
+- **One shared core.** With `atLeast` 1, `pathSetReliability` of `@mark1russell7/collections` gives the same chance over the path sets of a graph. The probability core of the two functions moves to `@mark1russell7/rigor-statistics`. Then each package uses that core, and its tests stay the same.
 
 The model has no shared cause of delay: the delays are independent when the state of each cause is known. The time grows with 2 to the count of the causes that two or more copies share in part. A cause that each copy shares costs one step.
 

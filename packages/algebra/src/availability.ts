@@ -23,6 +23,10 @@
  * A chance can be an interval. The system is coherent: a smaller chance of failure does not make
  * the result smaller. Thus the low end of the result comes from the high chances of failure and
  * the low chances of the delays. The high end comes from the other ends.
+ *
+ * With `k` = 1, `pathSetReliability` of `@mark1russell7/collections` gives the same chance over the
+ * path sets of a graph. The probability core of the two functions moves to
+ * `@mark1russell7/rigor-statistics`. Then each package uses that core, and its tests stay the same.
  */
 import { poissonBinomialTest } from "@mark1russell7/rigor-statistics";
 
