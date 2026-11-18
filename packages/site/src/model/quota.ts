@@ -3,7 +3,7 @@
  * moves the clock. Each step is the pure step `quotaStep` of `@mark1russell7/service/limiter`. The page copies
  * none of its arithmetic of dates. The bounds of a window and the test of a bucket come from probes of that step.
  */
-import { localTime } from "@mark1russell7/algebra/clock";
+import { localTime } from "@mark1russell7/automata/clock";
 import type { Quantity } from "@mark1russell7/quantity";
 import { quotaRule, quotaStep, type QuotaRecord, type QuotaRule, type QuotaSpec, type QuotaState, type QuotaVerdict } from "@mark1russell7/service/limiter";
 import { duration } from "../lib/format.ts";

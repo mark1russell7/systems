@@ -1,4 +1,4 @@
-import { portSearchShares, timerOf } from "@mark1russell7/algebra";
+import { portSearchShares, timerOf } from "@mark1russell7/automata";
 import type { Cell, PortsPrediction, QueueBand, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { given, HZ, LINUX_66, ms, RTT_MS, seconds, s } from "./catalog.ts";

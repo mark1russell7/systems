@@ -50,7 +50,7 @@
     "prepublishOnly": "node ../../scripts/publish-guard.mjs && pnpm build"
   },
   "dependencies": {
-    "@mark1russell7/algebra": "workspace:^",
+    "@mark1russell7/automata": "workspace:^",
     "@mark1russell7/quantity": "workspace:^"
   },
   "peerDependencies": {

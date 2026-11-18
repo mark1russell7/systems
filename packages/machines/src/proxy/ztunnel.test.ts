@@ -1,5 +1,5 @@
-import type { Machine } from "@mark1russell7/algebra";
-import { detection, machineProblems, overValues, timerOf } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/automata";
+import { detection, machineProblems, overValues, timerOf } from "@mark1russell7/automata";
 import { describe, expect, it } from "vitest";
 import { ZTUNNEL_HBONE } from "./ztunnel.ts";
 

@@ -1,4 +1,4 @@
-import { delay } from "@mark1russell7/algebra/clock";
+import { delay } from "@mark1russell7/automata/clock";
 import type { Extent } from "@mark1russell7/quantity";
 import type { ServiceBuilder } from "./builder.ts";
 import { service } from "./builder.ts";

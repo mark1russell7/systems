@@ -1,4 +1,4 @@
-import type { Expr, Manifestation } from "@mark1russell7/algebra";
+import type { Expr, Manifestation } from "@mark1russell7/automata";
 
 /** These are the knobs that the models of the retransmission timer read, by their names in the Linux TCP document. */
 const WAIT_KNOBS = ["fired", "tcp_rto_min", "tcp_rto_max", "rtt", "hz"];

@@ -1,5 +1,5 @@
-import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import type { Detector, KnobValues, Manifestation } from "@mark1russell7/automata";
+import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/automata";
 import type { Cell, Prediction, ProxyHop, RouterHop } from "@mark1russell7/harness";
 import { HIKARICP_PGJDBC, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

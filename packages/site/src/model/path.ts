@@ -6,7 +6,7 @@
  * The documents are Linux TCP, conntrack, the call of the program with a deadline, and the readiness
  * probe of the kubelet, from `@mark1russell7/machines`.
  */
-import { firings, timerBand, type KnobValues, type Manifestation, type TimerBounds } from "@mark1russell7/algebra";
+import { firings, timerBand, type KnobValues, type Manifestation, type TimerBounds } from "@mark1russell7/automata";
 import { LINUX_TCP, MANIFESTATIONS, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import { quantity, valueIn, type Extent, type Quantity } from "@mark1russell7/quantity";
 import { bandOf, finite, type Band, type Lane } from "./lens.ts";

@@ -1,5 +1,5 @@
-import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
-import { timerOf, transitionOn } from "@mark1russell7/algebra";
+import type { KnobValues, Manifestation } from "@mark1russell7/automata";
+import { timerOf, transitionOn } from "@mark1russell7/automata";
 import { LINUX_TCP, MONGOD_SESSION } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
 import { RTT_MS, given, predict, seconds } from "../catalog.ts";

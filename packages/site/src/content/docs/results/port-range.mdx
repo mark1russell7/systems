@@ -15,7 +15,7 @@ These are the results of the cells of the port range, from 2026-11-17. Each cell
 - **The search** (PR.1 to PR.4): a reset ends each connection, thus a closed connection holds no port. A search connects until a connect gets `EADDRNOTAVAIL`. The cell counts the connects of each search and the ports that they got.
 - **A held port** (PR.5 to PR.8): one search takes each port, and then each connection closes. The cell measures the time until the first connect gets a port again.
 
-The predictions come from `portSearchSpan` and `portSearchShares` of `@mark1russell7/algebra`, and from the timers of `LINUX_TCP` of `@mark1russell7/machines`. The low port of each range is 40000.
+The predictions come from `portSearchSpan` and `portSearchShares` of `@mark1russell7/automata`, and from the timers of `LINUX_TCP` of `@mark1russell7/machines`. The low port of each range is 40000.
 
 CI started the cells at main in the run [44177444372](https://github.com/mark1russell7/systems/actions/runs/44177444372), in 4 shards on the hosted runners of GitHub. The kernel is Linux 7.0, with HZ 1000. Each cell has 4 runs in 2 fresh environments, with one warm-up run in each environment.
 

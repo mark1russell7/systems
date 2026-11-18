@@ -1,5 +1,5 @@
-import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
-import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import type { KnobValues, Manifestation } from "@mark1russell7/automata";
+import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/automata";
 import type { Cell, Fault, Prediction, Reconnects, Reference, Subject, Target, WsProbe } from "@mark1russell7/harness";
 import { DROP_HANDLING, NOISE, programOf, subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";

@@ -1,4 +1,4 @@
-// The entry "@mark1russell7/algebra/schema": the zod schema of a machine document. The root entry
+// The entry "@mark1russell7/automata/schema": the zod schema of a machine document. The root entry
 // of the package does not import zod.
 import { unitSchema } from "@mark1russell7/quantity/schema";
 import { z } from "zod";

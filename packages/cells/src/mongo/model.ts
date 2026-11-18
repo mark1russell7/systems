@@ -1,5 +1,5 @@
-import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, evaluate, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/automata";
+import { detection, errnoOf, evaluate, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/automata";
 import { LINUX_TCP, MONGOD_REPL, MONGOD_SESSION, MONGODB_NODE } from "@mark1russell7/machines";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";

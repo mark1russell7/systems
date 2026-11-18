@@ -1,5 +1,5 @@
-import type { EgressOutcome, EgressPacket, NetemQueue, TbfQueue } from "@mark1russell7/algebra";
-import { netemSchedule, tbfSchedule, udpFrameLength } from "@mark1russell7/algebra";
+import type { EgressOutcome, EgressPacket, NetemQueue, TbfQueue } from "@mark1russell7/automata";
+import { netemSchedule, tbfSchedule, udpFrameLength } from "@mark1russell7/automata";
 import type { Cell, EgressBurst, EgressPacketLaw, EgressPrediction, QueueBand, Target } from "@mark1russell7/harness";
 import { s } from "./catalog.ts";
 

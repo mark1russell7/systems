@@ -1,4 +1,4 @@
-import { delay } from "@mark1russell7/algebra/clock";
+import { delay } from "@mark1russell7/automata/clock";
 import type { Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { ContractCase } from "./contract.ts";

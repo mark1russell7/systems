@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@mark1russell7/algebra": "workspace:^",
+    "@mark1russell7/automata": "workspace:^",
     "@mark1russell7/harness": "workspace:^",
     "@mark1russell7/kind": "workspace:^",
     "@mark1russell7/machines": "workspace:^",

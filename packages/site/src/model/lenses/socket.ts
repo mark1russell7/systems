@@ -2,7 +2,7 @@
  * The lens of the socket: the write ends at once, and the error of TCP arrives at the next read. The
  * socket shows what TCP below it decides, thus the lens reads the model of the TCP lens.
  */
-import { errnoOf } from "@mark1russell7/algebra";
+import { errnoOf } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { sayBand, type Fact, type Lens, type Mark } from "../lens.ts";
 import { manifestationOf, type LayerId, type LayerResult, type Settings } from "../path.ts";

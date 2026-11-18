@@ -67,7 +67,7 @@
     "prepublishOnly": "node ../../scripts/publish-guard.mjs && pnpm build"
   },
   "dependencies": {
-    "@mark1russell7/algebra": "workspace:^",
+    "@mark1russell7/automata": "workspace:^",
     "@mark1russell7/collections": "^0.11.0",
     "@mark1russell7/files": "^0.0.3",
     "@mark1russell7/quantity": "workspace:^",

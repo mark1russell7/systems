@@ -1,4 +1,4 @@
-import { timerOf, transitionOn } from "@mark1russell7/algebra";
+import { timerOf, transitionOn } from "@mark1russell7/automata";
 import type { Cell, DriverStep, LineMatch, Prediction } from "@mark1russell7/harness";
 import { HIKARICP_PGJDBC } from "@mark1russell7/machines";
 import { RTT_MS, given, ms, s, seconds } from "../catalog.ts";

@@ -1,5 +1,5 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
-import { overValues, timerOf } from "@mark1russell7/algebra";
+import type { KnobValues, Machine } from "@mark1russell7/automata";
+import { overValues, timerOf } from "@mark1russell7/automata";
 import { describe, expect, it } from "vitest";
 import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP } from "../index.ts";
 

@@ -3,7 +3,7 @@
  * each node, and conntrack. The measured values are the kind cell T18, the calibrations of T07 and the S2
  * cells of a stalled pod.
  */
-import { detection, probeTrain, timerOf } from "@mark1russell7/algebra";
+import { detection, probeTrain, timerOf } from "@mark1russell7/automata";
 import { KUBELET_READINESS, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import { add, format, quantity, valueIn } from "@mark1russell7/quantity";
 import kind from "../../data/kind-2026-10-18.json";

@@ -1,4 +1,4 @@
-import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
+import { algebraProblems, machineProblems } from "@mark1russell7/automata";
 import { DROP_HANDLING } from "@mark1russell7/harness";
 import { SOCKETIO_CLIENT, SOCKETIO_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";

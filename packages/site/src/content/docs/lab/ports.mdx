@@ -28,7 +28,7 @@ With the defaults of Linux and one connect each 1 ms, connect 28,233 fails at 28
 
 ## Where the numbers come from
 
-The search for a port is the law of `portSearchSpan` and `portSearchShares` of `@mark1russell7/algebra`. Linux reads the range in two passes. The first pass reads the ports of one parity, and the second pass reads the ports of the other parity.
+The search for a port is the law of `portSearchSpan` and `portSearchShares` of `@mark1russell7/automata`. Linux reads the range in two passes. The first pass reads the ports of one parity, and the second pass reads the ports of the other parity.
 
 - **An even range** gives each of its ports to each destination.
 - **An odd range** can miss one port. Thus a search gets each port of the range, or one port less. For an odd range of 15 ports or fewer, the algebra gives the share of each count.

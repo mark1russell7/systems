@@ -1,4 +1,4 @@
-import { realizationOf, timerOf } from "@mark1russell7/algebra";
+import { realizationOf, timerOf } from "@mark1russell7/automata";
 import type { Subject } from "@mark1russell7/harness";
 import { DROP_HANDLING, latestEndOf } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";

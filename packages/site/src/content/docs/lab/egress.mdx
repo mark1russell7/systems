@@ -38,7 +38,7 @@ The tbf qdisc counts its tokens in nanoseconds. Its bucket is full at the first 
 
 ## Where the numbers come from
 
-The times are the law of `netemSchedule` and `tbfSchedule` of `@mark1russell7/algebra`. Each one follows the kernel: `packet_time_ns` of netem, and `psched_l2t_ns` of tbf. The kernel multiplies by a factor and does not divide, thus a time of tbf can be 1 ns short. The length of a frame is `udpFrameLength`: the payload, 8 B of UDP, 20 B of IPv4 and 14 B of Ethernet.
+The times are the law of `netemSchedule` and `tbfSchedule` of `@mark1russell7/automata`. Each one follows the kernel: `packet_time_ns` of netem, and `psched_l2t_ns` of tbf. The kernel multiplies by a factor and does not divide, thus a time of tbf can be 1 ns short. The length of a frame is `udpFrameLength`: the payload, 8 B of UDP, 20 B of IPv4 and 14 B of Ethernet.
 
 Each amount prints through `format` of `@mark1russell7/quantity`. The page does no queue arithmetic of its own.
 

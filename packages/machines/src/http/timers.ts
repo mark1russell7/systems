@@ -1,4 +1,4 @@
-import type { Expr } from "@mark1russell7/algebra";
+import type { Expr } from "@mark1russell7/automata";
 
 /**
  * This module gives the lateness of a timer in user space on Linux 6.6. A Node timer and a Go timer

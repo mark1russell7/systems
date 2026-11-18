@@ -1,10 +1,10 @@
-# @mark1russell7/algebra
+# @mark1russell7/automata
 
 State machines as data, and the timer algebra over them. A machine document gives the states, transitions, timers and knobs of one machine, for example Linux TCP. The algebra then gives how long each timer operates, in exact rationals, from the values of the knobs. It also gives which timer finds a failure first, and when a connection moves again after a stall. `runMachine` operates a live instance of a document on a clock.
 
 ## The machine document
 
-A machine document has the format `mark1russell7.machine/1`, and `machineSchema` accepts it. The schema is in the entry `@mark1russell7/algebra/schema`.
+A machine document has the format `mark1russell7.machine/1`, and `machineSchema` accepts it. The schema is in the entry `@mark1russell7/automata/schema`.
 
 - **States and transitions.** A transition goes from one or more states to a state, on one or more events. The state `"*"` is each state that is not final.
 - **Timers.** A timer has a duration, the events that arm it, the events that cancel it, and the event that it fires. It can also have a lateness and an early bound.
@@ -69,10 +69,10 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
 - **Each instance on its own.** Each instance starts in the state that its first transition leaves. Each transition must leave the state where the replay of its instance is.
 - **The document permits each transition.** The document must have a transition from that state, on that event, to that state. The state `"*"` is each state that is not final.
 - **Open names.** Each program names its own machines, states and events. `options.machine` selects the transitions of one machine in a trace of many machines.
-- **A small entry.** `@mark1russell7/algebra/replay` gives only the replay, in less than 0.5 kB of gzip. It does not import zod, thus a client in a browser can replay its own transitions.
+- **A small entry.** `@mark1russell7/automata/replay` gives only the replay, in less than 0.5 kB of gzip. It does not import zod, thus a client in a browser can replay its own transitions.
 
 ```ts
-import { replay } from "@mark1russell7/algebra/replay";
+import { replay } from "@mark1russell7/automata/replay";
 
 const problems = replay(CONNECTION_MACHINE, recorded, { machine: CONNECTION_MACHINE.id });
 // for example ["c1: app.machine.connection has no transition from OPEN on open to OPEN"]
@@ -93,10 +93,10 @@ const problems = replay(CONNECTION_MACHINE, recorded, { machine: CONNECTION_MACH
 The example is the lock of an app. The lock arms after 2000 ms with no load of a page. Each stop of a load starts that time again.
 
 ```ts
-import type { Machine, Transition } from "@mark1russell7/algebra";
-import { fakeClock } from "@mark1russell7/algebra/clock";
-import { replay } from "@mark1russell7/algebra/replay";
-import { runMachine } from "@mark1russell7/algebra/run";
+import type { Machine, Transition } from "@mark1russell7/automata";
+import { fakeClock } from "@mark1russell7/automata/clock";
+import { replay } from "@mark1russell7/automata/replay";
+import { runMachine } from "@mark1russell7/automata/run";
 
 const LOCK: Machine = {
   format: "mark1russell7.machine/1",
@@ -132,11 +132,11 @@ lock.state; // "armed", 2000 ms after the last load
 replay(LOCK, trace); // []
 ```
 
-An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake clock. The entry `@mark1russell7/algebra/run` does not import zod, thus a client in a browser can operate its own machines.
+An app gives `realClock` of `@mark1russell7/automata/clock` in place of the fake clock. The entry `@mark1russell7/automata/run` does not import zod, thus a client in a browser can operate its own machines.
 
 ## The clock
 
-`@mark1russell7/algebra/clock` gives the clock of a runtime and a fake clock for tests. The entry imports nothing: no `node:` module, no zod and no other package. Thus a client in a browser can use it. The service and collections read time through it.
+`@mark1russell7/automata/clock` gives the clock of a runtime and a fake clock for tests. The entry imports nothing: no `node:` module, no zod and no other package. Thus a client in a browser can use it. The service and collections read time through it.
 
 | Export | What it does |
 | --- | --- |
@@ -151,7 +151,7 @@ An app gives `realClock` of `@mark1russell7/algebra/clock` in place of the fake 
 | `delay(clock, ms, signal?)` | A promise that resolves after `ms` on a `Clock` or a `WallClock`. An abort of the signal stops the timer and rejects with the reason of the signal. |
 
 ```ts
-import { delay, fakeClock, realClock } from "@mark1russell7/algebra/clock";
+import { delay, fakeClock, realClock } from "@mark1russell7/automata/clock";
 
 const clock = fakeClock();
 clock.after(30_000, () => cache.sweep());
@@ -182,7 +182,7 @@ A scaled clock runs a long schedule in a short real time, on the real timers. A 
 - A bad speed or a bad start throws a `RangeError`.
 
 ```ts
-import { wallClock } from "@mark1russell7/algebra/clock";
+import { wallClock } from "@mark1russell7/automata/clock";
 
 // 80 minutes of a source in 80 s of real time
 const clock = wallClock({ speed: 60, start: Date.now(), unref: true });
@@ -217,7 +217,7 @@ These rules apply to a window:
 A wall-clock time for `instantsOf` is in milliseconds with the arithmetic of UTC: the UTC fields of `new Date(wall)` are the fields of the clock. Thus `Date.UTC(2026, 9, 25, 2, 30)` is 02:30 on the wall.
 
 ```ts
-import { instantsOf, offsetChanges } from "@mark1russell7/algebra/clock";
+import { instantsOf, offsetChanges } from "@mark1russell7/automata/clock";
 
 instantsOf(Date.UTC(2026, 9, 25, 2, 30), "Europe/Berlin"); // two instants: 00:30Z and 01:30Z
 instantsOf(Date.UTC(2026, 2, 29, 2, 30), "Europe/Berlin"); // []: the clock goes from 02:00 to 03:00
@@ -225,7 +225,7 @@ offsetChanges(Date.UTC(2026, 0, 1), Date.UTC(2027, 0, 1), "Europe/Berlin"); // 2
 ```
 
 ```ts
-import { inWindow, nextBoundary, realClock } from "@mark1russell7/algebra/clock";
+import { inWindow, nextBoundary, realClock } from "@mark1russell7/automata/clock";
 
 const night = { zone: "Europe/Berlin", start: "22:00", end: "07:00" };
 inWindow(Date.now(), night); // true from 22:00 to 06:59 in Berlin, in summer time and in winter time
@@ -235,7 +235,7 @@ if (next !== undefined) realClock.after(next.at - Date.now(), () => console.log(
 
 ## The availability of copies
 
-The entry `@mark1russell7/algebra/availability` gives the chance that copies of a service send in time, when the copies share causes of failure. Examples of causes are a provider, a region, a power feed, a network and a channel of delivery.
+The entry `@mark1russell7/automata/availability` gives the chance that copies of a service send in time, when the copies share causes of failure. Examples of causes are a provider, a region, a power feed, a network and a channel of delivery.
 
 - **Causes in order.** A placement has a list of causes and a list of copies. A cause can be in other causes: a region is in its provider. Each cause names only causes before it, thus the causes have no cycle.
 - **Shared failure.** A copy needs causes. When a cause fails, each cause in it and each copy that needs it fail too. Each cause and each copy also fails on its own, independently of the others.
@@ -249,7 +249,7 @@ The entry `@mark1russell7/algebra/availability` gives the chance that copies of 
 The model has no shared cause of delay: the delays are independent when the state of each cause is known. The time grows with 2 to the count of the causes that two or more copies share in part. A cause that each copy shares costs one step.
 
 ```ts
-import { neverDownChances, sendChance } from "@mark1russell7/algebra/availability";
+import { neverDownChances, sendChance } from "@mark1russell7/automata/availability";
 
 const placement = {
   causes: [
@@ -271,7 +271,7 @@ neverDownChances(placement, { within: 60 })[3]; // the cause push: { lo: 0.9986,
 ## Installation
 
 ```sh
-pnpm add @mark1russell7/algebra zod
+pnpm add @mark1russell7/automata zod
 ```
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. The entry of the availability uses `@mark1russell7/rigor-statistics` for the Poisson binomial law.
@@ -280,22 +280,24 @@ The root entry has the machine types, the consistency checks and the algebra. It
 
 | Entry | What it has | `zod` |
 | --- | --- | --- |
-| `@mark1russell7/algebra` | The machine types, the consistency checks, the algebra, `replay` and `runMachine` | No |
-| `@mark1russell7/algebra/availability` | The chance that copies with shared causes of failure send in time | No |
-| `@mark1russell7/algebra/clock` | The clock of a runtime, a fake clock for tests, and civil time | No |
-| `@mark1russell7/algebra/replay` | The replay of a trace against a machine document | No |
-| `@mark1russell7/algebra/run` | The run of a live instance of a machine document | No |
-| `@mark1russell7/algebra/schema` | `machineSchema`, the schema of a machine document | Yes |
+| `@mark1russell7/automata` | The machine types, the consistency checks, the algebra, `replay` and `runMachine` | No |
+| `@mark1russell7/automata/availability` | The chance that copies with shared causes of failure send in time | No |
+| `@mark1russell7/automata/clock` | The clock of a runtime, a fake clock for tests, and civil time | No |
+| `@mark1russell7/automata/replay` | The replay of a trace against a machine document | No |
+| `@mark1russell7/automata/run` | The run of a live instance of a machine document | No |
+| `@mark1russell7/automata/schema` | `machineSchema`, the schema of a machine document | Yes |
 
-The schema is in the entry `@mark1russell7/algebra/schema`. That entry uses `zod` as an optional peer dependency, as `@mark1russell7/quantity/schema` does. An application that does not parse documents can install the package without `zod`.
+The schema is in the entry `@mark1russell7/automata/schema`. That entry uses `zod` as an optional peer dependency, as `@mark1russell7/quantity/schema` does. An application that does not parse documents can install the package without `zod`.
 
-**From 0.7 to 0.8.** The root entry does not give `machineSchema`. Import it from `@mark1russell7/algebra/schema`.
+**From `@mark1russell7/algebra` 0.9 to `@mark1russell7/automata` 0.10.** The package has a new name, and the API is the same. Change each import from `@mark1russell7/algebra` to `@mark1russell7/automata`, and change the name in `package.json`. The old name is deprecated on npm. The new name tells what the package holds: timed automata, that is, machines with clocks.
+
+**From 0.7 to 0.8.** The root entry does not give `machineSchema`. Import it from `@mark1russell7/automata/schema`.
 
 ## Example
 
 ```ts
-import { detection, timerOf } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import { detection, timerOf } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 
 const tcp = machineSchema.parse(linuxTcpDocument);
 const values = (name: string) =>
@@ -313,7 +315,7 @@ detection(tcp, idle, { name: "blackhole", passes: [] }, values).first?.timer; //
 
 ## Tests
 
-`pnpm --filter @mark1russell7/algebra test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault.
+`pnpm --filter @mark1russell7/automata test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault.
 
 The replay tests use a machine with its own names, and they hold the entry of the replay without zod. The tests of the run use a lock, a call with a backoff and a connection with a keepalive, on the fake clock. Each run of the lock with 4 steps or fewer replays against its document with no problem. A test of the root entry fails if the root imports zod.
 
@@ -321,4 +323,4 @@ The tests of the availability compare `sendChance` with the sum over each state.
 
 The tests of the algebra on the real documents are in `@mark1russell7/machines`.
 
-`pnpm --filter @mark1russell7/algebra build` writes the package for npm into `build/`.
+`pnpm --filter @mark1russell7/automata build` writes the package for npm into `build/`.

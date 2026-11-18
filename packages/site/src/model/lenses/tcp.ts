@@ -2,7 +2,7 @@
  * The lens of TCP: the first live timer of Linux TCP for the fault, its firings, and the recovery after
  * a partition. The measured values are the cells Q1 to Q4 of the harness, when the settings are theirs.
  */
-import { detection, errnoOf, probeTrain, recovery, timerOf, type Detection } from "@mark1russell7/algebra";
+import { detection, errnoOf, probeTrain, recovery, timerOf, type Detection } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { add, format, valueIn, type Quantity } from "@mark1russell7/quantity";
 import harness from "../../data/harness-2026-10-13.json";

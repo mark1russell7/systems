@@ -1,4 +1,4 @@
-import { memcgSleepBounds, memcgThrottle } from "@mark1russell7/algebra";
+import { memcgSleepBounds, memcgThrottle } from "@mark1russell7/automata";
 import type { Cell, ClientImage, MemoryOomPrediction, MemoryThrottlePrediction } from "@mark1russell7/harness";
 import { stepBand } from "@mark1russell7/harness";
 import { valueIn } from "@mark1russell7/quantity";

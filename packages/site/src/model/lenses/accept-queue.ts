@@ -9,7 +9,7 @@
  * The story of the page starts at the first new connect. The queue holds `queued` connections at
  * 0 s. Each packet takes one half of the round trip.
  */
-import { acceptQueueHeld, acceptQueueLimit, firings, timerOf, type KnobValues } from "@mark1russell7/algebra";
+import { acceptQueueHeld, acceptQueueLimit, firings, timerOf, type KnobValues } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { format, quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { bandOf, finite, memo, say, sayBand, type Band, type Fact, type Lane, type Lens, type Mark } from "../lens.ts";

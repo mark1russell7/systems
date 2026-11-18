@@ -1,5 +1,5 @@
-import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import type { Machine } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 
 /**
  * This document is one call of a program on a socket of Linux TCP: a deadline for each try, and a

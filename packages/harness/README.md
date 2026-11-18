@@ -180,7 +180,7 @@ A Kafka group (`Kafka`, `Cell.kafka`) is a group of Kafka brokers in KRaft mode 
 
 ## The memory of a client
 
-A cell can set the limits of the memory controller of cgroup v2 for its client (`Cell.cgroup`, SYS-123). The law of those limits is in `@mark1russell7/algebra` (`memcg.ts`), from the sources of Linux.
+A cell can set the limits of the memory controller of cgroup v2 for its client (`Cell.cgroup`, SYS-123). The law of those limits is in `@mark1russell7/automata` (`memcg.ts`), from the sources of Linux.
 
 - **The files of the cgroup.** `Cell.cgroup` maps a file of the client cgroup to its value, for example `memory.high` in bytes. An admin container in the host cgroup namespace writes each file before the client starts. It reads each file back, and a value that the kernel changed stops the run.
 - **The memory client** is `/opt/harness/memory` of the image `harness`. It has two commands:
@@ -193,7 +193,7 @@ A cell can set the limits of the memory controller of cgroup v2 for its client (
 
 ## The egress qdisc of a client
 
-A cell can put a qdisc at the root of the interface of its client, and judge the time that each datagram leaves it (`EgressPrediction`, SYS-124). The law of netem and tbf is in `@mark1russell7/algebra` (`egress.ts`), from the sources of Linux.
+A cell can put a qdisc at the root of the interface of its client, and judge the time that each datagram leaves it (`EgressPrediction`, SYS-124). The law of netem and tbf is in `@mark1russell7/automata` (`egress.ts`), from the sources of Linux.
 
 - **The egress client** is `/opt/harness/egress` of the image `harness`. It has two commands:
   - `sink PORT` binds a UDP socket and reads each datagram. The target of an egress cell is this sink.

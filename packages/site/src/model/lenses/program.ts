@@ -2,7 +2,7 @@
  * The lens of the program: its deadline, its retries, and the time that the call ends. Below the program
  * is TCP, thus the lens reads the model of the TCP lens for the same settings.
  */
-import { firings, recovery, stackedDetection, timerOf } from "@mark1russell7/algebra";
+import { firings, recovery, stackedDetection, timerOf } from "@mark1russell7/automata";
 import { DEADLINE_CALL, LINUX_TCP } from "@mark1russell7/machines";
 import { add, convert, format, type Quantity } from "@mark1russell7/quantity";
 import { bandOf, finite, say, sayBand, type Fact, type Lens, type Mark } from "../lens.ts";

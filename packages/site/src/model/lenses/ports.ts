@@ -9,7 +9,7 @@
  * to its destinations in turn, and it closes each connection at once in the way of `close`. A
  * connection that stays open holds its port until the end of the story.
  */
-import { PORT_SEARCH_CHAIN_LARGEST, portSearchShares, portSearchSpan, timerOf } from "@mark1russell7/algebra";
+import { PORT_SEARCH_CHAIN_LARGEST, portSearchShares, portSearchSpan, timerOf } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { format, quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { median } from "@mark1russell7/rigor-statistics";

@@ -1,5 +1,5 @@
-import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra/schema";
+import type { Machine } from "@mark1russell7/automata";
+import { machineSchema } from "@mark1russell7/automata/schema";
 
 // The source of each fact below is the tag 4.3.2 of Apache Kafka. Each line number is a line of that
 // file at that tag. An assumption of this document has a note that says so.

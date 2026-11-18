@@ -5,7 +5,7 @@
  * and then one frame for each new set of tokens. A full queue drops a frame. The tbf qdisc also drops a
  * frame longer than its bucket.
  *
- * The model is the egress law of `@mark1russell7/algebra`: `netemSchedule` and `tbfSchedule`. The page
+ * The model is the egress law of `@mark1russell7/automata`: `netemSchedule` and `tbfSchedule`. The page
  * does no queue arithmetic of its own. Each time counts from the start of the first burst.
  *
  * Three lanes tell the story:
@@ -26,7 +26,7 @@ import {
   type EgressPacket,
   type NetemQueue,
   type TbfQueue,
-} from "@mark1russell7/algebra";
+} from "@mark1russell7/automata";
 import { convert, format, quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
 import { bandOf, memo, say, type Fact, type Lane, type Lens, type Mark } from "../lens.ts";
 

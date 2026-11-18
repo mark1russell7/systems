@@ -14,7 +14,7 @@ type Bound: build/law.d.ts#Bound
 CLOSE_BOUND_RULE: build/lint.d.ts#CLOSE_BOUND_RULE
 type CalendarWindow: build/limiter/quota.d.ts#CalendarWindow
 type CallContext: build/call-context.d.ts#CallContext
-type Cancel: @mark1russell7/algebra/clock#Cancel (external)
+type Cancel: @mark1russell7/automata/clock#Cancel (external)
 type CapacityRefused: build/limiter/policy.d.ts#CapacityRefused
 type Change: build/law.d.ts#Change
 type Check: build/description.d.ts#Check
@@ -22,7 +22,7 @@ type CheckFn: build/poller.d.ts#CheckFn
 type CheckMetrics: build/metrics.d.ts#CheckMetrics
 type CheckVerdict: build/health.d.ts#CheckVerdict
 type Claim: build/lint.d.ts#Claim
-type Clock: @mark1russell7/algebra/clock#Clock (external)
+type Clock: @mark1russell7/automata/clock#Clock (external)
 type Compressed: build/law.d.ts#Compressed
 type Compression: build/law.d.ts#Compression
 type ConsoleLoggerOptions: build/logger.d.ts#ConsoleLoggerOptions
@@ -122,7 +122,7 @@ PROGRESS_RULE: build/lint.d.ts#PROGRESS_RULE
 type Phase: build/description.d.ts#Phase
 type PhaseContext: build/lifecycle.d.ts#PhaseContext
 type PhaseWork: build/lifecycle.d.ts#PhaseWork
-type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
+type PlatformClockOptions: @mark1russell7/automata/clock#PlatformClockOptions (external)
 type PodTiming: build/profiles.d.ts#PodTiming
 type Poll: build/timing.d.ts#Poll
 type ProbeAnswer: build/health.d.ts#ProbeAnswer
@@ -272,18 +272,18 @@ memoryQuotaStore: build/limiter/quota.d.ts#memoryQuotaStore
 memoryStore: build/limiter/store.d.ts#memoryStore
 nodeProcess: build/process.d.ts#nodeProcess
 overCapacity: build/limiter/policy.d.ts#overCapacity
-platformClock: @mark1russell7/algebra/clock#platformClock (external)
+platformClock: @mark1russell7/automata/clock#platformClock (external)
 processPortOf: build/process.d.ts#processPortOf
 queueDrain: build/queue.d.ts#queueDrain
 quotaProblems: build/limiter/quota.d.ts#quotaProblems
 quotaRule: build/limiter/quota.d.ts#quotaRule
 quotaStep: build/limiter/quota.d.ts#quotaStep
-realClock: @mark1russell7/algebra/clock#realClock (external)
+realClock: @mark1russell7/automata/clock#realClock (external)
 recoverSpan: build/timing.d.ts#recoverSpan
 redact: build/metrics.d.ts#redact
 redeliverOnce: build/queue.d.ts#redeliverOnce
 releaseLease: build/limiter/policy.d.ts#releaseLease
-replay: @mark1russell7/algebra/replay#replay (external)
+replay: @mark1russell7/automata/replay#replay (external)
 retrier: build/retrier.d.ts#retrier
 retry: build/retrier.d.ts#retry
 retryAfterDelay: build/retrier.d.ts#retryAfterDelay
@@ -294,7 +294,7 @@ stageRank: build/lifecycle.d.ts#stageRank
 symbolsOf: build/law.d.ts#symbolsOf
 takeQuotas: build/limiter/quota.d.ts#takeQuotas
 unitsOf: build/limiter/policy.d.ts#unitsOf
-unrefClock: @mark1russell7/algebra/clock#unrefClock (external)
+unrefClock: @mark1russell7/automata/clock#unrefClock (external)
 verdictOf: build/law.d.ts#verdictOf
 watchdog: build/watchdog.d.ts#watchdog
 workerLoop: build/worker.d.ts#workerLoop
@@ -308,7 +308,7 @@ type ConformanceRecord: build/conformance.d.ts#ConformanceRecord
 type ContractCase: build/contract.d.ts#ContractCase
 type ContractOptions: build/contract.d.ts#ContractOptions
 type FakeChild: build/host/fakes.d.ts#FakeChild
-type FakeClock: @mark1russell7/algebra/clock#FakeClock (external)
+type FakeClock: @mark1russell7/automata/clock#FakeClock (external)
 type FakeHost: build/host/fakes.d.ts#FakeHost
 type FakeHostOptions: build/host/fakes.d.ts#FakeHostOptions
 type FakeProcess: build/fakes.d.ts#FakeProcess
@@ -325,7 +325,7 @@ TestLogger: build/testing.d.ts#TestLogger
 type TransportSubject: build/conformance.d.ts#TransportSubject
 contractCases: build/contract.d.ts#contractCases
 detachedLifecycle: build/conformance.d.ts#detachedLifecycle
-fakeClock: @mark1russell7/algebra/clock#fakeClock (external)
+fakeClock: @mark1russell7/automata/clock#fakeClock (external)
 fakeHost: build/host/fakes.d.ts#fakeHost
 fakeProcess: build/fakes.d.ts#fakeProcess
 quietServer: build/testing.d.ts#quietServer
@@ -730,12 +730,12 @@ unwatched: build/client/meets.d.ts#unwatched
 
 ## ./clock (build/clock.d.ts): names
 
-type Cancel: @mark1russell7/algebra/clock#Cancel (external)
-type Clock: @mark1russell7/algebra/clock#Clock (external)
-type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
-platformClock: @mark1russell7/algebra/clock#platformClock (external)
-realClock: @mark1russell7/algebra/clock#realClock (external)
-unrefClock: @mark1russell7/algebra/clock#unrefClock (external)
+type Cancel: @mark1russell7/automata/clock#Cancel (external)
+type Clock: @mark1russell7/automata/clock#Clock (external)
+type PlatformClockOptions: @mark1russell7/automata/clock#PlatformClockOptions (external)
+platformClock: @mark1russell7/automata/clock#platformClock (external)
+realClock: @mark1russell7/automata/clock#realClock (external)
+unrefClock: @mark1russell7/automata/clock#unrefClock (external)
 
 ## ./channel (build/channel.d.ts): names
 

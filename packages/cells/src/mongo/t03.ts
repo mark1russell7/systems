@@ -1,5 +1,5 @@
-import { realizationOf } from "@mark1russell7/algebra";
-import { transitionOn } from "@mark1russell7/algebra";
+import { realizationOf } from "@mark1russell7/automata";
+import { transitionOn } from "@mark1russell7/automata";
 import { LINUX_TCP, MONGODB_NODE, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import { RTT_MS, given, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";

@@ -1,5 +1,5 @@
-import type { KnobValues, Machine, TimerBounds } from "@mark1russell7/algebra";
-import { evaluate as evaluateTime, realizationOf, timerOf, transitionOn } from "@mark1russell7/algebra";
+import type { KnobValues, Machine, TimerBounds } from "@mark1russell7/automata";
+import { evaluate as evaluateTime, realizationOf, timerOf, transitionOn } from "@mark1russell7/automata";
 import type { ProxyHop, RouterHop, Target } from "@mark1russell7/harness";
 import { LISTING, PUMP_SLACK } from "@mark1russell7/harness";
 import { HAPROXY_TCP, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";

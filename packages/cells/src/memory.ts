@@ -1,5 +1,5 @@
-import type { OomTask } from "@mark1russell7/algebra";
-import { memcgSleepBounds, memcgThrottle, oomVictim } from "@mark1russell7/algebra";
+import type { OomTask } from "@mark1russell7/automata";
+import { memcgSleepBounds, memcgThrottle, oomVictim } from "@mark1russell7/automata";
 import type {
   Cell,
   ClientCapability,

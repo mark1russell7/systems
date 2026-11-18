@@ -1,5 +1,5 @@
-import type { Machine } from "@mark1russell7/algebra";
-import { timerOf } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/automata";
+import { timerOf } from "@mark1russell7/automata";
 import { describe, expect, it } from "vitest";
 import { ENVOY_HTTP2 } from "./envoy.ts";
 import { ISTIO_SIDECAR_INBOUND, ISTIO_SIDECAR_OUTBOUND, PILOT_AGENT, istioSidecar } from "./istio.ts";

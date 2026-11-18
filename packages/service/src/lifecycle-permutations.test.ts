@@ -1,6 +1,6 @@
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { timerOf } from "@mark1russell7/algebra";
+import { timerOf } from "@mark1russell7/automata";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
 import type { RequestEnd } from "./index.ts";

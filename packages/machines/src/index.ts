@@ -1,10 +1,10 @@
 // @mark1russell7/machines: the machine documents of the systems program, in one place. Each
-// document is a `mark1russell7.machine/1` document of @mark1russell7/algebra. It describes one
+// document is a `mark1russell7.machine/1` document of @mark1russell7/automata. It describes one
 // system at one version from its source, and each fact names its file and line. The schema of the
 // algebra examines each document at load. A document changes only for a reason from its source
 // (a citation) or from a measurement (a run).
 
-import type { Machine } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/automata";
 import { DEADLINE_CALL } from "./call.ts";
 import { ETCD_SERVER, GRPC_GO_SERVER } from "./grpc/grpc-go-server.ts";
 import { GRPC_JS } from "./grpc/grpc-js.ts";

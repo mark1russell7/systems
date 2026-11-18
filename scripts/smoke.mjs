@@ -324,11 +324,11 @@ try {
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 15 && module.RECORD_KINDS.at(-1) === "tx", "prober has 15 record kinds, the write last");
-    if (name === "@mark1russell7/algebra") {
+    if (name === "@mark1russell7/automata") {
       const node = module.parseExpr("idle + interval * probes");
       check(typeof node === "object" && node !== null, "algebra parses an expression of a timer");
       // the schema is in an entry of its own, and the root does not give it
-      const schemaEntry = await load("@mark1russell7/algebra/schema");
+      const schemaEntry = await load("@mark1russell7/automata/schema");
       const old = schemaEntry.machineSchema.safeParse({ format: "other.machine/1" });
       check(old.success === false && !("machineSchema" in module), "algebra/schema refuses a machine document of another format");
       // a window that nothing bounds: the cap less it is no bound below, which a max discards
@@ -336,13 +336,13 @@ try {
       const cap = module.evaluate(doc, { expr: "max(cap - open, cap / 2)", unit: "s" }, (knob) => (knob === "cap" ? s(120) : { value: "infinite", unit: "s" }));
       check(cap.value === 60, "algebra gives max(cap - infinity, cap / 2) as cap / 2");
       // the replay without zod, for a machine with its own names
-      const replayEntry = await load("@mark1russell7/algebra/replay");
+      const replayEntry = await load("@mark1russell7/automata/replay");
       const door = { id: "door", states: { shut: {}, open: {} }, transitions: [{ id: "open", from: "shut", on: "open", to: "open" }] };
       const permitted = replayEntry.replay(door, [{ instance: "d", from: "shut", on: "open", to: "open" }]);
       const refused = replayEntry.replay(door, [{ instance: "d", from: "open", on: "open", to: "open" }]);
       check(permitted.length === 0 && refused.length === 1, "algebra/replay replays a trace of a machine with its own names");
       // the clock with no other package, and its fake for tests
-      const clockEntry = await load("@mark1russell7/algebra/clock");
+      const clockEntry = await load("@mark1russell7/automata/clock");
       const fake = clockEntry.fakeClock(10);
       let fired = -1;
       fake.after(5, () => (fired = fake.now()));
@@ -353,7 +353,7 @@ try {
       const due = await new Promise((resolve) => scaled.after(600, () => resolve(scaled.now())));
       check(scaled.time === "wall" && Number.isInteger(due) && due >= 1600, "algebra/clock gives a scaled wall clock");
       // the run of a live instance without zod, on the fake clock
-      const runEntry = await load("@mark1russell7/algebra/run");
+      const runEntry = await load("@mark1russell7/automata/run");
       const lock = {
         format: "mark1russell7.machine/1",
         id: "lock",
@@ -381,8 +381,8 @@ try {
     }
     if (name === "@mark1russell7/machines") {
       // the documents, read by the algebra as an application installs both
-      const algebra = await load("@mark1russell7/algebra");
-      const { machineSchema } = await load("@mark1russell7/algebra/schema");
+      const algebra = await load("@mark1russell7/automata");
+      const { machineSchema } = await load("@mark1russell7/automata/schema");
       const documents = Object.values(module.MACHINES);
       check(documents.length === 48 && module.MACHINES["socketio-client"] === module.SOCKETIO_CLIENT && module.MACHINES["socketio-server"] === module.SOCKETIO_SERVER && module.MACHINES["deadline-call"] === module.DEADLINE_CALL && module.MACHINES["kubelet-readiness"] === module.KUBELET_READINESS && module.MACHINES["haproxy-tcp"] === module.HAPROXY_TCP && module.MACHINES["ztunnel-hbone"] === module.ZTUNNEL_HBONE && module.MACHINES["istio-sidecar-outbound"] === module.ISTIO_SIDECAR_OUTBOUND &&module.MACHINES["istio-sidecar-inbound"] === module.ISTIO_SIDECAR_INBOUND && module.MACHINES["pilot-agent"] === module.PILOT_AGENT && module.MACHINES["traefik-http2"] === module.TRAEFIK_HTTP2 && module.MACHINES["nginx-grpc"] === module.NGINX_GRPC && module.MACHINES["undici-retry-agent"] === module.UNDICI_RETRY && module.MACHINES["caddy-http2"] === module.CADDY_HTTP2 && module.MACHINES["envoy-http2"] === module.ENVOY_HTTP2 && module.MACHINES["toxiproxy-link"] === module.TOXIPROXY_LINK && module.MACHINES["docker-proxy-link"] === module.DOCKER_PROXY_LINK && module.MACHINES["grpc-js"] === module.GRPC_JS && module.MACHINES["grpc-go-server"] === module.GRPC_GO_SERVER && module.MACHINES["etcd-server"] === module.ETCD_SERVER && module.MACHINES["amqplib"] === module.AMQPLIB &&module.MACHINES["rabbitmq-connection"] === module.RABBITMQ_CONNECTION && module.MACHINES["aten"] === module.ATEN_DETECTOR && module.MACHINES["ra-member"] === module.RA_MEMBER && module.MACHINES["linux-tcp"] === module.LINUX_TCP && module.MACHINES["postgres-session"] === module.POSTGRES_SESSION && module.MACHINES["pgbouncer-client"] === module.PGBOUNCER_CLIENT && module.MACHINES["pgbouncer-server"] === module.PGBOUNCER_SERVER && module.MACHINES["pgpool-session"] === module.PGPOOL_SESSION && module.MACHINES["supavisor-client"] === module.SUPAVISOR_CLIENT && module.MACHINES["supavisor-server"] === module.SUPAVISOR_SERVER, "machines gives each document by its identifier");
       check(

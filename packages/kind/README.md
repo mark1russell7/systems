@@ -169,7 +169,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 
 - **The resolver.** From 0.10.1, the lab image is a `build` source of the harness (`labSource()`). The resolver of the harness plans it and builds it, as it does each other image (`planOf`, `imageOf`). Thus its tag comes from its content, and each `FROM` has a digest. Each manifest of packages has a lockfile, and a failed build tries again after each wait. The build goes through the CLI of Docker, not through Testcontainers.
 
-- **In the workspace** of this repository, the stage builds `@mark1russell7/quantity`, `@mark1russell7/algebra` and `@mark1russell7/service`, and packs each one as npm gets it.
+- **In the workspace** of this repository, the stage builds `@mark1russell7/quantity`, `@mark1russell7/automata` and `@mark1russell7/service`, and packs each one as npm gets it.
 - **From npm**, the stage packs the installed versions of the same packages. The package holds the files of the image, and `src/compose.ts` and `src/backends.ts`, for that.
 - **The service** (`app.mjs`) is a Node HTTP server. Its one controller needs Redis when the cell has Redis. Its health server gives the probes, and it declares each stage of the shutdown. `compose.ts` composes the service from the declaration of the cell, and `lint()` reads the same composition.
 - **The HTTP edge of the service.** From 0.1.7, the service has no transport of its own. Its listener is `httpTransport` of `@mark1russell7/service/http`, and its probes are `probeServer` on the health port. Its one route is `handle()` over `life.request`.

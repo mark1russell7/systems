@@ -1,4 +1,4 @@
-// @mark1russell7/algebra/run: a live instance of a machine document. The run takes the transitions
+// @mark1russell7/automata/run: a live instance of a machine document. The run takes the transitions
 // of the document on each event, and it operates the timers of the document on a clock. The entry
 // does not import zod or a `node:` module. Thus a client in a browser can run its own machines.
 

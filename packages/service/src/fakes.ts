@@ -5,9 +5,9 @@ import { mulberry32 } from "@mark1russell7/rigor-generators";
 import type { Clock } from "./clock.ts";
 import type { ExitSignal, ExitTrigger, ProcessPort, UncaughtOrigin } from "./process.ts";
 
-// the fake clock lives beside the clock, in @mark1russell7/algebra/clock
-export type { FakeClock } from "@mark1russell7/algebra/clock";
-export { fakeClock } from "@mark1russell7/algebra/clock";
+// the fake clock lives beside the clock, in @mark1russell7/automata/clock
+export type { FakeClock } from "@mark1russell7/automata/clock";
+export { fakeClock } from "@mark1russell7/automata/clock";
 
 /** A fake process receives triggers from a test, and keeps each exit code in place of an exit. */
 export interface FakeProcess extends ProcessPort {

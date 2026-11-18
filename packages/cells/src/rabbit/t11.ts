@@ -1,4 +1,4 @@
-import type { Machine } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/automata";
 import type { Cell, Cluster, GroupPlace, GroupPrediction, Prediction } from "@mark1russell7/harness";
 import { AMQPLIB, ATEN_DETECTOR, RA_MEMBER } from "@mark1russell7/machines";
 import type { Extent, Quantity } from "@mark1russell7/quantity";

@@ -1,4 +1,4 @@
-import { delay } from "@mark1russell7/algebra/clock";
+import { delay } from "@mark1russell7/automata/clock";
 import type { Backoff } from "./backoff.ts";
 import { backoffDelay, backoffProblems } from "./backoff.ts";
 import type { Cancel, Clock } from "./clock.ts";

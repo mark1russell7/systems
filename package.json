@@ -28,7 +28,7 @@
   },
   "apiReport": {
     "packages": [
-      "packages/algebra",
+      "packages/automata",
       "packages/harness",
       "packages/kind",
       "packages/machines",

@@ -1,4 +1,4 @@
-import type { KnobValues } from "@mark1russell7/algebra";
+import type { KnobValues } from "@mark1russell7/automata";
 import {
   detection,
   overValues,
@@ -8,7 +8,7 @@ import {
   timerOf,
   timerUnder,
   transitionOn,
-} from "@mark1russell7/algebra";
+} from "@mark1russell7/automata";
 import type { Cell, MiddleboxForm, Prediction } from "@mark1russell7/harness";
 import { LINUX_TCP, NF_CONNTRACK_TCP, REDIS_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

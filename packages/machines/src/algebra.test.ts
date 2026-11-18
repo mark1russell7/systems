@@ -1,4 +1,4 @@
-import type { Machine, Manifestation } from "@mark1russell7/algebra";
+import type { Machine, Manifestation } from "@mark1russell7/automata";
 import {
   algebraProblems,
   detection,
@@ -11,7 +11,7 @@ import {
   recovery,
   timerOf,
   timerUnder,
-} from "@mark1russell7/algebra";
+} from "@mark1russell7/automata";
 import type { Extent, Unknown } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { MACHINES, MANIFESTATIONS } from "./index.ts";

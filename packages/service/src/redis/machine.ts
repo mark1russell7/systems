@@ -1,4 +1,4 @@
-import type { Machine } from "@mark1russell7/algebra";
+import type { Machine } from "@mark1russell7/automata";
 import { clientKnob as knob, closeTimer, transition as t } from "../client/machine.ts";
 
 /** The states where the connection exists or tries to exist, thus where it can close. */

@@ -1,4 +1,4 @@
-import { transitionOn } from "@mark1russell7/algebra";
+import { transitionOn } from "@mark1russell7/automata";
 import type { Cell, Fault, Prediction, ProxyTime, Toxic } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";

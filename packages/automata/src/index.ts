@@ -1,13 +1,13 @@
-// @mark1russell7/algebra: state machines as data, and the timer algebra over them. A machine
+// @mark1russell7/automata: state machines as data, and the timer algebra over them. A machine
 // document gives the states, transitions, timers and knobs of one machine. The algebra gives the
 // closed forms of its timers in exact rationals, the detection of a failure as the first live
 // timer, and the recovery after a stall. `replay` finds each transition of a trace that a document
-// does not permit. Its entry "@mark1russell7/algebra/replay" does not import zod. `runMachine`
-// operates a live instance of a document on a clock. Its entry "@mark1russell7/algebra/run" does
+// does not permit. Its entry "@mark1russell7/automata/replay" does not import zod. `runMachine`
+// operates a live instance of a document on a clock. Its entry "@mark1russell7/automata/run" does
 // not import zod.
 //
 // This entry does not import zod either. The schema of a machine document, `machineSchema`, is in
-// the entry "@mark1russell7/algebra/schema".
+// the entry "@mark1russell7/automata/schema".
 
 export type {
   Expr,

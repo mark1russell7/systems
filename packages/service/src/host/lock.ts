@@ -1,4 +1,4 @@
-import { delay } from "@mark1russell7/algebra/clock";
+import { delay } from "@mark1russell7/automata/clock";
 import type { HostPorts, ProcessMark } from "./ports.ts";
 import { sameProcess } from "./processes.ts";
 

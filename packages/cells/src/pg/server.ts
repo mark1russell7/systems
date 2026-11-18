@@ -1,4 +1,4 @@
-import { timerOf, transitionOn } from "@mark1russell7/algebra";
+import { timerOf, transitionOn } from "@mark1russell7/automata";
 import type { Target } from "@mark1russell7/harness";
 import { POSTGRES_SESSION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

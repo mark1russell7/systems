@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
-import type { KnobValues, Manifestation, Recovery } from "@mark1russell7/algebra";
-import { errnoOf, overValues, recovery as recoveryOf, stackedDetection, timerOf, timerUnder } from "@mark1russell7/algebra";
+import type { KnobValues, Manifestation, Recovery } from "@mark1russell7/automata";
+import { errnoOf, overValues, recovery as recoveryOf, stackedDetection, timerOf, timerUnder } from "@mark1russell7/automata";
 import type { Cell, CountBand, DeliveryPrediction, Fault, Prediction, Reconnects, Subject, Target, WsProbe } from "@mark1russell7/harness";
 import { DROP_HANDLING, QUIET_MS, programOf, subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, SOCKETIO_CLIENT, SOCKETIO_SERVER } from "@mark1russell7/machines";

@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { acceptQueueHeld, acceptQueueLimit, evaluate, timerOf } from "@mark1russell7/algebra";
+import { acceptQueueHeld, acceptQueueLimit, evaluate, timerOf } from "@mark1russell7/automata";
 import type { Cell, QueueBand, QueueConnection, QueuePrediction, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { given, HZ, LINUX_66, ms, seconds, s } from "./catalog.ts";
@@ -176,7 +176,7 @@ const queueCell = (spec: QueueSpec, target: Target = TARGET): Cell => ({
 type UncountedSpec = Omit<QueueSpec, "queue"> & { readonly queue: Omit<QueuePrediction, "max" | "held"> };
 
 /**
- * This function gives a spec with its count from the law of `@mark1russell7/algebra`. The count is the limit
+ * This function gives a spec with its count from the law of `@mark1russell7/automata`. The count is the limit
  * of the queue and the connections that a full queue holds. `listen` is the backlog that listen(2) gets.
  */
 const counted = (spec: UncountedSpec, listen = spec.backlog): QueueSpec => ({

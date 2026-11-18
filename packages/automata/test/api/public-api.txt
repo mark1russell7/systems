@@ -1,4 +1,4 @@
-# The public API of @mark1russell7/algebra
+# The public API of @mark1russell7/automata
 #
 # The names of each entry of the exports field, and the declaration of each name, without comments
 # and private members. The command `api-report check` compares this file with the built .d.ts files.

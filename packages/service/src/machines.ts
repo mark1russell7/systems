@@ -1,11 +1,11 @@
-import type { Machine, TransitionDef } from "@mark1russell7/algebra";
+import type { Machine, TransitionDef } from "@mark1russell7/automata";
 import type { ServiceDescription } from "./description.ts";
 import type { MachineName } from "./events.ts";
 
 /**
  * The machines of the runtime as `mark1russell7.machine/1` documents. The documents are the
  * specification, and TypeScript implements them. A test records the transitions of the runtime
- * and replays them against each document (`replay` of `@mark1russell7/algebra`), thus the code and
+ * and replays them against each document (`replay` of `@mark1russell7/automata`), thus the code and
  * the documents cannot disagree.
  */
 

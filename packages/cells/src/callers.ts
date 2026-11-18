@@ -1,5 +1,5 @@
-import type { Recovery } from "@mark1russell7/algebra";
-import { recovery, timerOf } from "@mark1russell7/algebra";
+import type { Recovery } from "@mark1russell7/automata";
+import { recovery, timerOf } from "@mark1russell7/automata";
 import type { BacklogTerm, Dataplane, Declaration, Flap, KindCell, Workload } from "@mark1russell7/kind";
 import { DATAPLANES, NODE_LIFECYCLE, backlogEnd, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, requestBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";

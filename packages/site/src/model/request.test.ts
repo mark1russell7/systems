@@ -1,4 +1,4 @@
-import { recovery, timerOf } from "@mark1russell7/algebra";
+import { recovery, timerOf } from "@mark1russell7/automata";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";

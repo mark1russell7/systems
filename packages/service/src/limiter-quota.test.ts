@@ -1,4 +1,4 @@
-import { fakeClock, fakeWallClock } from "@mark1russell7/algebra/clock";
+import { fakeClock, fakeWallClock } from "@mark1russell7/automata/clock";
 import type { Quantity } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { KeyedQuota, QuotaChange, QuotaRecord, QuotaSpec, QuotaStore, QuotaVerdict } from "./index.ts";

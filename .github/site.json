@@ -8,7 +8,7 @@
   },
   "site-pages": true,
   "roadmap": "docs/ROADMAP.md",
-  "packages": "@mark1russell7/algebra,@mark1russell7/harness,@mark1russell7/kind,@mark1russell7/machines,@mark1russell7/prober,@mark1russell7/quantity,@mark1russell7/service",
+  "packages": "@mark1russell7/automata,@mark1russell7/harness,@mark1russell7/kind,@mark1russell7/machines,@mark1russell7/prober,@mark1russell7/quantity,@mark1russell7/service",
   "site-name": "systems",
   "site-check": true,
   "data-stamps": "packages/site/dist/data-stamps.json",

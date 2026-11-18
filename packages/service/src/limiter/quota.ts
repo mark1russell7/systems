@@ -8,8 +8,8 @@
 // step to the record of one key in one atomic change. The time of a quota is the instant of a wall
 // clock, because a calendar window needs civil time.
 
-import type { WallClock } from "@mark1russell7/algebra/clock";
-import { firstInstantOf, localTime } from "@mark1russell7/algebra/clock";
+import type { WallClock } from "@mark1russell7/automata/clock";
+import { firstInstantOf, localTime } from "@mark1russell7/automata/clock";
 import type { Quantity } from "@mark1russell7/quantity";
 import { countOf, finiteAbove, isCount, isTime, milliseconds, safely, wholeCount } from "./policy.ts";
 

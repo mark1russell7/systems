@@ -1,5 +1,5 @@
-import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import type { Detector, KnobValues, Manifestation } from "@mark1russell7/automata";
+import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/automata";
 import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
 import { AMQPLIB, LINUX_TCP, RABBITMQ_CONNECTION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";

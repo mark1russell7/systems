@@ -55,9 +55,9 @@ jobs:
             packages/service/src/conformance.ts
             packages/service/src/host/node.ts
             packages/service/src/host-it.test.ts
-            packages/algebra/src/clock.ts
-            packages/algebra/src/clock-process.test.ts
-            packages/algebra/test/clock/wait.ts
+            packages/automata/src/clock.ts
+            packages/automata/src/clock-process.test.ts
+            packages/automata/test/clock/wait.ts
             packages/service/src/process-it.test.ts
             packages/service/test/ipc/wait.ts
 
@@ -408,10 +408,10 @@ jobs:
         uses: ./.github/actions/flip
         with:
           what: Process OK, a delay on realClock, the timers of realClock in unref
-          file: packages/algebra/src/clock.ts
+          file: packages/automata/src/clock.ts
           from: "export const realClock: Clock = /* @__PURE__ */ platformClock();"
           to: "export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });"
-          test: pnpm --filter @mark1russell7/algebra exec vitest run src/clock-process.test.ts -t "ends the delay of a child"
+          test: pnpm --filter @mark1russell7/automata exec vitest run src/clock-process.test.ts -t "ends the delay of a child"
           fails: |
             expected \{ code: 13, out: '' \} to deeply equal
       - name: Process OK, retry, a retrier and within on realClock (the timers of realClock in unref)
@@ -420,7 +420,7 @@ jobs:
           PROCESS_IT: "1"
         with:
           what: Process OK, retry, a retrier and within on realClock, the timers of realClock in unref
-          file: packages/algebra/src/clock.ts
+          file: packages/automata/src/clock.ts
           from: "export const realClock: Clock = /* @__PURE__ */ platformClock();"
           to: "export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });"
           test: pnpm --filter @mark1russell7/service exec vitest run src/process-it.test.ts -t "ends retry, a retrier and within"
