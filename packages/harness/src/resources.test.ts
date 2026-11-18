@@ -5,8 +5,9 @@ import { valueIn } from "@mark1russell7/quantity";
 import { constant } from "@mark1russell7/rigor-chaos";
 import { median } from "@mark1russell7/rigor-statistics";
 import { describe, expect, it } from "vitest";
-import type { ContainerLimits, ProbeEvent, Target } from "./cell.ts";
+import type { Cell, ContainerLimits, ProbeEvent, Target } from "./cell.ts";
 import { openLab, withLimits } from "./lab.ts";
+import { runCell } from "./run.ts";
 import { LOAD_PATH, loadPlanOf } from "./load.ts";
 import type { ResourceReading } from "./resources.ts";
 import {
@@ -608,5 +609,71 @@ describe.skipIf(!RUN)("the resources of real containers (HARNESS_RESOURCES=1)", 
     } finally {
       await lab.close();
     }
+  }, 900_000);
+
+  it("keeps the readings of the target in each run of a cell, around the schedule of its client", async () => {
+    // the target has CPU 0. The client and the reader have the last CPU, by the limits of the cell.
+    const other = String(availableParallelism() - 1);
+    const target: Target = {
+      image: NODE,
+      subject: { kind: "pinned", image: NODE },
+      port: 8080,
+      ready: "listening",
+      files: { "/srv/server.mjs": SERVER },
+      command: ["node", "/srv/server.mjs"],
+      lines: true,
+      limits: { cpus: 1, cpuset: "0", memory: { value: 256, unit: "MiB" } },
+    };
+    const request = `GET /bytes HTTP/1.1\r\nHost: target\r\n\r\n`;
+    const cell: Cell = {
+      name: "RES.cell, 8 bodies of 1 MiB each second for 2 s, with the readings of the target in each run",
+      target,
+      sysctls: {},
+      client: "load",
+      probe: { mode: "schedule", keepalive: false, streams: [{ key: "bytes", plan: { profile: constant(8, 2_000), options: { arrivals: "uniform" } }, requests: [request] }] },
+      fault: "none",
+      prediction: {
+        detects: null,
+        window: { value: 30, unit: "s" },
+        why: "the readings of a cell: each run keeps a reading before its schedule and one after it",
+        load: { lag: { value: 50, unit: "ms" }, bands: [] },
+      },
+      runs: 2,
+      environments: 1,
+      concurrency: 1,
+      clientLimits: { cpuset: other },
+      resources: { period: { value: 250, unit: "ms" }, cpuset: other },
+    };
+    const result = await runCell(cell);
+    const runs = [...result.warmups, ...result.runs];
+    if (OUT !== undefined) {
+      mkdirSync(OUT, { recursive: true });
+      writeFileSync(join(OUT, "cell.json"), `${JSON.stringify({ runs: runs.map(({ events, resources, server }) => ({ events, resources, server })) }, null, 2)}\n`);
+    }
+    // a warm-up and the two counted runs, each with its readings
+    expect(result.warmups).toHaveLength(1);
+    expect(result.runs).toHaveLength(2);
+    for (const run of runs) {
+      const readings = run.resources;
+      if (readings === undefined) throw new Error(`run ${run.index} has no readings`);
+      const scheduled = run.events.find((event) => event.ev === "scheduled")?.t ?? Number.NaN;
+      const done = run.events.find((event) => event.ev === "done")?.t ?? Number.NaN;
+      const replies = run.events.filter((event) => event.ev === "replied" && event["status"] === 200).length;
+      expect(replies).toBe(16);
+      // one clock: the two readings bracket the schedule, and the series covers it
+      expect(readings.start.t1).toBeLessThan(scheduled);
+      expect(readings.end.t0).toBeGreaterThan(done);
+      expect(readings.series.filter((reading) => reading.t0 > scheduled && reading.t0 < done).length).toBeGreaterThanOrEqual(4);
+      // the readings are of the target under its limits, and each run reads its own work
+      expect(readings.end.limits).toEqual({ cpu: { quota: 100_000, period: 100_000 }, memory: 256 * MIB, cpuset: "0" });
+      const change = resourceChange(readings.start, readings.end);
+      expect(change.resets).toEqual([]);
+      expect(change.network?.tx.bytes ?? 0).toBeGreaterThanOrEqual(16 * BODY);
+      expect(change.network?.tx.bytes ?? Number.NaN).toBeLessThanOrEqual(1.08 * 16 * BODY);
+      expect(valueIn(change.cpu?.total ?? { value: 0, unit: "s" }, "s")).toBeGreaterThan(0);
+    }
+    // the readings of two runs do not overlap: the second run starts after the first one ended
+    const [first, second] = result.runs;
+    expect(second?.resources?.start.t0 ?? 0).toBeGreaterThan(first?.resources?.end.t1 ?? Number.NaN);
   }, 900_000);
 });

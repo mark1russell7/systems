@@ -2,6 +2,8 @@ import type { KernelRecord } from "@mark1russell7/prober";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Profile, Schedule, ScheduleOptions } from "@mark1russell7/rigor-chaos";
+import type { ResourceOptions, ResourceReading } from "./resources.ts";
+import { limitsProblems } from "./resources.ts";
 
 export type { KernelRecord };
 
@@ -1605,6 +1607,18 @@ export interface Cell {
    * the container starts, and then it makes the file `/tmp/cgroup` in it.
    */
   readonly cgroup?: Readonly<Record<string, string>>;
+  /**
+   * These are the limits of the container of the client in each run: its CPU quota, its CPUs and its
+   * memory. A measurement of the cost of a target puts the client on other CPUs than the target.
+   * Without them, the client has no limit.
+   */
+  readonly clientLimits?: ContainerLimits;
+  /**
+   * These options start a reader of the resources of the target in each run (`Lab.resources`). The
+   * run then keeps a reading when its client is ready, a reading at its end, and the series of the
+   * reader (`Run.resources`). Without them, a run reads no resources.
+   */
+  readonly resources?: ResourceOptions;
   readonly prediction: Prediction;
   /** This side is the side whose detection the cell measures. Without it, the side is the client. */
   readonly observer?: Observer;
@@ -1734,10 +1748,13 @@ export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
  * host. Thus a cell with sysctls of the host operates one environment at a time. Otherwise, a lab
  * reads the value of a different lab as its value before, and the restore does not give back the host.
  */
-export const environmentProblems = (cell: Cell): string[] =>
-  (cell.hostSysctls?.length ?? 0) > 0 && (cell.concurrency ?? 1) > 1
+export const environmentProblems = (cell: Cell): string[] => [
+  ...((cell.hostSysctls?.length ?? 0) > 0 && (cell.concurrency ?? 1) > 1
     ? [`${cell.name}: a cell with sysctls of the host operates one environment at a time, not ${cell.concurrency}`]
-    : [];
+    : []),
+  ...(cell.target.limits === undefined ? [] : limitsProblems(cell.target.limits).map((problem) => `${cell.name}: the target: ${problem}`)),
+  ...(cell.clientLimits === undefined ? [] : limitsProblems(cell.clientLimits).map((problem) => `${cell.name}: the client: ${problem}`)),
+];
 
 /**
  * This function tells if the request of a client goes before the fault of its cell. That is so for a
@@ -1840,6 +1857,20 @@ export interface Run {
   readonly schedule?: Schedule;
   /** These schedules are the ones that the streams of the client `load` had. */
   readonly streams?: readonly RunStream[];
+  /** These are the readings of the resources of the target in a run of a cell with `Cell.resources`. */
+  readonly resources?: RunResources;
+}
+
+/**
+ * These are the readings of the resources of the target in one run. The two readings bracket the
+ * work of the run: `start` comes after the client is ready and before it sends, and `end` comes
+ * after the run ended. `resourceChange(start, end)` gives what the target used in the run.
+ */
+export interface RunResources {
+  readonly start: ResourceReading;
+  readonly end: ResourceReading;
+  /** These are the readings of the series of the reader, from its start to its stop. A reader with no period has none. */
+  readonly series: readonly ResourceReading[];
 }
 
 /** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */

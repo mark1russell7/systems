@@ -98,7 +98,7 @@ type HopPlace: build/cell.chunk.d.ts#HopPlace
 type HopSignal: build/cell.chunk.d.ts#HopSignal
 type HopWrite: build/cell.chunk.d.ts#HopWrite
 type Host: build/index.d.ts#Host
-type HostLimits: build/index.d.ts#HostLimits
+type HostLimits: build/cell.chunk.d.ts#HostLimits
 type HostSetting: build/index.d.ts#HostSetting
 type HostSysctl: build/cell.chunk.d.ts#HostSysctl
 type HttpProbe: build/cell.chunk.d.ts#HttpProbe
@@ -197,8 +197,8 @@ type QueueReading: build/index.d.ts#QueueReading
 RELATIVE: build/index.d.ts#RELATIVE
 REPLICA_SET_STAGES: build/index.d.ts#REPLICA_SET_STAGES
 REPOSITORY: build/index.d.ts#REPOSITORY
-RESOURCES_EVENT: build/index.d.ts#RESOURCES_EVENT
-RESOURCES_PROGRAM: build/index.d.ts#RESOURCES_PROGRAM
+RESOURCES_EVENT: build/cell.chunk.d.ts#RESOURCES_EVENT
+RESOURCES_PROGRAM: build/cell.chunk.d.ts#RESOURCES_PROGRAM
 RESTART: build/index.d.ts#RESTART
 ROUTERS: build/index.d.ts#ROUTERS
 type ReconnectReading: build/index.d.ts#ReconnectReading
@@ -215,16 +215,16 @@ type ReplicaSetStage: build/cell.chunk.d.ts#ReplicaSetStage
 type Replies: build/cell.chunk.d.ts#Replies
 type RequestPrediction: build/cell.chunk.d.ts#RequestPrediction
 type RequestReading: build/index.d.ts#RequestReading
-type ResourceChange: build/index.d.ts#ResourceChange
-type ResourceCpu: build/index.d.ts#ResourceCpu
-type ResourceDevice: build/index.d.ts#ResourceDevice
-type ResourceLimits: build/index.d.ts#ResourceLimits
-type ResourceMemory: build/index.d.ts#ResourceMemory
-type ResourceNetwork: build/index.d.ts#ResourceNetwork
-type ResourceOptions: build/index.d.ts#ResourceOptions
-type ResourceReader: build/index.d.ts#ResourceReader
-type ResourceReading: build/index.d.ts#ResourceReading
-type ResourceTraffic: build/index.d.ts#ResourceTraffic
+type ResourceChange: build/cell.chunk.d.ts#ResourceChange
+type ResourceCpu: build/cell.chunk.d.ts#ResourceCpu
+type ResourceDevice: build/cell.chunk.d.ts#ResourceDevice
+type ResourceLimits: build/cell.chunk.d.ts#ResourceLimits
+type ResourceMemory: build/cell.chunk.d.ts#ResourceMemory
+type ResourceNetwork: build/cell.chunk.d.ts#ResourceNetwork
+type ResourceOptions: build/cell.chunk.d.ts#ResourceOptions
+type ResourceReader: build/cell.chunk.d.ts#ResourceReader
+type ResourceReading: build/cell.chunk.d.ts#ResourceReading
+type ResourceTraffic: build/cell.chunk.d.ts#ResourceTraffic
 type RouteLine: build/index.d.ts#RouteLine
 type RouterHop: build/cell.chunk.d.ts#RouterHop
 type RttRange: build/cell.chunk.d.ts#RttRange
@@ -237,6 +237,7 @@ type RunGroup: build/cell.chunk.d.ts#RunGroup
 type RunLoad: build/index.d.ts#RunLoad
 type RunPart: build/cell.chunk.d.ts#RunPart
 type RunPause: build/cell.chunk.d.ts#RunPause
+type RunResources: build/cell.chunk.d.ts#RunResources
 type RunRoute: build/cell.chunk.d.ts#RunRoute
 type RunStream: build/cell.chunk.d.ts#RunStream
 type RunTopology: build/cell.chunk.d.ts#RunTopology
@@ -284,9 +285,9 @@ buildRecordOf: build/index.d.ts#buildRecordOf
 callOf: build/index.d.ts#callOf
 cancelsOf: build/index.d.ts#cancelsOf
 cargoVersions: build/index.d.ts#cargoVersions
-cgroupKeyed: build/index.d.ts#cgroupKeyed
-cgroupLimit: build/index.d.ts#cgroupLimit
-cgroupNumber: build/index.d.ts#cgroupNumber
+cgroupKeyed: build/cell.chunk.d.ts#cgroupKeyed
+cgroupLimit: build/cell.chunk.d.ts#cgroupLimit
+cgroupNumber: build/cell.chunk.d.ts#cgroupNumber
 clockOffsetOf: build/index.d.ts#clockOffsetOf
 closeOrExit: build/index.d.ts#closeOrExit
 cloudOf: build/index.d.ts#cloudOf
@@ -301,8 +302,8 @@ commitProblems: build/index.d.ts#commitProblems
 commitVoid: build/index.d.ts#commitVoid
 comparable: build/index.d.ts#comparable
 controllerEnv: build/index.d.ts#controllerEnv
-cpuMaxOf: build/index.d.ts#cpuMaxOf
-cpuStatOf: build/index.d.ts#cpuStatOf
+cpuMaxOf: build/cell.chunk.d.ts#cpuMaxOf
+cpuStatOf: build/cell.chunk.d.ts#cpuStatOf
 crossingsOf: build/index.d.ts#crossingsOf
 cutOf: build/index.d.ts#cutOf
 deadlineOf: build/index.d.ts#deadlineOf
@@ -340,7 +341,7 @@ harnessVersion: build/index.d.ts#harnessVersion
 hashOf: build/index.d.ts#hashOf
 highestHeld: build/index.d.ts#highestHeld
 hikariClientImage: build/index.d.ts#hikariClientImage
-hostLimitsOf: build/index.d.ts#hostLimitsOf
+hostLimitsOf: build/cell.chunk.d.ts#hostLimitsOf
 hzOf: build/index.d.ts#hzOf
 imageOf: build/index.d.ts#imageOf
 imagePinProblems: build/index.d.ts#imagePinProblems
@@ -367,7 +368,7 @@ layerOf: build/layers.d.ts#layerOf
 leafLacks: build/index.d.ts#leafLacks
 leftAfter: build/index.d.ts#leftAfter
 limitsOf: build/layers.d.ts#limitsOf
-limitsProblems: build/index.d.ts#limitsProblems
+limitsProblems: build/cell.chunk.d.ts#limitsProblems
 loadOf: build/index.d.ts#loadOf
 loadPlanOf: build/index.d.ts#loadPlanOf
 loadVerdict: build/index.d.ts#loadVerdict
@@ -390,12 +391,12 @@ memAvailableOf: build/index.d.ts#memAvailableOf
 memberCommand: build/index.d.ts#memberCommand
 memberConfig: build/index.d.ts#memberConfig
 memberLineOf: build/index.d.ts#memberLineOf
-memoryStatOf: build/index.d.ts#memoryStatOf
+memoryStatOf: build/cell.chunk.d.ts#memoryStatOf
 mongoClientImage: build/index.d.ts#mongoClientImage
 monotonicAt: build/index.d.ts#monotonicAt
 monotonicOf: build/index.d.ts#monotonicOf
 namesGroup: build/index.d.ts#namesGroup
-networkOf: build/index.d.ts#networkOf
+networkOf: build/cell.chunk.d.ts#networkOf
 nodeClientImage: build/index.d.ts#nodeClientImage
 nodeCommand: build/index.d.ts#nodeCommand
 nodeHttpImage: build/index.d.ts#nodeHttpImage
@@ -446,11 +447,11 @@ replicaSetOnce: build/index.d.ts#replicaSetOnce
 replicaSetStagesOf: build/index.d.ts#replicaSetStagesOf
 requestOf: build/index.d.ts#requestOf
 requestWords: build/index.d.ts#requestWords
-resourceArgs: build/index.d.ts#resourceArgs
-resourceChange: build/index.d.ts#resourceChange
+resourceArgs: build/cell.chunk.d.ts#resourceArgs
+resourceChange: build/cell.chunk.d.ts#resourceChange
 resourceReader: build/index.d.ts#resourceReader
-resourceReadingIn: build/index.d.ts#resourceReadingIn
-resourceReadingOf: build/index.d.ts#resourceReadingOf
+resourceReadingIn: build/cell.chunk.d.ts#resourceReadingIn
+resourceReadingOf: build/cell.chunk.d.ts#resourceReadingOf
 restamped: build/index.d.ts#restamped
 roomNeeded: build/index.d.ts#roomNeeded
 roomVoidOf: build/index.d.ts#roomVoidOf
@@ -592,6 +593,8 @@ interface Cell {
   readonly namespaceSetup?: readonly (readonly string[])[];
   readonly hostSysctls?: readonly HostSysctl[];
   readonly cgroup?: Readonly<Record<string, string>>;
+  readonly clientLimits?: ContainerLimits;
+  readonly resources?: ResourceOptions;
   readonly prediction: Prediction;
   readonly observer?: Observer;
   readonly targetSettings?: Readonly<Record<string, string>>;
@@ -879,6 +882,14 @@ interface HopWrite {
   readonly content: string;
   readonly undo?: string;
   readonly confirm?: string;
+}
+
+### build/cell.chunk.d.ts#HostLimits
+interface HostLimits {
+  NanoCpus?: number;
+  CpusetCpus?: string;
+  Memory?: number;
+  MemorySwap?: number;
 }
 
 ### build/cell.chunk.d.ts#HostSysctl
@@ -1235,6 +1246,12 @@ interface QueuePrediction {
   readonly drained?: number;
 }
 
+### build/cell.chunk.d.ts#RESOURCES_EVENT
+declare const RESOURCES_EVENT = "resources";
+
+### build/cell.chunk.d.ts#RESOURCES_PROGRAM
+declare const RESOURCES_PROGRAM = "/opt/harness/resources";
+
 ### build/cell.chunk.d.ts#Reconnects
 interface Reconnects {
   readonly waits: ReadonlyArray<{
@@ -1289,6 +1306,102 @@ interface RequestPrediction {
   readonly pending?: true;
 }
 
+### build/cell.chunk.d.ts#ResourceChange
+interface ResourceChange {
+  readonly elapsed: Quantity;
+  readonly cpu: {
+    readonly total: Quantity;
+    readonly user: Quantity;
+    readonly system: Quantity;
+    readonly throttled: Quantity | null;
+    readonly periods: number | null;
+    readonly throttledPeriods: number | null;
+  } | null;
+  readonly memory: {
+    readonly last: number | null;
+    readonly peak: number | null;
+    readonly peakBetween: boolean | null;
+  };
+  readonly network: ResourceNetwork | null;
+  readonly resets: readonly string[];
+}
+
+### build/cell.chunk.d.ts#ResourceCpu
+interface ResourceCpu {
+  readonly usage: number;
+  readonly user: number;
+  readonly system: number;
+  readonly periods: number | null;
+  readonly throttled: number | null;
+  readonly throttledTime: number | null;
+}
+
+### build/cell.chunk.d.ts#ResourceDevice
+interface ResourceDevice {
+  readonly name: string;
+  readonly rx: ResourceTraffic;
+  readonly tx: ResourceTraffic;
+}
+
+### build/cell.chunk.d.ts#ResourceLimits
+interface ResourceLimits {
+  readonly cpu: {
+    readonly quota: number | "max";
+    readonly period: number;
+  } | null;
+  readonly memory: number | "max" | null;
+  readonly cpuset: string | null;
+}
+
+### build/cell.chunk.d.ts#ResourceMemory
+interface ResourceMemory {
+  readonly current: number | null;
+  readonly peak: number | null;
+  readonly anon: number | null;
+  readonly file: number | null;
+  readonly kernel: number | null;
+  readonly sock: number | null;
+  readonly events: Readonly<Record<string, number>> | null;
+}
+
+### build/cell.chunk.d.ts#ResourceNetwork
+interface ResourceNetwork {
+  readonly devices: readonly ResourceDevice[];
+  readonly rx: ResourceTraffic;
+  readonly tx: ResourceTraffic;
+}
+
+### build/cell.chunk.d.ts#ResourceOptions
+interface ResourceOptions {
+  readonly period?: Quantity;
+  readonly cpuset?: string;
+}
+
+### build/cell.chunk.d.ts#ResourceReader
+interface ResourceReader {
+  readonly series: readonly ResourceReading[];
+  read(): Promise<ResourceReading>;
+  stop(): Promise<void>;
+}
+
+### build/cell.chunk.d.ts#ResourceReading
+interface ResourceReading {
+  readonly t0: number;
+  readonly t1: number;
+  readonly cgroup: string;
+  readonly cpu: ResourceCpu | null;
+  readonly memory: ResourceMemory;
+  readonly pids: number | null;
+  readonly network: ResourceNetwork | null;
+  readonly limits: ResourceLimits;
+}
+
+### build/cell.chunk.d.ts#ResourceTraffic
+interface ResourceTraffic {
+  readonly bytes: number;
+  readonly packets: number;
+}
+
 ### build/cell.chunk.d.ts#RouterHop
 interface RouterHop {
   readonly name: string;
@@ -1335,6 +1448,7 @@ interface Run {
   readonly fabric?: RunFabric;
   readonly schedule?: Schedule;
   readonly streams?: readonly RunStream[];
+  readonly resources?: RunResources;
 }
 
 ### build/cell.chunk.d.ts#RunBackup
@@ -1397,6 +1511,13 @@ interface RunPause {
   readonly other: readonly ProbeEvent[];
   readonly fences: readonly string[];
   readonly group: string;
+}
+
+### build/cell.chunk.d.ts#RunResources
+interface RunResources {
+  readonly start: ResourceReading;
+  readonly end: ResourceReading;
+  readonly series: readonly ResourceReading[];
 }
 
 ### build/cell.chunk.d.ts#RunRoute
@@ -1523,8 +1644,26 @@ interface WsProbe {
   readonly retries?: number;
 }
 
+### build/cell.chunk.d.ts#cgroupKeyed
+declare const cgroupKeyed: (text: string) => Readonly<Record<string, number>>;
+
+### build/cell.chunk.d.ts#cgroupLimit
+declare const cgroupLimit: (text: string) => number | "max" | null;
+
+### build/cell.chunk.d.ts#cgroupNumber
+declare const cgroupNumber: (text: string) => number | null;
+
+### build/cell.chunk.d.ts#cpuMaxOf
+declare const cpuMaxOf: (text: string) => ResourceLimits["cpu"];
+
+### build/cell.chunk.d.ts#cpuStatOf
+declare const cpuStatOf: (text: string) => ResourceCpu | null;
+
 ### build/cell.chunk.d.ts#environmentProblems
 declare const environmentProblems: (cell: Cell) => string[];
+
+### build/cell.chunk.d.ts#hostLimitsOf
+declare const hostLimitsOf: (limits: ContainerLimits) => HostLimits;
 
 ### build/cell.chunk.d.ts#isHopPlace
 declare const isHopPlace: (place: FaultPlace | undefined) => place is HopPlace;
@@ -1533,6 +1672,27 @@ declare const isHopPlace: (place: FaultPlace | undefined) => place is HopPlace;
 declare const latestEndOf: (prediction: Extract<Prediction, {
   readonly detects: true;
 }>) => number;
+
+### build/cell.chunk.d.ts#limitsProblems
+declare const limitsProblems: (limits: ContainerLimits) => string[];
+
+### build/cell.chunk.d.ts#memoryStatOf
+declare const memoryStatOf: (text: string) => Pick<ResourceMemory, "anon" | "file" | "kernel" | "sock">;
+
+### build/cell.chunk.d.ts#networkOf
+declare const networkOf: (text: string) => ResourceNetwork | null;
+
+### build/cell.chunk.d.ts#resourceArgs
+declare const resourceArgs: (dirs: readonly string[], period?: Quantity) => string[];
+
+### build/cell.chunk.d.ts#resourceChange
+declare const resourceChange: (before: ResourceReading, after: ResourceReading) => ResourceChange;
+
+### build/cell.chunk.d.ts#resourceReadingIn
+declare const resourceReadingIn: (output: string) => ResourceReading;
+
+### build/cell.chunk.d.ts#resourceReadingOf
+declare const resourceReadingOf: (line: ProbeEvent) => ResourceReading | null;
 
 ### build/index.d.ts#AWS_FROM
 export declare const AWS_FROM = "2026-10-28";
@@ -1998,14 +2158,6 @@ interface Host {
   readonly vendor: string | null;
   readonly kvm: boolean;
   readonly image: string | null;
-}
-
-### build/index.d.ts#HostLimits
-interface HostLimits {
-  NanoCpus?: number;
-  CpusetCpus?: string;
-  Memory?: number;
-  MemorySwap?: number;
 }
 
 ### build/index.d.ts#HostSetting
@@ -2555,12 +2707,6 @@ export declare const REPLICA_SET_STAGES: readonly ReplicaSetStage[];
 ### build/index.d.ts#REPOSITORY
 export declare const REPOSITORY: RegExp;
 
-### build/index.d.ts#RESOURCES_EVENT
-export declare const RESOURCES_EVENT = "resources";
-
-### build/index.d.ts#RESOURCES_PROGRAM
-export declare const RESOURCES_PROGRAM = "/opt/harness/resources";
-
 ### build/index.d.ts#RESTART
 export declare const RESTART: readonly string[];
 
@@ -2649,102 +2795,6 @@ interface RequestReading {
   readonly error: string | null;
   readonly pending: boolean;
   readonly gap: Quantity | null;
-}
-
-### build/index.d.ts#ResourceChange
-interface ResourceChange {
-  readonly elapsed: Quantity;
-  readonly cpu: {
-    readonly total: Quantity;
-    readonly user: Quantity;
-    readonly system: Quantity;
-    readonly throttled: Quantity | null;
-    readonly periods: number | null;
-    readonly throttledPeriods: number | null;
-  } | null;
-  readonly memory: {
-    readonly last: number | null;
-    readonly peak: number | null;
-    readonly peakBetween: boolean | null;
-  };
-  readonly network: ResourceNetwork | null;
-  readonly resets: readonly string[];
-}
-
-### build/index.d.ts#ResourceCpu
-interface ResourceCpu {
-  readonly usage: number;
-  readonly user: number;
-  readonly system: number;
-  readonly periods: number | null;
-  readonly throttled: number | null;
-  readonly throttledTime: number | null;
-}
-
-### build/index.d.ts#ResourceDevice
-interface ResourceDevice {
-  readonly name: string;
-  readonly rx: ResourceTraffic;
-  readonly tx: ResourceTraffic;
-}
-
-### build/index.d.ts#ResourceLimits
-interface ResourceLimits {
-  readonly cpu: {
-    readonly quota: number | "max";
-    readonly period: number;
-  } | null;
-  readonly memory: number | "max" | null;
-  readonly cpuset: string | null;
-}
-
-### build/index.d.ts#ResourceMemory
-interface ResourceMemory {
-  readonly current: number | null;
-  readonly peak: number | null;
-  readonly anon: number | null;
-  readonly file: number | null;
-  readonly kernel: number | null;
-  readonly sock: number | null;
-  readonly events: Readonly<Record<string, number>> | null;
-}
-
-### build/index.d.ts#ResourceNetwork
-interface ResourceNetwork {
-  readonly devices: readonly ResourceDevice[];
-  readonly rx: ResourceTraffic;
-  readonly tx: ResourceTraffic;
-}
-
-### build/index.d.ts#ResourceOptions
-interface ResourceOptions {
-  readonly period?: Quantity;
-  readonly cpuset?: string;
-}
-
-### build/index.d.ts#ResourceReader
-interface ResourceReader {
-  readonly series: readonly ResourceReading[];
-  read(): Promise<ResourceReading>;
-  stop(): Promise<void>;
-}
-
-### build/index.d.ts#ResourceReading
-interface ResourceReading {
-  readonly t0: number;
-  readonly t1: number;
-  readonly cgroup: string;
-  readonly cpu: ResourceCpu | null;
-  readonly memory: ResourceMemory;
-  readonly pids: number | null;
-  readonly network: ResourceNetwork | null;
-  readonly limits: ResourceLimits;
-}
-
-### build/index.d.ts#ResourceTraffic
-interface ResourceTraffic {
-  readonly bytes: number;
-  readonly packets: number;
 }
 
 ### build/index.d.ts#RouteLine
@@ -2979,15 +3029,6 @@ export declare const cancelsOf: (pair: Pair, holdNs: number) => number[];
 ### build/index.d.ts#cargoVersions
 export declare const cargoVersions: (lock: string, manifest: string) => Record<string, string>;
 
-### build/index.d.ts#cgroupKeyed
-export declare const cgroupKeyed: (text: string) => Readonly<Record<string, number>>;
-
-### build/index.d.ts#cgroupLimit
-export declare const cgroupLimit: (text: string) => number | "max" | null;
-
-### build/index.d.ts#cgroupNumber
-export declare const cgroupNumber: (text: string) => number | null;
-
 ### build/index.d.ts#clockOffsetOf
 export declare const clockOffsetOf: (events: readonly ProbeEvent[]) => number | null;
 
@@ -3032,12 +3073,6 @@ export declare const comparable: (a: Substrate, b: Substrate) => boolean;
 
 ### build/index.d.ts#controllerEnv
 export declare const controllerEnv: (kafka: Kafka) => Record<string, string>;
-
-### build/index.d.ts#cpuMaxOf
-export declare const cpuMaxOf: (text: string) => ResourceLimits["cpu"];
-
-### build/index.d.ts#cpuStatOf
-export declare const cpuStatOf: (text: string) => ResourceCpu | null;
 
 ### build/index.d.ts#crossingsOf
 export declare const crossingsOf: (run: Run, hop: string, toClient: SocketPlace | undefined, toTarget: SocketPlace | undefined) => Crossings;
@@ -3153,9 +3188,6 @@ export declare const highestHeld: (text: string) => number | null;
 ### build/index.d.ts#hikariClientImage
 export declare const hikariClientImage: () => Promise<string>;
 
-### build/index.d.ts#hostLimitsOf
-export declare const hostLimitsOf: (limits: ContainerLimits) => HostLimits;
-
 ### build/index.d.ts#hzOf
 export declare const hzOf: (first: {
   now: number;
@@ -3231,9 +3263,6 @@ export declare const leafLacks: (views: LeafViews) => string | null;
 ### build/index.d.ts#leftAfter
 export declare const leftAfter: (socket: readonly KernelRecord[], line: ProbeEvent) => Quantity | null;
 
-### build/index.d.ts#limitsProblems
-export declare const limitsProblems: (limits: ContainerLimits) => string[];
-
 ### build/index.d.ts#loadOf
 export declare const loadOf: (events: readonly ProbeEvent[], plan: Schedule) => RunLoad | null;
 
@@ -3306,9 +3335,6 @@ export declare const memberConfig: (group: Group, primary: string | null) => str
 ### build/index.d.ts#memberLineOf
 export declare const memberLineOf: (member: string, text: string) => MemberLine | null;
 
-### build/index.d.ts#memoryStatOf
-export declare const memoryStatOf: (text: string) => Pick<ResourceMemory, "anon" | "file" | "kernel" | "sock">;
-
 ### build/index.d.ts#mongoClientImage
 export declare const mongoClientImage: () => Promise<string>;
 
@@ -3320,9 +3346,6 @@ export declare const monotonicOf: (stamp: WallStamp, events: readonly ProbeEvent
 
 ### build/index.d.ts#namesGroup
 export declare const namesGroup: (line: string, group: string) => boolean;
-
-### build/index.d.ts#networkOf
-export declare const networkOf: (text: string) => ResourceNetwork | null;
 
 ### build/index.d.ts#nodeClientImage
 export declare const nodeClientImage: () => Promise<string>;
@@ -3494,20 +3517,8 @@ export declare const requestWords: (outcome: {
   readonly pending?: boolean | undefined;
 }) => string;
 
-### build/index.d.ts#resourceArgs
-export declare const resourceArgs: (dirs: readonly string[], period?: Quantity) => string[];
-
-### build/index.d.ts#resourceChange
-export declare const resourceChange: (before: ResourceReading, after: ResourceReading) => ResourceChange;
-
 ### build/index.d.ts#resourceReader
 export declare const resourceReader: (id: string, options?: ResourceOptions, network?: string) => Promise<ResourceReader>;
-
-### build/index.d.ts#resourceReadingIn
-export declare const resourceReadingIn: (output: string) => ResourceReading;
-
-### build/index.d.ts#resourceReadingOf
-export declare const resourceReadingOf: (line: ProbeEvent) => ResourceReading | null;
 
 ### build/index.d.ts#restamped
 export declare const restamped: (line: NodeLine, events: readonly ProbeEvent[]) => Stamp | null;
