@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { cellsEnv, fragmentOf, hzOf, kernelUrl, missingOptions, pipeTo, qemuArgs, sshArgs } from "./vm.ts";
 
@@ -62,8 +64,30 @@ describe("the command of the cells", () => {
 });
 
 describe("a pipe of two commands", () => {
+  // a node source gets EPIPE where another program gets SIGPIPE: this source ends quietly on it
+  const quiet = "process.stdout.on('error', () => process.exit(0));";
+  // this source writes its pid to the file of its first argument, then 8 MB, more than a pipe holds, or less
+  // when its pipe breaks. A source that writes with no end grows with no limit on Windows: its writes end
+  // before the bytes leave the process.
+  const bounded = `${quiet} require('node:fs').writeFileSync(process.argv[1], String(process.pid)); let left = 128; const more = () => { if (left-- > 0) process.stdout.write('x'.repeat(65536), more); }; more();`;
+  const gone = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  };
+  const pidFile = (): string => join(mkdtempSync(join(tmpdir(), "pipe-")), "pid");
+
   it("ends when both sides end with no error", async () => {
     await expect(pipeTo(["node", "-e", "process.stdout.write('a')"], ["node", "-e", "process.stdin.resume()"])).resolves.toBeUndefined();
+  });
+
+  it("gives the sink the bytes of the source", async () => {
+    const file = pidFile();
+    await pipeTo(["node", "-e", "process.stdout.write('ab'.repeat(100000))"], ["node", "-e", `let n = 0; process.stdin.on('data', (b) => (n += b.length)).on('end', () => require('node:fs').writeFileSync(${JSON.stringify(file)}, String(n)))`]);
+    expect(readFileSync(file, "utf8")).toBe("200000");
   });
 
   it("rejects if the source fails, which a shell pipe does not say", async () => {
@@ -71,6 +95,31 @@ describe("a pipe of two commands", () => {
   });
 
   it("rejects if the sink fails", async () => {
-    await expect(pipeTo(["node", "-e", "process.stdout.write('a')"], ["node", "-e", "process.exit(4)"])).rejects.toThrow("node gave status 4");
+    await expect(pipeTo(["node", "-e", `${quiet} process.stdout.write('a')`], ["node", "-e", "process.exit(4)"])).rejects.toThrow("node gave status 4");
+  });
+
+  it("names each side that fails", async () => {
+    await expect(pipeTo(["node", "-e", "process.exit(3)"], ["node", "-e", "process.exit(4)"])).rejects.toThrow("node gave status 3, and node gave status 4");
+  });
+
+  it("stops the source when the sink fails early, and settles only after the source ends", async () => {
+    const file = pidFile();
+    await expect(pipeTo(["node", "-e", bounded, file], ["node", "-e", "process.stdin.once('data', () => process.exit(4))"])).rejects.toThrow("node gave status 4");
+    expect(gone(Number(readFileSync(file, "utf8")))).toBe(true);
+  });
+
+  it("stops the source when the sink does not start", async () => {
+    const file = pidFile();
+    await expect(pipeTo(["node", "-e", bounded, file], ["no-such-command-of-the-harness"])).rejects.toThrow("no-such-command-of-the-harness did not start");
+    expect(gone(Number(readFileSync(file, "utf8")))).toBe(true);
+  });
+
+  it("rejects if the source does not start, and the sink reads the end of its input", async () => {
+    await expect(pipeTo(["no-such-command-of-the-harness"], ["node", "-e", "process.stdin.resume()"])).rejects.toThrow("no-such-command-of-the-harness did not start");
+  });
+
+  // a program that is not node ends by SIGPIPE when its sink ends, as `yes` does under `head` in a shell
+  it.skipIf(process.platform === "win32")("takes a source that ends by SIGPIPE after the sink ends with no error", async () => {
+    await expect(pipeTo(["yes"], ["node", "-e", "process.stdin.once('data', () => process.exit(0))"])).resolves.toBeUndefined();
   });
 });
