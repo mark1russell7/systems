@@ -4339,7 +4339,7 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 5. **The stop.** After `stop()`, no round starts, and the test clock holds no timer of the loop. A second `stop()` does nothing.
 6. **The budget.** In each window, at most `rounds` rounds start.
 7. **The replay.** The records of each case replay on `LOOP_MACHINE` with no unknown transition.
-8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request. The heartbeat, the watchdog and the ticker held it in #625, and a fault check of 9 planted faults found each one. The poller held it in #626, and a fault check of 10 planted faults found each one. One change is on purpose: after a block of the event loop, the ticks and the polls of the core keep their grid.
+8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request. The heartbeat, the watchdog and the ticker held it in #625, and a fault check of 9 planted faults found each one. The poller held it in #626, and a fault check of 10 planted faults found each one. The worker loop held it on 3,000 cases, and a fault check of 10 planted faults found each one. One change is on purpose: after a block of the event loop, the ticks and the polls of the core keep their grid.
 9. **The spans.** `failSpan` and `recoverSpan` read the schedule. A schedule that the model does not hold gives a `RangeError` with each reason. The trip and the recovery of a latch on the test clock are in their spans for each seed. A second test fixes the jitter and the phase at each edge, and reaches each end of each span. A fault check of 10 planted faults found each one (#626).
    - The law found one gap. With the overlap `allow`, a step that hangs recovers one timeout sooner, because the call in flight answers at the heal. `recoverSpan` takes the way to fail for it, as `failSpan` does.
 10. **The hold.** A loop with `hold: false` keeps no timer that holds a process. A timeout that a caller awaits holds the process at each value (SYS-126).
@@ -4347,7 +4347,9 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 The parts:
 
 1. **The core.** The machine document, the entry `/loop`, the type `Schedule` with `stable`, the three settings and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0. A mutation check of the law tests found each of seven planted faults.
-2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request. The heartbeat, the watchdog and the ticker moved in service 0.11.3. The poller moved in service 0.11.4, with law 9, and the worker loop comes next.
+2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request. The heartbeat, the watchdog and the ticker moved in service 0.11.3. The poller moved in service 0.11.4, with law 9, and the worker loop in service 0.11.5.
+   - On the core, a cut stops the worker loop: no lane starts an iteration after it. Each cut comes from the shutdown, after the stop of the intake, thus the trace in the lifecycle stays.
+   - A wake during a round from `end` starts the next round in the settle of that round, with no timer, as the old sleeper did.
 3. **The check of the conventions.** A pull request to the home of the conventions adds a rule for each package of the preset `service`. The rule refuses `setInterval`, a `setTimeout` whose callback starts its own function again, and a `for` or `while` loop that awaits a timer.
    - An exception carries a comment with its reason and its end (tenet 3).
    - In this repository, the hold timer of `process.ts` is the one exception. Its reason: it holds the process until the stop, and it does no work.
@@ -4747,6 +4749,28 @@ A study needs records that pin their programs, because a refresh must operate th
 - **Part 2.** The writer of the cells fails a record with a problem, and the run exits with 1. The read of a schedule refuses it too. Its flip has two more copies: a target by the tag `redis:7.4` with no digest, and a checkout with changes. Each exits with 1. A local debug run (`CELLS_DEBUG=1`) marks its records, and no page reads them. Part 2 merges after one night gives an empty list of problems for each record.
 - The old records that have only a tag stay. A read gives them the form "old form, no pin".
 - The records of `kind.yml` have their own writer. They get the same refusal with the check of SYS-99 in that workflow.
+
+### SYS-142 · A measured ready window for each program of a group
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A user of the group supervisor asked for it on 2026-11-18. The `ready.within` of a program is a fixed time. On a host with 1 GB of memory and a slow disk, each start took 24 s to 50 s. A fixed window of 35 s stopped most starts, and the supervisor started each program again in a loop. The user measures each start outside the package, and reads the window only at the start of the supervisor.
+
+The change:
+
+- `within` also takes a measured window as data: `{ measured: { first, after, keep, floor, cap } }`. It takes no function, because `groupProblems` checks each field of the spec, and the spec prints.
+- The time of a start goes from the start of the process to the first pass of its ready probe. The clock of the ports gives it.
+- The window is `first` until `after` starts have a time. Then it is the worst of the last `keep` times plus the worst minus the best, between `floor` and `cap`.
+- The supervisor reads the window at each start of a program.
+- A stopped start has a time of at least its window. The next window is at least two times that window, up to `cap`. Thus a sequence of stopped starts does not keep one window.
+- The statistics go through rigor-statistics only if the rule grows past the worst and the best.
+
+The user writes the pull request, and this repository reviews it. It is a new option, thus service gets a PATCH before 1.0. The test: on the fake clock, starts of 24 s to 50 s end ready with no loop of restarts. A stopped start makes the next window longer, and the cap holds. `groupProblems` names each bad field.
 
 ## Decisions for Mark
 
