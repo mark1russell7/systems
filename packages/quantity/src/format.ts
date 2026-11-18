@@ -97,25 +97,32 @@ export const format = (amount: Extent | Unknown, options: FormatOptions = {}): s
   const sign = amount.value < 0 ? "-" : options.signed === true && amount.value > 0 ? "+" : "";
   const magnitude = Math.abs(amount.value);
   const lead = parsed.components[0];
-  // money leads with its symbol, whatever it is per: $500/mo, $42.49
-  if (parsed.kind === "money" || parsed.kind === "money-rate" || parsed.kind === "energy-price") {
+  // money leads with its symbol, whatever it is per: $500/mo, $42.49, €1.85/L. A currency without a symbol
+  // follows the number with its code: 12.50 CHF, 85 SEK/MWh.
+  const priced =
+    parsed.components.filter((c) => c.exponent > 0).length === 1 &&
+    lead?.exponent === 1 &&
+    lead.annotation === undefined &&
+    lead.atom?.vector.money === 1 &&
+    Object.keys(lead.atom.vector).length === 1;
+  if (priced) {
     const cents = lead?.atom?.decimals ?? 2;
     const whole = q.isInteger(roundExact(q.fromNumber(magnitude), cents));
     const digits = options.digits ?? (whole ? 0 : cents);
+    const shownMoney = number(magnitude, digits, true);
+    if (lead?.atom?.display === undefined) return `${sign}${shownMoney} ${formatUnit(amount.unit)}`;
     const per = formatUnit(amount.unit).split("/")[1];
-    return `${sign}${lead?.atom?.display ?? ""}${number(magnitude, digits, true)}${
-      per === undefined ? "" : `/${per}`
-    }`;
+    return `${sign}${lead.atom.display}${shownMoney}${per === undefined ? "" : `/${per}`}`;
   }
   const shown = number(magnitude, options.digits ?? 2, false);
   // a bare count is just its number: 15 retries is "15", what it counts is the field's to say
   if (parsed.symbol === "count") return `${sign}${shown}`;
   const spoken = parsed.components.length === 1 ? SPOKEN[parsed.symbol] : undefined;
   if (spoken !== undefined) return `${sign}${shown} ${magnitude === 1 ? spoken : `${spoken}s`}`;
-  // a percentage and a temperature scale sit against the number: 34.5%, 72°F
+  // a percentage and a temperature scale sit against the number: 34.5%, 72°F. Other ratios do not: 410 ppm.
   const tight =
     parsed.components.length === 1 &&
-    (lead?.atom?.percent === true || lead?.atom?.offset !== undefined);
+    (lead?.atom?.symbol === "%" || lead?.atom?.offset !== undefined);
   return `${sign}${shown}${tight ? "" : " "}${formatUnit(amount.unit, magnitude !== 1)}`;
 };
 

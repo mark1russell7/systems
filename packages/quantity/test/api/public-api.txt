@@ -126,6 +126,7 @@ export interface Atom {
   readonly offset?: Rational;
   readonly log?: true;
   readonly counts?: string;
+  readonly apart?: string;
   readonly percent?: true;
   readonly param?: "hz";
   readonly decimals?: number;
@@ -347,6 +348,7 @@ export interface Unit {
   readonly offset?: Rational;
   readonly kind: Kind | "derived";
   readonly counts: Readonly<Record<string, number>>;
+  readonly apart?: Readonly<Record<string, number>>;
   readonly log: boolean;
   readonly param?: "hz";
 }

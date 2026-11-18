@@ -20,6 +20,11 @@ const I: Vector = KINDS.current;
 const U: Vector = KINDS.voltage;
 const Q: Vector = KINDS.charge;
 const NONE: Vector = {};
+/** A pascal is kg/(m·s²), and a tesla is kg/(A·s²). */
+const PRESSURE: Vector = { mass: 1, length: -1, time: -2 };
+const TESLA: Vector = { mass: 1, time: -2, current: -1 };
+/** A gray is a joule per kilogram: m²/s². */
+const DOSE: Vector = { length: 2, time: -2 };
 
 /** The US gallon is 231 cubic inches exactly, and the measures of a kitchen divide it. */
 const GALLON = mul(r("231"), pow(r("0.0254"), 3));
@@ -37,6 +42,10 @@ export const ATOMS: readonly Atom[] = [
   atom("yd", "yard", L, r("0.9144"), { aliases: ["yard", "yards"] }),
   atom("mi", "mile", L, r("1609.344"), { aliases: ["mile", "miles"] }),
   // mass (avoirdupois for oz and lb)
+  atom("ug", "microgram", M, r("1e-6"), {
+    display: "µg",
+    aliases: ["µg", "μg", "mcg", "microgram", "micrograms"],
+  }),
   atom("mg", "milligram", M, r("0.001"), { aliases: ["milligram", "milligrams"] }),
   atom("g", "gram", M, ONE, { aliases: ["gram", "grams"] }),
   atom("kg", "kilogram", M, r("1000"), { aliases: ["kgs", "kilogram", "kilograms"] }),
@@ -61,7 +70,7 @@ export const ATOMS: readonly Atom[] = [
   atom("degC", "degree Celsius", { temperature: 1 }, ONE, {
     offset: r("273.15"),
     display: "°C",
-    aliases: ["°C", "celsius"],
+    aliases: ["°C", "celsius", "Cel"],
   }),
   atom("degF", "degree Fahrenheit", { temperature: 1 }, div(r("5"), r("9")), {
     offset: r("459.67"),
@@ -97,8 +106,28 @@ export const ATOMS: readonly Atom[] = [
   }),
   atom("Wh", "watt-hour", E, mul(JOULE, r("3600"))),
   atom("kWh", "kilowatt-hour", E, mul(JOULE, r("3600000"))),
+  atom("MWh", "megawatt-hour", E, mul(JOULE, r("3.6e9"))),
+  atom("GWh", "gigawatt-hour", E, mul(JOULE, r("3.6e12"))),
+  atom("nW", "nanowatt", P, mul(JOULE, r("1e-9"))),
   atom("W", "watt", P, JOULE, { aliases: ["watt", "watts"] }),
   atom("kW", "kilowatt", P, mul(JOULE, r("1000"))),
+  atom("MW", "megawatt", P, mul(JOULE, r("1e6"))),
+  atom("GW", "gigawatt", P, mul(JOULE, r("1e9"))),
+  // pressure: a pascal is a newton per square metre
+  atom("Pa", "pascal", PRESSURE, JOULE, { aliases: ["pascal", "pascals"] }),
+  atom("hPa", "hectopascal", PRESSURE, mul(JOULE, r("100"))),
+  // the magnetic field: a tesla is a volt-second per square metre, and the field of the Earth is some 50,000 nT
+  atom("nT", "nanotesla", TESLA, mul(JOULE, r("1e-9"))),
+  // radiation: a gray is an absorbed dose (J/kg). A sievert is a dose weighted by the kind of the radiation and
+  // the tissue, thus it stays apart from a gray. A becquerel counts decays, thus it is not a hertz.
+  atom("Gy", "gray", DOSE, ONE, { aliases: ["gray"] }),
+  atom("Sv", "sievert", DOSE, ONE, { apart: "weighted dose", aliases: ["sievert", "sieverts"] }),
+  atom("mSv", "millisievert", DOSE, r("1e-3"), { apart: "weighted dose" }),
+  atom("uSv", "microsievert", DOSE, r("1e-6"), { apart: "weighted dose", display: "µSv", aliases: ["µSv", "μSv"] }),
+  atom("nSv", "nanosievert", DOSE, r("1e-9"), { apart: "weighted dose" }),
+  atom("Bq", "becquerel", { time: -1 }, ONE, { counts: "decay", aliases: ["becquerel", "becquerels"] }),
+  // a solid angle: the ratio of an area to the square of a radius. A radiance per steradian is not an irradiance.
+  atom("sr", "steradian", NONE, ONE, { percent: true, apart: "steradian", aliases: ["steradian", "steradians"] }),
   // electricity: the ampere is the base of the current, and a volt is a watt per ampere. A
   // volt-ampere has the vector of a watt, but it is not a real power, thus the package does not have it.
   atom("A", "ampere", I, ONE, { aliases: ["amp", "amps", "ampere", "amperes"] }),
@@ -109,12 +138,24 @@ export const ATOMS: readonly Atom[] = [
   atom("Ah", "ampere-hour", Q, r("3600"), { aliases: ["ampere-hour", "ampere-hours"] }),
   atom("mAh", "milliampere-hour", Q, r("3.6")),
   atom("ohm", "ohm", KINDS.resistance, JOULE, { display: "Ω", aliases: ["Ω", "ohms"] }),
-  // money: one currency, kept to the cent
+  // money: each currency stays apart, because currencies have no fixed rate. Each keeps the cent, and the yen
+  // keeps no decimals. A currency without a symbol of its own prints its code: 12.50 CHF.
   atom("USD", "US dollar", { money: 1 }, ONE, {
     display: "$",
     decimals: 2,
+    apart: "US dollar",
     aliases: ["$", "usd", "dollar", "dollars"],
   }),
+  atom("EUR", "euro", { money: 1 }, ONE, {
+    display: "€",
+    decimals: 2,
+    apart: "euro",
+    aliases: ["€", "eur", "euro", "euros"],
+  }),
+  atom("GBP", "pound sterling", { money: 1 }, ONE, { display: "£", decimals: 2, apart: "pound sterling", aliases: ["£", "gbp"] }),
+  atom("CHF", "Swiss franc", { money: 1 }, ONE, { decimals: 2, apart: "Swiss franc", aliases: ["chf"] }),
+  atom("SEK", "Swedish krona", { money: 1 }, ONE, { decimals: 2, apart: "Swedish krona", aliases: ["sek"] }),
+  atom("JPY", "yen", { money: 1 }, ONE, { display: "¥", decimals: 0, apart: "yen", aliases: ["¥", "jpy", "yen"] }),
   ...DIMENSIONLESS_ATOMS,
 ];
 

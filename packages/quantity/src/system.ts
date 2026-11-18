@@ -24,6 +24,11 @@ export interface Unit {
   readonly kind: Kind | "derived";
   /** The counts are what it counts, with exponents: bpm counts beats, and `{set}/wk` counts sets per week. */
   readonly counts: Readonly<Record<string, number>>;
+  /**
+   * These names keep it apart from the units of the same vector (`Atom.apart`), with exponents: `uSv/h` has a
+   * weighted dose, and `nW/(cm^2·sr)` is per steradian. A unit without such a name does not have the field.
+   */
+  readonly apart?: Readonly<Record<string, number>>;
   readonly log: boolean;
   /** The parameter is what its size changes with: a jiffy needs the HZ of the kernel. */
   readonly param?: "hz";
@@ -123,6 +128,38 @@ const counted = (unit: Unit): string => {
   return names.length === 0 ? "nothing in particular" : names.join(" and ");
 };
 
+/** This function gives the text of the names that keep a unit apart: "weighted dose", "per steradian", "plain". */
+const apartText = (unit: Unit): string => {
+  const names = Object.entries(unit.apart ?? {}).map(
+    ([name, power]) => `${power < 0 ? "per " : ""}${name}${Math.abs(power) === 1 ? "" : `^${Math.abs(power)}`}`,
+  );
+  return names.length === 0 ? "plain" : names.join(" and ");
+};
+
+/** This function gives the names of `apart` in one order, thus two units with the same names give the same text. */
+const apartKey = (unit: Unit): string => JSON.stringify(Object.entries(unit.apart ?? {}).sort());
+
+/**
+ * This function divides a factor at each `.` outside braces: UCUM writes `cm^2.sr` for `cm^2·sr`. The caller
+ * divides a factor only when the whole factor is not a spelling of the table, thus `fl. oz` stays one atom.
+ */
+const ucumFactors = (token: string): string[] => {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let at = 0; at < token.length; at += 1) {
+    const char = token[at];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+    else if (char === "." && depth === 0) {
+      parts.push(token.slice(start, at));
+      start = at + 1;
+    }
+  }
+  parts.push(token.slice(start));
+  return parts;
+};
+
 /**
  * This function makes a unit system from a table of atoms and the whole spellings of other
  * systems. Each spelling of an atom (its symbol and its aliases) names one atom only, or the
@@ -171,7 +208,16 @@ export const unitSystem = (
     if (body.startsWith("(") && body.endsWith(")")) body = body.slice(1, -1).trim();
     if (body === "") return [];
     if (/[()]/.test(body)) throw new UnitError(`unit ${whole}: parentheses only around a divisor`);
-    return body.split(/[·*]/).map((token) => parseComponent(token.trim(), sign, whole));
+    return body.split(/[·*]/).flatMap((token) => {
+      const trimmed = token.trim();
+      try {
+        return [parseComponent(trimmed, sign, whole)];
+      } catch (error) {
+        const factors = ucumFactors(trimmed);
+        if (!(error instanceof UnitError) || factors.length === 1) throw error;
+        return factors.map((factor) => parseComponent(factor.trim(), sign, whole));
+      }
+    });
   };
 
   const cache = new Map<string, Unit>();
@@ -192,6 +238,7 @@ export const unitSystem = (
 
     const vector: Partial<Record<Base, number>> = {};
     const counts: Record<string, number> = {};
+    const apart: Record<string, number> = {};
     let factor: Rational = ONE;
     let param: "hz" | undefined;
     for (const component of components) {
@@ -210,8 +257,11 @@ export const unitSystem = (
         counts[`of ${what}`] = (counts[`of ${what}`] ?? 0) + component.exponent;
       }
       if (component.atom?.param !== undefined) param = component.atom.param;
+      const kept = component.atom?.apart;
+      if (kept !== undefined) apart[kept] = (apart[kept] ?? 0) + component.exponent;
     }
     for (const [name, power] of Object.entries(counts)) if (power === 0) delete counts[name];
+    for (const [name, power] of Object.entries(apart)) if (power === 0) delete apart[name];
     for (const base of BASES) if (vector[base] === 0) delete vector[base];
 
     const log = components.some((c) => c.atom?.log === true);
@@ -243,6 +293,7 @@ export const unitSystem = (
       ...(offset !== undefined ? { offset } : {}),
       kind: resolveKind(vector, components, counts),
       counts,
+      ...(Object.keys(apart).length > 0 ? { apart } : {}),
       log,
       ...(param !== undefined ? { param } : {}),
     };
@@ -268,6 +319,9 @@ export const unitSystem = (
     const aCounts = JSON.stringify(Object.entries(a.counts).sort());
     const bCounts = JSON.stringify(Object.entries(b.counts).sort());
     if (aCounts !== bCounts) return `${a.symbol} counts ${counted(a)} and ${b.symbol} ${counted(b)}`;
+    if (apartKey(a) !== apartKey(b)) {
+      return `${a.symbol} (${apartText(a)}) and ${b.symbol} (${apartText(b)}) stay apart`;
+    }
     if ((a.log || b.log) && a.symbol !== b.symbol) {
       return `${a.symbol} and ${b.symbol} are levels, and a level converts only to itself`;
     }
