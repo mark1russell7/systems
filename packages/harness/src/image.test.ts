@@ -151,6 +151,23 @@ describe("the image sources", () => {
     expect(() => planOf(build(contextWith({ "app.mjs": APP["app.mjs"] })))).toThrow(/the context has no Dockerfile/);
   });
 
+  it("refuses a build whose package.json the npm lockfile in its folder does not satisfy, before npm ci refuses it in Docker", () => {
+    const lockOf = (version: string): string =>
+      JSON.stringify({ lockfileVersion: 3, packages: { "": { dependencies: { mongodb: version } }, "node_modules/mongodb": { version } } });
+    const manifest = JSON.stringify({ name: "subject", private: true, dependencies: { mongodb: "7.8.0" } });
+    // the image of the reference service after Renovate #173: a new manifest and the old lock
+    const drifted = contextWith({ ...APP, "image/package.json": manifest, "image/npm-lock.json": lockOf("7.7.0") });
+    expect(() => planOf(build(drifted))).toThrow(
+      "image/package.json and image/npm-lock.json do not agree (mongodb 7.8.0 has 7.7.0 in the lock): make the lock again with npm install --package-lock-only",
+    );
+    expect(builtOf(build(contextWith({ ...APP, "image/package.json": manifest, "image/npm-lock.json": lockOf("7.8.0") }))).record.versions).toMatchObject({
+      mongodb: "7.8.0",
+    });
+    // npm reads a package-lock.json before an npm-lock.json, thus the harness reads it too
+    const both = contextWith({ ...APP, "package.json": manifest, "package-lock.json": lockOf("7.8.0"), "npm-lock.json": lockOf("7.7.0") });
+    expect(() => planOf(build(both))).not.toThrow();
+  });
+
   it("drops a failed build from its cache, thus a later cell builds again after a fault of Docker or of the network", async () => {
     const plan = builtOf(build(contextWith(APP), { name: "flaky" }));
     const staged: string[][] = [];

@@ -223,6 +223,7 @@ These rules keep a build the same in each run:
 - A pinned image names its digest. A tag alone can move.
 - Each `FROM` of the Dockerfile of a build names a digest, an earlier stage, or `scratch`.
 - Each `package.json` and `Cargo.toml` of a build has a lockfile in its folder or in a folder above it.
+- The npm lockfile in the folder of each `package.json` satisfies it: the lock holds each direct dependency, at a version in its range. `npm ci` refuses a pair that does not agree, thus the plan refuses it first and names each dependency. `npmDrift(manifest, lock)` gives the same lines.
 - Each path of a build stays in its context.
 - The tag of a build is its name, then 12 digits of a sha256. The sha256 reads the path of the Dockerfile, and the path and the content of each file. Thus a changed program cannot operate as an old one.
 

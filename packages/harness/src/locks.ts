@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import semver from "semver";
 
 /**
  * This module reads the lockfiles of a build context for the manifest of a run. A lockfile pins each
@@ -55,6 +56,34 @@ export const npmVersions = (lock: string): Record<string, string> => {
     if (version !== undefined) found[name] = version;
   }
   return found;
+};
+
+/** These are the fields of a package.json that `npm ci` installs from the lock. */
+const NPM_DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "devDependencies"] as const;
+/** These ranges match each version for npm, a pre-release too. */
+const ANY_VERSION: ReadonlySet<string> = new Set(["*", ""]);
+
+/**
+ * This function gives a line for each direct dependency of a package.json that the npm lockfile
+ * beside it does not satisfy. The lock does not hold the dependency, or its locked version is out
+ * of the range of the manifest. `npm ci` refuses such a pair. The test is the test of npm: a loose
+ * semver match, and `*` matches each version. A range that is not semver (a tag, a URL, a path, an
+ * alias) is not read, and a lock of lockfileVersion 1 has no `packages`: neither gives a line.
+ */
+export const npmDrift = (manifest: string, lock: string): string[] => {
+  const declared = JSON.parse(manifest) as Partial<Record<(typeof NPM_DEPENDENCY_FIELDS)[number], Record<string, string>>>;
+  const packages = (JSON.parse(lock) as { packages?: Record<string, { version?: string }> }).packages;
+  if (packages === undefined) return [];
+  const lines: string[] = [];
+  for (const field of NPM_DEPENDENCY_FIELDS) {
+    for (const [name, range] of Object.entries(declared[field] ?? {})) {
+      if (semver.validRange(range, true) === null) continue;
+      const version = packages[`node_modules/${name}`]?.version;
+      if (version === undefined) lines.push(`${name} ${range} is not in the lock`);
+      else if (!ANY_VERSION.has(range.trim()) && !semver.satisfies(version, range, true)) lines.push(`${name} ${range} has ${version} in the lock`);
+    }
+  }
+  return lines;
 };
 
 /** This function gives the packages of a Cargo.lock: the name, the version and the dependencies of each. */
