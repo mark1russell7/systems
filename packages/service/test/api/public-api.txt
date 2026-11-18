@@ -83,6 +83,7 @@ LATCH_MACHINE: build/machines.d.ts#LATCH_MACHINE
 LAW_STATISTIC: build/lint.d.ts#LAW_STATISTIC
 LIMITER_RULES: build/lint.d.ts#LIMITER_RULES
 LOG_LEVELS: build/logger.d.ts#LOG_LEVELS
+LOOP_MACHINE: build/machines.d.ts#LOOP_MACHINE
 type Lease: build/limiter/policy.d.ts#Lease
 type Lifecycle: build/lifecycle.d.ts#Lifecycle
 type LifecycleEvent: build/events.d.ts#LifecycleEvent
@@ -125,6 +126,7 @@ type PhaseWork: build/lifecycle.d.ts#PhaseWork
 type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
 type PodTiming: build/profiles.d.ts#PodTiming
 type Poll: build/timing.d.ts#Poll
+type Principal: build/scope.d.ts#Principal
 type ProbeAnswer: build/health.d.ts#ProbeAnswer
 type ProbeKind: build/health.d.ts#ProbeKind
 type ProcessHost: build/process.d.ts#ProcessHost
@@ -183,6 +185,8 @@ STOPS: build/stops.d.ts#STOPS
 STOP_RULE: build/stops.d.ts#STOP_RULE
 type Scenario: build/lint.d.ts#Scenario
 type ScenarioValue: build/lint.d.ts#ScenarioValue
+type Scope: build/scope.d.ts#Scope
+type ScopeKind: build/scope.d.ts#ScopeKind
 type ScopedChange: build/lint.d.ts#ScopedChange
 type ServiceBuilder: build/builder.d.ts#ServiceBuilder
 type ServiceDescription: build/description.d.ts#ServiceDescription
@@ -241,6 +245,7 @@ cooperativeAbortAt: build/lifecycle.d.ts#cooperativeAbortAt
 daemon: build/profiles.d.ts#daemon
 decide: build/limiter/policy.d.ts#decide
 detectionTime: build/heartbeat.d.ts#detectionTime
+doublingBackoff: build/backoff.d.ts#doublingBackoff
 drainMachine: build/machines.d.ts#drainMachine
 embeddedProcess: build/process.d.ts#embeddedProcess
 ephemeral: build/profiles.d.ts#ephemeral
@@ -780,6 +785,7 @@ Jitter: build/backoff.d.ts#Jitter
 backoffBand: build/backoff.d.ts#backoffBand
 backoffDelay: build/backoff.d.ts#backoffDelay
 backoffProblems: build/backoff.d.ts#backoffProblems
+doublingBackoff: build/backoff.d.ts#doublingBackoff
 
 ## ./http (build/http.d.ts): names
 
@@ -1054,6 +1060,28 @@ rootScope: build/scope.d.ts#rootScope
 scopeKey: build/scope.d.ts#scopeKey
 timeoutHeaders: build/scope.d.ts#timeoutHeaders
 
+## ./loop (build/loop.d.ts): names
+
+Budget: build/loop.d.ts#Budget
+LOOP_MACHINE: build/machines.d.ts#LOOP_MACHINE
+Loop: build/loop.d.ts#Loop
+LoopEvent: build/loop.d.ts#LoopEvent
+LoopOptions: build/loop.d.ts#LoopOptions
+LoopRecord: build/loop.d.ts#LoopRecord
+LoopState: build/loop.d.ts#LoopState
+Round: build/loop.d.ts#Round
+RoundContext: build/loop.d.ts#RoundContext
+RoundDefer: build/loop.d.ts#RoundDefer
+RoundEnd: build/loop.d.ts#RoundEnd
+RoundSkip: build/loop.d.ts#RoundSkip
+RoundStart: build/loop.d.ts#RoundStart
+Schedule: build/loop.d.ts#Schedule
+loop: build/loop.d.ts#loop
+pollSchedule: build/loop.d.ts#pollSchedule
+scheduleProblems: build/loop.d.ts#scheduleProblems
+streamSchedule: build/loop.d.ts#streamSchedule
+workerSchedule: build/loop.d.ts#workerSchedule
+
 ## Declarations
 
 ### build/backoff.d.ts#Backoff
@@ -1089,6 +1117,9 @@ export declare const backoffDelay: (policy: Backoff, attempt: number, random?: (
 
 ### build/backoff.d.ts#backoffProblems
 export declare const backoffProblems: (policy: Backoff) => string[];
+
+### build/backoff.d.ts#doublingBackoff
+export declare const doublingBackoff: (base: number, cap: number) => Backoff;
 
 ### build/builder.d.ts#ControllerBuilder
 export interface ControllerBuilder {
@@ -1134,8 +1165,10 @@ export declare const service: (name: string) => ServiceBuilder;
 
 ### build/call-context.d.ts#CallContext
 export interface CallContext {
-  run<T>(headers: IncomingHeaders, trusted: boolean, fn: () => T): T;
-  headers(): Record<string, string>;
+  trace(headers: IncomingHeaders, trusted: boolean): unknown;
+  run<T>(scope: Scope, fn: () => T): T;
+  current(): Scope | undefined;
+  headers(scope?: Scope): Record<string, string>;
 }
 
 ### build/call-context.d.ts#IncomingHeaders
@@ -1504,7 +1537,7 @@ export interface TransportSubject {
 }
 
 ### build/conformance.d.ts#detachedLifecycle
-export declare const detachedLifecycle: () => Lifecycle;
+export declare const detachedLifecycle: (clock?: Clock) => Lifecycle;
 
 ### build/conformance.d.ts#transportConformance
 export declare const transportConformance: (make: SubjectFactory, options?: ConformanceOptions) => ContractCase[];
@@ -2802,7 +2835,7 @@ export interface HandleOptions<T> extends Omit<OutcomeOptions<T>, "keepAlive" | 
 export type HandledRoute = string | ((req: IncomingMessage) => string | null);
 
 ### build/http/outcome.d.ts#HandledWork
-export type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal) => RequestWork<T>;
+export type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal, scope: Scope) => RequestWork<T>;
 
 ### build/http/outcome.d.ts#OutcomeOptions
 export interface OutcomeOptions<T> {
@@ -2940,9 +2973,8 @@ export interface HttpTransportOptions<S extends EdgeServer = Server> {
 }
 
 ### build/http/transport.d.ts#MountContext
-export interface MountContext {
+export interface MountContext extends Scope {
   readonly intake: AbortSignal;
-  readonly signal: AbortSignal;
   readonly life: Lifecycle | null;
   readonly retryAfter: Quantity;
   readonly keepAlive?: (() => boolean) | undefined;
@@ -3124,6 +3156,7 @@ export interface Lifecycle {
   readonly errors: readonly string[];
   readonly started: Promise<void>;
   readonly done: Promise<number>;
+  readonly scope: Scope;
   readonly signal: AbortSignal;
   shutdown(cause?: string, options?: ShutdownOptions): Promise<number>;
   request<T>(controller: string, route: string, work: RequestFn<T>, options?: RequestOptions): RequestStream<T>;
@@ -3135,11 +3168,7 @@ export interface Lifecycle {
 export type LifecycleState = "starting" | "running" | "draining" | "exited";
 
 ### build/lifecycle.d.ts#PhaseContext
-export interface PhaseContext {
-  readonly deadline: number;
-  readonly signal: AbortSignal;
-  readonly clock: Clock;
-}
+export type PhaseContext = Scope;
 
 ### build/lifecycle.d.ts#PhaseWork
 export type PhaseWork = (context: PhaseContext) => Promise<void> | void;
@@ -3147,6 +3176,7 @@ export type PhaseWork = (context: PhaseContext) => Promise<void> | void;
 ### build/lifecycle.d.ts#RunOptions
 export interface RunOptions extends StartOptions {
   readonly process?: ProcessPort | undefined;
+  readonly scope?: Scope | undefined;
   readonly uncaught?: UncaughtOptions | undefined;
 }
 
@@ -3763,6 +3793,141 @@ export declare const consoleLogger: (options?: ConsoleLoggerOptions) => Logger;
 ### build/logger.d.ts#logEvents
 export declare const logEvents: (logger: Logger, description?: ServiceDescription) => Recorder;
 
+### build/loop.d.ts#Budget
+export interface Budget {
+  readonly rounds: number;
+  readonly per: Quantity;
+}
+
+### build/loop.d.ts#Loop
+export interface Loop {
+  readonly name: string;
+  readonly schedule: Schedule;
+  states(): LoopState[];
+  start(): void;
+  wake(): boolean;
+  inFlight(): number;
+  settle(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+### build/loop.d.ts#LoopEvent
+export type LoopEvent = "start" | "tick" | "retry" | "window" | "wake" | "answer" | "more" | "fail" | "timeout" | "late-answer" | "stop";
+
+### build/loop.d.ts#LoopOptions
+export interface LoopOptions {
+  readonly name: string;
+  readonly scope?: Scope | undefined;
+  readonly clock?: Clock | undefined;
+  readonly random?: (() => number) | undefined;
+  readonly record?: ((record: LoopRecord) => void) | undefined;
+  readonly onTransition?: ((transition: Transition) => void) | undefined;
+}
+
+### build/loop.d.ts#LoopRecord
+export type LoopRecord = RoundStart | RoundEnd | RoundSkip | RoundDefer;
+
+### build/loop.d.ts#LoopState
+export type LoopState = "idle" | "waiting" | "calling" | "hung" | "backoff" | "deferred" | "stopped";
+
+### build/loop.d.ts#Round
+export type Round = (context: RoundContext) => void | "more" | PromiseLike<void | "more">;
+
+### build/loop.d.ts#RoundContext
+export interface RoundContext {
+  readonly scope: Scope;
+  readonly signal: AbortSignal;
+  readonly lane: number;
+  readonly round: number;
+  readonly planned: number;
+  readonly failures: number;
+  reset(): void;
+}
+
+### build/loop.d.ts#RoundDefer
+export interface RoundDefer {
+  readonly kind: "defer";
+  readonly loop: string;
+  readonly lane: number;
+  readonly planned: number;
+  readonly at: number;
+  readonly until: number;
+}
+
+### build/loop.d.ts#RoundEnd
+export interface RoundEnd {
+  readonly kind: "end";
+  readonly loop: string;
+  readonly lane: number;
+  readonly round: number;
+  readonly planned: number;
+  readonly start: number;
+  readonly end: number;
+  readonly outcome: "pass" | "more" | "fail";
+  readonly timedOut: boolean;
+  readonly blocked: boolean;
+  readonly error: unknown;
+}
+
+### build/loop.d.ts#RoundSkip
+export interface RoundSkip {
+  readonly kind: "skip";
+  readonly loop: string;
+  readonly lane: number;
+  readonly planned: number;
+  readonly at: number;
+  readonly count: number;
+}
+
+### build/loop.d.ts#RoundStart
+export interface RoundStart {
+  readonly kind: "start";
+  readonly loop: string;
+  readonly lane: number;
+  readonly round: number;
+  readonly planned: number;
+  readonly start: number;
+}
+
+### build/loop.d.ts#Schedule
+export interface Schedule {
+  readonly from: "start" | "end";
+  readonly period: Extent;
+  readonly jitter: number;
+  readonly first: Extent;
+  readonly timeout: Extent;
+  readonly backoff: Backoff | null;
+  readonly overlap: "fail" | "skip" | "allow";
+  readonly lanes: number;
+  readonly budget: Budget | null;
+  readonly hold: boolean;
+  readonly stable: Extent | null;
+}
+
+### build/loop.d.ts#loop
+export declare const loop: (schedule: Schedule, round: Round, options: LoopOptions) => Loop;
+
+### build/loop.d.ts#pollSchedule
+export declare const pollSchedule: (poll: Poll, options?: {
+  readonly first?: Extent;
+  readonly hold?: boolean;
+}) => Schedule;
+
+### build/loop.d.ts#scheduleProblems
+export declare const scheduleProblems: (schedule: Schedule) => string[];
+
+### build/loop.d.ts#streamSchedule
+export declare const streamSchedule: (backoff: Backoff, options?: {
+  readonly stable?: Extent;
+  readonly budget?: Budget | null;
+  readonly hold?: boolean;
+}) => Schedule;
+
+### build/loop.d.ts#workerSchedule
+export declare const workerSchedule: (knobs: WorkerKnobs, options?: {
+  readonly hold?: boolean;
+}) => Schedule;
+
 ### build/machines.d.ts#EXIT_MACHINE
 export declare const EXIT_MACHINE: Machine;
 
@@ -3771,6 +3936,9 @@ export declare const GATE_MACHINE: Machine;
 
 ### build/machines.d.ts#LATCH_MACHINE
 export declare const LATCH_MACHINE: Machine;
+
+### build/machines.d.ts#LOOP_MACHINE
+export declare const LOOP_MACHINE: Machine;
 
 ### build/machines.d.ts#MACHINES
 export declare const MACHINES: Readonly<Record<Exclude<MachineName, "drain" | "client">, Machine>>;
@@ -4285,8 +4453,7 @@ export declare const localDev: Profile;
 export type JobAction = "requeue" | "reject" | "ack";
 
 ### build/queue.d.ts#JobContext
-export interface JobContext {
-  readonly signal: AbortSignal;
+export interface JobContext extends Scope {
   readonly intake: AbortSignal;
   readonly delivery: number;
   readonly life: Lifecycle;
@@ -4327,6 +4494,10 @@ export interface QueueDrainOptions<J> {
   readonly clock?: Clock | undefined;
   readonly random?: (() => number) | undefined;
   readonly request?: UnitRequest<J> | undefined;
+  readonly entry?: ((job: J) => {
+    readonly trace: unknown;
+    readonly identity: Principal | undefined;
+  }) | undefined;
   readonly onError?: ((error: unknown, job: J | undefined) => void) | undefined;
 }
 
@@ -4681,11 +4852,12 @@ export type RequestEvent<T> = {
 } | RequestEnd;
 
 ### build/requests.d.ts#RequestFn
-export type RequestFn<T> = (signal: AbortSignal) => RequestWork<T>;
+export type RequestFn<T> = (signal: AbortSignal, scope: Scope) => RequestWork<T>;
 
 ### build/requests.d.ts#RequestOptions
 export interface RequestOptions {
   readonly detail?: unknown;
+  readonly scope?: Scope | undefined;
 }
 
 ### build/requests.d.ts#RequestStream
@@ -4765,9 +4937,10 @@ export declare const O10: Rule;
 export declare const O16: Rule;
 
 ### build/scope.d.ts#ChildOptions
-export interface ChildOptions {
+export interface ChildOptions<F extends object = object> {
   readonly timeout?: number | undefined;
   readonly bind?: readonly ScopeBinding[] | undefined;
+  readonly facts?: F | undefined;
 }
 
 ### build/scope.d.ts#DEADLINE
@@ -4777,7 +4950,7 @@ export declare const DEADLINE: ScopeKey<number>;
 export type EntryKind = "request" | "job" | "round";
 
 ### build/scope.d.ts#EntryOptions
-export interface EntryOptions extends ChildOptions {
+export interface EntryOptions<F extends object = object> extends ChildOptions<F> {
   readonly trace: unknown;
   readonly identity: Principal | undefined;
   readonly headers?: IncomingHeaders | undefined;
@@ -4791,7 +4964,7 @@ export interface Principal {
 }
 
 ### build/scope.d.ts#RootOptions
-export interface RootOptions extends ChildOptions {
+export interface RootOptions<F extends object = object> extends ChildOptions<F> {
   readonly name: string;
   readonly kind?: "process" | "service" | undefined;
   readonly clock?: Clock | undefined;
@@ -4816,8 +4989,8 @@ export interface Scope {
   get<T>(key: ScopeKey<T>): T | undefined;
   remaining(): number;
   children(): readonly Scope[];
-  child(kind: ScopeKind, name: string, options?: ChildOptions): Scope;
-  entry(kind: EntryKind, name: string, options: EntryOptions): Scope;
+  child<F extends object = Record<never, never>>(kind: ScopeKind, name: string, options?: ChildOptions<F>): Scope & Readonly<F>;
+  entry<F extends object = Record<never, never>>(kind: EntryKind, name: string, options: EntryOptions<F>): Scope & Readonly<F>;
   defer(close: () => void | PromiseLike<void>): void;
   use<T>(open: () => T | PromiseLike<T>, close: (value: T) => void | PromiseLike<void>): Promise<T>;
   abort(reason?: unknown): void;
@@ -4838,8 +5011,8 @@ export declare class ScopeCloseError extends AggregateError {
 ### build/scope.d.ts#ScopeError
 export declare class ScopeError extends Error {
   override readonly name = "ScopeError";
-  readonly code: "rank" | "closed";
-  constructor(code: "rank" | "closed", message: string);
+  readonly code: "rank" | "closed" | "fact";
+  constructor(code: "rank" | "closed" | "fact", message: string);
 }
 
 ### build/scope.d.ts#ScopeKey
@@ -4861,7 +5034,7 @@ export declare const bind: <T>(key: ScopeKey<T>, value: T) => ScopeBinding;
 export declare const readTimeout: (headers: IncomingHeaders | undefined) => number | undefined;
 
 ### build/scope.d.ts#rootScope
-export declare const rootScope: (options: RootOptions) => Scope;
+export declare const rootScope: <F extends object = Record<never, never>>(options: RootOptions<F>) => Scope & Readonly<F>;
 
 ### build/scope.d.ts#scopeKey
 export declare const scopeKey: <T>(name: string, meet?: (a: T, b: T) => T) => ScopeKey<T>;
@@ -5157,8 +5330,7 @@ export declare const WS_CLIENT_STARTING_MISSES = 1;
 export declare const WS_CLIENT_STARTING_POLL: Poll;
 
 ### build/worker.d.ts#IterationContext
-export interface IterationContext<S> {
-  readonly signal: AbortSignal;
+export interface IterationContext<S> extends Scope {
   readonly intake: AbortSignal;
   readonly state: S;
   readonly lane: number;

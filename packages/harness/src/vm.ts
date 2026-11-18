@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess, type StdioOptions } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { availableParallelism, constants, release, tmpdir } from "node:os";
+import { closeSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { availableParallelism, constants as osConstants, release, tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -191,7 +191,7 @@ export const installArgs = (files: readonly string[]): Command | null => {
 /** This function gives the end of a run from the exit of its argv, with the codes of a shell for a signal. */
 export const endOf = (code: number | null, signal: NodeJS.Signals | null, limited: boolean): RunEnd => {
   if (limited) return { ended: "limit", status: LIMIT_STATUS };
-  if (signal !== null) return { ended: "signal", status: 128 + (constants.signals[signal] ?? 0) };
+  if (signal !== null) return { ended: "signal", status: 128 + (osConstants.signals[signal] ?? 0) };
   return { ended: "exit", status: code ?? 1 };
 };
 
@@ -213,20 +213,69 @@ const sideEnded = (child: ChildProcess, name: string, side: "source" | "sink"): 
   });
 
 /**
- * This function pipes the output of one command to the input of another, as a shell pipe does. The sink
- * reads the pipe of the source itself, and the parent keeps no end of the pipe. Thus a sink that ends early
- * stops the source with SIGPIPE, as in a shell. The promise settles after both commands end, thus no
- * process stays after it. It rejects with each failure, also a failure of the source, which a shell pipe
- * does not say.
+ * This function gives the two ends of a FIFO, a pipe of the kernel. The stdio pipes of Node are pairs of
+ * sockets. A write to a socket fails with ECONNRESET, not SIGPIPE, after its reader closes with bytes in its
+ * queue. Thus `yes` gives status 1 there. The writer of a FIFO gets SIGPIPE, as in a shell.
+ *
+ * Linux and macOS open a FIFO in the mode O_RDWR with no wait. That end is a writer while the read end
+ * opens, and the read end is a reader while the write end opens. The FIFO has no name after this function.
  */
-export const pipeTo = async (from: Command, to: Command): Promise<void> => {
+const kernelPipe = (): { readonly read: number; readonly write: number } => {
+  const folder = mkdtempSync(join(tmpdir(), "harness-pipe-"));
+  try {
+    const fifo = join(folder, "pipe");
+    const made = spawnSync("mkfifo", [fifo], { stdio: "ignore" });
+    if (made.status !== 0) throw new Error(`mkfifo gave status ${String(made.status)}: ${made.error?.message ?? "no error"}`);
+    const hold = openSync(fifo, constants.O_RDWR);
+    try {
+      const read = openSync(fifo, constants.O_RDONLY);
+      try {
+        return { read, write: openSync(fifo, constants.O_WRONLY) };
+      } catch (error) {
+        closeSync(read);
+        throw error;
+      }
+    } finally {
+      closeSync(hold);
+    }
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+};
+
+/**
+ * This function starts the two sides of a pipe. Each side has its own copy of its end, and the parent
+ * closes its copies. A copy in the parent keeps the pipe open after a side ends. Windows has no FIFO
+ * and no SIGPIPE, thus there the sink reads the stdio pipe of the source.
+ */
+const startSides = (from: Command, to: Command): readonly [ChildProcess, ChildProcess] => {
   const [fromFile, ...fromArgs] = from;
   const [toFile, ...toArgs] = to;
-  const source = spawn(fromFile, fromArgs, { stdio: ["ignore", "pipe", "inherit"] });
-  const sink = spawn(toFile, toArgs, { stdio: [source.stdout, "inherit", "inherit"] });
-  // the sink has its own copy of the read end: the copy of the parent keeps the pipe open after the sink ends
-  source.stdout.destroy();
-  const failures = await Promise.all([sideEnded(source, fromFile, "source"), sideEnded(sink, toFile, "sink")]);
+  if (process.platform === "win32") {
+    const source = spawn(fromFile, fromArgs, { stdio: ["ignore", "pipe", "inherit"] });
+    const sink = spawn(toFile, toArgs, { stdio: [source.stdout, "inherit", "inherit"] });
+    source.stdout.destroy();
+    return [source, sink];
+  }
+  const pipe = kernelPipe();
+  try {
+    const source = spawn(fromFile, fromArgs, { stdio: ["ignore", pipe.write, "inherit"] });
+    return [source, spawn(toFile, toArgs, { stdio: [pipe.read, "inherit", "inherit"] })];
+  } finally {
+    closeSync(pipe.read);
+    closeSync(pipe.write);
+  }
+};
+
+/**
+ * This function pipes the output of one command to the input of another, as a shell pipe does. The pipe
+ * is a FIFO, and the parent keeps no end of it. Thus a sink that ends early stops the source with SIGPIPE,
+ * as in a shell. The promise settles after both commands end, thus no process stays after it. It rejects
+ * with each failure, also a failure of the source, which a shell pipe does not say.
+ */
+export const pipeTo = async (from: Command, to: Command): Promise<void> => {
+  const [source, sink] = startSides(from, to);
+  const failures = await Promise.all([sideEnded(source, from[0], "source"), sideEnded(sink, to[0], "sink")]);
   const failed = failures.filter((failure) => failure !== undefined);
   if (failed.length > 0) throw new Error(failed.join(", and "));
 };

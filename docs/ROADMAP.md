@@ -4227,10 +4227,12 @@ interface Schedule {
   readonly lanes: number;           // each lane does one round at a time
   readonly budget: Budget | null;   // the most rounds that start in each window: { rounds, per }
   readonly hold: boolean;           // true: the timer of the loop keeps a Node process alive
+  readonly stable: Extent | null;   // the proof that a lane works: null makes each pass the proof
 }
 ```
 
-- Each field is necessary, as each knob of `WorkerKnobs` is. Two functions give the two settings of today: `pollSchedule(poll)` and `workerSchedule(knobs)`.
+- Each field is necessary, as each knob of `WorkerKnobs` is. Three functions give the three settings: `pollSchedule(poll)`, `workerSchedule(knobs)` and `streamSchedule(backoff, { stable })`.
+- A stream is one more setting of the same schedule: from `end`, no period, no timeout, and a stable time of 30 s by default. One round is one long connection.
 - Each time is an amount of `@mark1russell7/quantity`. `Backoff` is the type of the entry `/backoff`. Thus each delay comes from `backoffDelay`, and each band from `backoffBand`.
 - A schedule from `start` plans each round from the planned start of the last round, as the ticker does. Thus the loop does not drift. A round that comes more than one period late skips the rounds that it missed. The record counts each skip, and the loop does not burst.
 - A round that is over the budget waits for the window. The record counts each wait, and the loop drops no round.
@@ -4239,7 +4241,9 @@ interface Schedule {
 The core:
 
 - The entry `/loop` gives `loop(schedule, round, options)`. It imports no `node:` module. Thus the browser gate of SYS-135 holds it with no change to a list.
-- The states and the timers of a loop are one machine document, `LOOP_MACHINE`. Its states are `idle`, `waiting`, `calling`, `hung`, `backoff`, `deferred` and `stopped`. `runMachine` of the algebra package operates it on the clock, and the schedule gives the values of its knobs. SYS-139 adds the state `parked`.
+- The states and the timers of a loop are one machine document, `LOOP_MACHINE`. Its states are `idle`, `waiting`, `calling`, `hung`, `backoff`, `deferred` and `stopped`. The schedule gives the values of its knobs. SYS-139 adds the state `parked`.
+- `runMachine` of the algebra package does not operate the document. It takes the first transition that matches an event, it reads no guard, and each state has one fixed delay. A lane computes each delay from the jitter, the backoff and the window of the budget. Thus the core keeps its own timer for each lane, and law 7 replays each trace on the document.
+- With a `stable` time, a round proves its lane when it uses `reset()` of its context, or when it stays in flight for that time. A round with no proof is a failure, also when it passes, with an `UnprovedRoundError`. Thus a stream that drops after each open backs off up to its cap. A test on the fake clock holds a connection that drops 100 ms after each open.
 - Each round gets a scope of the kind `round` from SYS-134. The timeout of the schedule is the deadline of that scope. At the stop of the loop, the scope of each round in flight aborts, and each resource of a round closes once.
 - A round gives `"more"` for the next round at once, or nothing for a pass. A throw or a rejection is a failure. A round past its timeout is a failure with `timedOut`.
 - Each round gives a record: the loop, the lane, the round, the planned start, the real start, the end and the outcome. `replay` of the algebra package reads these records. The lateness of a round is its real start minus its planned start.
@@ -4262,7 +4266,7 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 1. **Spacing.** Two planned starts from `start` are apart by a time in the band of the period and its jitter. From `end`, the gap from an end to the next start is in that band. After the k-th failure in sequence, the gap is in `backoffBand(policy, k)`.
 2. **One round for each lane.** With `fail` or `skip`, no two rounds of one lane are in flight at one time.
 3. **The bound.** The signal of each round aborts at its start plus the timeout, at the latest. A round that ignores the abort keeps its lane `hung` until it settles. With `fail`, each round that is due in that time fails at once.
-4. **The reset.** A pass sets the count of failures in sequence to zero.
+4. **The reset.** A pass sets the count of failures in sequence to zero. With a `stable` time, only a proof sets it to zero: a `reset()` or the stable time in flight. A round with no proof is a failure.
 5. **The stop.** After `stop()`, no round starts, and the test clock holds no timer of the loop. A second `stop()` does nothing.
 6. **The budget.** In each window, at most `rounds` rounds start.
 7. **The replay.** The records of each case replay on `LOOP_MACHINE` with no unknown transition.
@@ -4272,7 +4276,7 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 
 The parts:
 
-1. **The core.** The machine document, the entry `/loop`, the type `Schedule` and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0.
+1. **The core.** The machine document, the entry `/loop`, the type `Schedule` with `stable`, the three settings and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0. A mutation check of the law tests found each of seven planted faults.
 2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request.
 3. **The check of the conventions.** A pull request to the home of the conventions adds a rule for each package of the preset `service`. The rule refuses `setInterval`, a `setTimeout` whose callback starts its own function again, and a `for` or `while` loop that awaits a timer.
    - An exception carries a comment with its reason and its end (tenet 3).
@@ -4280,17 +4284,17 @@ The parts:
    - The rule starts after part 2, thus the service package passes it on its first day.
 4. **The 11 loops move.** Their owners move them after part 3: 3, 6 and 2 loops in three repositories. The README of the entry `/loop` gives the form for each case. A `setInterval(work, ms)` becomes a schedule from `start`. A `setTimeout` after an `await` becomes a schedule from `end`.
 
-The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema.
+The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema. Each metric comes from one kind of record of the core (part 2).
 
-| Metric | Kind | Unit | Value |
-| --- | --- | --- | --- |
-| `loop.rounds` | counter | `{round}` | each round that starts |
-| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout |
-| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops |
-| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget |
-| `loop.lateness` | histogram | `ms` | the real start minus the planned start |
-| `loop.round.duration` | histogram | `ms` | the end minus the real start |
-| `loop.inflight` | up-down counter | `{round}` | the rounds in flight |
+| Metric | Kind | Unit | Value | Record |
+| --- | --- | --- | --- | --- |
+| `loop.rounds` | counter | `{round}` | each round that starts | each `start` |
+| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout | each `end` with the outcome `fail` |
+| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops | the `count` of each `skip` |
+| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget | each `defer` |
+| `loop.lateness` | histogram | `ms` | the real start minus the planned start | `start − planned` of each `start` |
+| `loop.round.duration` | histogram | `ms` | the end minus the real start | `end − start` of each `end` that is not `blocked` |
+| `loop.inflight` | up-down counter | `{round}` | the rounds in flight | not a record: +1 at each `start`, −1 at each close of the scope of a round, as `inFlight()` counts. A round past its timeout gives its `end` and stays in flight until it settles. |
 
 ### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service
 

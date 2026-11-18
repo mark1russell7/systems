@@ -52,6 +52,12 @@ const tryNumber = (attempt: number): number => {
 };
 
 /**
+ * This function gives a backoff that doubles from `base` up to `cap`, with a jitter that adds up to the base, in
+ * milliseconds. It is the retry of a worker loop and of a stream, as in the Redis client.
+ */
+export const doublingBackoff = (base: number, cap: number): Backoff => ({ base, factor: 2, cap, jitter: { kind: "add", amount: base } });
+
+/**
  * This function gives the delay before a try, in milliseconds. The first try is 1. The delay is
  * the backoff of the try with its jitter, and not below zero. The `random` function gives numbers from 0 up to 1.
  */

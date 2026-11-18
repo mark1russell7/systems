@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/service",
-  "version": "0.10.1",
+  "version": "0.11.1",
   "description": "A service declared as data before it starts, and its runtime: checks on jittered loops, a latch for each policy, probes from the cache, the startup in its sequence, and a staged, capped drain. The timer-ordering law checks the declaration. Its clock, heartbeat and backoff also work alone, in a browser too.",
   "keywords": [
     "service",
@@ -50,6 +50,7 @@
     "./host": "./src/host.ts",
     "./otel": "./src/otel.ts",
     "./scope": "./src/scope.ts",
+    "./loop": "./src/loop.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -78,6 +79,7 @@
   },
   "peerDependencies": {
     "@grpc/grpc-js": "^1.14.6",
+    "@mark1russell7/otel-ts": "^0.7.6",
     "@opentelemetry/api": "^1.9.0",
     "amqplib": "^2.2.0",
     "ioredis": "^6.0.0",
@@ -88,6 +90,9 @@
   },
   "peerDependenciesMeta": {
     "@grpc/grpc-js": {
+      "optional": true
+    },
+    "@mark1russell7/otel-ts": {
       "optional": true
     },
     "@opentelemetry/api": {
@@ -116,7 +121,7 @@
     "@grpc/grpc-js": "1.14.7",
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@mark1russell7/harness": "workspace:^",
-    "@mark1russell7/otel-ts": "^0.7.4",
+    "@mark1russell7/otel-ts": "^0.7.6",
     "@mark1russell7/rigor-testkit": "^0.1.2",
     "@opentelemetry/api": "^1.10.0",
     "@opentelemetry/api-logs": "^0.223.0",
@@ -220,6 +225,10 @@
       "./scope": {
         "types": "./build/scope.d.ts",
         "default": "./build/scope.js"
+      },
+      "./loop": {
+        "types": "./build/loop.d.ts",
+        "default": "./build/loop.js"
       },
       "./package.json": "./package.json"
     }

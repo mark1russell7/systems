@@ -172,4 +172,9 @@ describe("a pipe of two commands", () => {
   it.skipIf(process.platform === "win32")("takes a source that ends by SIGPIPE after the sink ends with no error", async () => {
     await expect(pipeTo(["yes"], ["node", "-e", "process.stdin.once('data', () => process.exit(0))"])).resolves.toBeUndefined();
   });
+
+  // a sink that reads nothing ends with bytes in the pipe: a pair of sockets gives `yes` ECONNRESET there, a FIFO gives it SIGPIPE
+  it.skipIf(process.platform === "win32")("takes a source that ends by SIGPIPE after a sink that reads nothing ends", async () => {
+    await expect(pipeTo(["yes"], ["node", "-e", "setTimeout(() => process.exit(0), 200)"])).resolves.toBeUndefined();
+  });
 });

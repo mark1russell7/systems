@@ -110,8 +110,10 @@ export interface GrpcClientSpec extends ClientSpec<GrpcKnobs> {
 /** These options make a client. Without them, it uses grpc-js, the real clock, and a dial with the HTTP/2 preface. */
 export interface GrpcClientOptions extends ClientOptions<GrpcFactory> {
   /**
-   * With this call context, each call gets the headers of the active context of its caller in its
-   * metadata, for example `traceparent`. The metadata of the spec and of the call stays. `callContext` of the entry `/otel` gives one.
+   * With this call context, each call gets the trace headers of the active scope of its caller in its metadata,
+   * for example `traceparent`. The metadata of the spec and of the call stays, and it wins over a trace header of
+   * the same name. The deadline of the call is the earlier of `request_timeout` and the deadline of the active
+   * scope. The scope and the client use one clock. `callContext` of the entry `/otel` gives one.
    */
   readonly callContext?: CallContext | undefined;
 }
@@ -453,7 +455,7 @@ export const grpcClient = (name: string, spec: GrpcClientSpec, options: GrpcClie
   ): Promise<Attempt<Buffer>> => {
     const c = usable(signal);
     if ("outcome" in c) return Promise.resolve(c);
-    if (!(timeout > 0)) return Promise.resolve(notSent("no time is left in request_timeout"));
+    if (!(timeout > 0)) return Promise.resolve(notSent("no time is left in the bound of the call: request_timeout or the deadline of the scope"));
     let handle: GrpcCallHandle | null = null;
     let ended = false;
     return flight.track<Buffer>(
@@ -479,15 +481,18 @@ export const grpcClient = (name: string, spec: GrpcClientSpec, options: GrpcClie
 
   const call = (method: string, request: Buffer, callOptions: GrpcCallOptions = {}): Promise<Sent<Buffer>> => {
     const started = clock.now();
-    // the headers of the context of the caller, read now: each try of the call sends the same ones
-    const metadata = { ...options.callContext?.headers(), ...spec.metadata, ...callOptions.metadata };
+    // the active scope of the caller, read now: each try of the call sends the same trace, in the same bound
+    const scope = options.callContext?.current();
+    // the bound of the call is the earlier of request_timeout and the deadline of the scope: a scope does not make it longer
+    const bound = scope === undefined ? requestTimeout : Math.min(requestTimeout, Math.max(0, scope.remaining()));
+    const metadata = { ...options.callContext?.headers(scope), ...spec.metadata, ...callOptions.metadata };
     return sendWithReissue({
       clock,
-      bound: requestTimeout,
+      bound,
       operation: operations[method],
       options: callOptions,
       // The deadline of each try is the time that is left: a second try ends at the bound of the call
-      attempt: (signal) => attempt(method, request, metadata, requestTimeout - (clock.now() - started), signal),
+      attempt: (signal) => attempt(method, request, metadata, bound - (clock.now() - started), signal),
       // The grpc-js driver connects again by itself: the second try waits for a ready channel, in the time that is left
       beforeAgain: (left, signal) => readied.wait(left, signal),
       onReissue: () => record("command.reissue", status, method),

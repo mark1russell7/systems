@@ -5,6 +5,7 @@ import { ownerOf, ownStream } from "../drains.ts";
 import type { Refused } from "../limiter/policy.ts";
 import { retryAfterSeconds } from "../limiter/policy.ts";
 import type { RequestEnd, RequestEvent, RequestOptions, RequestStream, RequestWork } from "../requests.ts";
+import type { Scope } from "../scope.ts";
 import { markAnswer } from "./answers.ts";
 import type { MountContext, RequestHandler } from "./transport.ts";
 import { pathOf } from "./transport.ts";
@@ -296,8 +297,11 @@ export const writeOutcome = async <T>(res: ServerResponse, stream: RequestStream
 /** A route of a handler is the name of the route that a controller declares, or a function that gives it from the request. */
 export type HandledRoute = string | ((req: IncomingMessage) => string | null);
 
-/** A handled work does the work of one request of `node:http`. Its signal aborts when the shutdown or the client stops the request. */
-export type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal) => RequestWork<T>;
+/**
+ * A handled work does the work of one request of `node:http`. Its scope is a `call` child of the scope of the
+ * request, and its signal is the signal of that scope. The signal aborts when the shutdown or the client stops the request.
+ */
+export type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal, scope: Scope) => RequestWork<T>;
 
 /** These options bind a request of `node:http` to the request tracking of the service. */
 export interface HandleOptions<T> extends Omit<OutcomeOptions<T>, "keepAlive" | "retryAfter"> {
@@ -333,9 +337,10 @@ export const handle = <T>(controller: string, route: HandledRoute, work: Handled
       writeWhole(res, outcomeResponse<T>([], refused, written));
       return true;
     }
-    const given: RequestOptions = options.detail === undefined ? {} : { detail: options.detail(req) };
+    // the scope of the work is a call under the scope of the request
+    const given: RequestOptions = options.detail === undefined ? { scope: context } : { detail: options.detail(req), scope: context };
     // the stream comes from the lifecycle of the transport, thus the drain of the transport can cut it
-    await writeOutcome(res, ownStream(life.request(controller, name, (signal) => work(req, signal), given), life), written);
+    await writeOutcome(res, ownStream(life.request(controller, name, (signal, scope) => work(req, signal, scope), given), life), written);
     return true;
   };
 };
