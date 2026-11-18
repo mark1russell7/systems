@@ -424,6 +424,17 @@ const response = await retry(
 - **The records.** `record` gets one record for each start, end, skip and wait of the budget. `onTransition` gets each transition of each lane, with the instance `<name>#<lane>`. `replay` of `@mark1russell7/algebra/replay` checks them against `LOOP_MACHINE`.
 - **The stop.** `stop()` aborts and closes the scope of each round in flight. No round starts after it, and no timer of the schedule stays. A second stop gives the same promise.
 - **The scope.** The scope of a loop is a `process`, `service` or `phase` scope. An abort of it stops the loop. Without a scope, the loop makes a root scope of the kind `service` and closes it at the stop.
+- **The metrics.** `loopMetrics()` from `@mark1russell7/service/otel` gives a `record` and an `onTransition` for the options of `loop()`. They count the records as instruments of OpenTelemetry, with the names and units of the table below. Each metric has `loop.name` and `loop.lane`, and each failure has `error.type`: `timeout`, `blocked`, `unproved`, the class of the error, or `_OTHER`. `LOOP_BOUNDS` gives the bounds of the buckets in seconds.
+
+| Metric | Kind | Unit | Value |
+| --- | --- | --- | --- |
+| `loop.rounds` | counter | `{round}` | each round that starts. A blocked round does not start, thus it is not in this count. |
+| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout and each blocked round |
+| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that the overlap `skip` drops |
+| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget |
+| `loop.lateness` | histogram | `s` | the real start of a round minus its planned start |
+| `loop.round.duration` | histogram | `s` | the end of a round minus its start. A round past its timeout gives the timeout. |
+| `loop.inflight` | up-down counter | `{round}` | the rounds whose scope did not close yet. A round past its timeout stays in it until it settles. |
 
 | Function | Schedule |
 | --- | --- |
@@ -444,6 +455,11 @@ const feed = loop(streamSchedule(doublingBackoff(1000, 30_000)), async ({ signal
 }, { name: "feed" });
 feed.start();
 life.signal.addEventListener("abort", () => feed.stop().catch(() => undefined)); // the drain stops the feed
+
+// the same loop with its metrics: the meter of the provider that the program registers
+import { loopMetrics } from "@mark1russell7/service/otel";
+const meters = loopMetrics();
+const counted = loop(schedule, round, { name: "feed", ...meters });
 ```
 
 ## The channels
@@ -1140,6 +1156,7 @@ for await (const event of stream) {
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
 - **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`. The host reaches only `quantity` and five `node:` modules, and it loads none of its fakes.
+- **The loop core (SYS-138).** Model tests on fast-check hold laws 1 to 7 and 10 of the loop on random schedules, with a seeded clock and scripted rounds: the spacing, one round for each lane, the bound, the reset, the stop, the budget, the replay on `LOOP_MACHINE` and the hold. Law 11 holds the metrics of `/otel`: each counter and histogram agrees with the records, and `loop.inflight` agrees with `inFlight()` until the stop. A mutation check plants faults in the core and in the metrics, and the laws catch each one.
 - **The scopes (SYS-134).** A model test on fast-check builds random trees of scopes, with aborts and steps of a test clock. It holds laws 1, 2, 4 and 5 against a plain model. It checks the reach and the reason of each abort, each deadline, the trace, the identity, and the count of the children and the timers.
 - **The resources and the keys of a scope.** A property test holds the close order and each error of each close (law 3). Another one holds the meet of each key (law 6). One more test holds the deadline across a hop, for each skew of the two clocks. After 100,000 requests, the service scope keeps no child, no timer and no listener.
 - **The active scope (law 7).** Inside `runScope`, `currentScope()` gives the scope, also after `await`. The active context has the span and the baggage of the trace of the scope. A property test holds this over random trees of scopes and random nests of `runScope`, with a span that starts in each step.

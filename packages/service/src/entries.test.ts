@@ -538,14 +538,15 @@ describe("the host entry: Node only, and its effects go through ports (SYS-36)",
 });
 
 describe("the otel entry: the only entry that loads the API of OpenTelemetry, an optional peer (C11)", () => {
-  it("loads only @opentelemetry/api, the context entry of otel-ts and the scope entry, and no node: module", () => {
-    expect(reach("otel.ts")).toEqual({ files: ["clock.ts", "otel.ts", "scope.ts"], packages: ["@mark1russell7/algebra/clock", "@mark1russell7/otel-ts/context", "@opentelemetry/api"] });
+  it("loads only @opentelemetry/api, the context entry of otel-ts, the scope entry and the loop metrics, and no node: module", () => {
+    // the loop metrics take only the types of the loop core: the entry does not load the core
+    expect(reach("otel.ts")).toEqual({ files: ["clock.ts", "loop-metrics.ts", "otel.ts", "scope.ts"], packages: ["@mark1russell7/algebra/clock", "@mark1russell7/otel-ts/context", "@opentelemetry/api"] });
     // the context entry of otel-ts loads only the API, not the SDKs of otel-ts
     expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
   });
 
-  it("gives the source of the trace ids, the call context and the scope functions, and the root gives none of them", () => {
-    expect(Object.keys(otelEntry).sort()).toEqual(["callContext", "currentScope", "runScope", "scopeHeaders", "traceIds", "traceOf"]);
+  it("gives the source of the trace ids, the call context, the scope functions and the loop metrics, and the root gives none of them", () => {
+    expect(Object.keys(otelEntry).sort()).toEqual(["LOOP_BOUNDS", "callContext", "currentScope", "loopErrorType", "loopMetrics", "runScope", "scopeHeaders", "traceIds", "traceOf"]);
     for (const name of Object.keys(otelEntry)) expect(root, name).not.toHaveProperty(name);
   });
 

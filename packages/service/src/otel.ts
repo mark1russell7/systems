@@ -13,6 +13,8 @@
 // `traceOf` reads the trace of an incoming request for `entry()`, `runScope` makes a scope the active scope, and
 // `scopeHeaders` writes the trace and the remaining time of a scope for an outgoing request. The context manager
 // that the program registers keeps the scope through `await`: one store for the trace and the scope.
+//
+// `loopMetrics` gives the records of the loops of `@mark1russell7/service/loop` as metrics (SYS-138).
 
 import { incomingContext } from "@mark1russell7/otel-ts/context";
 import { type Context, context, createContextKey, isSpanContextValid, propagation, trace } from "@opentelemetry/api";
@@ -22,6 +24,8 @@ import { type Scope, timeoutHeaders } from "./scope.ts";
 
 export type { CallContext, IncomingHeaders } from "./call-context.ts";
 export type { TraceIds, TraceIdsSource } from "./logger.ts";
+export type { LoopMetrics } from "./loop-metrics.ts";
+export { LOOP_BOUNDS, loopErrorType, loopMetrics } from "./loop-metrics.ts";
 
 /** This function gives the trace id and the span id of the active span, or nothing when no valid span is active. */
 export const traceIds = (): TraceIds | undefined => {
