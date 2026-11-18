@@ -119,6 +119,7 @@ FrameClockOptions: build/clock.chunk.d.ts#FrameClockOptions
 LocalMonth: build/clock.chunk.d.ts#LocalMonth
 LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
+SyncFakeClock: build/clock.chunk.d.ts#SyncFakeClock
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
 WallClock: build/clock.chunk.d.ts#WallClock
 WindowBoundary: build/clock.chunk.d.ts#WindowBoundary
@@ -284,6 +285,11 @@ interface PlatformClockOptions {
   readonly start?: number | undefined;
 }
 
+### build/clock.chunk.d.ts#SyncFakeClock
+interface SyncFakeClock extends FakeClock {
+  tick(ms: number): void;
+}
+
 ### build/clock.chunk.d.ts#TimeWindow
 interface TimeWindow {
   readonly zone: string;
@@ -309,7 +315,7 @@ interface WindowBoundary {
 declare const delay: (clock: Pick<Clock, "after">, ms: number, signal?: AbortSignal) => Promise<void>;
 
 ### build/clock.chunk.d.ts#fakeClock
-declare const fakeClock: (start?: number) => FakeClock;
+declare const fakeClock: (start?: number) => SyncFakeClock;
 
 ### build/clock.chunk.d.ts#fakeWallClock
 declare const fakeWallClock: (start: number, monotonic?: FakeClock) => FakeWallClock;

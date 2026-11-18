@@ -9,19 +9,18 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
 1. **SYS-93** (P1): the night holds the ladder. The snapshot of rung 10 comes from CI (#609).
-2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 waits for its review (#604).
-3. **SYS-138** (P1): one loop core, with the schedule as data. Its design goes to review with the design of the diagnosis port of SYS-139.
+2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 shipped on 2026-11-18 (#604): the type, the keys, the entry `/scope` and the laws 1 to 7, in service `0.10.1`. Part 2 (#606) merged on 2026-11-18: the five contexts are scopes, in the MINOR `0.11.0`, and its release waits in the queue. Part 3 is the procedure context of the client.
+3. **SYS-138** (P1): one loop core, with the schedule as data. Its design passed review on 2026-11-18 (#614). Part 1 (#620) has the core and the laws 1 to 7, for service `0.11.1`. Part 2 starts with the metrics of the loops (#622), and the five loops follow on the core.
 
 SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
-- **SYS-134** (P1): one scope for each request, job and loop round. Its design goes to review first, and its part 1 starts when a place opens.
-- **SYS-135** (P1): the service package in a browser, after parts 1 and 2 of SYS-134. Its design goes to review first.
+- **SYS-135** (P1): the service package in a browser. Its design passed review on 2026-11-18 (#610). It waits for the release of part 2 of SYS-134.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-136:** a run of any command in the guest of the VM tier. A consumer asked for it on 2026-11-18, for its kernel world.
 - **SYS-137:** a lab of the kind tier with the interface of the harness, after SYS-92.
+- **SYS-140:** the product and the quotient of two amounts in quantity. A consumer asked for it on 2026-11-18, for its composition of laws. Its change (#621) waits for CI.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
-- **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
 - **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
 - **SYS-101:** SYS-99 shipped on 2026-11-16, thus it can start when a place opens.
@@ -3975,6 +3974,25 @@ The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. 
 
 The test: each unit of the list parses, converts in its dimension and formats again. The parser refuses five conversions: Sv to Gy, Bq to Hz, EUR to USD, dB to a ratio and a radiance to an irradiance. Each test of `0.4.1` passes with no change.
 
+### SYS-140 · The product and the quotient of two amounts
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** #621
+- **Started:**
+- **Shipped:**
+- **Links:** [#621](https://github.com/mark1russell7/systems/pull/621)
+
+A consumer that models the cost of one request multiplies a rate by a cost. For example, 900 `{request}/s` times 0.5 `{core}.ms/{request}` is 450 `{core}.ms/s`, and that converts to 0.45 `{core}`. Quantity `0.4.2` has no product of two amounts. Thus the consumer multiplies the values and writes the product unit by hand.
+
+The consumer keeps no local copy, and it waits for this item at its composition of laws. The consumer wrote the change in #621, for quantity `0.4.3`, before the move of SYS-107. The item is done when that release is on npm.
+
+- **`multiply(a, b)` and `divide(a, b)`.** Each gives an amount in the product unit or the quotient unit of the two units. Equal atoms with equal annotations cancel. The value is exact when the two values are exact.
+- **The version of the two functions.** They are a feature, thus they ship in a PATCH by the rule before 1.0.
+- **A factor that is not finite.** `scale(amount, by)` gives an amount that is not finite, with no error, when `by` is not finite. A caller checks each result itself. A `UnitError` there removes that check. It changes the behavior of `scale`, thus it waits for the next MINOR of quantity.
+
+The test: the example above converts to 0.45 `{core}`. A property test holds that `divide(multiply(a, b), b)` converts to `a`, and that `multiply` is commutative after a conversion to one unit. A product of two units with no common atom keeps each atom.
+
 ### SYS-133 · The calendar month of an instant in a time zone
 
 - **Status:** done
@@ -4108,15 +4126,22 @@ The service package defines the type of the identity. A type test in the client 
 
 The parts:
 
-1. The type, the keys, the entry `@mark1russell7/service/scope` and the laws 1 to 6. The entry imports no `node:` module, thus a browser can use it. A new entry is a PATCH before 1.0: `0.10.1`. The entry `/node` and the scope functions of `/otel`, with law 7, come in the same release or in a stacked PATCH.
+1. The type, the keys, the entry `@mark1russell7/service/scope` and the laws 1 to 6. The entry imports no `node:` module, thus a browser can use it. A new entry is a PATCH before 1.0: `0.10.1`. The entry `/node` and the scope functions of `/otel`, with law 7, come in the same release or in a stacked PATCH. Part 1 shipped on 2026-11-18 (#604), with law 7. The review added these points:
+   - A child of an aborted parent stays in the parent until its close. A child of a closed or closing parent starts closed and takes no resource.
+   - `close()` sets its promise first, thus a close from a listener gets the same promise. The close loops until no child is open.
+   - A `NaN` timeout or deadline throws a `RangeError`.
+   - The timer of a deadline stays referenced. `unrefClock(realClock)` is the choice of a root, and a child process test in CI holds the rule.
+   - algebra `0.9.9` gives a `SyncFakeClock` with `tick(ms)`, the step of the model test.
+   - A close can start the close of an ancestor, but it cannot await it.
+   - `traceOf` moves to its home in part 2 (#606). It gives `incomingContext` of otel-ts `0.7.6`, an optional peer of `/otel`, in service `0.11.0`.
 2. The five contexts become scopes, in one change. The process, the service and each phase of `run()` get their scopes. The changed interfaces break the code that makes these contexts. Thus the release is a MINOR before 1.0: `0.11.0`. The changeset names the change of behavior: one scope for each request, not one context for each mount. The pull request lists each public dependent of the package, with its bump.
 3. The client makes `ProcedureContext` from the scope, after its own releases. It adds the type test of `Principal`.
 
 ### SYS-135 · The service package in a browser
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** engines
-- **Depends on:** SYS-134 (parts 1 and 2)
+- **Depends on:** SYS-134
 - **Started:**
 - **Shipped:**
 - **Links:**
@@ -4147,11 +4172,13 @@ The parts:
 2. **Bytes, not `Buffer`.** The two clients use `Uint8Array`, `TextEncoder` and `TextDecoder` at their run. `client/dial.ts` loads `node:net` only at a dial, as `nodeAgent` loads `node:http`. The types of the bytes get a type parameter with the default `Buffer`: `HttpResponse`, `WsListeners` and `WsConnection`. Thus the Node drivers keep their types, and the release is a PATCH.
 3. **The entry `/browser`.** It gives three ports, and it imports no `node:` module:
    - `fetchAgent`: an agent of the HTTP client over `fetch`. Each request has its own `AbortController`, and `destroy()` aborts each open request. A browser hides its pool, thus `sockets()` gives an empty list. `fetch` tells no connect, thus the agent counts a request as sent at the call of `fetch`. A failed call that is not idempotent is then `indeterminate`, and not `error`. Thus the outcome in three values stays true.
+   - A test of `fetchAgent` aborts a body stream in the middle of a read. The reader of the stream closes, and the test counts one close of a resource.
    - `browserWs`: a factory of the WebSocket client over the WebSocket of the browser. A message comes as a `Uint8Array`. A browser cannot send a ping frame. Thus a declaration with this factory has no heartbeat of ping frames, and the check of the spec gives a problem for one. A heartbeat of the protocol, as a procedure, stays possible.
    - `pageProcess(lifecycle)`: the process port of `run()` in a page. Its input is the part of a lifecycle tracker that it reads: `getState()` and `subscribe(listener)`. This is the shape of `page-lifecycle-tracker`, and a type test holds the two shapes equal. The package does not import the tracker.
    - The transition to `terminated` gives the runtime its stop. A `pagehide` into the back/forward cache stops the run too. A page that comes back from the cache starts a new run with a new root scope. Thus each resource still closes once. `onUncaught` reads the events `error` and `unhandledrejection` of the window.
    - The check of a spec for a browser gives a problem for each knob that a browser holds itself. These knobs are the timers and the counts of the pool, and the dial step.
 4. **The stop of a page.** A page gets no time after `pagehide`. Thus a stop from `pageProcess` aborts the process scope in the same task, before the first stage of the drain. The abort reaches each child scope at once: each `fetch` aborts, each WebSocket sends its close frame, and each loop clears its timer. Each close of a resource starts in that task. A close can send its last record with `navigator.sendBeacon`, which a browser sends after the page closes.
+   - A browser holds at most 64 KB of beacons for each page. The code states this limit as a constant. A close record past the limit fails in the test, and the failure is visible, not a silent loss.
 5. **The laws in a real page.** A Playwright test operates a page with a service. The service has a loop of requests each 50 ms, one open WebSocket, one long request and three resources with ids. A Node server in the job records each event. The test closes the page in three ways. These are a navigation to another page, `page.close()` with the unload handlers, and a navigation into the back/forward cache and back.
 
    The laws:
@@ -4160,6 +4187,8 @@ The parts:
    3. Each resource closes once, in the reverse order of its open. The server counts the beacons of each id.
    4. After a return from the cache, the new run has new ids, and no old resource closes again.
    5. A request with a deadline sends `timeout-ms`, and its `fetch` aborts at the deadline with a `TimeoutError`.
+
+The test of part 5 operates in Chromium and in WebKit, with the Playwright browsers on the Ubuntu runners. The browsers of parts 1 to 5 start only in CI, not on a local machine.
 
 Parts 2 and 3 are features, thus each release is a PATCH before 1.0. The first front end starts after the gate of part 5 is green in CI.
 
@@ -4201,7 +4230,7 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 - **Depends on:** SYS-134
 - **Started:** 2026-11-18
 - **Shipped:**
-- **Links:**
+- **Links:** [#614](https://github.com/mark1russell7/systems/pull/614), [#620](https://github.com/mark1russell7/systems/pull/620), [#622](https://github.com/mark1russell7/systems/pull/622)
 
 Mark asked for it on 2026-11-18. Part 1 needs part 1 of SYS-134. The service package has two loop cores for one idea. Other server code still starts its loops with a raw `setInterval`.
 
@@ -4227,10 +4256,12 @@ interface Schedule {
   readonly lanes: number;           // each lane does one round at a time
   readonly budget: Budget | null;   // the most rounds that start in each window: { rounds, per }
   readonly hold: boolean;           // true: the timer of the loop keeps a Node process alive
+  readonly stable: Extent | null;   // the proof that a lane works: null makes each pass the proof
 }
 ```
 
-- Each field is necessary, as each knob of `WorkerKnobs` is. Two functions give the two settings of today: `pollSchedule(poll)` and `workerSchedule(knobs)`.
+- Each field is necessary, as each knob of `WorkerKnobs` is. Three functions give the three settings: `pollSchedule(poll)`, `workerSchedule(knobs)` and `streamSchedule(backoff, { stable })`.
+- A stream is one more setting of the same schedule: from `end`, no period, no timeout, and a stable time of 30 s by default. One round is one long connection.
 - Each time is an amount of `@mark1russell7/quantity`. `Backoff` is the type of the entry `/backoff`. Thus each delay comes from `backoffDelay`, and each band from `backoffBand`.
 - A schedule from `start` plans each round from the planned start of the last round, as the ticker does. Thus the loop does not drift. A round that comes more than one period late skips the rounds that it missed. The record counts each skip, and the loop does not burst.
 - A round that is over the budget waits for the window. The record counts each wait, and the loop drops no round.
@@ -4239,7 +4270,9 @@ interface Schedule {
 The core:
 
 - The entry `/loop` gives `loop(schedule, round, options)`. It imports no `node:` module. Thus the browser gate of SYS-135 holds it with no change to a list.
-- The states and the timers of a loop are one machine document, `LOOP_MACHINE`. Its states are `idle`, `waiting`, `calling`, `hung`, `backoff`, `deferred` and `stopped`. `runMachine` of the algebra package operates it on the clock, and the schedule gives the values of its knobs. SYS-139 adds the state `parked`.
+- The states and the timers of a loop are one machine document, `LOOP_MACHINE`. Its states are `idle`, `waiting`, `calling`, `hung`, `backoff`, `deferred` and `stopped`. The schedule gives the values of its knobs. SYS-139 adds the state `parked`.
+- `runMachine` of the algebra package does not operate the document. It takes the first transition that matches an event, it reads no guard, and each state has one fixed delay. A lane computes each delay from the jitter, the backoff and the window of the budget. Thus the core keeps its own timer for each lane, and law 7 replays each trace on the document.
+- With a `stable` time, a round proves its lane when it uses `reset()` of its context, or when it stays in flight for that time. A round with no proof is a failure, also when it passes, with an `UnprovedRoundError`. Thus a stream that drops after each open backs off up to its cap. A test on the fake clock holds a connection that drops 100 ms after each open.
 - Each round gets a scope of the kind `round` from SYS-134. The timeout of the schedule is the deadline of that scope. At the stop of the loop, the scope of each round in flight aborts, and each resource of a round closes once.
 - A round gives `"more"` for the next round at once, or nothing for a pass. A throw or a rejection is a failure. A round past its timeout is a failure with `timedOut`.
 - Each round gives a record: the loop, the lane, the round, the planned start, the real start, the end and the outcome. `replay` of the algebra package reads these records. The lateness of a round is its real start minus its planned start.
@@ -4262,7 +4295,7 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 1. **Spacing.** Two planned starts from `start` are apart by a time in the band of the period and its jitter. From `end`, the gap from an end to the next start is in that band. After the k-th failure in sequence, the gap is in `backoffBand(policy, k)`.
 2. **One round for each lane.** With `fail` or `skip`, no two rounds of one lane are in flight at one time.
 3. **The bound.** The signal of each round aborts at its start plus the timeout, at the latest. A round that ignores the abort keeps its lane `hung` until it settles. With `fail`, each round that is due in that time fails at once.
-4. **The reset.** A pass sets the count of failures in sequence to zero.
+4. **The reset.** A pass sets the count of failures in sequence to zero. With a `stable` time, only a proof sets it to zero: a `reset()` or the stable time in flight. A round with no proof is a failure.
 5. **The stop.** After `stop()`, no round starts, and the test clock holds no timer of the loop. A second `stop()` does nothing.
 6. **The budget.** In each window, at most `rounds` rounds start.
 7. **The replay.** The records of each case replay on `LOOP_MACHINE` with no unknown transition.
@@ -4272,7 +4305,7 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 
 The parts:
 
-1. **The core.** The machine document, the entry `/loop`, the type `Schedule` and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0.
+1. **The core.** The machine document, the entry `/loop`, the type `Schedule` with `stable`, the three settings and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0. A mutation check of the law tests found each of seven planted faults.
 2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request.
 3. **The check of the conventions.** A pull request to the home of the conventions adds a rule for each package of the preset `service`. The rule refuses `setInterval`, a `setTimeout` whose callback starts its own function again, and a `for` or `while` loop that awaits a timer.
    - An exception carries a comment with its reason and its end (tenet 3).
@@ -4280,17 +4313,17 @@ The parts:
    - The rule starts after part 2, thus the service package passes it on its first day.
 4. **The 11 loops move.** Their owners move them after part 3: 3, 6 and 2 loops in three repositories. The README of the entry `/loop` gives the form for each case. A `setInterval(work, ms)` becomes a schedule from `start`. A `setTimeout` after an `await` becomes a schedule from `end`.
 
-The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema.
+The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema. Each metric comes from one kind of record of the core (part 2).
 
-| Metric | Kind | Unit | Value |
-| --- | --- | --- | --- |
-| `loop.rounds` | counter | `{round}` | each round that starts |
-| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout |
-| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops |
-| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget |
-| `loop.lateness` | histogram | `ms` | the real start minus the planned start |
-| `loop.round.duration` | histogram | `ms` | the end minus the real start |
-| `loop.inflight` | up-down counter | `{round}` | the rounds in flight |
+| Metric | Kind | Unit | Value | Record |
+| --- | --- | --- | --- | --- |
+| `loop.rounds` | counter | `{round}` | each round that starts | each `start` |
+| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout | each `end` with the outcome `fail` |
+| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops | the `count` of each `skip` |
+| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget | each `defer` |
+| `loop.lateness` | histogram | `ms` | the real start minus the planned start | `start − planned` of each `start` |
+| `loop.round.duration` | histogram | `ms` | the end minus the real start | `end − start` of each `end` that is not `blocked` |
+| `loop.inflight` | up-down counter | `{round}` | the rounds in flight | not a record: +1 at each `start`, −1 at each close of the scope of a round, as `inFlight()` counts. A round past its timeout gives its `end` and stays in flight until it settles. |
 
 ### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service
 
@@ -4326,7 +4359,7 @@ interface Failure {
 type Action =
   | { readonly kind: "retry" }                         // a short fault: one more try at once
   | { readonly kind: "back-off"; readonly least: Quantity } // a load or a limit: the next try waits at least this time
-  | { readonly kind: "change-path" }                   // a bad route: the transport dials another address of the target
+  | { readonly kind: "change-path"; readonly prefer?: string } // a bad route: the transport dials another address, of the class "prefer" if it knows the label
   | { readonly kind: "change-copy" }                   // a bad copy: the transport takes another copy
   | { readonly kind: "wait-network"; readonly key: string } // the local network is down: each loop on this key waits
   | { readonly kind: "stop"; readonly until: Quantity | null } // a permanent fault: the source stops, for this time at most
@@ -4352,13 +4385,20 @@ interface DiagnosisPort {
 }
 ```
 
+The values of the actions:
+
+- The label `prefer` of `change-path` names a class of path. The core does not read it, as it does not read the key of a wait. The network add-on of a transport maps `ipv4` and `ipv6` to the family of the next dial. For a broken IPv6 path, the package of network diagnosis gives the label `ipv4`.
+- The key of `wait-network` is an opaque string of the add-on, for example `network`, `resolver` or `upstream`. The runner only compares two keys.
+- A `stop` with `until: null` parks the source for the longest park of the options.
+
 The rules of the runner:
 
 - **Where it asks.** A failed round of the loop core asks the port before its backoff. A failed check asks it too. A check only adds the verdict to its result, thus the health report shows the layer of the fault. Only a loop with work takes the action.
 - **One diagnosis for each key.** The failures with one key share one diagnosis in flight. Its verdict holds until `until`. Thus the loss of the network gives one diagnosis, not one for each check and each client.
 - **The budget.** Each diagnosis gets a deadline, a count of probes and a count of bytes. The probes of the port operate on a loop of the core with a budget, thus a diagnosis cannot load a sick network more.
 - **The action.** The runner takes the action of the verdict. A transport tells the actions that it can take. A transport without the action of a verdict backs off, and the record names the action that it could not take.
-- **The floor.** The runner takes an action only at or above the floor of its kind. Below the floor, the action is `none`. The floors are data in the options of the port. `wait-network` parks each loop of a key, thus it has the highest floor.
+- **A label that a transport does not know.** A transport that does not know the label of a `change-path` dials the next address, as with no label. Its record names the label that it did not take. Thus the cells count the dropped labels beside the degraded actions.
+- **The floor.** The runner takes an action only at or above the floor of its kind. Below the floor, the action is `none`. The floors are data in the options of the port, and the cells of part 4 set their defaults. `wait-network` parks each loop of a key, thus it has the highest floor.
 - **The stop.** The action `stop` is for a permanent fault, for example NXDOMAIN, a bad certificate, a 404 on a fixed path or a revoked key. A retry or a backoff does not heal this fault. The runner parks the source, and the health report names the cause. The alert path gets one event when the source stops, not one for each new verdict. Thus the port does not hide a dead dependency behind a backoff with no end.
 - **A park.** `wait-network` parks each loop of its key, and `stop` parks the loops of its source. Each loop goes to the state `parked` of `LOOP_MACHINE`. One probe loop asks `recovered(key)`. When it passes, the parked loops start again, each after a jittered delay.
 - **The bound of a park.** A park ends at the first of three times. They are the `until` of the verdict, the end of the `until` of a stop, and the longest park of the options. Then each loop goes back to its own backoff and asks the port again. Thus a false `wait-network` costs a bounded time, not an outage of the whole service.
@@ -4382,7 +4422,7 @@ The laws and their gate:
 2. **One diagnosis.** At each time, each key has at most one diagnosis in flight.
 3. **The budget.** No diagnosis gets more probes or bytes than its budget. The labs count the probes from the side of the network.
 4. **The fault of the port.** A port that throws, hangs or gives a bad verdict gives the action `none`, and each loop goes on.
-5. **The degrade.** An action that a transport cannot take gives a backoff and a record with its reason.
+5. **The degrade.** An action that a transport cannot take gives a backoff and a record with its reason. A label that a transport does not know gives the action with no label, and a record that names the label.
 6. **The floor.** On each seed, a verdict below the floor of its action gives the trace of the null port.
 7. **The bound of a park.** No loop stays parked past the bound of its park. After the bound, each loop asks the port again.
 8. **The correct action.** The simulated worlds of the labs hold this law in CI. A lab injects each class of fault under a service with the add-on. The gate holds the rate of correct actions of each class, with an interval from rigor-statistics. The limit of each class is the worst of 5 CI runs or more, plus their spread.
@@ -4393,7 +4433,7 @@ The parts:
 1. **The port.** The entry `/diagnosis` with its types, its options, the null port and the conformance cases of a port. The loop core asks it after a failed round. Laws 1, 2, 4, 5 and 6. It is a feature, thus the release is a PATCH before 1.0.
 2. **The actions of the transports.** The HTTP and WebSocket clients change the path: they dial the next address of the DNS answer. A driver with copies changes the copy. Each other transport backs off with the record of its reason. A PATCH.
 3. **The park.** The state `parked` for `wait-network` and `stop`, one probe loop for each key and the bound of a park. Also the cause in the health report and the one event of a stop. Laws 3 and 7. A PATCH.
-4. **The gate of the actions.** A family of cells in the labs, one cell for each class of fault, with laws 8 and 9. The add-on gives the action of each cause of its catalog. The cells also set the floors. The default floor of each action is the least confidence that keeps the harm rate of each class under its limit. Its first read waits for free CI slots.
+4. **The gate of the actions.** A family of cells in the labs, one cell for each class of fault, with laws 8 and 9. The add-on gives the action of each cause of its catalog. The cells also set the floors: the default floor of each action gives the least expected cost over a matrix of costs, with calibrated probabilities. It also keeps the harm rate of each class under its limit. Its first read waits for free CI slots.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 

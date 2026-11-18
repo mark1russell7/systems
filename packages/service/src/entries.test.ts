@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,10 +16,12 @@ import * as httpClientEntry from "./http-client.ts";
 import * as httpFolderEntry from "./http-folder.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
+import * as loopEntry from "./loop.ts";
 import * as otelEntry from "./otel.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
 import * as rulesEntry from "./rules.ts";
+import * as scopeEntry from "./scope.ts";
 import * as wsEntry from "./websocket.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -50,13 +52,25 @@ const reach = (entry: string): { files: string[]; packages: string[] } => {
 const SCOPE = "@mark1russell7/";
 
 /**
+ * This function gives the manifest of a package from the folders that Node searches from the file `from`. The
+ * exports of a package from npm can omit `./package.json`, thus the function does not resolve that subpath.
+ */
+const manifestOf = (pkg: string, from: string): string => {
+  for (const folder of createRequire(from).resolve.paths(pkg) ?? []) {
+    const manifest = join(folder, pkg, "package.json");
+    if (existsSync(manifest)) return manifest;
+  }
+  throw new Error(`${pkg} has no manifest in the folders of ${from}`);
+};
+
+/**
  * This function gives the file of a specifier of the scope, from the exports of its manifest. It resolves the
  * specifier from the file `from`. A package of this repository exports its source. A package from npm exports its
  * build, and the function takes its `default` or its `import` target.
  */
 const sourceOf = (specifier: string, from: string = fileURLToPath(import.meta.url)): string => {
   const [scope, name, ...rest] = specifier.split("/");
-  const manifest = createRequire(from).resolve(`${scope}/${name}/package.json`);
+  const manifest = manifestOf(`${scope}/${name}`, from);
   type Target = string | { default?: string; import?: string };
   const exports = (JSON.parse(readFileSync(manifest, "utf8")) as { exports: Record<string, Target> }).exports;
   const entry = exports[rest.length === 0 ? "." : `./${rest.join("/")}`];
@@ -91,7 +105,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts", "scope.ts", "loop.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -102,14 +116,15 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside @grpc/grpc-js, amqplib, ioredis, pg, mongodb and ws", () => {
+  it("marks zod optional in the manifest, beside @grpc/grpc-js, otel-ts, amqplib, ioredis, pg, mongodb and ws", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "@opentelemetry/api", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "@mark1russell7/otel-ts", "@opentelemetry/api", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
       "@grpc/grpc-js": { optional: true },
+      "@mark1russell7/otel-ts": { optional: true },
       "@opentelemetry/api": { optional: true },
       amqplib: { optional: true },
       ioredis: { optional: true },
@@ -142,7 +157,7 @@ describe("the timer entries: a client in a browser can import them", () => {
   it("give their functions, and the root gives them too", () => {
     expect(Object.keys(clockEntry).sort()).toEqual(["platformClock", "realClock", "unrefClock"]);
     expect(Object.keys(heartbeatEntry).sort()).toEqual(["detectionTime", "heartbeat"]);
-    expect(Object.keys(backoffEntry).sort()).toEqual(["backoffBand", "backoffDelay", "backoffProblems"]);
+    expect(Object.keys(backoffEntry).sort()).toEqual(["backoffBand", "backoffDelay", "backoffProblems", "doublingBackoff"]);
     for (const name of [...Object.keys(clockEntry), ...Object.keys(heartbeatEntry), ...Object.keys(backoffEntry)])
       expect(root, name).toHaveProperty(name);
   });
@@ -523,15 +538,15 @@ describe("the host entry: Node only, and its effects go through ports (SYS-36)",
 });
 
 describe("the otel entry: the only entry that loads the API of OpenTelemetry, an optional peer (C11)", () => {
-  it("loads only @opentelemetry/api, and no node: module", () => {
-    expect(reach("otel.ts")).toEqual({ files: ["otel.ts"], packages: ["@opentelemetry/api"] });
+  it("loads only @opentelemetry/api, the context entry of otel-ts and the scope entry, and no node: module", () => {
+    expect(reach("otel.ts")).toEqual({ files: ["clock.ts", "otel.ts", "scope.ts"], packages: ["@mark1russell7/algebra/clock", "@mark1russell7/otel-ts/context", "@opentelemetry/api"] });
+    // the context entry of otel-ts loads only the API, not the SDKs of otel-ts
     expect(reachAll("otel.ts")).toEqual(["@opentelemetry/api"]);
   });
 
-  it("gives the source of the trace ids and the call context, and the root gives neither", () => {
-    expect(Object.keys(otelEntry)).toEqual(["traceIds", "callContext"]);
-    expect(root).not.toHaveProperty("traceIds");
-    expect(root).not.toHaveProperty("callContext");
+  it("gives the source of the trace ids, the call context and the scope functions, and the root gives none of them", () => {
+    expect(Object.keys(otelEntry).sort()).toEqual(["callContext", "currentScope", "runScope", "scopeHeaders", "traceIds", "traceOf"]);
+    for (const name of Object.keys(otelEntry)) expect(root, name).not.toHaveProperty(name);
   });
 
   it("is in the manifest, for the source and for npm", () => {
@@ -541,6 +556,60 @@ describe("the otel entry: the only entry that loads the API of OpenTelemetry, an
     };
     expect(manifest.exports["./otel"]).toBe("./src/otel.ts");
     expect(manifest.publishConfig.exports["./otel"]).toEqual({ types: "./build/otel.d.ts", default: "./build/otel.js" });
+  });
+});
+
+describe("the scope entry: a client in a browser can import it (SYS-134)", () => {
+  it("loads only the clock of the algebra: no node: module, no zod and no API of OpenTelemetry", () => {
+    expect(reach("scope.ts")).toEqual({ files: ["clock.ts", "scope.ts"], packages: ["@mark1russell7/algebra/clock"] });
+    expect(reachAll("scope.ts")).toEqual([]);
+  });
+
+  it("gives the scopes, their keys and the header of the remaining time, and the root gives none of them", () => {
+    expect(Object.keys(scopeEntry).sort()).toEqual([
+      "DEADLINE",
+      "SCOPE_RANK",
+      "ScopeCloseError",
+      "ScopeError",
+      "TIMEOUT_HEADER",
+      "bind",
+      "readTimeout",
+      "rootScope",
+      "scopeKey",
+      "timeoutHeaders",
+    ]);
+    for (const name of Object.keys(scopeEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./scope"]).toBe("./src/scope.ts");
+    expect(manifest.publishConfig.exports["./scope"]).toEqual({ types: "./build/scope.d.ts", default: "./build/scope.js" });
+  });
+});
+
+describe("the loop entry: a client in a browser can import it (SYS-138)", () => {
+  it("loads only quantity and the clock of the algebra: no node: module, no zod and no API of OpenTelemetry", () => {
+    expect(reach("loop.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
+    expect(reachAll("loop.ts")).toEqual([]);
+  });
+
+  it("gives the core, its schedule and its three settings, and the root gives only the machine document", () => {
+    expect(Object.keys(loopEntry).sort()).toEqual(["LOOP_MACHINE", "loop", "pollSchedule", "scheduleProblems", "streamSchedule", "workerSchedule"]);
+    expect(root.LOOP_MACHINE).toBe(loopEntry.LOOP_MACHINE);
+    for (const name of Object.keys(loopEntry)) if (name !== "LOOP_MACHINE") expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./loop"]).toBe("./src/loop.ts");
+    expect(manifest.publishConfig.exports["./loop"]).toEqual({ types: "./build/loop.d.ts", default: "./build/loop.js" });
   });
 });
 

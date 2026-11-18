@@ -70,6 +70,38 @@ describe("the fake clock", () => {
     expect(seen).toEqual([15]);
     expect(clock.now()).toBe(20);
   });
+
+  it("starts the due timers in one synchronous tick, in the same order as advance, with no turn of the promises", () => {
+    const clock = fakeClock(100);
+    const runs: string[] = [];
+    let turned = false;
+    clock.after(20, () => runs.push(`b at ${clock.now()}`));
+    clock.after(10, () => {
+      runs.push(`a at ${clock.now()}`);
+      // a promise of a timer settles after the tick, not between two timers
+      void Promise.resolve().then(() => (turned = true));
+      clock.after(5, () => runs.push(`a2 at ${clock.now()}`));
+    });
+    clock.after(20, () => runs.push(`c at ${clock.now()}`));
+    const stopped = clock.after(5, () => runs.push("stopped"));
+    stopped();
+    clock.tick(20);
+    expect(runs).toEqual(["a at 110", "a2 at 115", "b at 120", "c at 120"]);
+    expect(turned).toBe(false);
+    expect(clock.now()).toBe(120);
+    expect(clock.pending).toBe(0);
+    clock.tick(-5);
+    expect(clock.now()).toBe(120);
+  });
+
+  it("starts a timer that came due during a block at the next tick, at the time of the clock", () => {
+    const clock = fakeClock();
+    const seen: number[] = [];
+    clock.after(10, () => seen.push(clock.now()));
+    clock.block(50);
+    clock.tick(0);
+    expect(seen).toEqual([50]);
+  });
 });
 
 describe("the clock of the platform", () => {
