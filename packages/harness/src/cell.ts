@@ -1885,8 +1885,8 @@ export interface Run {
 
 /**
  * These are the readings of the resources of the target in one run. The two readings bracket the
- * work of the run. `start` comes after the client is ready and before it sends. `end` comes after
- * the run ended. `resourceChange(start, end)` gives what the target used in the run.
+ * work of the run. The reading `start` comes after the client is ready and before it sends. The
+ * reading `end` comes after the run ended. `resourceChange(start, end)` gives what the target used.
  */
 export interface RunResources {
   readonly start: ResourceReading;
