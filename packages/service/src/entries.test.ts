@@ -16,6 +16,7 @@ import * as httpClientEntry from "./http-client.ts";
 import * as httpFolderEntry from "./http-folder.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
+import * as loopEntry from "./loop.ts";
 import * as otelEntry from "./otel.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
@@ -104,7 +105,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts", "scope.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts", "scope.ts", "loop.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -156,7 +157,7 @@ describe("the timer entries: a client in a browser can import them", () => {
   it("give their functions, and the root gives them too", () => {
     expect(Object.keys(clockEntry).sort()).toEqual(["platformClock", "realClock", "unrefClock"]);
     expect(Object.keys(heartbeatEntry).sort()).toEqual(["detectionTime", "heartbeat"]);
-    expect(Object.keys(backoffEntry).sort()).toEqual(["backoffBand", "backoffDelay", "backoffProblems"]);
+    expect(Object.keys(backoffEntry).sort()).toEqual(["backoffBand", "backoffDelay", "backoffProblems", "doublingBackoff"]);
     for (const name of [...Object.keys(clockEntry), ...Object.keys(heartbeatEntry), ...Object.keys(backoffEntry)])
       expect(root, name).toHaveProperty(name);
   });
@@ -587,6 +588,28 @@ describe("the scope entry: a client in a browser can import it (SYS-134)", () =>
     };
     expect(manifest.exports["./scope"]).toBe("./src/scope.ts");
     expect(manifest.publishConfig.exports["./scope"]).toEqual({ types: "./build/scope.d.ts", default: "./build/scope.js" });
+  });
+});
+
+describe("the loop entry: a client in a browser can import it (SYS-138)", () => {
+  it("loads only quantity and the clock of the algebra: no node: module, no zod and no API of OpenTelemetry", () => {
+    expect(reach("loop.ts").packages).toEqual(["@mark1russell7/algebra/clock", "@mark1russell7/quantity"]);
+    expect(reachAll("loop.ts")).toEqual([]);
+  });
+
+  it("gives the core, its schedule and its three settings, and the root gives only the machine document", () => {
+    expect(Object.keys(loopEntry).sort()).toEqual(["LOOP_MACHINE", "loop", "pollSchedule", "scheduleProblems", "streamSchedule", "workerSchedule"]);
+    expect(root.LOOP_MACHINE).toBe(loopEntry.LOOP_MACHINE);
+    for (const name of Object.keys(loopEntry)) if (name !== "LOOP_MACHINE") expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./loop"]).toBe("./src/loop.ts");
+    expect(manifest.publishConfig.exports["./loop"]).toEqual({ types: "./build/loop.d.ts", default: "./build/loop.js" });
   });
 });
 
