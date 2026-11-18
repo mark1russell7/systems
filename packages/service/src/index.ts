@@ -45,7 +45,7 @@ export { platformClock, realClock, unrefClock } from "./clock.ts";
 export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";
 export { detectionTime, heartbeat } from "./heartbeat.ts";
 export type { Backoff, DelayBand, Jitter } from "./backoff.ts";
-export { backoffBand, backoffDelay, backoffProblems } from "./backoff.ts";
+export { backoffBand, backoffDelay, backoffProblems, doublingBackoff } from "./backoff.ts";
 export type { Retrier, RetrierOptions, RetryOptions } from "./retrier.ts";
 export { retrier, retry, retryAfterDelay } from "./retrier.ts";
 export type {
@@ -139,6 +139,7 @@ export { DURATION_FRACTIONS, EPISODES_KEPT, redact } from "./metrics.ts";
 export type { LifecycleEvent, MachineName, Recorder } from "./events.ts";
 export type { ConsoleLoggerOptions, ConsoleTarget, LogEntry, LogFields, LogFormat, LogLevel, Logger, TraceIds, TraceIdsSource } from "./logger.ts";
 export type { CallContext, IncomingHeaders } from "./call-context.ts";
+export type { Principal, Scope, ScopeKind } from "./scope.ts";
 export { LOG_LEVELS, atLeast, consoleLogger, logEvents } from "./logger.ts";
 export type {
   DependencyHandle,
@@ -203,6 +204,7 @@ export {
   EXIT_MACHINE,
   GATE_MACHINE,
   LATCH_MACHINE,
+  LOOP_MACHINE,
   MACHINES,
   POLLER_MACHINE,
   WATCHDOG_MACHINE,

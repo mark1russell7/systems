@@ -8,6 +8,7 @@ import type { Lifecycle } from "../lifecycle.ts";
 import { detachedLifecycle } from "../testing.ts";
 import type { RequestEnd, RequestStream } from "../requests.ts";
 import { tracker } from "../requests.ts";
+import { rootScope } from "../scope.ts";
 import { FakeResponse, FakeServer, FakeSocket, pushedSource } from "./fake-server.ts";
 
 /** SYS-3: the stream of a request as a response: a status, Retry-After, Connection: close and a body, unary or a stream. */
@@ -270,8 +271,9 @@ describe("writeOutcome: the stream of a request on a response of node:http", () 
 describe("handle: a request of node:http through life.request", () => {
   const KNOBS: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(3) };
   const lifeOf = (refuses: () => string | null = () => null, keep = true): Lifecycle => {
-    const requests = tracker(controllers, fakeClock(), refuses);
-    return { ...detachedLifecycle(), request: requests.request, keepAlive: () => keep };
+    const clock = fakeClock();
+    const requests = tracker(controllers, clock, refuses);
+    return { ...detachedLifecycle(clock), request: requests.request, keepAlive: () => keep };
   };
   const served = async (life: Lifecycle, ...handlers: RequestHandler[]) => {
     const server = new FakeServer();
@@ -288,21 +290,30 @@ describe("handle: a request of node:http through life.request", () => {
     expect((await server.request("/other")).status).toBe(404);
   });
 
-  it("takes the name of a route from a function, and gives the work the request and its signal", async () => {
+  it("takes the name of a route from a function, and gives the work the request, its signal and its call scope", async () => {
     let signal: AbortSignal | undefined;
+    let during: boolean | undefined;
+    let scope: { readonly kind: string; readonly name: string; readonly signal: AbortSignal; readonly closed: boolean; readonly parent: { readonly kind: string; readonly name: string } | null } | undefined;
     const server = await served(
       lifeOf(),
       handle(
         "api",
         (req) => (pathOf(req.url).startsWith("/once/") ? "POST /once" : null),
-        (req, given) => {
+        (req, given, call) => {
           signal = given;
+          during = given.aborted;
+          scope = call;
           return { url: req.url };
         },
       ),
     );
     expect(JSON.parse((await server.request("/once/7", "POST")).body)).toEqual({ url: "/once/7" });
-    expect(signal?.aborted).toBe(false);
+    expect(during).toBe(false);
+    // the work is a call under the scope of its request, and the signal of the work is the signal of the call
+    expect(scope).toMatchObject({ kind: "call", name: "POST /once", parent: { kind: "request", name: "POST /once/7" } });
+    expect(scope?.signal).toBe(signal);
+    // the call scope closed at the end of the request, thus its signal aborted (a scope aborts at its close)
+    expect([scope?.closed, signal?.aborted]).toEqual([true, true]);
     expect((await server.request("/twice")).status).toBe(404);
   });
 
@@ -324,7 +335,11 @@ describe("handle: a request of node:http through life.request", () => {
   it("refuses each request before the start of the transport, with 503 and Retry-After", async () => {
     const res = new FakeResponse(new FakeSocket());
     const handler = handle("api", "GET /work", () => "x");
-    const context: MountContext = { intake: new AbortController().signal, signal: new AbortController().signal, life: null, retryAfter: s(3) };
+    const context: MountContext = rootScope({ name: "early", kind: "service", clock: fakeClock() }).entry("request", "GET /work", {
+      trace: undefined,
+      identity: undefined,
+      facts: { intake: new AbortController().signal, life: null, retryAfter: s(3) },
+    });
     expect(await handler({ url: "/work", method: "GET" } as IncomingMessage, res as unknown as ServerResponse, context)).toBe(true);
     expect([res.statusCode, res.getHeader("retry-after")]).toEqual([503, "3"]);
     expect(JSON.parse(res.chunks.join(""))).toMatchObject({ end: "refused", cause: "the transport has not started" });
