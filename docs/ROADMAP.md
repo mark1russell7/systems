@@ -4,18 +4,22 @@ This file is the source of truth for the work of the program. A live tracker sho
 
 Each item has an id, a status, an area, the items that it needs, its dates and its links. The statuses are `done`, `in progress`, `blocked`, `waiting on Mark` and `later`. An item that waits on Mark says what Mark does.
 
-## The work in progress (2026-11-16)
+## The work in progress (2026-11-18)
 
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
-1. **SYS-121** (P1): the loss of `PR.7` is a gap in the law. Each run gives the counters of the stack of each end, and a read of 40 runs measures the rate. Then the measured values of the page come.
-2. **SYS-124** (P2): the egress tier of the harness and the cells `EQ.1` to `EQ.7` (#583), then the page of the egress queue (#585). The first read of the cells waits for free CI slots.
+1. **SYS-93** (P1): the night holds the ladder. The snapshot of rung 10 comes from CI (#609).
+2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 waits for its review (#604).
+3. **SYS-138** (P1): one loop core, with the schedule as data. Its design goes to review with the design of the diagnosis port of SYS-139.
 
-SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
+SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
 - **SYS-134** (P1): one scope for each request, job and loop round. Its design goes to review first, and its part 1 starts when a place opens.
+- **SYS-135** (P1): the service package in a browser, after parts 1 and 2 of SYS-134. Its design goes to review first.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
+- **SYS-136:** a run of any command in the guest of the VM tier. A consumer asked for it on 2026-11-18, for its kernel world.
+- **SYS-137:** a lab of the kind tier with the interface of the harness, after SYS-92.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
@@ -214,7 +218,7 @@ The design of health and routing is decided. The kind cells scored the candidate
 
 [PR #211](https://github.com/mark1russell7/systems/pull/211) scores a fifth incident: a black-holed shared dependency. Redis gates the readiness of both replicas, and it is black-holed for 27 s. Kind run [40430856093](https://github.com/mark1russell7/systems/actions/runs/40430856093) held 11 of the 12 cells in 3 of 3 runs, against the prediction of commit bbe898e. B had the fewest failed requests in each mode and recovered first. B, C and D failed slowly on the empty Service until the heal, thus their time until callers know misses its band. Readiness follows the dependency, and the defaults do not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #214](https://github.com/mark1russell7/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no caller of the fleet uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
+[PR #214](https://github.com/mark1russell7/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no known caller uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
 
 [PR #235](https://github.com/mark1russell7/systems/pull/235) scores a sixth incident: a flapping dependency. The black hole of PR #211 comes three times in one run, for 27 s each, with a rest of 15 s after each heal. Kind run [40464814086](https://github.com/mark1russell7/systems/actions/runs/40464814086) held each of the 12 cells in 3 of 3 runs. The prediction of commit c8bca00 held each count, each removal, each recovery, each time until callers know and each count of PINGs. The first failure of a fault came up to 39 ms after the fault, after its band of 20 ms but in the noise of the judge. Each fault was the same as the first one, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
@@ -3628,6 +3632,45 @@ The format has two test values from the start. The first is the leaf and spine f
 
 The next world of that consumer gives a home router with NAT and DHCP, and two providers with eBGP to it. Thus it has two paths and a fault on one path only. An Open vSwitch node with VLANs comes later. Each image is free: FRR, Open vSwitch and Debian.
 
+The first fabric joins only the client and one server to the leaves, and its one fault is the silence of a spine. In the new format, each sibling of a lab is a host node on a leaf. A target, a reference and a resolver can sit behind the same leaf. Each fault of a plan goes on a port of a leaf or a spine, with the same `NetworkFault` kinds as a chain.
+
+### SYS-136 · A run of any command in the guest of the VM tier
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The arm of SYS-81 operates only the cells of this repository in the guest. A consumer that finds the cause of a network fault has its own kernel world, and that world needs the kernel of the guest too. This item gives a run of one command of another repository in the guest.
+
+- **The input.** A folder of the runner, an argv, a time limit and an output folder. The folder is a checkout of the consumer, with its own lockfile.
+- **The run.** The command `run` boots the guest and copies the folder into `/work` through ssh. The records of the arm come back the same way. The guest installs the folder from its lockfile, and Docker is ready before the argv starts.
+- **The output.** The guest gives back its folder `/out` and the exit code of the argv, also after a failure. After the time limit, the guest stops, and the record says why.
+- **The workflow.** A reusable workflow of this repository takes the same inputs. Thus the consumer adds one job, with no copy of the scripts of the VM tier.
+- **The test.** A test of this repository operates `uname -r` and one Docker container through the new path. It reads the release of the guest kernel in `/out`.
+
+A new command and a new workflow are a feature, thus the release of the harness is a PATCH before 1.0.
+
+### SYS-137 · A lab of the kind tier with the interface of the harness
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-92
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The kind tier holds the cells of connection timers in a cluster. Its lab has its own interface, `KindLab`. Thus a world that a consumer writes for `openLab` of the harness cannot operate in a cluster. This item gives a lab of the kind tier with the interface `Lab` of the harness.
+
+- **The input.** The topology of SYS-92: its nodes, its links and the siblings of the lab. Each node is a pod, and a router is a pod with IP forwarding on.
+- **The faults.** The same `NetworkFault` kinds at the same places. The agent of each node applies the rules in the network namespace of the pod, as the faults of the kind cells do. The stamps of the injector bracket each fault.
+- **The interface.** `openKindTopology(cluster, topology)` gives a `Lab`. A method with no meaning in a cluster gives an error that names the method.
+- **The test.** One world operates on both tiers with the same code: a client, one router and a target. A black hole at the router gives the same verdict on both tiers.
+
+A new export is a feature, thus the release of kind is a PATCH before 1.0.
+
 ### SYS-114 · A Proxmox VE guest: a real API for the provider of runner-dispatch
 
 - **Status:** later
@@ -3687,12 +3730,12 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** todo
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
 - **Shipped:**
-- **Links:**
+- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
 
 SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
@@ -3729,6 +3772,17 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 | No send is more than 50 ms later than its planned time | 0.788 |
 
 The claims of the capacity, the gap of the open loop and the noise are of later slices. Each gets its prediction from `base-rates.ts` before its dispatch. The first table of this item had probabilities that were not from the base rates, and this table replaces it.
+
+**The state on 2026-11-18.** Slices 1 and 2 are on main. The dispatch [44242359821](https://github.com/mark1russell7/systems/actions/runs/44242359821) of #396 gave the first verdicts of slice 3. Each of the 4 rungs holds, with 11 counted runs and no void run.
+
+| Rung | Arrivals | Failed | Median latency |
+| --- | --- | --- | --- |
+| 1 | 638 | 0 | 1.5 ms |
+| 10 | 858 | 0 | 2.2 ms |
+| 100 | 5,313 | 0 | 1.2 ms |
+| 1,000 | 55,561 | 0 | 1.4 ms |
+
+No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread, thus four more dispatches set them.
 
 ### SYS-104 · Remove the override of the service when the client release ships
 
@@ -3890,12 +3944,12 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 
 ### SYS-131 · More units in quantity for the feeds of public data
 
-- **Status:** todo
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-17
+- **Shipped:** 2026-11-18
+- **Links:** [#592](https://github.com/mark1russell7/systems/pull/592), [#601](https://github.com/mark1russell7/systems/pull/601), [the release run](https://github.com/mark1russell7/systems/actions/runs/44258346642), [quantity 0.4.2 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.2)
 
 A consumer of public data feeds reads the unit of each measure with `tryParseUnit` of `@mark1russell7/quantity`. Version `0.4.1` does not parse these units of the feeds:
 
@@ -3917,7 +3971,7 @@ The rules of the change:
 - A steradian is a ratio of two areas, but it stays apart from a plain ratio. Thus a radiance does not convert to an irradiance.
 - The grammar takes a spelling of UCUM when it does not clash with a symbol of the table. Feeds of public data often give their units in UCUM.
 
-The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21. If this item has not merged by then, it moves to that repository with quantity.
+The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). It shipped as `0.4.2`, a PATCH: new atoms, spellings and an optional field. [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21, with this version.
 
 The test: each unit of the list parses, converts in its dimension and formats again. The parser refuses five conversions: Sv to Gy, Bq to Hz, EUR to USD, dB to a ratio and a radiance to an irradiance. Each test of `0.4.1` passes with no change.
 
@@ -3945,12 +3999,12 @@ The test:
 
 ### SYS-134 · One scope for each request, job and loop round
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-18
 - **Shipped:**
-- **Links:**
+- **Links:** [#602](https://github.com/mark1russell7/systems/pull/602), [#604](https://github.com/mark1russell7/systems/pull/604), [#606](https://github.com/mark1russell7/systems/pull/606)
 
 Mark said go on 2026-11-18. The service package gives its work five separate contexts. Each context holds a part of the same facts: a signal, a deadline, the clock and the trace. A handler of `@procedures/client` gets one more context, `ProcedureContext`. This item makes one scope type, and each of these contexts comes from it.
 
@@ -4058,6 +4112,57 @@ The parts:
 2. The five contexts become scopes, in one change. The process, the service and each phase of `run()` get their scopes. The changed interfaces break the code that makes these contexts. Thus the release is a MINOR before 1.0: `0.11.0`. The changeset names the change of behavior: one scope for each request, not one context for each mount. The pull request lists each public dependent of the package, with its bump.
 3. The client makes `ProcedureContext` from the scope, after its own releases. It adds the type test of `Principal`.
 
+### SYS-135 · The service package in a browser
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-134 (parts 1 and 2)
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Mark said go on 2026-11-18. The front ends of the program move onto the service package, one at a time. Each front end starts after the browser gate of this item is green.
+
+A front end then gets three things from the package. Its start and its stop follow the lifecycle of the page. Its loops have a backoff. When the page closes, its open work aborts.
+
+The gap:
+
+- The root entry and the entries `/clock`, `/heartbeat`, `/backoff`, `/channel`, `/limiter` and `/scope` load no `node:` module. The entry test holds this with a search of the imports. No test operates them in a browser.
+- The entries `/http-client` and `/websocket` import `client/dial.ts`, and that file imports `node:net` at its top. Thus a browser cannot load them.
+- The two clients use `Buffer` at their run, and their drivers are `node:http` and ws.
+- The process port of `run()` reads the signals of a process. A page has no signal.
+
+The scope in a browser:
+
+- The scope of SYS-134 goes through parameters. Each function gets its scope as an argument. The entry `/scope` has no store of `AsyncLocalStorage`, thus it operates in a browser as it is.
+- A callback that cannot get a parameter reads the scope through `currentScope()`. In Node, the entry `/node` keeps the scope in the context of OpenTelemetry. In a browser, the same function reads the same context. Its manager is the context manager of `async-browser-context` (its entry `/opentelemetry`).
+- That package keeps a context through `await` only with its Vite plugin or its Babel preset. Thus parameters stay the contract, and `currentScope()` is a convenience.
+
+The parts:
+
+1. **The browser gate.** The package gets a second project of Vitest in browser mode, with the Playwright provider. Chromium starts headless with `--disable-gpu`. Playwright is 1.64.0, the version of the site shots.
+   - The list of its test files is a query: each test file of the package whose imports reach no `node:` module. A new test of a browser entry thus joins the gate with no change to a list.
+   - A floor holds the scope laws and the tests of the clock, the heartbeat, the backoff, the channel and the limiter in the list. A test that gets a `node:` import leaves the list, and the floor then fails.
+   - The job operates in the CI workflow, in the check `CI OK`. This part needs no change to the code of the package.
+2. **Bytes, not `Buffer`.** The two clients use `Uint8Array`, `TextEncoder` and `TextDecoder` at their run. `client/dial.ts` loads `node:net` only at a dial, as `nodeAgent` loads `node:http`. The types of the bytes get a type parameter with the default `Buffer`: `HttpResponse`, `WsListeners` and `WsConnection`. Thus the Node drivers keep their types, and the release is a PATCH.
+3. **The entry `/browser`.** It gives three ports, and it imports no `node:` module:
+   - `fetchAgent`: an agent of the HTTP client over `fetch`. Each request has its own `AbortController`, and `destroy()` aborts each open request. A browser hides its pool, thus `sockets()` gives an empty list. `fetch` tells no connect, thus the agent counts a request as sent at the call of `fetch`. A failed call that is not idempotent is then `indeterminate`, and not `error`. Thus the outcome in three values stays true.
+   - `browserWs`: a factory of the WebSocket client over the WebSocket of the browser. A message comes as a `Uint8Array`. A browser cannot send a ping frame. Thus a declaration with this factory has no heartbeat of ping frames, and the check of the spec gives a problem for one. A heartbeat of the protocol, as a procedure, stays possible.
+   - `pageProcess(lifecycle)`: the process port of `run()` in a page. Its input is the part of a lifecycle tracker that it reads: `getState()` and `subscribe(listener)`. This is the shape of `page-lifecycle-tracker`, and a type test holds the two shapes equal. The package does not import the tracker.
+   - The transition to `terminated` gives the runtime its stop. A `pagehide` into the back/forward cache stops the run too. A page that comes back from the cache starts a new run with a new root scope. Thus each resource still closes once. `onUncaught` reads the events `error` and `unhandledrejection` of the window.
+   - The check of a spec for a browser gives a problem for each knob that a browser holds itself. These knobs are the timers and the counts of the pool, and the dial step.
+4. **The stop of a page.** A page gets no time after `pagehide`. Thus a stop from `pageProcess` aborts the process scope in the same task, before the first stage of the drain. The abort reaches each child scope at once: each `fetch` aborts, each WebSocket sends its close frame, and each loop clears its timer. Each close of a resource starts in that task. A close can send its last record with `navigator.sendBeacon`, which a browser sends after the page closes.
+5. **The laws in a real page.** A Playwright test operates a page with a service. The service has a loop of requests each 50 ms, one open WebSocket, one long request and three resources with ids. A Node server in the job records each event. The test closes the page in three ways. These are a navigation to another page, `page.close()` with the unload handlers, and a navigation into the back/forward cache and back.
+
+   The laws:
+   1. After the close, no request of the loop comes to the server.
+   2. The WebSocket sends one close frame, and the long request aborts.
+   3. Each resource closes once, in the reverse order of its open. The server counts the beacons of each id.
+   4. After a return from the cache, the new run has new ids, and no old resource closes again.
+   5. A request with a deadline sends `timeout-ms`, and its `fetch` aborts at the deadline with a `TimeoutError`.
+
+Parts 2 and 3 are features, thus each release is a PATCH before 1.0. The first front end starts after the gate of part 5 is green in CI.
+
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
 - **Status:** blocked
@@ -4088,6 +4193,207 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 - With conventions `0.41.14`, a run that the queue starts examines the change of the pull request against the new base.
 - Part 2: the job `checks` of `ci.yml` does `check:conventions` with the shared CI of the template. On a dispatched run, the shared job finds the pull request of the branch. Then it gives its base and its text to the check. `queue.yml` and `versionEachChange` are on.
 - The last step: the ruleset of `main` has strict status checks since 2026-11-15. The first job of `queue.yml` on `main` passed.
+
+### SYS-138 · One loop core: the schedule as data, with the poller and the worker loop as two settings
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:** SYS-134
+- **Started:** 2026-11-18
+- **Shipped:**
+- **Links:**
+
+Mark asked for it on 2026-11-18. Part 1 needs part 1 of SYS-134. The service package has two loop cores for one idea. Other server code still starts its loops with a raw `setInterval`.
+
+The gap:
+
+- `poller` plans each poll from the start of the last poll, with a jitter of ±fraction and a timeout. A use of the check that outlives its timeout stays open, and the next poll fails at once.
+- `workerLoop` plans each iteration from the end of the last iteration. It has a backoff after a failure, lanes, `wake()` and a bound for each iteration.
+- `heartbeat`, `watchdog` and the `ticker` of the entry `/channel` each operate one more timer loop of their own.
+- No law holds the five loops. The timing algebra reads only the `Poll` of a check.
+- 11 loops in three other repositories use a raw `setInterval`, or a `setTimeout` that plans itself again.
+
+The schedule as data:
+
+```ts
+interface Schedule {
+  readonly from: "start" | "end";   // the next round: one period after the start or the end of the last round
+  readonly period: Extent;          // "infinite": only wake() starts a round
+  readonly jitter: number;          // a fraction below 1: each period is period × (1 ± jitter)
+  readonly first: Extent;           // the delay of the first round after the start of the loop
+  readonly timeout: Extent;         // the bound of one round: at it, the scope of the round aborts
+  readonly backoff: Backoff | null; // the delay after a failed round; null keeps the period
+  readonly overlap: "fail" | "skip" | "allow"; // a round that is due while its lane has a round in flight
+  readonly lanes: number;           // each lane does one round at a time
+  readonly budget: Budget | null;   // the most rounds that start in each window: { rounds, per }
+  readonly hold: boolean;           // true: the timer of the loop keeps a Node process alive
+}
+```
+
+- Each field is necessary, as each knob of `WorkerKnobs` is. Two functions give the two settings of today: `pollSchedule(poll)` and `workerSchedule(knobs)`.
+- Each time is an amount of `@mark1russell7/quantity`. `Backoff` is the type of the entry `/backoff`. Thus each delay comes from `backoffDelay`, and each band from `backoffBand`.
+- A schedule from `start` plans each round from the planned start of the last round, as the ticker does. Thus the loop does not drift. A round that comes more than one period late skips the rounds that it missed. The record counts each skip, and the loop does not burst.
+- A round that is over the budget waits for the window. The record counts each wait, and the loop drops no round.
+- `overlap` applies only to a schedule from `start`. A schedule from `end` cannot overlap, thus its `overlap` has no effect.
+
+The core:
+
+- The entry `/loop` gives `loop(schedule, round, options)`. It imports no `node:` module. Thus the browser gate of SYS-135 holds it with no change to a list.
+- The states and the timers of a loop are one machine document, `LOOP_MACHINE`. Its states are `idle`, `waiting`, `calling`, `hung`, `backoff`, `deferred` and `stopped`. `runMachine` of the algebra package operates it on the clock, and the schedule gives the values of its knobs. SYS-139 adds the state `parked`.
+- Each round gets a scope of the kind `round` from SYS-134. The timeout of the schedule is the deadline of that scope. At the stop of the loop, the scope of each round in flight aborts, and each resource of a round closes once.
+- A round gives `"more"` for the next round at once, or nothing for a pass. A throw or a rejection is a failure. A round past its timeout is a failure with `timedOut`.
+- Each round gives a record: the loop, the lane, the round, the planned start, the real start, the end and the outcome. `replay` of the algebra package reads these records. The lateness of a round is its real start minus its planned start.
+- `POLLER_MACHINE` stays, as the loop machine at the settings of the poller, with the same states. Thus a reader of `MACHINES` does not change.
+
+The five loops on the core:
+
+| Loop | `from` | `overlap` | `backoff` | `lanes` |
+| --- | --- | --- | --- | --- |
+| `poller` | `start` | `fail` | none | 1 |
+| `workerLoop` | `end` | no effect | `retry_base` to `retry_cap` | `concurrency` |
+| `heartbeat` | `start` | `skip`, or `allow` with `overlap: true` | none | 1 |
+| `watchdog` | `start` | `skip` | none | 1 |
+| `ticker` | `start` | `skip` | none | 1 |
+
+The watchdog reads the lateness of its own rounds. The retrier is not a loop, because it holds one try at a time. It keeps its own timer, and its delays come from `backoffDelay`.
+
+The laws and their gate. Model tests on fast-check from rigor-testkit hold them, on the test clock with a seed:
+
+1. **Spacing.** Two planned starts from `start` are apart by a time in the band of the period and its jitter. From `end`, the gap from an end to the next start is in that band. After the k-th failure in sequence, the gap is in `backoffBand(policy, k)`.
+2. **One round for each lane.** With `fail` or `skip`, no two rounds of one lane are in flight at one time.
+3. **The bound.** The signal of each round aborts at its start plus the timeout, at the latest. A round that ignores the abort keeps its lane `hung` until it settles. With `fail`, each round that is due in that time fails at once.
+4. **The reset.** A pass sets the count of failures in sequence to zero.
+5. **The stop.** After `stop()`, no round starts, and the test clock holds no timer of the loop. A second `stop()` does nothing.
+6. **The budget.** In each window, at most `rounds` rounds start.
+7. **The replay.** The records of each case replay on `LOOP_MACHINE` with no unknown transition.
+8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request.
+9. **The spans.** `failSpan` and `recoverSpan` read the schedule. The fail time of a check on the test clock is in its span for each seed.
+10. **The hold.** A loop with `hold: false` keeps no timer that holds a process. A timeout that a caller awaits holds the process at each value (SYS-126).
+
+The parts:
+
+1. **The core.** The machine document, the entry `/loop`, the type `Schedule` and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0.
+2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request.
+3. **The check of the conventions.** A pull request to the home of the conventions adds a rule for each package of the preset `service`. The rule refuses `setInterval`, a `setTimeout` whose callback starts its own function again, and a `for` or `while` loop that awaits a timer.
+   - An exception carries a comment with its reason and its end (tenet 3).
+   - In this repository, the hold timer of `process.ts` is the one exception. Its reason: it holds the process until the stop, and it does no work.
+   - The rule starts after part 2, thus the service package passes it on its first day.
+4. **The 11 loops move.** Their owners move them after part 3: 3, 6 and 2 loops in three repositories. The README of the entry `/loop` gives the form for each case. A `setInterval(work, ms)` becomes a schedule from `start`. A `setTimeout` after an `await` becomes a schedule from `end`.
+
+The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema.
+
+| Metric | Kind | Unit | Value |
+| --- | --- | --- | --- |
+| `loop.rounds` | counter | `{round}` | each round that starts |
+| `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout |
+| `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops |
+| `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget |
+| `loop.lateness` | histogram | `ms` | the real start minus the planned start |
+| `loop.round.duration` | histogram | `ms` | the end minus the real start |
+| `loop.inflight` | up-down counter | `{round}` | the rounds in flight |
+
+### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** SYS-138, SYS-134
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Mark asked for it on 2026-11-18. Part 1 needs part 2 of SYS-138. A package of network diagnosis becomes a part of the stack, for automatic recovery and for metrics. This item is the port of the service package. The package of network diagnosis fills it as an add-on.
+
+The gap:
+
+- The failure detection of a service knows that a check or a call failed. It does not know the layer of the fault: the link, DNS, a route, TCP, TLS, HTTP, or the provider.
+- The recovery thus has one action for each fault: the backoff of its loop. A fault of the local network and a fault of the remote copy get the same delay.
+- The package of network diagnosis has probes, a catalog of faults, the probability of each cause and the next probe. No service uses it.
+
+The port. The core names no topic. A cause is an identifier of the catalog of the add-on, and only the add-on reads it. An action is one of a closed set that the core knows. A new member breaks each exhaustive switch, thus the set has its seven members from the first release:
+
+```ts
+interface Failure {
+  readonly source: { readonly kind: "check" | "call" | "connection"; readonly name: string };
+  readonly target: { readonly scheme: string; readonly host: string; readonly port: number } | null;
+  readonly cause: string;          // the text of the failure, as the record of today has it
+  readonly code: string | null;    // an errno or a status, for example "ECONNREFUSED" or "http 503"
+  readonly timedOut: boolean;
+  readonly took: Quantity;
+  readonly sequence: number;       // the failures in sequence of this source
+  readonly scope: Scope;           // the scope of the failed round or request: its trace and its identity
+}
+
+type Action =
+  | { readonly kind: "retry" }                         // a short fault: one more try at once
+  | { readonly kind: "back-off"; readonly least: Quantity } // a load or a limit: the next try waits at least this time
+  | { readonly kind: "change-path" }                   // a bad route: the transport dials another address of the target
+  | { readonly kind: "change-copy" }                   // a bad copy: the transport takes another copy
+  | { readonly kind: "wait-network"; readonly key: string } // the local network is down: each loop on this key waits
+  | { readonly kind: "stop"; readonly until: Quantity | null } // a permanent fault: the source stops, for this time at most
+  | { readonly kind: "none" };                         // no cause: the recovery of today
+
+interface PortOptions {
+  readonly floors: { readonly [K in Exclude<Action["kind"], "none">]: number }; // the least confidence that takes each action
+  readonly park: Quantity;         // the longest park of a source or a key
+}
+
+interface Verdict {
+  readonly cause: string;
+  readonly confidence: number;     // from 0 to 1
+  readonly action: Action;
+  readonly until: number;          // the clock time at which the facts are old
+  readonly facts: readonly string[];
+}
+
+interface DiagnosisPort {
+  key(failure: Failure): string;   // the failures with one key share one diagnosis
+  diagnose(failure: Failure, budget: ProbeBudget): Promise<Verdict>;
+  recovered(key: string, budget: ProbeBudget): Promise<boolean>; // the probe of a wait on the network
+}
+```
+
+The rules of the runner:
+
+- **Where it asks.** A failed round of the loop core asks the port before its backoff. A failed check asks it too. A check only adds the verdict to its result, thus the health report shows the layer of the fault. Only a loop with work takes the action.
+- **One diagnosis for each key.** The failures with one key share one diagnosis in flight. Its verdict holds until `until`. Thus the loss of the network gives one diagnosis, not one for each check and each client.
+- **The budget.** Each diagnosis gets a deadline, a count of probes and a count of bytes. The probes of the port operate on a loop of the core with a budget, thus a diagnosis cannot load a sick network more.
+- **The action.** The runner takes the action of the verdict. A transport tells the actions that it can take. A transport without the action of a verdict backs off, and the record names the action that it could not take.
+- **The floor.** The runner takes an action only at or above the floor of its kind. Below the floor, the action is `none`. The floors are data in the options of the port. `wait-network` parks each loop of a key, thus it has the highest floor.
+- **The stop.** The action `stop` is for a permanent fault, for example NXDOMAIN, a bad certificate, a 404 on a fixed path or a revoked key. A retry or a backoff does not heal this fault. The runner parks the source, and the health report names the cause. The alert path gets one event when the source stops, not one for each new verdict. Thus the port does not hide a dead dependency behind a backoff with no end.
+- **A park.** `wait-network` parks each loop of its key, and `stop` parks the loops of its source. Each loop goes to the state `parked` of `LOOP_MACHINE`. One probe loop asks `recovered(key)`. When it passes, the parked loops start again, each after a jittered delay.
+- **The bound of a park.** A park ends at the first of three times. They are the `until` of the verdict, the end of the `until` of a stop, and the longest park of the options. Then each loop goes back to its own backoff and asks the port again. Thus a false `wait-network` costs a bounded time, not an outage of the whole service.
+- **A fault of the port.** A throw, a late verdict or a verdict that does not parse gives the action `none`. The record names the fault of the port, and the service does not stop.
+- **No port.** A service without a port has the null port: each verdict is `none`. Thus the service keeps its behavior of today.
+
+The metrics. The runner gives the verdicts as metrics through the entry `/otel`:
+
+| Metric | Kind | Unit | Value |
+| --- | --- | --- | --- |
+| `diagnosis.verdicts` | counter | `{verdict}` | each verdict that the runner takes |
+| `diagnosis.declined` | counter | `{verdict}` | each verdict below the floor of its action |
+| `diagnosis.duration` | histogram | `ms` | the time from the failure to the verdict |
+| `diagnosis.probes` | counter | `{probe}` | each probe of the budget that a diagnosis spends |
+
+Their only attributes are the cause id, the action kind and the source kind. The text of the failure, the facts and the host go only on the span of the failure. Thus the count of series stays bounded by the size of the catalog. The add-on gives its estimators as metrics, with the trace of the scope of the failure. Its estimators are the delay, the jitter, the loss, the retransmission time-out and the bandwidth. The capacity models read them as load variables.
+
+The laws and their gate:
+
+1. **The null port.** On each seed, a service with the null port gives the trace of a service without a port.
+2. **One diagnosis.** At each time, each key has at most one diagnosis in flight.
+3. **The budget.** No diagnosis gets more probes or bytes than its budget. The labs count the probes from the side of the network.
+4. **The fault of the port.** A port that throws, hangs or gives a bad verdict gives the action `none`, and each loop goes on.
+5. **The degrade.** An action that a transport cannot take gives a backoff and a record with its reason.
+6. **The floor.** On each seed, a verdict below the floor of its action gives the trace of the null port.
+7. **The bound of a park.** No loop stays parked past the bound of its park. After the bound, each loop asks the port again.
+8. **The correct action.** The simulated worlds of the labs hold this law in CI. A lab injects each class of fault under a service with the add-on. The gate holds the rate of correct actions of each class, with an interval from rigor-statistics. The limit of each class is the worst of 5 CI runs or more, plus their spread.
+9. **The harm.** The same cells hold the rate of harmful actions of each class. A harmful action is worse than `none`. Examples are a park while the network has no fault, a change away from a healthy copy, and a stop of a live source. The harm rate has its own limit with a Wilson interval, because a harmful action costs more than a missed one.
+
+The parts:
+
+1. **The port.** The entry `/diagnosis` with its types, its options, the null port and the conformance cases of a port. The loop core asks it after a failed round. Laws 1, 2, 4, 5 and 6. It is a feature, thus the release is a PATCH before 1.0.
+2. **The actions of the transports.** The HTTP and WebSocket clients change the path: they dial the next address of the DNS answer. A driver with copies changes the copy. Each other transport backs off with the record of its reason. A PATCH.
+3. **The park.** The state `parked` for `wait-network` and `stop`, one probe loop for each key and the bound of a park. Also the cause in the health report and the one event of a stop. Laws 3 and 7. A PATCH.
+4. **The gate of the actions.** A family of cells in the labs, one cell for each class of fault, with laws 8 and 9. The add-on gives the action of each cause of its catalog. The cells also set the floors. The default floor of each action is the least confidence that keeps the harm rate of each class under its limit. Its first read waits for free CI slots.
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
