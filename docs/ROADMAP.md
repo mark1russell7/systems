@@ -3959,19 +3959,35 @@ The scope:
 ```ts
 type ScopeKind = "process" | "service" | "phase" | "request" | "job" | "round" | "call";
 
+/** This interface has the shape of the principal of `@procedures/client`. A type test in the client holds the two shapes equal. */
+interface Principal {
+  readonly id: string;
+  readonly via: string;
+  readonly claims?: Readonly<Record<string, unknown>> | undefined;
+}
+
+/** This interface is the key of a value of a scope. */
+interface ScopeKey<T> {
+  readonly name: string;
+  /** This function gives the narrower of two values. A key without it gives the value of the parent to each child. */
+  readonly meet?: (a: T, b: T) => T;
+}
+
+/** This key holds the deadline. Its meet is `Math.min`. */
+declare const DEADLINE: ScopeKey<number>;
+
 interface Scope {
   readonly kind: ScopeKind;
   readonly name: string;
   readonly parent: Scope | null;
   /** This signal aborts with the parent, at the deadline, or at `abort()`. */
   readonly signal: AbortSignal;
-  /** This time is in milliseconds on the monotonic clock of `clock`. Infinity is no deadline. */
+  /** This time is the value of `DEADLINE`, in milliseconds on the monotonic clock of `clock`. Infinity is no deadline. */
   readonly deadline: number;
   /** This clock is the clock of `@mark1russell7/algebra/clock`. */
   readonly clock: Clock;
-  /** This value is opaque. The entry `/otel` puts the context of OpenTelemetry in it. */
-  readonly trace: Trace | undefined;
-  /** This value has the shape of the principal of `@procedures/client`: `{ id, via, claims }`. */
+  /** This value is the context of OpenTelemetry. The root entry does not read it. */
+  readonly trace: unknown;
   readonly identity: Principal | undefined;
   /** This function gives the value of a key: the bound client, or another value of a domain. */
   get<T>(key: ScopeKey<T>): T | undefined;
@@ -3987,19 +4003,38 @@ The rules of the nest:
 
 - Each kind has a rank: `process` 0, `service` 1, `phase` 2, `request`, `job` and `round` 3, and `call` 4. A child has a higher rank than its parent. A `call` can also be the child of a `call`, for a nested procedure. Each other child throws.
 - A child gets each value of its parent. The clock does not change.
-- The deadline of a child is the earlier of its own deadline and the deadline of its parent. Thus a child can only make the deadline earlier.
+- A key with a meet narrows. The value of a child is the meet of its own value and the value of its parent. The deadline is the built-in key `DEADLINE`, with the meet `min`. Thus a child can only make the deadline earlier. The capability of a procedure is also a key with a meet.
+- A key without a meet gives the value of the parent to each child, until a child binds a new value. The bound client is such a key. The service package does not know the client of procedures. Thus the client is a key, not a field.
 - Only an entry sets the trace and the identity. An entry is a scope of rank 3 that comes from an incoming request, with its headers and its authentication. Below an entry, each child has the trace and the identity of its parent.
-- Each key of a value (`ScopeKey<T>`) has its rule: `inherit`, or `narrow` with a meet. The capability of a procedure is a key with a meet. The bound client is a key, and each child binds its value again. The service package does not know the client of procedures. Thus the client is a key, not a field.
 - A child is a resource of its parent. The close of a parent aborts and closes each open child first.
 - A child of a closed or aborted scope is aborted at its start.
 
+The deadline across a hop:
+
+- An outgoing request writes the remaining time of its scope in milliseconds, in the header `timeout-ms`. Over gRPC, the time goes in `grpc-timeout`. The request does not send a time since the epoch. Thus a skew of the clocks of two hosts cannot make the deadline later.
+- The entry reads this time. The deadline of the request is the earlier of its own deadline and the time in the header.
+- The adapter of `ProcedureContext` converts at the same edge.
+
+The reason of an abort:
+
+- At the deadline, the reason is a `DOMException` with the name `TimeoutError`, as from `AbortSignal.timeout()`.
+- At an abort of the parent, the reason is the reason of the parent, unchanged. Thus a handler can tell a deadline from a cancel.
+
+The trace:
+
+- The slot `trace` holds the context of OpenTelemetry. The entry `/otel` builds on `@mark1russell7/otel-ts`, the home of the trace and the baggage (its entry `/context`). It does not make a second copy over `@opentelemetry/api`.
+- The entry `/node` adds `scope.run(fn)` and `currentScope()`. The scope is a value in the context of OpenTelemetry. Thus it has the same store of `AsyncLocalStorage` as the context manager of otel-ts.
+- The root entry stays explicit: each function gets its scope as a parameter. Thus it operates in a browser.
+
 The laws, as model tests on fast-check (`rigor-testkit`), in the CI of the package:
 
-1. An abort reaches each child of the aborted scope, and no scope outside its subtree.
-2. The deadline of a child is not later than the deadline of its parent. The signal aborts at the deadline on the clock, and not before it.
+1. An abort reaches each child of the aborted scope, and no scope outside its subtree. Each child gets the reason of the abort, unchanged.
+2. The deadline of a child is not later than the deadline of its parent. The signal aborts at the deadline on the clock, and not before it, with a `TimeoutError`. Over a hop, the deadline does not become later, for each skew of the two clocks.
 3. Each resource closes once, in the reverse order of its open, also after a throw. A resource whose open threw does not close. The close gives each error of each close.
 4. A child has the clock, the trace and the identity of its parent, except at an entry.
 5. A closed child keeps no listener on the signal of its parent, and no timer. Thus the memory of a service scope stays bounded after 100,000 requests.
+6. The meet of each declared key is idempotent, commutative and associative. The value of a child is not wider than the value of its parent: the meet of the two is the value of the child. The test covers `DEADLINE` too. Thus the order of the narrowing has no effect.
+7. Inside `scope.run(fn)`, `currentScope()` gives the scope. The active context of OpenTelemetry has the span and the baggage of `scope.trace`.
 
 The contexts that become scopes:
 
@@ -4013,13 +4048,15 @@ The contexts that become scopes:
 
 The function of a request (`RequestFn`) also gets the scope of its request, beside its signal.
 
-`ProcedureContext` of `@procedures/client` then comes from the scope: the signal, the principal, the client and the deadline of the capability. The capability gives its deadline in milliseconds since the epoch. The scope gives its deadline on the monotonic clock. The adapter converts at the edge: the wall time plus `remaining()`. The sync engine of the client takes a structural type, `Pick<Scope, "signal" | "deadline" | "clock">`. Thus neither item waits for the other.
+`ProcedureContext` of `@procedures/client` then comes from the scope: the signal, the principal, the client and the deadline of the capability. The capability gives its deadline in milliseconds since the epoch. The adapter converts at the edge of the hop: the wall time plus `remaining()`.
+
+The service package defines the type of the identity. A type test in the client holds `Principal` of each package assignable to the other. Thus the two shapes cannot drift. The sync engine of the client takes a structural type, `Pick<Scope, "signal" | "deadline" | "clock">`. Thus neither item waits for the other.
 
 The parts:
 
-1. The type, the entry `@mark1russell7/service/scope` and the laws. The entry imports no `node:` module, thus a browser can use it. A new entry is a PATCH before 1.0: `0.10.1`.
-2. The five contexts become scopes, in one change. The process, the service and each phase of `run()` get their scopes. The changed interfaces break the code that makes these contexts. Thus the release is a MINOR before 1.0: `0.11.0`.
-3. The client makes `ProcedureContext` from the scope, after its own releases.
+1. The type, the keys, the entry `@mark1russell7/service/scope` and the laws 1 to 6. The entry imports no `node:` module, thus a browser can use it. A new entry is a PATCH before 1.0: `0.10.1`. The entry `/node` and the scope functions of `/otel`, with law 7, come in the same release or in a stacked PATCH.
+2. The five contexts become scopes, in one change. The process, the service and each phase of `run()` get their scopes. The changed interfaces break the code that makes these contexts. Thus the release is a MINOR before 1.0: `0.11.0`. The changeset names the change of behavior: one scope for each request, not one context for each mount. The pull request lists each public dependent of the package, with its bump.
+3. The client makes `ProcedureContext` from the scope, after its own releases. It adds the type test of `Principal`.
 
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
