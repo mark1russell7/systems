@@ -3922,18 +3922,18 @@ The test: each unit of the list parses, converts in its dimension and formats ag
 
 ### SYS-133 · The calendar month of an instant in a time zone
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-17
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-17
+- **Links:** [#595](https://github.com/mark1russell7/systems/pull/595), [#596](https://github.com/mark1russell7/systems/pull/596), [the release run](https://github.com/mark1russell7/systems/actions/runs/44219498195), [algebra 0.9.7 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.9.7)
 
 A consumer that sums a measure for each calendar month needs the bounds of the month of an instant, in an IANA time zone. The clock entry of the state-machine package gives the wall-clock time of an instant (`localTime`) and the first instant of a wall-clock time (`firstInstantOf`). It gives no month, thus each consumer keeps a copy of its own.
 
 The function `monthOf(at, zone)` gives `{ start, end }`. `start` is the first instant of the 1st of the local month at 00:00, and `end` is the same instant of the next month. A name that is not an IANA zone gives `undefined`. `firstInstantOf` gives each bound. Thus a month whose 1st starts in a gap of a change forward starts at the end of the gap.
 
-The release is a PATCH of the state-machine package: a new export. When SYS-108 has renamed the package, the function ships in `@mark1russell7/automata`.
+The release is a PATCH of the state-machine package: a new export. It shipped in `@mark1russell7/algebra` 0.9.7. SYS-108 moves it to `@mark1russell7/automata` with the rest of the package.
 
 The test:
 
