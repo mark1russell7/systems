@@ -3687,12 +3687,12 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** todo
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
 - **Shipped:**
-- **Links:**
+- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
 
 SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
@@ -3729,6 +3729,17 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 | No send is more than 50 ms later than its planned time | 0.788 |
 
 The claims of the capacity, the gap of the open loop and the noise are of later slices. Each gets its prediction from `base-rates.ts` before its dispatch. The first table of this item had probabilities that were not from the base rates, and this table replaces it.
+
+**The state on 2026-11-18.** Slices 1 and 2 are on main. The dispatch [44242359821](https://github.com/mark1russell7/systems/actions/runs/44242359821) of #396 gave the first verdicts of slice 3. Each of the 4 rungs holds, with 11 counted runs and no void run.
+
+| Rung | Arrivals | Failed | Median latency |
+| --- | --- | --- | --- |
+| 1 | 638 | 0 | 1.5 ms |
+| 10 | 858 | 0 | 2.2 ms |
+| 100 | 5,313 | 0 | 1.2 ms |
+| 1,000 | 55,561 | 0 | 1.4 ms |
+
+No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread, thus four more dispatches set them.
 
 ### SYS-104 · Remove the override of the service when the client release ships
 
@@ -3890,12 +3901,12 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 
 ### SYS-131 · More units in quantity for the feeds of public data
 
-- **Status:** todo
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-17
+- **Shipped:** 2026-11-18
+- **Links:** [#592](https://github.com/mark1russell7/systems/pull/592), [#601](https://github.com/mark1russell7/systems/pull/601), [the release run](https://github.com/mark1russell7/systems/actions/runs/44258346642), [quantity 0.4.2 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.2)
 
 A consumer of public data feeds reads the unit of each measure with `tryParseUnit` of `@mark1russell7/quantity`. Version `0.4.1` does not parse these units of the feeds:
 
@@ -3917,7 +3928,7 @@ The rules of the change:
 - A steradian is a ratio of two areas, but it stays apart from a plain ratio. Thus a radiance does not convert to an irradiance.
 - The grammar takes a spelling of UCUM when it does not clash with a symbol of the table. Feeds of public data often give their units in UCUM.
 
-The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21. If this item has not merged by then, it moves to that repository with quantity.
+The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). It shipped as `0.4.2`, a PATCH: new atoms, spellings and an optional field. [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21, with this version.
 
 The test: each unit of the list parses, converts in its dimension and formats again. The parser refuses five conversions: Sv to Gy, Bq to Hz, EUR to USD, dB to a ratio and a radiance to an irradiance. Each test of `0.4.1` passes with no change.
 
@@ -3945,12 +3956,12 @@ The test:
 
 ### SYS-134 · One scope for each request, job and loop round
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-18
 - **Shipped:**
-- **Links:**
+- **Links:** [#602](https://github.com/mark1russell7/systems/pull/602), [#604](https://github.com/mark1russell7/systems/pull/604), [#606](https://github.com/mark1russell7/systems/pull/606)
 
 Mark said go on 2026-11-18. The service package gives its work five separate contexts. Each context holds a part of the same facts: a signal, a deadline, the clock and the trace. A handler of `@procedures/client` gets one more context, `ProcedureContext`. This item makes one scope type, and each of these contexts comes from it.
 
