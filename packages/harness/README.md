@@ -249,8 +249,8 @@ console.log(used.cpu?.total, used.network?.tx.bytes, used.memory.peak, reader.se
 - **The readings of a cell** (from 0.16.16). A cell can measure the cost of its target in each run, with `runCell`:
   - `Cell.clientLimits` gives the limits of the client in each run, for example other CPUs than the target.
   - `Cell.resources` starts a reader of the target in each run, with these options. The reader stops at the end of the run.
-  - Each run then keeps `Run.resources`: a reading when the client is ready and before it sends (`start`), a reading after the run ended (`end`), and the series of the reader.
-  - `environmentProblems` names each problem of the limits of the target and of the client, before a lab opens.
+  - Each run then keeps `Run.resources`. It holds the series of the reader and two readings. `start` comes when the client is ready and before it sends, and `end` after the run ended.
+  - `environmentProblems` names each problem of the limits of the target and of the client, before a lab opens. It also names each bad value of the connections of a load stream.
 
 ## The subjects
 
@@ -289,7 +289,14 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
   - `client`, the TCP client of a cell. Rust's `std::net` sets no socket option by itself, thus the measurement gets the timers of the namespace. The client also samples `TCP_INFO` each 2 ms, a second vantage on its socket. It waits in `poll()`, which does not lock the socket. A keepalive timer that finds its socket held tries again HZ/20 later.
   - In a stream, a reply of the `client` is whole at its CRLF, or after the length of a bulk string. The client then writes a `replied` line.
-  - `load`, the open-loop driver of an HTTP/1.1 server (SYS-93). Its plan (`systems-load/1`) is a list of streams, each with a key, a schedule (`rigor-schedule/1`) and its requests. Each stream has its own connection, thus a slow reply delays only its own stream. A send does not wait for a reply. A response is whole after its `Content-Length` or its last chunk. The `sent` and `replied` lines name the stream (`k`) and the arrival (`i`), and a `replied` line names the status.
+  - `load`, the open-loop driver of an HTTP/1.1 server (SYS-93). Its plan (`systems-load/1`) is a list of streams, each with a key, a schedule (`rigor-schedule/1`) and its requests. Each stream has its own connections, thus a slow reply delays only its own stream. A send does not wait for a reply. A response is whole after its `Content-Length` or its last chunk. The `sent` and `replied` lines name the stream (`k`) and the arrival (`i`), and a `replied` line names the status.
+  - The field `connections` of a stream (`LoadConnections`) sets how its arrivals go to the server. A plan with no such field gives the same lines as before.
+    - `{ mode: "pipeline" }` is the default. The stream has one connection, and each arrival goes at its time also when the replies before it are not in. The replies come in the order of the requests. Thus a slow reply delays each reply after it on the stream.
+    - `{ mode: "pool", size }` keeps `size` connections, from 1 to 1024, each with one request in flight at most. The driver opens them before `ready`. A due arrival takes the connection that is idle for the longest time. With no idle connection, it waits in a queue of its stream.
+    - `{ mode: "fresh" }` opens a new connection for each arrival at its time, and closes it after the reply. The connect does not block the other streams. A failed connect is an `error` line of that arrival only, and the stream goes on.
+    - A run of a cell with a pool or a fresh stream ends at `done` or at the deadline (`loadEnds`). An `error` or an `eof` of one connection does not end it.
+    - In a pool and in a fresh stream, each `replied` line names the arrival of its own connection. Thus the replies can come out of order. The `sent` line comes at the write and gives the wait for the connection in ns (`wait`). That wait is not a lag of the driver: `streamsLoadOf` takes it out of the lag. The latency still counts from the planned time.
+    - A fresh stream leaves each closed connection in TIME_WAIT on the client, thus a high rate can use all the local ports. A pool needs a keep-alive time of the server above the idle time of each connection.
   - `resources`, the reader of the resources of a container. `read` prints one JSON line with the text of each file of a cgroup and of `/proc/net/dev`, between two monotonic stamps. `watch` prints one line each period. Each line of a series has its place on the clock from the start of the series. Thus a slow reading does not move the later ones.
   - `inject`, which applies a fault in one `iptables-restore` commit, with monotonic stamps around the commit. Thus the start of a fault is known in the VM. A `docker exec` from Windows comes 190 ms late at the median. With `--via DEV`, the rules go in the FORWARD chain, on the device toward one side. `--protocol` and `--handshake pass` change the match of a rule, and `inject silence` drops each packet of its namespace.
   - `inject` also sends a signal to a process by its name (`signal`), and one command to a server of the Redis protocol (`resp`). Stamps bracket each.
@@ -639,5 +646,13 @@ The tests of `resources.ts` read recorded texts of the files of a cgroup and of 
 - The series has a reading each second, within 25 %, and the server used 0.5 CPUs between two readings of the burn, within 0.1 CPUs.
 - The readings of the client are the control. Its CPU time is less than half of the burn, and its namespace sent less than 10 % of the bytes. Thus a reader of the wrong container fails the test.
 - After the end of the client, a reading of its series has null for each value of its cgroup, and a `read()` throws.
+
+`HARNESS_LOAD=1` starts the proof of the connection modes of the client `load` on real containers, in the workflow `load.yml`. A Node server numbers each connection and counts the requests in its handlers on each connection. Six streams each send 40 arrivals, 50 ms apart.
+
+- Each stream sends each arrival and gets each reply, and it keeps its schedule within 50 ms. The server starts each request after its `sent` line and ends it before its `replied` line.
+- A pipeline with a wait of 100 ms has one connection with two requests or more in flight. Node runs the handlers of pipelined requests at the same time, thus the 90th percentile of the latency stays below 200 ms.
+- A pool of 8 has one request at most on each connection, and the 90th percentile of the latency is below 200 ms. A fresh stream has 40 connections and a `wait` from 0 to 50 ms for each.
+- A pool of 1 makes a queue: the last latency is 1.5 s or more, and the median service time is from 100 to 150 ms. The send of the last arrivals is 1 s late or more, but the lag without the wait stays below 50 ms.
+- Two streams send a slow request of 300 ms and a fast request of 10 ms in turn. On a pipeline, the median latency of the fast requests is 200 ms or more. On a pool of 8, it is below 100 ms, and some fast replies come before the slow reply before them.
 
 `pnpm --filter @mark1russell7/harness build` writes the package for npm into `build/`.

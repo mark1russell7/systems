@@ -5,7 +5,7 @@ import { rungVerdict } from "@mark1russell7/rigor-bench";
 import type { Completion, LoadMeasure, Schedule } from "@mark1russell7/rigor-chaos";
 import { closedLoopPlan, measureLoad, schedule, scheduleHeld } from "@mark1russell7/rigor-chaos";
 import { quantile } from "@mark1russell7/rigor-statistics";
-import type { LoadPrediction, LoadStream, ProbeEvent, RunStream } from "./cell.ts";
+import type { LoadConnections, LoadPrediction, LoadStream, ProbeEvent, RunStream } from "./cell.ts";
 
 /**
  * The measure and the verdict of an open-loop cell (SYS-68). A client on a schedule sends each
@@ -41,15 +41,25 @@ export type RunLoad = LoadMeasure & { readonly failed?: number };
 /** This function tells if a status of a reply is a failure: a number outside 200 to 299. */
 const failedStatus = (status: unknown): boolean => typeof status === "number" && (status < 200 || status > 299);
 
-/** This function gives the measure of the arrivals of one stream: the lines with the key `key`, or each line for no key. */
+/**
+ * This function gives the measure of the arrivals of one stream: the lines with the key `key`, or
+ * each line for no key. A `sent` line of a pool or of a fresh stream gives the time that its arrival
+ * waited for a connection, in ns (`wait`). The lag of such an arrival does not count that wait, but
+ * its latency still counts from its planned time.
+ */
 const measureOf = (events: readonly ProbeEvent[], start: number, plan: Schedule, key: string | undefined): RunLoad => {
   const sent = new Map<number, number>();
   const done = new Map<number, number>();
+  const waits = new Map<number, number>();
   let failed = 0;
   for (const event of events) {
     const index = event["i"];
     if (typeof index !== "number" || (key !== undefined && event["k"] !== key)) continue;
-    if (event.ev === "sent") sent.set(index, fromStart(start, event.t));
+    if (event.ev === "sent") {
+      sent.set(index, fromStart(start, event.t));
+      const wait = event["wait"];
+      if (typeof wait === "number" && wait > 0) waits.set(index, wait / 1e6);
+    }
     if (event.ev === "replied") {
       done.set(index, fromStart(start, event.t));
       if (failedStatus(event["status"])) failed += 1;
@@ -57,7 +67,14 @@ const measureOf = (events: readonly ProbeEvent[], start: number, plan: Schedule,
   }
   const completions: Completion[] = [...sent].map(([index, at]) => ({ index, sent: at, done: done.get(index) ?? null }));
   const end = events.reduce((latest, event) => Math.max(latest, fromStart(start, event.t)), 0);
-  return { ...measureLoad(plan, completions, end), failed };
+  const measure = measureLoad(plan, completions, end);
+  if (waits.size === 0) return { ...measure, failed };
+  // the lags in the order of the schedule, as measureLoad gives them, each without its wait
+  const lag = plan.times.flatMap((planned, index) => {
+    const at = sent.get(index);
+    return at === undefined ? [] : [at - (waits.get(index) ?? 0) - planned];
+  });
+  return { ...measure, lag, failed };
 };
 
 /** This path is where the client `load` finds its plan. */
@@ -66,9 +83,39 @@ export const LOAD_PATH = "/tmp/load.json";
 /** This text is the format of the plan of the client `load`. */
 export const LOAD_FORMAT = "systems-load/1";
 
+/** This count is the most connections of the pool of one stream of the client `load`. */
+export const LOAD_POOL_LIMIT = 1024;
+
+/**
+ * This function gives each problem of the connections of one load stream. An empty list means that
+ * the client `load` can use them. The size of a pool is a whole number from 1 to `LOAD_POOL_LIMIT`.
+ */
+export const connectionsProblems = (connections: LoadConnections): string[] => {
+  // a plan from JSON can hold any value, thus the check reads the fields as data
+  const fields: { readonly [field: string]: unknown } = connections;
+  const mode = fields["mode"];
+  if (mode === "pipeline" || mode === "fresh") return [];
+  if (mode !== "pool") return [`the connections have the mode ${String(mode)}: the mode is pipeline, pool or fresh`];
+  const size = fields["size"];
+  return typeof size === "number" && Number.isInteger(size) && size >= 1 && size <= LOAD_POOL_LIMIT
+    ? []
+    : [`the pool has the size ${String(size)}: a whole number from 1 to ${LOAD_POOL_LIMIT}`];
+};
+
+/**
+ * This function gives the lines that end the wait of a run for the client `load` or `schedule`.
+ * The client writes `done` when each stream can do no more, also after an error. A pipeline stream
+ * ends with the end of its one connection. A pool or a fresh stream goes on after the end of one of
+ * its connections, thus only `done` and `deadline` end its run.
+ */
+export const loadEnds = (streams: readonly LoadStream[] | undefined): readonly string[] =>
+  (streams ?? []).some((stream) => (stream.connections?.mode ?? "pipeline") !== "pipeline") ? ["done", "deadline"] : ["done", "error", "eof", "deadline"];
+
 /**
  * This function gives the schedule of each stream of a cell, and the text of the plan of the client
  * `load`. It throws for no stream, for two streams with one key and for a stream with no request.
+ * It also throws for a bad value of the connections of a stream. A stream with no connections has
+ * no such field in the plan.
  */
 export const loadPlanOf = (streams: readonly LoadStream[]): { readonly streams: readonly RunStream[]; readonly content: string } => {
   if (streams.length === 0) throw new RangeError("a plan of the client load has no stream");
@@ -76,9 +123,16 @@ export const loadPlanOf = (streams: readonly LoadStream[]): { readonly streams: 
   for (const stream of streams) {
     if (keys.has(stream.key)) throw new RangeError(`two streams have the key ${stream.key}`);
     if (stream.requests.length === 0) throw new RangeError(`the stream ${stream.key} has no request`);
+    const problem = stream.connections === undefined ? undefined : connectionsProblems(stream.connections)[0];
+    if (problem !== undefined) throw new RangeError(`the stream ${stream.key}: ${problem}`);
     keys.add(stream.key);
   }
-  const scheduled = streams.map((stream) => ({ key: stream.key, schedule: schedule(stream.plan.profile, stream.plan.options), requests: stream.requests }));
+  const scheduled = streams.map((stream) => ({
+    key: stream.key,
+    schedule: schedule(stream.plan.profile, stream.plan.options),
+    requests: stream.requests,
+    ...(stream.connections === undefined ? {} : { connections: stream.connections }),
+  }));
   return {
     streams: scheduled.map(({ key, schedule: each }) => ({ key, schedule: each })),
     content: JSON.stringify({ format: LOAD_FORMAT, streams: scheduled }),

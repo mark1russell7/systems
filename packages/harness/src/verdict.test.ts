@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Cell, Prediction } from "./cell.ts";
+import { constant } from "@mark1russell7/rigor-chaos";
+import type { Cell, LoadConnections, LoadStream, Prediction } from "./cell.ts";
 import { environmentProblems } from "./cell.ts";
 import { countFinding } from "./driver.ts";
 import type { Measured } from "./observe.ts";
@@ -198,7 +199,7 @@ describe("a cell's verdict", () => {
 
   // only the fields these two functions read: the rest of a cell does not change them
   const cellWith = (fields: Partial<Cell>): Cell =>
-    ({ name: "C1", environments: 2, target: { image: "redis", port: 6379, ready: "Ready" }, ...fields }) as Cell;
+    ({ name: "C1", environments: 2, target: { image: "redis", port: 6379, ready: "Ready" }, probe: {}, ...fields }) as Cell;
   const pair = { synchronous: true, writers: 1, interval: { value: 10, unit: "ms" }, cuts: "standby" } as const;
 
   it("gives a pair cell one environment for each run, because its run promotes the standby", () => {
@@ -228,6 +229,23 @@ describe("a cell's verdict", () => {
     ]);
     expect(environmentProblems(cellWith({ clientLimits: { memory: { value: 1, unit: "MiB" } } }))).toEqual([
       "C1: the client: memory is 1048576 B: Docker takes 6 MiB or more",
+    ]);
+  });
+
+  it("refuses a bad value of the connections of a load stream, before a lab opens", () => {
+    const plan = { profile: constant(20, 2_000), options: { arrivals: "uniform" as const } };
+    const stream = (key: string, connections?: LoadConnections): LoadStream => ({
+      key,
+      plan,
+      requests: ["GET / HTTP/1.1\r\nHost: t\r\n\r\n"],
+      ...(connections === undefined ? {} : { connections }),
+    });
+    const good = [stream("a"), stream("b", { mode: "pipeline" }), stream("c", { mode: "pool", size: 8 }), stream("d", { mode: "fresh" })];
+    expect(environmentProblems(cellWith({ probe: { mode: "schedule", keepalive: false, streams: good } }))).toEqual([]);
+    const bad = [stream("a", { mode: "pool", size: 0 }), stream("b", { mode: "pool", size: 1025 })];
+    expect(environmentProblems(cellWith({ probe: { mode: "schedule", keepalive: false, streams: bad } }))).toEqual([
+      "C1: the stream a: the pool has the size 0: a whole number from 1 to 1024",
+      "C1: the stream b: the pool has the size 1025: a whole number from 1 to 1024",
     ]);
   });
 });
