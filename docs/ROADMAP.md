@@ -3920,6 +3920,28 @@ The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. 
 
 The test: each unit of the list parses, converts in its dimension and formats again. The parser refuses five conversions: Sv to Gy, Bq to Hz, EUR to USD, dB to a ratio and a radiance to an irradiance. Each test of `0.4.1` passes with no change.
 
+### SYS-133 · The calendar month of an instant in a time zone
+
+- **Status:** todo
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A consumer that sums a measure for each calendar month needs the bounds of the month of an instant, in an IANA time zone. The clock entry of the state-machine package gives the wall-clock time of an instant (`localTime`) and the first instant of a wall-clock time (`firstInstantOf`). It gives no month, thus each consumer keeps a copy of its own.
+
+The function `monthOf(at, zone)` gives `{ start, end }`. `start` is the first instant of the 1st of the local month at 00:00, and `end` is the same instant of the next month. A name that is not an IANA zone gives `undefined`. `firstInstantOf` gives each bound. Thus a month whose 1st starts in a gap of a change forward starts at the end of the gap.
+
+The release is a PATCH of the state-machine package: a new export. When SYS-108 has renamed the package, the function ships in `@mark1russell7/automata`.
+
+The test:
+
+- A month with a change of the offset: America/New_York in March and in November.
+- A month whose 1st has no 00:00: America/Asuncion in October 2017 and October 2023. From 2015 to 2026, the time zone data of Node 24 has no other such month in ten zones, America/Santiago and America/Havana among them.
+- The step from December to January, and a name that is not a zone.
+- For each month, its `end` is the `start` of the next month.
+
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
 - **Status:** blocked
