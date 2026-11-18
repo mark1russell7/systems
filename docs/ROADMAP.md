@@ -214,7 +214,7 @@ The design of health and routing is decided. The kind cells scored the candidate
 
 [PR #211](https://github.com/mark1russell7/systems/pull/211) scores a fifth incident: a black-holed shared dependency. Redis gates the readiness of both replicas, and it is black-holed for 27 s. Kind run [40430856093](https://github.com/mark1russell7/systems/actions/runs/40430856093) held 11 of the 12 cells in 3 of 3 runs, against the prediction of commit bbe898e. B had the fewest failed requests in each mode and recovered first. B, C and D failed slowly on the empty Service until the heal, thus their time until callers know misses its band. Readiness follows the dependency, and the defaults do not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #214](https://github.com/mark1russell7/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no caller of the fleet uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
+[PR #214](https://github.com/mark1russell7/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no known caller uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
 
 [PR #235](https://github.com/mark1russell7/systems/pull/235) scores a sixth incident: a flapping dependency. The black hole of PR #211 comes three times in one run, for 27 s each, with a rest of 15 s after each heal. Kind run [40464814086](https://github.com/mark1russell7/systems/actions/runs/40464814086) held each of the 12 cells in 3 of 3 runs. The prediction of commit c8bca00 held each count, each removal, each recovery, each time until callers know and each count of PINGs. The first failure of a fault came up to 39 ms after the fault, after its band of 20 ms but in the noise of the judge. Each fault was the same as the first one, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
@@ -3687,12 +3687,12 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 
 ### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
 
-- **Status:** todo
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
 - **Shipped:**
-- **Links:**
+- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
 
 SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
@@ -3735,6 +3735,17 @@ The flip test of the night also puts its fault into the open-loop cells. Each ru
 | No send is more than 50 ms later than its planned time | 0.788 |
 
 The claims of the capacity, the gap of the open loop and the noise are of later slices. Each gets its prediction from `base-rates.ts` before its dispatch. The first table of this item had probabilities that were not from the base rates, and this table replaces it.
+
+**The state on 2026-11-18.** Slices 1 and 2 are on main. The dispatch [44242359821](https://github.com/mark1russell7/systems/actions/runs/44242359821) of #396 gave the first verdicts of slice 3. Each of the 4 rungs holds, with 11 counted runs and no void run.
+
+| Rung | Arrivals | Failed | Median latency |
+| --- | --- | --- | --- |
+| 1 | 638 | 0 | 1.5 ms |
+| 10 | 858 | 0 | 2.2 ms |
+| 100 | 5,313 | 0 | 1.2 ms |
+| 1,000 | 55,561 | 0 | 1.4 ms |
+
+No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread, thus four more dispatches set them.
 
 ### SYS-104 · Remove the override of the service when the client release ships
 
@@ -3896,12 +3907,12 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 
 ### SYS-131 · More units in quantity for the feeds of public data
 
-- **Status:** todo
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-17
+- **Shipped:** 2026-11-18
+- **Links:** [#592](https://github.com/mark1russell7/systems/pull/592), [#601](https://github.com/mark1russell7/systems/pull/601), [the release run](https://github.com/mark1russell7/systems/actions/runs/44258346642), [quantity 0.4.2 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.2)
 
 A consumer of public data feeds reads the unit of each measure with `tryParseUnit` of `@mark1russell7/quantity`. Version `0.4.1` does not parse these units of the feeds:
 
@@ -3923,7 +3934,7 @@ The rules of the change:
 - A steradian is a ratio of two areas, but it stays apart from a plain ratio. Thus a radiance does not convert to an irradiance.
 - The grammar takes a spelling of UCUM when it does not clash with a symbol of the table. Feeds of public data often give their units in UCUM.
 
-The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21. If this item has not merged by then, it moves to that repository with quantity.
+The release is a PATCH (`0.4.2`) when the change adds atoms and spellings only. A change of the exported type `Base` makes it a MINOR (`0.5.0`, before 1.0). It shipped as `0.4.2`, a PATCH: new atoms, spellings and an optional field. [SYS-107](#sys-107--quantity-moves-to-the-math-repository) moves quantity to the math repository on 2026-11-21, with this version.
 
 The test: each unit of the list parses, converts in its dimension and formats again. The parser refuses five conversions: Sv to Gy, Bq to Hz, EUR to USD, dB to a ratio and a radiance to an irradiance. Each test of `0.4.1` passes with no change.
 
@@ -3951,12 +3962,12 @@ The test:
 
 ### SYS-134 · One scope for each request, job and loop round
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-18
 - **Shipped:**
-- **Links:**
+- **Links:** [#602](https://github.com/mark1russell7/systems/pull/602), [#604](https://github.com/mark1russell7/systems/pull/604), [#606](https://github.com/mark1russell7/systems/pull/606)
 
 Mark said go on 2026-11-18. The service package gives its work five separate contexts. Each context holds a part of the same facts: a signal, a deadline, the clock and the trace. A handler of `@procedures/client` gets one more context, `ProcedureContext`. This item makes one scope type, and each of these contexts comes from it.
 
