@@ -63,9 +63,9 @@ The job `tag` makes a git tag and a GitHub release for each version that the job
 
 The job `tag` also operates after a failed publish, for each version that the publish made before the failure.
 
-The versions before this job have no tag. The release session adds their tags one time with `release-train tags --write`.
+The versions before this job have no tag. Their tags come one time from a separate script of the owner.
 
-Do not change a workflow file between the merge of a version and its job `tag`. Then GitHub refuses the tag (HTTP 403).
+A change to a workflow file between the merge of a version and its job `tag` stops the tag: GitHub refuses it (HTTP 403).
 
 ## A new package
 
