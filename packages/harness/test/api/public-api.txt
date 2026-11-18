@@ -381,6 +381,7 @@ nodeLineOf: build/index.d.ts#nodeLineOf
 nodeNameOf: build/index.d.ts#nodeNameOf
 nodesOnMonotonic: build/index.d.ts#nodesOnMonotonic
 noiseOf: build/index.d.ts#noiseOf
+npmDrift: build/index.d.ts#npmDrift
 npmVersions: build/index.d.ts#npmVersions
 numbersOf: build/index.d.ts#numbersOf
 onMonotonic: build/index.d.ts#onMonotonic
@@ -3173,6 +3174,9 @@ export declare const nodesOnMonotonic: (log: readonly NodeLine[], offset: number
 export declare const noiseOf: (cell: {
   readonly noise?: Quantity | undefined;
 }) => Quantity;
+
+### build/index.d.ts#npmDrift
+export declare const npmDrift: (manifest: string, lock: string) => string[];
 
 ### build/index.d.ts#npmVersions
 export declare const npmVersions: (lock: string) => Record<string, string>;

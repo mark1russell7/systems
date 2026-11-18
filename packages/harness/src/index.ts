@@ -204,7 +204,7 @@ export type { Cloud, Host, Substrate, SubstrateSource } from "./substrate.ts";
 export { AWS_FROM, CLOUDS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
-export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
+export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmDrift, npmVersions, versionsOf } from "./locks.ts";
 export type { Pinnable, RecordCode } from "./pins.ts";
 export { commitProblems, DEBUG, DIRTY, imagePinProblems, manifestProblems, recordProblems } from "./pins.ts";
 export type { DiskImage, DiskLab, DiskLabOptions, DiskPinnable, DiskRecord, DiskSubject, DiskWriterRecord } from "./disk.ts";

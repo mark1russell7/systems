@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/harness",
-  "version": "0.16.10",
+  "version": "0.16.11",
   "description": "Network labs in Docker, declared as data. A cell builds a topology of networks, routers and proxies around a stock target. It injects a fault at layer 3 or 4 from a NET_ADMIN sidecar, measures the records of the kernel and judges a prediction. The faults are black holes, resets, ICMP unreachable, one-way and MTU drops, tc netem, the toxics of Toxiproxy and frozen processes. Its disk tier cuts the power of a program on LazyFS: the disk loses each write after the last fsync. Its memory tier sets the limits of the cgroup of a client, and judges its throttle above memory.high and the choice of the OOM killer. Its egress tier puts a netem or tbf qdisc on the interface of a client, and judges the departure of each datagram from the stamps of the kernel. Its replicated groups are Redis with Sentinels, MongoDB replica sets, PostgreSQL standbys, Kafka, RabbitMQ and BGP fabrics with BFD. A lab can also operate in a QEMU guest. Its first use is connection timers: keep-alive, TCP retransmission, heartbeats and reconnects.",
   "keywords": [
     "fault-injection",
@@ -127,6 +127,7 @@
     "@mark1russell7/rigor-chaos": "^0.3.3",
     "@mark1russell7/rigor-statistics": "^0.2.1",
     "@mark1russell7/rigor-testkit": "^0.1.14",
+    "semver": "^7.8.5",
     "testcontainers": "12.2.1"
   },
   "peerDependencies": {
@@ -135,6 +136,7 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@types/node": "^26.6.4",
+    "@types/semver": "^7.8.0",
     "@vitest/coverage-v8": "^5.0.3",
     "tsdown": "^0.23.7",
     "typescript": "^7.0.2",
