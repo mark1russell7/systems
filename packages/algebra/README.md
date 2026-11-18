@@ -199,6 +199,8 @@ The entry also gives civil time: the time on the wall of a time zone at an insta
 | --- | --- |
 | `localTime(instant, zone)` | It gives the year, the month, the day, the hour, the minute, the second, the day of the week and the offset of the zone, or `undefined` for a bad zone. |
 | `instantsOf(wall, zone)` | The inverse of `localTime`: the instants at which the clock of the zone shows the wall-clock time `wall`, in order. A gap gives none, and an hour that occurs two times gives two. The caller chooses the rule for these two cases. |
+| `firstInstantOf(wall, zone)` | It gives the first instant at which the clock of the zone shows `wall` or a later time. A time in a gap gives the end of the gap, and an hour that occurs two times gives its first instant. |
+| `monthOf(at, zone)` | It gives the calendar month of the instant on the clock of the zone, as `{ start, end }`. The start is the first instant of the 1st at 00:00, or the end of a gap at 00:00. The end is the start of the next month. |
 | `offsetChanges(from, to, zone)` | It gives the instants in `(from, to]` at which the offset of the zone changes, exact to the millisecond. |
 | `TimeWindow` | A window as data: `{ zone, start, end, days? }`. The start and the end are local times `HH:MM`. |
 | `inWindow(instant, window)` | It tells if the instant is in the window. A bad window gives `false`. |

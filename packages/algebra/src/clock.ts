@@ -671,6 +671,29 @@ export function firstInstantOf(wall: number, zone: string): number | undefined {
   return undefined;
 }
 
+/** The calendar month of an instant on the wall clock of a time zone. The start is in the month, and the end is not. */
+export interface LocalMonth {
+  /** The first instant of the 1st of the month at 00:00. When 00:00 is in a gap, it is the end of the gap. */
+  readonly start: number;
+  /** The `start` of the next month. */
+  readonly end: number;
+}
+
+/**
+ * This function gives the calendar month of `at` on the wall clock of `zone`. `firstInstantOf` gives each bound
+ * from 00:00 on the 1st. A month with a change of the offset is shorter or longer than its days. A name that
+ * is not a time zone, or an instant that is not a date, gives `undefined`.
+ */
+export function monthOf(at: number, zone: string): LocalMonth | undefined {
+  const local = localTime(at, zone);
+  if (local === undefined) return undefined;
+  // December goes on to January of the next year
+  const next = local.month === 12 ? { year: local.year + 1, month: 1 } : { year: local.year, month: local.month + 1 };
+  const start = firstInstantOf(wallOf(local.year, local.month, 1, 0, 0, 0), zone);
+  const end = firstInstantOf(wallOf(next.year, next.month, 1, 0, 0, 0), zone);
+  return start === undefined || end === undefined ? undefined : { start, end };
+}
+
 /**
  * This function gives the next change of the window after `instant`: the first later instant at
  * which the window opens or closes. A timer can wait for it in closed form. It gives `undefined`
