@@ -41,10 +41,6 @@ concurrency:
   group: vm-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  LINUX_VERSION: 6.18.60
-  LINUX_SHA256: 3c2f44ef6acc021a7ad444d9a2e6ec1ef488ff09368793d0004a6080f69d621e
-
 jobs:
   vm:
     name: VM
@@ -54,6 +50,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # one file pins the kernel of the guest, for this workflow and for vm-run.yml
+      - name: The pin of the kernel
+        run: |
+          echo "LINUX_VERSION=$(jq -r .version packages/harness/vm/linux.json)" >> "$GITHUB_ENV"
+          echo "LINUX_SHA256=$(jq -r .sha256 packages/harness/vm/linux.json)" >> "$GITHUB_ENV"
       - name: The runner, beside the records
         run: |
           VM="$RUNNER_TEMP/vm"

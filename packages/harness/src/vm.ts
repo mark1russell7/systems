@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess, type StdioOptions } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { availableParallelism, release, tmpdir } from "node:os";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { availableParallelism, constants, release, tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,10 @@ import { fileURLToPath } from "node:url";
  * the Dockerfile of the folder `vm`. The command `arm` operates the cells on the runner or in the
  * guest, and keeps their records. The command `guest-cells` is the side of `arm` in the guest.
  *
+ * The command `run` operates one command of another repository in the guest (SYS-136). It copies a
+ * folder of the runner into the guest, and the output of the command comes back. The command
+ * `guest-run` is the side of `run` in the guest.
+ *
  * This tier has one guest, and it holds the whole lab. A fault that needs a second kernel adds a
  * second node, on its own overlay of the disk.
  */
@@ -28,6 +32,14 @@ const GUEST_MEMORY = "12G";
 const BOOT_LIMIT_MS = 180_000;
 const BOOT_POLL_MS = 2_000;
 const POWEROFF_LIMIT_MS = 60_000;
+/** The install of the folder of a run gets this time, before the time limit of its argv starts. */
+const INSTALL_LIMIT_MS = 900_000;
+/** The guest copies the folder of a run to this folder, and the argv starts in it. */
+export const GUEST_WORK = "/work";
+/** The argv of a run writes its output to this folder. The folder comes back to the runner, also after a failure. */
+export const GUEST_OUT = "/out";
+/** A run that passes its time limit gives this exit code, as `timeout` of coreutils does. */
+export const LIMIT_STATUS = 124;
 /** The cells workflow gives the runner this size of the conntrack table, thus each layer has one size. */
 const KERNEL_LINE = "console=ttyS0 root=/dev/vda rw net.ifnames=0 panic=1 nf_conntrack.hashsize=16384";
 
@@ -121,6 +133,68 @@ export const cellsEnv = (only: string, out: string, hz: string, base: NodeJS.Pro
 
 /** A command with its arguments, for one side of a pipe. */
 export type Command = readonly [string, ...string[]];
+
+/** The inputs of a run in a guest. They go on the standard input of ssh, thus no shell reads them. */
+export interface GuestRun {
+  readonly argv: Command;
+  readonly limitMs: number;
+}
+
+/**
+ * This type tells why a run ended. `exit` and `signal` are the end of the argv. `limit` is the
+ * time limit. `error` is an argv that did not start. `install` is a failed install of the folder.
+ */
+export type RunEnded = "exit" | "signal" | "limit" | "error" | "install";
+
+/** The end of a run: why it ended, and its exit code. */
+export interface RunEnd {
+  readonly ended: RunEnded;
+  readonly status: number;
+}
+
+/** The record of a run. The guest writes it to the file `run.json` of `GUEST_OUT`. */
+export interface RunRecord extends RunEnd {
+  readonly argv: Command;
+  /** This text is the release of the kernel of the guest, thus the record shows where the argv operated. */
+  readonly kernel: string;
+  /** This number is the time of the install of the folder, in milliseconds. */
+  readonly installMs: number;
+  /** This number is the time of the argv, in milliseconds. */
+  readonly ms: number;
+}
+
+/** This function reads the argv of a run from its JSON text. The argv is a list of one string or more. */
+export const argvOf = (text: string): Command => {
+  const value: unknown = JSON.parse(text);
+  if (!Array.isArray(value) || value.length === 0 || !value.every((each) => typeof each === "string")) {
+    throw new Error("the argv of a run is a JSON list of strings, with one string or more");
+  }
+  return value as unknown as Command;
+};
+
+/** This function reads the time limit of a run, in seconds, and gives it in milliseconds. */
+export const limitOf = (text: string): number => {
+  const seconds = Number(text);
+  if (!Number.isSafeInteger(seconds) || seconds < 1) throw new Error(`the time limit of a run is a count of seconds, not ${text}`);
+  return seconds * 1000;
+};
+
+/** This function gives the argv of the install of a folder from its lockfile, or null if the folder has no lockfile. */
+export const installArgs = (files: readonly string[]): Command | null => {
+  if (files.includes("pnpm-lock.yaml")) return ["pnpm", "install", "--frozen-lockfile"];
+  if (files.includes("package-lock.json")) return ["npm", "ci"];
+  return null;
+};
+
+/** This function gives the end of a run from the exit of its argv, with the codes of a shell for a signal. */
+export const endOf = (code: number | null, signal: NodeJS.Signals | null, limited: boolean): RunEnd => {
+  if (limited) return { ended: "limit", status: LIMIT_STATUS };
+  if (signal !== null) return { ended: "signal", status: 128 + (constants.signals[signal] ?? 0) };
+  return { ended: "exit", status: code ?? 1 };
+};
+
+/** This function gives the end of an argv that did not start, with the codes of a shell: 127 for a missing file. */
+export const startErrorOf = (error: NodeJS.ErrnoException): RunEnd => ({ ended: "error", status: error.code === "ENOENT" ? 127 : 126 });
 
 /** This function pipes the output of one command to the input of another. It rejects if either side fails. */
 export const pipeTo = async (from: Command, to: Command): Promise<void> => {
@@ -260,6 +334,82 @@ const stopGuest = async (out: string): Promise<void> => {
   rmSync(file, { force: true });
 };
 
+/** This function stops each process of a group. The group can be empty already. */
+const stopGroup = (pid: number | undefined): void => {
+  if (pid === undefined) return;
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    // the group has no process
+  }
+};
+
+/**
+ * This function operates an argv in its own process group, in a time limit. At the end, each process
+ * of the group stops. A process that keeps the output of ssh open thus does not keep ssh open.
+ */
+const runArgv = (argv: Command, limitMs: number, env: NodeJS.ProcessEnv): Promise<RunEnd> =>
+  new Promise((resolve) => {
+    const [file, ...args] = argv;
+    const child = spawn(file, args, { cwd: GUEST_WORK, env, stdio: ["ignore", "inherit", "inherit"], detached: true });
+    let limited = false;
+    let done = false;
+    const finish = (end: RunEnd): void => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      stopGroup(child.pid);
+      resolve(end);
+    };
+    // the run awaits this timer, thus it keeps the process alive
+    const timer = setTimeout(() => {
+      limited = true;
+      stopGroup(child.pid);
+    }, limitMs);
+    child.once("error", (error) => finish(startErrorOf(error)));
+    child.once("exit", (code, signal) => finish(endOf(code, signal, limited)));
+  });
+
+/** This function is the side of `run` in the guest. It installs the folder, operates the argv and writes the record. */
+const runInGuest = async (input: GuestRun): Promise<number> => {
+  mkdirSync(GUEST_OUT, { recursive: true });
+  const env: NodeJS.ProcessEnv = { ...process.env, CI: "true", VM_OUT: GUEST_OUT };
+  const started = Date.now();
+  const record = (end: RunEnd, installMs: number): number => {
+    const value: RunRecord = { ...end, argv: input.argv, kernel: release(), installMs, ms: Date.now() - started - installMs };
+    writeFileSync(join(GUEST_OUT, "run.json"), `${JSON.stringify(value, null, 2)}\n`);
+    process.stdout.write(`run: ${end.ended}, status ${end.status}, kernel ${value.kernel}\n`);
+    return end.status;
+  };
+  const install = installArgs(readdirSync(GUEST_WORK));
+  if (install !== null) {
+    const end = await runArgv(install, INSTALL_LIMIT_MS, env);
+    if (end.ended !== "exit" || end.status !== 0) return record({ ended: "install", status: end.status === 0 ? 1 : end.status }, Date.now() - started);
+  }
+  const installMs = Date.now() - started;
+  return record(await runArgv(input.argv, input.limitMs, env), installMs);
+};
+
+/**
+ * This function boots the guest, copies a folder of the runner into it and operates one argv there.
+ * The output folder of the guest comes back first, thus a failed run keeps what it wrote.
+ */
+const runCommand = async (out: string, folder: string, limitMs: number, output: string, argv: Command): Promise<number> => {
+  mkdirSync(output, { recursive: true });
+  try {
+    await startGuest(out);
+    mustRun("ssh", sshArgs(out, ["mkdir", "-p", GUEST_WORK, GUEST_OUT]));
+    // the guest installs the folder from its lockfile, thus the modules of the runner stay out
+    await pipeTo(["tar", "-C", folder, "--exclude=node_modules", "-cf", "-", "."], ["ssh", ...sshArgs(out, ["tar", "-C", GUEST_WORK, "-xf", "-"])]);
+    const input: GuestRun = { argv, limitMs };
+    const status = statusOf("ssh", sshArgs(out, ["node", "/lab/packages/harness/src/vm.ts", "guest-run"]), { input: JSON.stringify(input) });
+    await pipeTo(["ssh", ...sshArgs(out, ["tar", "-C", GUEST_OUT, "-cf", "-", "."])], ["tar", "-xf", "-", "-C", output]);
+    return status;
+  } finally {
+    await stopGuest(out);
+  }
+};
+
 /** The catalogs' bands read the HZ of the kernel that the lab operates on. */
 const runCells = (only: string, out: string, base: NodeJS.ProcessEnv): number => {
   const hz = hzOf(readFileSync(`/boot/config-${release()}`, "utf8"));
@@ -309,6 +459,14 @@ const main = async (args: readonly string[]): Promise<number> => {
     case "guest-cells": {
       const input = JSON.parse(readFileSync(0, "utf8")) as GuestCells;
       return runCells(input.only, input.out, { ...process.env, LAB_RUNNER: input.runner });
+    }
+    case "run": {
+      const [out, folder, limit, output, argv] = inputs(5) as readonly [string, string, string, string, string];
+      return runCommand(out, folder, limitOf(limit), output, argvOf(argv));
+    }
+    case "guest-run": {
+      const input = JSON.parse(readFileSync(0, "utf8")) as GuestRun;
+      return runInGuest({ argv: argvOf(JSON.stringify(input.argv)), limitMs: input.limitMs });
     }
     default:
       throw new Error(`no command ${String(command)}`);
