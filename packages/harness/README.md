@@ -249,7 +249,7 @@ console.log(used.cpu?.total, used.network?.tx.bytes, used.memory.peak, reader.se
 - **The readings of a cell** (from 0.16.16). A cell can measure the cost of its target in each run, with `runCell`:
   - `Cell.clientLimits` gives the limits of the client in each run, for example other CPUs than the target.
   - `Cell.resources` starts a reader of the target in each run, with these options. The reader stops at the end of the run.
-  - Each run then keeps `Run.resources`: a reading when the client is ready and before it sends (`start`), a reading after the run ended (`end`), and the series of the reader.
+  - Each run then keeps `Run.resources`. It has a reading when the client is ready and before it sends (`start`). It also has a reading after the run ended (`end`), and the series of the reader.
   - `environmentProblems` names each problem of the limits of the target and of the client, before a lab opens.
 
 ## The subjects
