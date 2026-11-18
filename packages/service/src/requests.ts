@@ -5,6 +5,7 @@ import type { Operation } from "./operation.ts";
 import { mayReissue } from "./operation.ts";
 import type { CompiledPattern, OperationOf } from "./routes.ts";
 import { compilePattern } from "./routes.ts";
+import { rootScope, type Scope } from "./scope.ts";
 import { untilAbort } from "./units.ts";
 
 /**
@@ -58,13 +59,22 @@ export interface RequestStream<T> extends AsyncIterable<RequestEvent<T>> {
  */
 export type RequestWork<T> = T | PromiseLike<T> | AsyncIterable<T> | PromiseLike<AsyncIterable<T>>;
 
-/** A request function does the work of one request. It receives a signal that the shutdown aborts. */
-export type RequestFn<T> = (signal: AbortSignal) => RequestWork<T>;
+/**
+ * A request function does the work of one request. It receives the signal of the request, which the shutdown
+ * aborts, and the scope of the request. The signal is the signal of the scope. The scope closes when the work ends.
+ */
+export type RequestFn<T> = (signal: AbortSignal, scope: Scope) => RequestWork<T>;
 
 /** These options go with one request. */
 export interface RequestOptions {
   /** This value goes to the function of a route pattern, for example the metadata of a procedure. */
   readonly detail?: unknown;
+  /**
+   * With this scope, the scope of the request is a `call` child of it. That parent can be the scope of an HTTP
+   * request or of a job. Without it, the request is a `request` entry with no trace and no identity. That entry
+   * is under the scope of the requests of the service.
+   */
+  readonly scope?: Scope | undefined;
 }
 
 /** A tracker admits requests, counts the requests in flight, and ends what the shutdown cuts. */
@@ -130,13 +140,17 @@ const streamOf = <T>(next: () => Promise<RequestEvent<T> | null>, stop: () => vo
 /**
  * This function makes a tracker. `refuses` gives the reason that the service refuses a new request
  * for a controller at this time, or null when it admits it. `choices` gives the function of each
- * route pattern, by controller and by pattern.
+ * route pattern, by controller and by pattern. `home` is the parent of each request without a scope
+ * of its own, and the default is a root of the tracker. `onError` receives each error of the close of
+ * the scope of a request.
  */
 export const tracker = (
   controllers: readonly Controller[],
   clock: Clock,
   refuses: (controller: string) => string | null,
   choices: ReadonlyMap<string, ReadonlyMap<string, OperationOf>> = new Map(),
+  home: Scope = rootScope({ name: "requests", kind: "service", clock }),
+  onError: (error: unknown) => void = () => {},
 ): Tracker => {
   const byName = new Map(
     controllers.map((controller) => [
@@ -178,9 +192,28 @@ export const tracker = (
   };
 
   /** This function starts the work of an admitted request, and gives its stream. */
-  const open = <T>(controller: string, operation: Operation, work: RequestFn<T>): RequestStream<T> => {
+  const open = <T>(controller: string, route: string, operation: Operation, fn: RequestFn<T>, parent: Scope | undefined): RequestStream<T> => {
     const started = clock.now();
-    const abort = new AbortController();
+    const scope = parent === undefined ? home.entry("request", route, { trace: undefined, identity: undefined }) : parent.child("call", route);
+    // the tracker aborted the request: a cut, the cooperative abort or the stop of the reader. An abort of the parent is not one
+    let aborted = false;
+    const abort = (reason: Error): void => {
+      aborted = true;
+      scope.abort(reason);
+    };
+    // the scope closes one time, when the work of the request ends
+    let closed = false;
+    const close = (): void => {
+      if (closed) return;
+      closed = true;
+      scope.close().catch((error: unknown) => {
+        try {
+          onError(error);
+        } catch {
+          // an error of the hook does not stop the tracker
+        }
+      });
+    };
     let delivered = 0;
     let end: RequestEnd | null = null;
     let ended = false;
@@ -203,10 +236,11 @@ export const tracker = (
       end = given;
       settle(flight);
       interrupt();
+      close();
     };
     /** This function ends the work after a throw: a failure after the shutdown aborted it is a cut. */
     const failed = (error: unknown): void =>
-      finish(abort.signal.aborted ? cutEnd("the shutdown aborted it, and it failed") : { kind: "failed", error, delivered });
+      finish(aborted ? cutEnd("the shutdown aborted it, and it failed") : { kind: "failed", error, delivered });
     const closeSource = (): void => {
       if (source === null || returned) return;
       returned = true;
@@ -219,11 +253,11 @@ export const tracker = (
     const flight: InFlight = {
       controller,
       cooperative: () => {
-        abort.abort(new Error("the cooperative abort of the drain"));
+        abort(new Error("the cooperative abort of the drain"));
         closeSource();
       },
       cut: (cause) => {
-        abort.abort(new Error(cause));
+        abort(new Error(cause));
         finish(cutEnd(cause));
         closeSource();
       },
@@ -236,16 +270,17 @@ export const tracker = (
       if (isAsyncIterable(result)) {
         source = (result as AsyncIterable<T>)[Symbol.asyncIterator]();
         // a stream that comes after the cooperative abort ends at once
-        if (abort.signal.aborted) closeSource();
+        if (aborted) closeSource();
       } else {
         unary = { value: result as T };
-        // the unary work has ended: its value waits for the reader
+        // the unary work has ended: its value waits for the reader, and its scope closes
         settle(flight);
+        close();
       }
     };
     let ready: Promise<void>;
     try {
-      const result = work(abort.signal);
+      const result = fn(scope.signal, scope);
       if (isAsyncIterable(result) || !isPromiseLike(result)) {
         take(result);
         ready = Promise.resolve();
@@ -280,7 +315,7 @@ export const tracker = (
             return { kind: "item", value: step.value };
           }
           // a stream that ends after the abort of the shutdown is a cut
-          finish(abort.signal.aborted ? cutEnd("the shutdown ended the stream") : { kind: "done", delivered });
+          finish(aborted ? cutEnd("the shutdown ended the stream") : { kind: "done", delivered });
         }
       }
       ended = true;
@@ -289,11 +324,12 @@ export const tracker = (
     const stop = (): void => {
       // the reader stopped before the end: the work stops too
       if (end === null) {
-        abort.abort(new Error("the reader stopped the stream"));
+        abort(new Error("the reader stopped the stream"));
         finish({ kind: "done", delivered });
         closeSource();
       }
       ended = true;
+      close();
     };
     return streamOf(next, stop);
   };
@@ -316,7 +352,7 @@ export const tracker = (
           },
         );
       }
-      return open(controller, operation, work);
+      return open(controller, route, operation, work, options.scope);
     },
     inFlight(controller) {
       let count = 0;

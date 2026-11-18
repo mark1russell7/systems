@@ -87,6 +87,50 @@ describe("the nest of the scopes", () => {
   });
 });
 
+describe("the facts of a scope", () => {
+  it("makes each fact an own read-only property of the new scope, and keeps the scope", async () => {
+    const root = service();
+    const intake = new AbortController().signal;
+    const job = root.child("phase", "work").entry("job", "j", { trace: "message", identity: undefined, facts: { intake, delivery: 2 } });
+    expect([job.intake, job.delivery]).toEqual([intake, 2]);
+    expect(Object.getOwnPropertyDescriptor(job, "delivery")).toEqual({ value: 2, enumerable: true, writable: false, configurable: false });
+    expect(() => {
+      (job as { delivery: number }).delivery = 3;
+    }).toThrow(TypeError);
+    // the scope keeps its identity: its members, its signal and its close are the members of a scope
+    expect([job.kind, job.name, job.trace, job.closed]).toEqual(["job", "j", "message", false]);
+    const closed: string[] = [];
+    job.defer(() => void closed.push("resource"));
+    await job.close();
+    expect([closed, job.closed, job.signal.aborted]).toEqual([["resource"], true, true]);
+  });
+
+  it("keeps the facts local: a child does not get them", () => {
+    const work = service().child("phase", "work", { facts: { lane: 1 } });
+    expect(work.lane).toBe(1);
+    const round = work.entry("round", "r", { trace: undefined, identity: undefined });
+    expect(Object.hasOwn(round, "lane")).toBe(false);
+    expect((round as unknown as { lane?: number }).lane).toBeUndefined();
+  });
+
+  it("refuses a fact with the name of a member of a scope, with the code fact, and makes no scope", () => {
+    const root = service();
+    for (const name of ["signal", "close", "deadline", "parent", "then"]) {
+      let thrown: unknown;
+      try {
+        root.child("phase", "p", { facts: { [name]: 1 } });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(ScopeError);
+      expect(thrown).toMatchObject({ code: "fact", message: `The fact "${name}" of the scope "p" has the name of a member of a scope.` });
+    }
+    expect(() => rootScope({ name: "r", kind: "service", clock: fakeClock(), facts: { kind: "other" } })).toThrow(ScopeError);
+    // a refused child is not a child of the parent
+    expect(root.children()).toEqual([]);
+  });
+});
+
 describe("the header timeout-ms", () => {
   it("reads a whole number of milliseconds, and nothing else", () => {
     expect(readTimeout({ "timeout-ms": "250" })).toBe(250);

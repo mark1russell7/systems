@@ -9,6 +9,7 @@ import { pushedSource } from "./http/fake-server.ts";
 import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
 import type { RequestEnd, RequestFn, Tracker } from "./requests.ts";
 import { tracker } from "./requests.ts";
+import { rootScope } from "./scope.ts";
 
 /** A held work is one unit of work that stays in flight until the test releases it. */
 export interface HeldWork {
@@ -73,13 +74,15 @@ export interface CallerView {
 /**
  * This function gives a detached lifecycle: a lifecycle with no service, for the start of a
  * transport in a test. Its state is `running`, it keeps each connection, and nothing is in flight. Each request
- * and each use of its health throws, because no service declares a route.
+ * and each use of its health throws, because no service declares a route. Its scope is a root `service` scope on
+ * the clock. Give the clock of the transport: the bounds of the units of the transport use the clock of the scope.
  */
-export const detachedLifecycle = (): Lifecycle => {
+export const detachedLifecycle = (clock: Clock = realClock): Lifecycle => {
   const none = (): never => {
     throw new Error("a detached lifecycle has no service: give the transport the lifecycle of a service");
   };
   const health = { verdict: none, probe: none, metrics: none, subscribe: none, forceFail: none, drain: none, stop: none } as Health;
+  const scope = rootScope({ name: "detached", kind: "service", clock });
   return {
     health,
     state: "running",
@@ -87,7 +90,8 @@ export const detachedLifecycle = (): Lifecycle => {
     errors: [],
     started: Promise.resolve(),
     done: new Promise<number>(() => {}),
-    signal: new AbortController().signal,
+    scope,
+    signal: scope.signal,
     shutdown: none,
     request: none,
     inFlight: () => 0,
@@ -106,7 +110,7 @@ const CALLS = { controller: "conformance", route: "call" } as const;
 const trackedLifecycle = (clock: Clock): { readonly life: Lifecycle; readonly requests: Tracker } => {
   const requests = tracker([{ name: CALLS.controller, requires: [], routes: { [CALLS.route]: { idempotent: false } } }], clock, () => null);
   const life: Lifecycle = {
-    ...detachedLifecycle(),
+    ...detachedLifecycle(clock),
     // the lifecycle owns each stream that it makes, thus the drain of the transport waits for the end of its cut
     request: (controller, route, work, options) => ownStream(requests.request(controller, route, work, options), life),
     inFlight: (controller) => requests.inFlight(controller),
@@ -252,7 +256,7 @@ export const transportConformance = (make: SubjectFactory, options: ConformanceO
       const time = timeOf();
       const subject = await make(time.clock);
       try {
-        await subject.impl.start(new AbortController().signal, subject.life ?? detachedLifecycle());
+        await subject.impl.start(new AbortController().signal, subject.life ?? detachedLifecycle(time.clock));
         await body(subject, time, title);
       } finally {
         try {

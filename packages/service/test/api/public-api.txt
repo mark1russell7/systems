@@ -125,6 +125,7 @@ type PhaseWork: build/lifecycle.d.ts#PhaseWork
 type PlatformClockOptions: @mark1russell7/algebra/clock#PlatformClockOptions (external)
 type PodTiming: build/profiles.d.ts#PodTiming
 type Poll: build/timing.d.ts#Poll
+type Principal: build/scope.d.ts#Principal
 type ProbeAnswer: build/health.d.ts#ProbeAnswer
 type ProbeKind: build/health.d.ts#ProbeKind
 type ProcessHost: build/process.d.ts#ProcessHost
@@ -183,6 +184,8 @@ STOPS: build/stops.d.ts#STOPS
 STOP_RULE: build/stops.d.ts#STOP_RULE
 type Scenario: build/lint.d.ts#Scenario
 type ScenarioValue: build/lint.d.ts#ScenarioValue
+type Scope: build/scope.d.ts#Scope
+type ScopeKind: build/scope.d.ts#ScopeKind
 type ScopedChange: build/lint.d.ts#ScopedChange
 type ServiceBuilder: build/builder.d.ts#ServiceBuilder
 type ServiceDescription: build/description.d.ts#ServiceDescription
@@ -1134,8 +1137,10 @@ export declare const service: (name: string) => ServiceBuilder;
 
 ### build/call-context.d.ts#CallContext
 export interface CallContext {
-  run<T>(headers: IncomingHeaders, trusted: boolean, fn: () => T): T;
-  headers(): Record<string, string>;
+  trace(headers: IncomingHeaders, trusted: boolean): unknown;
+  run<T>(scope: Scope, fn: () => T): T;
+  current(): Scope | undefined;
+  headers(scope?: Scope): Record<string, string>;
 }
 
 ### build/call-context.d.ts#IncomingHeaders
@@ -1504,7 +1509,7 @@ export interface TransportSubject {
 }
 
 ### build/conformance.d.ts#detachedLifecycle
-export declare const detachedLifecycle: () => Lifecycle;
+export declare const detachedLifecycle: (clock?: Clock) => Lifecycle;
 
 ### build/conformance.d.ts#transportConformance
 export declare const transportConformance: (make: SubjectFactory, options?: ConformanceOptions) => ContractCase[];
@@ -2802,7 +2807,7 @@ export interface HandleOptions<T> extends Omit<OutcomeOptions<T>, "keepAlive" | 
 export type HandledRoute = string | ((req: IncomingMessage) => string | null);
 
 ### build/http/outcome.d.ts#HandledWork
-export type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal) => RequestWork<T>;
+export type HandledWork<T> = (req: IncomingMessage, signal: AbortSignal, scope: Scope) => RequestWork<T>;
 
 ### build/http/outcome.d.ts#OutcomeOptions
 export interface OutcomeOptions<T> {
@@ -2940,9 +2945,8 @@ export interface HttpTransportOptions<S extends EdgeServer = Server> {
 }
 
 ### build/http/transport.d.ts#MountContext
-export interface MountContext {
+export interface MountContext extends Scope {
   readonly intake: AbortSignal;
-  readonly signal: AbortSignal;
   readonly life: Lifecycle | null;
   readonly retryAfter: Quantity;
   readonly keepAlive?: (() => boolean) | undefined;
@@ -3124,6 +3128,7 @@ export interface Lifecycle {
   readonly errors: readonly string[];
   readonly started: Promise<void>;
   readonly done: Promise<number>;
+  readonly scope: Scope;
   readonly signal: AbortSignal;
   shutdown(cause?: string, options?: ShutdownOptions): Promise<number>;
   request<T>(controller: string, route: string, work: RequestFn<T>, options?: RequestOptions): RequestStream<T>;
@@ -3135,11 +3140,7 @@ export interface Lifecycle {
 export type LifecycleState = "starting" | "running" | "draining" | "exited";
 
 ### build/lifecycle.d.ts#PhaseContext
-export interface PhaseContext {
-  readonly deadline: number;
-  readonly signal: AbortSignal;
-  readonly clock: Clock;
-}
+export type PhaseContext = Scope;
 
 ### build/lifecycle.d.ts#PhaseWork
 export type PhaseWork = (context: PhaseContext) => Promise<void> | void;
@@ -3147,6 +3148,7 @@ export type PhaseWork = (context: PhaseContext) => Promise<void> | void;
 ### build/lifecycle.d.ts#RunOptions
 export interface RunOptions extends StartOptions {
   readonly process?: ProcessPort | undefined;
+  readonly scope?: Scope | undefined;
   readonly uncaught?: UncaughtOptions | undefined;
 }
 
@@ -4285,8 +4287,7 @@ export declare const localDev: Profile;
 export type JobAction = "requeue" | "reject" | "ack";
 
 ### build/queue.d.ts#JobContext
-export interface JobContext {
-  readonly signal: AbortSignal;
+export interface JobContext extends Scope {
   readonly intake: AbortSignal;
   readonly delivery: number;
   readonly life: Lifecycle;
@@ -4327,6 +4328,10 @@ export interface QueueDrainOptions<J> {
   readonly clock?: Clock | undefined;
   readonly random?: (() => number) | undefined;
   readonly request?: UnitRequest<J> | undefined;
+  readonly entry?: ((job: J) => {
+    readonly trace: unknown;
+    readonly identity: Principal | undefined;
+  }) | undefined;
   readonly onError?: ((error: unknown, job: J | undefined) => void) | undefined;
 }
 
@@ -4681,11 +4686,12 @@ export type RequestEvent<T> = {
 } | RequestEnd;
 
 ### build/requests.d.ts#RequestFn
-export type RequestFn<T> = (signal: AbortSignal) => RequestWork<T>;
+export type RequestFn<T> = (signal: AbortSignal, scope: Scope) => RequestWork<T>;
 
 ### build/requests.d.ts#RequestOptions
 export interface RequestOptions {
   readonly detail?: unknown;
+  readonly scope?: Scope | undefined;
 }
 
 ### build/requests.d.ts#RequestStream
@@ -4765,9 +4771,10 @@ export declare const O10: Rule;
 export declare const O16: Rule;
 
 ### build/scope.d.ts#ChildOptions
-export interface ChildOptions {
+export interface ChildOptions<F extends object = object> {
   readonly timeout?: number | undefined;
   readonly bind?: readonly ScopeBinding[] | undefined;
+  readonly facts?: F | undefined;
 }
 
 ### build/scope.d.ts#DEADLINE
@@ -4777,7 +4784,7 @@ export declare const DEADLINE: ScopeKey<number>;
 export type EntryKind = "request" | "job" | "round";
 
 ### build/scope.d.ts#EntryOptions
-export interface EntryOptions extends ChildOptions {
+export interface EntryOptions<F extends object = object> extends ChildOptions<F> {
   readonly trace: unknown;
   readonly identity: Principal | undefined;
   readonly headers?: IncomingHeaders | undefined;
@@ -4791,7 +4798,7 @@ export interface Principal {
 }
 
 ### build/scope.d.ts#RootOptions
-export interface RootOptions extends ChildOptions {
+export interface RootOptions<F extends object = object> extends ChildOptions<F> {
   readonly name: string;
   readonly kind?: "process" | "service" | undefined;
   readonly clock?: Clock | undefined;
@@ -4816,8 +4823,8 @@ export interface Scope {
   get<T>(key: ScopeKey<T>): T | undefined;
   remaining(): number;
   children(): readonly Scope[];
-  child(kind: ScopeKind, name: string, options?: ChildOptions): Scope;
-  entry(kind: EntryKind, name: string, options: EntryOptions): Scope;
+  child<F extends object = Record<never, never>>(kind: ScopeKind, name: string, options?: ChildOptions<F>): Scope & Readonly<F>;
+  entry<F extends object = Record<never, never>>(kind: EntryKind, name: string, options: EntryOptions<F>): Scope & Readonly<F>;
   defer(close: () => void | PromiseLike<void>): void;
   use<T>(open: () => T | PromiseLike<T>, close: (value: T) => void | PromiseLike<void>): Promise<T>;
   abort(reason?: unknown): void;
@@ -4838,8 +4845,8 @@ export declare class ScopeCloseError extends AggregateError {
 ### build/scope.d.ts#ScopeError
 export declare class ScopeError extends Error {
   override readonly name = "ScopeError";
-  readonly code: "rank" | "closed";
-  constructor(code: "rank" | "closed", message: string);
+  readonly code: "rank" | "closed" | "fact";
+  constructor(code: "rank" | "closed" | "fact", message: string);
 }
 
 ### build/scope.d.ts#ScopeKey
@@ -4861,7 +4868,7 @@ export declare const bind: <T>(key: ScopeKey<T>, value: T) => ScopeBinding;
 export declare const readTimeout: (headers: IncomingHeaders | undefined) => number | undefined;
 
 ### build/scope.d.ts#rootScope
-export declare const rootScope: (options: RootOptions) => Scope;
+export declare const rootScope: <F extends object = Record<never, never>>(options: RootOptions<F>) => Scope & Readonly<F>;
 
 ### build/scope.d.ts#scopeKey
 export declare const scopeKey: <T>(name: string, meet?: (a: T, b: T) => T) => ScopeKey<T>;
@@ -5157,8 +5164,7 @@ export declare const WS_CLIENT_STARTING_MISSES = 1;
 export declare const WS_CLIENT_STARTING_POLL: Poll;
 
 ### build/worker.d.ts#IterationContext
-export interface IterationContext<S> {
-  readonly signal: AbortSignal;
+export interface IterationContext<S> extends Scope {
   readonly intake: AbortSignal;
   readonly state: S;
   readonly lane: number;

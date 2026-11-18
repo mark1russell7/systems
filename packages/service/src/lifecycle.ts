@@ -1,6 +1,6 @@
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { Cancel, Clock } from "./clock.ts";
+import type { Cancel } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { CooperativeFloor, Phase, ServiceDescription } from "./description.ts";
 import { lateHolds, ownStream, takeOutside } from "./drains.ts";
@@ -11,6 +11,7 @@ import { EXIT_SIGNALS, isExitCode, isExitSignal, matchesMessage, nodeProcess } f
 import type { RequestFn, RequestOptions, RequestStream } from "./requests.ts";
 import { tracker } from "./requests.ts";
 import type { OperationOf } from "./routes.ts";
+import { rootScope, type Scope } from "./scope.ts";
 
 /**
  * A transport is a source of work: a server, a consumer or a worker. Each has one contract. It
@@ -50,14 +51,13 @@ export interface HealthServer {
   close(): Promise<void> | void;
 }
 
-/** A phase context is what a phase gives its work: its deadline, its signal and the clock. */
-export interface PhaseContext {
-  /** This time is the end of the cap of the phase, in milliseconds on the monotonic clock. */
-  readonly deadline: number;
-  /** This signal aborts at the end of the cap of the phase. */
-  readonly signal: AbortSignal;
-  readonly clock: Clock;
-}
+/**
+ * A phase context is the scope of a phase: a `phase` child of the process scope, with the cap of the phase as
+ * its timeout. Its deadline is the end of the cap, and its signal aborts there with a `TimeoutError`. The scope
+ * closes at the end of the phase. It is a child of the process scope, because the service scope aborts after the
+ * poller stops, before the later phases.
+ */
+export type PhaseContext = Scope;
 
 /** A phase work is a step of the shutdown that an owner adds to a phase. */
 export type PhaseWork = (context: PhaseContext) => Promise<void> | void;
@@ -125,6 +125,12 @@ export interface UncaughtOptions {
 export interface RunOptions extends StartOptions {
   readonly process?: ProcessPort | undefined;
   /**
+   * This scope is the process scope: the parent of the service scope and of the scope of each phase. Its kind
+   * is `process`, and its clock is the clock of the lifecycle. Without it, the lifecycle makes a process scope
+   * with the name of the service, and closes it at the exit. The lifecycle does not close a scope of the options.
+   */
+  readonly scope?: Scope | undefined;
+  /**
    * With these options, the lifecycle adds a handler for the errors that no code caught, from its start
    * to its exit. Each error that it does not skip is an error of the lifecycle at `error`. It then
    * starts the shutdown with its exit code, as a signal does. Without them, the runtime adds no handler.
@@ -162,7 +168,12 @@ export interface Lifecycle {
   readonly started: Promise<void>;
   /** This promise gives the exit code when the shutdown ends. */
   readonly done: Promise<number>;
-  /** This signal aborts after the poller stops: the background work of the service stops with it. */
+  /**
+   * This scope is the service scope: a `service` child of the process scope. Each transport makes the scope of
+   * its work under it. It aborts after the poller stops, and it closes after the last phase.
+   */
+  readonly scope: Scope;
+  /** This signal aborts after the poller stops: the background work of the service stops with it. It is the signal of `scope`. */
   readonly signal: AbortSignal;
   /**
    * This method asks for the shutdown, as an exit signal does. A second request does not start a
@@ -259,7 +270,10 @@ export const lifecycle = (
       on,
       ...(detail === undefined ? {} : { detail }),
     });
-  const service = new AbortController();
+  // the process scope of the options, or one that the lifecycle makes and closes
+  const processScope = options.scope ?? rootScope({ name: description.name, kind: "process", clock });
+  const ownsProcess = options.scope === undefined;
+  const serviceScope = processScope.child("service", description.name);
   const errors: string[] = [];
   const exitCodes = description.shutdown.exitCodes ?? {};
   const repeatPolicy = description.shutdown.onRepeatSignal;
@@ -289,7 +303,13 @@ export const lifecycle = (
     // still route a request to it until its endpoints update
     if (state === "draining") return null;
     return runtime.verdict().controllers[controller] === true ? null : `controller ${controller} is not ready`;
-  }, components.choices);
+  }, components.choices, serviceScope.child("phase", "requests"), (error) => {
+    try {
+      options.logger?.log("error", `the close of the scope of a request threw: ${message(error)}`, { error: withStack(error) });
+    } catch {
+      // the lifecycle does not depend on its logger
+    }
+  });
 
   let finish: (code: number) => void = () => {};
   const done = new Promise<number>((resolve) => {
@@ -388,14 +408,13 @@ export const lifecycle = (
     excuse: (left: number) => string | null = () => null,
   ): Promise<{ readonly inTime: boolean; readonly excused: string | null }> => {
     const cap = valueIn(phase.cap, "ms");
-    const deadline = clock.now() + cap;
-    const capped = new AbortController();
-    const context: PhaseContext = { deadline, signal: capped.signal, clock };
+    // the phase scope is a child of the process scope: the service scope aborts after the poller stops
+    const scope = processScope.child("phase", phase.name, { timeout: cap });
     let pending = work.length;
     const all = Promise.all(
       work.map(async (each) => {
         try {
-          await each(context);
+          await each(scope);
         } catch (error) {
           fail(`the phase ${phase.name} failed: ${message(error)}`);
         } finally {
@@ -414,9 +433,27 @@ export const lifecycle = (
     // the work that is left is read at the cap, before the next phase changes it
     const excused = pending > 0 ? excuse(pending) : null;
     cancelCap();
-    capped.abort(new Error(`the phase ${phase.name} reached its cap`));
+    // at the cap, the deadline of the scope aborted its signal with a TimeoutError. Its close ends each child and resource
+    try {
+      await scope.close();
+    } catch (error) {
+      fail(`the phase ${phase.name} failed: the close of its scope threw: ${message(error)}`);
+    }
     return { inTime: pending === 0, excused };
   };
+
+  let scopesClosed: Promise<void> | null = null;
+  /** This function closes the service scope, and the process scope when the lifecycle made it, one time. Each error is an error of the lifecycle. */
+  const closeScopes = (): Promise<void> =>
+    (scopesClosed ??= (async () => {
+      for (const scope of ownsProcess ? [serviceScope, processScope] : [serviceScope]) {
+        try {
+          await scope.close();
+        } catch (error) {
+          fail(`the close of the ${scope.kind} scope threw: ${message(error)}`);
+        }
+      }
+    })());
 
   async function shutdown(cause = "the service asked for it", request: ShutdownOptions = {}): Promise<number> {
     if (request.code !== undefined && !isExitCode(request.code))
@@ -435,6 +472,7 @@ export const lifecycle = (
     if (exitState === "exited") {
       runtime.stop();
       components.stopPollers();
+      void closeScopes();
       return exitCode!;
     }
     state = "draining";
@@ -445,8 +483,8 @@ export const lifecycle = (
       drainState = to;
     };
     const abortService = (): void => {
-      if (service.signal.aborted) return;
-      service.abort(new Error("the service stopped"));
+      if (serviceScope.signal.aborted) return;
+      serviceScope.abort(new Error("the service stopped"));
       record("drain", drainState, drainState, "signal.abort");
     };
     const phases = description.shutdown.phases;
@@ -549,6 +587,8 @@ export const lifecycle = (
     runtime.stop();
     components.stopPollers();
     if (!intakeStopped) requests.stopIntake();
+    // the errors of the close of the scopes come before the exit code
+    await closeScopes();
     // a repeat signal can end the process during the sequence: then it ended already
     if (exitState === "exited") return exitCode!;
     const code = requested !== undefined && requested !== 0 ? requested : errors.length > 0 ? 1 : 0;
@@ -569,7 +609,8 @@ export const lifecycle = (
     },
     started: startup,
     done,
-    signal: service.signal,
+    scope: serviceScope,
+    signal: serviceScope.signal,
     shutdown,
     // the lifecycle owns each stream that it makes: its drain cuts the stream (SYS-29)
     request: (controller, route, work, request) => ownStream(requests.request(controller, route, work, request), life),
@@ -597,13 +638,13 @@ export const lifecycle = (
       for (const dependency of description.dependencies) {
         const handle = components.dependencies.get(dependency.name);
         if (handle === undefined) continue;
-        await handle.connect(service.signal);
+        await handle.connect(serviceScope.signal);
         connected.push([dependency.name, handle]);
         started(`dependency ${dependency.name}`);
       }
       for (const transport of description.transports) {
         const impl = components.transports.get(transport.name)!;
-        await impl.start(service.signal, life);
+        await impl.start(serviceScope.signal, life);
         startedTransports.push([transport.name, impl]);
         started(`${transport.kind} ${transport.name}`);
       }
