@@ -116,7 +116,8 @@ export const faultedLoad = (prediction: LoadPrediction, load: RunLoad): RunLoad 
  * with no band stays as it is: its decision is not `holds` in any case.
  */
 export const faulted = (cell: Cell, runs: readonly Measured[]): Measured[] => {
-  const load = cell.prediction.load;
+  // only the open-loop branch of the prediction has a load
+  const load = "load" in cell.prediction ? cell.prediction.load : undefined;
   if (load !== undefined) return runs.map((run) => (run.void === null && run.load !== undefined ? { ...run, load: faultedLoad(load, run.load) } : run));
   if (cell.prediction.detects === null) return [...runs];
   const timed = timedOf(cell);
