@@ -4,7 +4,7 @@ import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Clock } from "./clock.ts";
-import type { JobSettle, Lifecycle, QueueKnobs, ServiceBuilder } from "./index.ts";
+import type { JobContext, JobSettle, Lifecycle, QueueKnobs, ServiceBuilder } from "./index.ts";
 import { CLOSE_BOUND_RULE, UNIT_BOUND_RULE, compressionOf, lint, queueDrain, redeliverOnce, service } from "./index.ts";
 import type { Rule } from "./law.ts";
 import type { ConformanceRecord, FakeClock, HeldWork, TransportSubject } from "./testing.ts";
@@ -109,7 +109,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
           void aborted(given).then(resolve);
         }),
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect([...holds.keys()]).toEqual(["a", "b"]);
     expect(drain.inFlight()).toBe(2);
@@ -158,7 +158,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
         throw new Error(job === "poison" ? "poison" : "the job failed");
       },
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(deliveries).toEqual(["bad 1", "poison 1", "bad 2"]);
     expect(log).toEqual(["requeue bad failed", "ack poison", "reject bad: the job failed"]);
@@ -197,7 +197,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
         throw new Error("the job failed");
       },
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     // the first failure goes back one time, and the second one gets the policy of the queue
     expect(seen).toEqual([1, 2]);
@@ -227,7 +227,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
         throw new Error("the job failed");
       },
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(seen).toEqual([Number.POSITIVE_INFINITY]);
     expect(log).toEqual(["reject lost: the job failed"]);
@@ -253,7 +253,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
         throw new Error("the job failed");
       },
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(log).toEqual(["reject one: the job failed", "reject two: the job failed"]);
     expect(errors).toContain("the policy failed");
@@ -279,7 +279,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       redelivery: redeliverOnce("reject"),
       handle: () => {},
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     await drain.stopIntake();
     expect(seen.intake?.aborted).toBe(true);
@@ -310,7 +310,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       redelivery: redeliverOnce("reject"),
       handle: (job) => new Promise<void>((resolve) => holds.set(job, resolve)),
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     nexts.shift()!({ value: "a", done: false });
     await clock.advance(0);
@@ -343,7 +343,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       onError: (error, job) => void errors.push([(error as Error).message, job]),
       handle: () => {},
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(log).toEqual(["ack a", "ack b"]);
     expect(errors).toEqual([["the source of queueDrain ended while its intake was open: it takes no more jobs", undefined]]);
@@ -370,7 +370,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       onError: (error) => void errors.push((error as Error).message),
       handle: () => {},
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(log).toEqual(["ack a"]);
     expect(errors).toEqual(["the stream broke"]);
@@ -397,7 +397,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       onError: (error, job) => void errors.push([(error as Error).message, job]),
       handle: () => {},
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(3000);
     // the failures at 0 and 1 s, then a take with no job, and the next poll at 8 s
     expect(takes).toEqual([0, 1000, 3000]);
@@ -426,7 +426,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
         throw new Error("the job stopped at its abort");
       },
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     await drain.stopIntake();
     const cooperative = new AbortController();
@@ -457,7 +457,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       handle: () => new Promise<void>(() => {}),
       close: () => void log.push("close the source"),
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     let failure: unknown = null;
     void Promise.resolve(drain.close()).catch((error: unknown) => {
@@ -482,7 +482,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       redelivery: redeliverOnce("reject"),
       handle: (_job, { signal: given }) => aborted(given),
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     for (let step = 0; step < 4; step += 1) await clock.advance(0);
     expect(drain.inFlight()).toBe(12);
     await drain.close();
@@ -504,7 +504,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
       redelivery: redeliverOnce("reject"),
       handle: () => {},
     });
-    await drain.start(signal(), detachedLifecycle());
+    await drain.start(signal(), detachedLifecycle(clock));
     for (let step = 0; step < 200 && taken.length < 50; step += 1) await clock.advance(0);
     for (let step = 0; step < 5; step += 1) await clock.advance(0);
     expect(taken).toHaveLength(50);
@@ -641,6 +641,110 @@ describe("queueDrain in a service: the declaration, the law and the request trac
     expect(new Set(log)).toEqual(new Set(["requeue a unstarted"]));
     await drain.stopIntake();
     await drain.close();
+  });
+});
+
+describe("the scope of each job (SYS-134)", () => {
+  it("gives a job a scope whose deadline is its bound, aborts it there with a TimeoutError, and closes it after the handler", async () => {
+    const clock = fakeClock();
+    const { log, settle, take } = inProcess(["a"]);
+    const errors: unknown[] = [];
+    let context: JobContext | undefined;
+    let left: number | undefined;
+    const drain = queueDrain({ ...KNOBS, unit_processing_time: s(2), concurrency: count(1) }, {
+      clock,
+      source: take,
+      settle,
+      redelivery: () => "reject",
+      onError: (error) => void errors.push(error),
+      entry: (job) => ({ trace: `trace of ${job}`, identity: { id: "sender", via: "token" } }),
+      handle: async (_job, given) => {
+        context = given;
+        left = given.deadline - clock.now();
+        given.defer(() => void log.push("close the resource of the job"));
+        await aborted(given.signal);
+        throw new Error("the job stopped at its abort");
+      },
+    });
+    const life = detachedLifecycle(clock);
+    await drain.start(signal(), life);
+    await clock.advance(0);
+    expect(left).toBe(2000);
+    expect(context).toMatchObject({ kind: "job", name: "job", trace: "trace of a", identity: { id: "sender", via: "token" }, delivery: 1 });
+    expect(context?.life).toBe(life);
+    expect(context?.parent).toMatchObject({ kind: "phase", name: "queueDrain" });
+    expect(context?.parent?.parent).toBe(life.scope);
+    await clock.advance(2000);
+    const reason = context?.signal.reason as Error;
+    expect([reason.name, reason.message]).toEqual(["TimeoutError", 'The deadline of the scope "job" passed.']);
+    // the failure of the job is the reason of its scope, and the scope closed before the settle
+    expect(errors).toEqual([reason]);
+    expect(context?.closed).toBe(true);
+    expect(log).toEqual(["close the resource of the job", 'reject a: The deadline of the scope "job" passed.']);
+    await drain.stopIntake();
+    await drain.close();
+  });
+
+  it("counts a throw of the option entry as a failure of the job, and does not start the handler", async () => {
+    const clock = fakeClock();
+    const { log, settle, take } = inProcess(["a"]);
+    const errors: string[] = [];
+    let handled = 0;
+    const drain = queueDrain({ ...KNOBS, concurrency: count(1) }, {
+      clock,
+      source: take,
+      settle,
+      redelivery: () => "reject",
+      onError: (error) => void errors.push((error as Error).message),
+      entry: () => {
+        throw new Error("the headers of the message are not valid");
+      },
+      handle: () => {
+        handled += 1;
+      },
+    });
+    await drain.start(signal(), detachedLifecycle(clock));
+    await clock.advance(0);
+    expect(handled).toBe(0);
+    expect(errors).toEqual(["the headers of the message are not valid"]);
+    expect(log).toEqual(["reject a: the headers of the message are not valid"]);
+    await drain.stopIntake();
+    await drain.close();
+  });
+
+  it("nests the scopes: process, service, the work of the drain, the job, and the call of its request", async () => {
+    const clock = fakeClock();
+    const jobs = ["a"];
+    const { settle, take } = inProcess(jobs);
+    const chains: string[][] = [];
+    const drain = queueDrain(KNOBS, {
+      clock,
+      source: take,
+      settle,
+      redelivery: redeliverOnce("reject"),
+      request: { controller: "jobs", route: "RUN" },
+      handle: (_job, given) => {
+        const chain: string[] = given.children().map((child) => `${child.kind} ${child.name}`);
+        for (let at: { readonly kind: string; readonly name: string; readonly parent: unknown } | null = given; at !== null; at = at.parent as typeof at)
+          chain.unshift(`${at.kind} ${at.name}`);
+        chains.push(chain);
+      },
+    });
+    const svc = declared(service("app")).consumer("jobs", drain.knobs, drain);
+    svc.controller("jobs").route("RUN", { idempotent: true });
+    const { life, process } = await running(svc, clock);
+    await clock.advance(0);
+    expect(chains).toEqual([["process app", "service app", "phase queueDrain", "job RUN", "call RUN"]]);
+    process.signal("SIGTERM");
+    let code: number | null = null;
+    void life.done.then((given) => {
+      code = given;
+    });
+    for (let step = 0; step < 100 && code === null; step += 1) await clock.advance(500);
+    expect(code).toBe(0);
+    // the lifecycle closed its scopes at the end
+    expect(life.scope.closed).toBe(true);
+    expect(life.scope.parent?.closed).toBe(true);
   });
 });
 

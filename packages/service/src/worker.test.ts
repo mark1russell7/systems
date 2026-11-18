@@ -78,7 +78,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         return pause(clock, 3000, given);
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     expect(loop.inFlight()).toBe(0);
     await clock.advance(0);
     expect(starts).toEqual([0]);
@@ -102,7 +102,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         return calls < 3 ? "more" : undefined;
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(calls).toBe(3);
     await clock.advance(9999);
@@ -128,7 +128,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         if (starts.length <= 5) throw new Error(`failure ${starts.length}`);
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(40_000);
     // 1, 2, 4, 8 and 8 s (the cap), then a success and a sleep of 10 s
     expect(starts).toEqual([0, 1000, 3000, 7000, 15_000, 23_000, 33_000]);
@@ -148,7 +148,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         if (starts.length <= 2) throw new Error("failure");
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(5000);
     // 1 s + 0.5 s, then 2 s + 0.5 s
     expect(starts).toEqual([0, 1500, 4000]);
@@ -168,7 +168,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         if (calls === 4) throw new Error("failure");
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(calls).toBe(1);
     // a sleep without a bound waits for wake()
@@ -203,7 +203,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         calls += 1;
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(calls).toBe(1);
     expect(clock.pending).toBe(1);
@@ -227,7 +227,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         throw new Error("the iteration stopped at its abort");
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     await loop.stopIntake();
     const cooperative = new AbortController();
@@ -260,10 +260,10 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         throw new Error("aborted");
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     await clock.advance(2000);
-    expect(errors).toEqual([["the unit did not end in its unit_processing_time of 2000 ms", 1]]);
+    expect(errors).toEqual([['The deadline of the scope "lane 0" passed.', 1]]);
     // the backoff of 1 s after the failure
     await clock.advance(1000);
     expect(starts).toEqual([0, 3000]);
@@ -281,7 +281,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         if (calls === 1) await hold.promise;
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     await clock.advance(60_000);
     expect(calls).toBe(1);
@@ -311,7 +311,7 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
         });
       },
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     expect(lanes).toEqual([0, 1, 2]);
     expect(loop.inFlight()).toBe(3);
@@ -341,7 +341,7 @@ describe("workerLoop: the setup, the close and the teardown", () => {
       },
       teardown: (state) => void log.push(`teardown of ${state?.connection ?? "nothing"}`),
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     await loop.close();
     expect(log).toEqual(["setup live", "iteration on c1", "iteration ends", "teardown of c1"]);
@@ -362,7 +362,7 @@ describe("workerLoop: the setup, the close and the teardown", () => {
       iteration: () => void log.push("iteration"),
       teardown: (state) => void log.push(`teardown of ${String(state)}`),
     });
-    await expect(loop.start(signal(), detachedLifecycle())).rejects.toThrow("the connection failed");
+    await expect(loop.start(signal(), detachedLifecycle(clock))).rejects.toThrow("the connection failed");
     await loop.close();
     await clock.advance(100_000);
     expect(log).toEqual(["teardown of undefined"]);
@@ -387,7 +387,7 @@ describe("workerLoop: the setup, the close and the teardown", () => {
       iteration: () => new Promise<void>(() => {}),
       teardown: () => void log.push("teardown"),
     });
-    await loop.start(signal(), detachedLifecycle());
+    await loop.start(signal(), detachedLifecycle(clock));
     await clock.advance(0);
     let failure: unknown = null;
     void Promise.resolve(loop.close()).catch((error: unknown) => {

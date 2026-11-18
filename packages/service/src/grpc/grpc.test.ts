@@ -28,6 +28,8 @@ import {
 } from "../grpc.ts";
 import type { LifecycleEvent } from "../index.ts";
 import { replay, service } from "../index.ts";
+import type { Scope } from "../scope.ts";
+import { rootScope } from "../scope.ts";
 import { fakeClock } from "../testing.ts";
 import { SERVING_REPLY, fakeGrpcServer } from "./fake.ts";
 
@@ -711,17 +713,26 @@ describe("grpc-js on loopback: the real driver against a real server", () => {
   });
 });
 
-/** This call context gives fixed headers, and counts its reads. */
+/** This call context gives fixed headers and the scope that the test sets, and counts its reads. */
 const fixedContext = (headers: Record<string, string>) => {
   let reads = 0;
+  let active: Scope | undefined;
   const callContext: CallContext = {
-    run: (_headers, _trusted, fn) => fn(),
+    trace: () => undefined,
+    run: (_scope, fn) => fn(),
+    current: () => active,
     headers: () => {
       reads += 1;
       return { ...headers };
     },
   };
-  return { callContext, reads: () => reads };
+  return {
+    callContext,
+    reads: () => reads,
+    enter: (scope: Scope | undefined) => {
+      active = scope;
+    },
+  };
 };
 
 describe("the call context: each call gets the headers of the context of its caller in its metadata (C11)", () => {
@@ -732,5 +743,27 @@ describe("the call context: each call gets the headers of the context of its cal
     expect(await client.call(PUT, bytes("v"), { metadata: { "x-id": "1" } })).toMatchObject({ outcome: "ok" });
     expect(server.latest().calls[0]?.metadata).toEqual({ traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", authorization: "Bearer t", "x-id": "1" });
     expect(reads() - before).toBe(1);
+  });
+
+  it("bounds the deadline of a call by the deadline of the active scope, and a scope does not make it longer (SYS-134)", async () => {
+    const { callContext, enter } = fixedContext({});
+    const { client, server, clock } = await connected({}, {}, { callContext });
+    const scope = rootScope({ name: "caller", kind: "service", clock, timeout: 300 });
+    await clock.advance(100);
+    enter(scope);
+    expect(await client.call(PUT, bytes("v"))).toMatchObject({ outcome: "ok" });
+    enter(rootScope({ name: "long", kind: "service", clock, timeout: 5000 }));
+    expect(await client.call(PUT, bytes("v"))).toMatchObject({ outcome: "ok" });
+    // the first call has the 200 ms that are left in the scope, the second the 800 ms of request_timeout
+    expect(server.latest().calls.map((call) => call.timeout)).toEqual([200, 800]);
+    await clock.advance(200);
+    enter(scope);
+    expect(await client.call(PUT, bytes("v"))).toEqual({
+      outcome: "error",
+      error: "no time is left in the bound of the call: request_timeout or the deadline of the scope",
+      reply: false,
+      attempts: 1,
+    });
+    expect(server.latest().calls).toHaveLength(2);
   });
 });

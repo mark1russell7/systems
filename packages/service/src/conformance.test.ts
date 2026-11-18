@@ -272,7 +272,7 @@ const httpSubject =
       const call = pathOf(req.url) === "/call" ? calls.get(idOf(req.url)) : undefined;
       if (call === undefined) return false;
       // a function gives the route of the kit, because the route is not the method and the path of the request
-      return handle(call.controller, () => call.route, (_req, signal) => call.work(signal), call.stream ? { stream: ndjson } : {})(req, res, context);
+      return handle(call.controller, () => call.route, (_req, signal, scope) => call.work(signal, scope), call.stream ? { stream: ndjson } : {})(req, res, context);
     });
     /** This function reads what the client of a call has: a unary answer at its end, or each whole line of a stream. */
     const viewOf = (connection: FakeConnection): CallerView => {
