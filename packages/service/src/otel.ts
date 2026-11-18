@@ -5,16 +5,17 @@
 // `startNodeTelemetry()` of @mark1russell7/otel-ts/node). Before that, `traceIds` gives nothing,
 // and each entry stays as it was.
 //
-// `callContext` takes the context across the network: the HTTP transport (option `callContext`) runs each
-// handler in the context of its request, and the HTTP and gRPC clients send the headers of the active context.
-// The propagator that the program registers writes and reads the headers.
+// `callContext` takes the context across the network: the HTTP transport (option `callContext`) does each
+// handler in the scope of its request, and the HTTP and gRPC clients send the trace and the remaining time of the
+// active scope. The propagator that the program registers writes and reads the headers.
 //
 // The scope functions keep a scope of `@mark1russell7/service/scope` in the context of OpenTelemetry (SYS-134).
 // `traceOf` reads the trace of an incoming request for `entry()`, `runScope` makes a scope the active scope, and
 // `scopeHeaders` writes the trace and the remaining time of a scope for an outgoing request. The context manager
 // that the program registers keeps the scope through `await`: one store for the trace and the scope.
 
-import { type Context, context, createContextKey, isSpanContextValid, propagation, ROOT_CONTEXT, trace, type TextMapGetter } from "@opentelemetry/api";
+import { incomingContext } from "@mark1russell7/otel-ts/context";
+import { type Context, context, createContextKey, isSpanContextValid, propagation, trace } from "@opentelemetry/api";
 import type { CallContext, IncomingHeaders } from "./call-context.ts";
 import type { TraceIds } from "./logger.ts";
 import { type Scope, timeoutHeaders } from "./scope.ts";
@@ -28,40 +29,17 @@ export const traceIds = (): TraceIds | undefined => {
   return span !== undefined && isSpanContextValid(span) ? { trace_id: span.traceId, span_id: span.spanId } : undefined;
 };
 
-/** This getter reads the headers of `node:http`: the names are in lower case, and a value can be a list. */
-const incoming: TextMapGetter<IncomingHeaders> = {
-  keys: (headers) => Object.keys(headers),
-  get: (headers, key) => headers[key.toLowerCase()] as string | string[] | undefined,
-};
-
 /**
  * This function gives the trace of an incoming request: the context of the propagator that the program
  * registers, read from the headers. It starts from the root context, thus the request gets no value of the
  * context that runs the server. A request that is not trusted keeps its trace and loses its baggage.
  * Give the result to the option `trace` of `entry()`.
  *
- * The home of this function is otel-ts, the package of the context of a trace. This copy is the code that was
- * in `callContext` before, with a name and an export. Its end: a pull request to otel-ts adds the extract of an
- * incoming request with this trust rule. After its release, this export becomes a re-export of it, with no
- * break, and this copy goes.
+ * The read is `incomingContext` of otel-ts, the home of the context of a trace. A trusted request has the
+ * trust `"all"`, and another request has the trust `"trace"`. A header name in any case reads the same.
  */
-export const traceOf =(headers: IncomingHeaders, trusted: boolean): Context => {
-  const kept = trusted ? headers : Object.fromEntries(Object.entries(headers).filter(([name]) => name !== "baggage"));
-  return propagation.extract(ROOT_CONTEXT, kept, incoming);
-};
-
-/**
- * This call context uses the propagator that the program registers. An incoming call starts from the root
- * context, thus it gets no value of the context that runs the server. A call that is not trusted loses its baggage.
- */
-export const callContext: CallContext = {
-  run: (headers, trusted, fn) => context.with(traceOf(headers, trusted), fn),
-  headers: () => {
-    const headers: Record<string, string> = {};
-    propagation.inject(context.active(), headers);
-    return headers;
-  },
-};
+export const traceOf = (headers: IncomingHeaders, trusted: boolean): Context =>
+  incomingContext(headers, { trust: trusted ? "all" : "trace" });
 
 /** This key holds the active scope in the context of OpenTelemetry. */
 const SCOPE = createContextKey("@mark1russell7/service/scope");
@@ -102,8 +80,24 @@ export const runScope = <T>(scope: Scope, fn: () => T): T => context.with(contex
  * registered propagator writes it (for example `traceparent` and `baggage`), and the remaining time in
  * `timeout-ms`.
  */
-export const scopeHeaders = (scope: Scope): Record<string, string> => {
+export const scopeHeaders = (scope: Scope): Record<string, string> => ({ ...traceHeaders(contextOf(scope)), ...timeoutHeaders(scope) });
+
+/** This function gives the trace headers of a context, as the registered propagator writes them. */
+const traceHeaders = (from: Context): Record<string, string> => {
   const headers: Record<string, string> = {};
-  propagation.inject(contextOf(scope), headers);
-  return { ...headers, ...timeoutHeaders(scope) };
+  propagation.inject(from, headers);
+  return headers;
+};
+
+/**
+ * This call context uses the propagator and the context manager that the program registers. The trace of an
+ * incoming call starts from the root context, thus it gets no value of the context that runs the server. A call
+ * that is not trusted loses its baggage. The headers of an outgoing call come from its scope, or else from the
+ * active context.
+ */
+export const callContext: CallContext = {
+  trace: traceOf,
+  run: runScope,
+  current: currentScope,
+  headers: (scope) => traceHeaders(scope === undefined ? context.active() : contextOf(scope)),
 };
