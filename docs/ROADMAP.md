@@ -4094,12 +4094,12 @@ On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependen
 
 - **Status:** in progress
 - **Area:** engines
-- **Depends on:** SYS-134 (part 1)
+- **Depends on:** SYS-134
 - **Started:** 2026-11-18
 - **Shipped:**
 - **Links:**
 
-Mark asked for it on 2026-11-18. The service package has two loop cores for one idea. Other server code still starts its loops with a raw `setInterval`.
+Mark asked for it on 2026-11-18. Part 1 needs part 1 of SYS-134. The service package has two loop cores for one idea. Other server code still starts its loops with a raw `setInterval`.
 
 The gap:
 
@@ -4180,14 +4180,14 @@ The cost of the loops is a model of the capacity work: a rate of rounds times th
 
 ### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** engines
-- **Depends on:** SYS-138 (part 2), SYS-134 (part 1)
+- **Depends on:** SYS-138, SYS-134
 - **Started:**
 - **Shipped:**
 - **Links:**
 
-Mark asked for it on 2026-11-18. A package of network diagnosis becomes a part of the stack, for automatic recovery and for metrics. This item is the port of the service package. The package of network diagnosis fills it as an add-on.
+Mark asked for it on 2026-11-18. Part 1 needs part 2 of SYS-138. A package of network diagnosis becomes a part of the stack, for automatic recovery and for metrics. This item is the port of the service package. The package of network diagnosis fills it as an add-on.
 
 The gap:
 
