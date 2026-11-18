@@ -4288,7 +4288,7 @@ The cost of the loops is a model of the capacity work: a rate of rounds times th
 
 - Each metric has the attributes `loop.name`, the name of the loop, and `loop.lane`, the lane. `schedule.lanes` is fixed when the loop starts, thus `loop.lane` has a bound for each loop.
 - A duration is in seconds, with the bounds of its buckets in seconds.
-- `loop.failures`, and `loop.round.duration` of a failed round, also have `error.type`. Its value is `timeout` for a round past its timeout, `blocked` for a round that is due while its lane is busy with the overlap `fail`, and `unproved` for a round with no proof. For another failure, it is the name of the class of the error, or `_OTHER` when the round throws a value that is not an `Error`.
+- `loop.failures`, and `loop.round.duration` of a failed round, also have `error.type`. A round past its timeout gives `timeout`. A round that is due while its lane is busy with the overlap `fail` gives `blocked`. A round with no proof gives `unproved`. Another failure gives the name of the class of the error, and a thrown value that is not an `Error` gives `_OTHER`.
 - A blocked round does not start. Thus it is in `loop.failures` only: not in `loop.rounds` and not in `loop.round.duration`.
 - A round past its timeout gives the timeout as its duration. Thus a law of the round duration takes out each point with `error.type` `timeout`, or counts it as censored.
 

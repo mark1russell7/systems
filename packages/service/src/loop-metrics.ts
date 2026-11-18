@@ -25,10 +25,10 @@ export interface LoopMetrics {
 }
 
 /**
- * This function gives the value of `error.type` for a failed round. It is `timeout` for a round past its timeout,
- * `blocked` for a round that did not start because its lane was busy (the overlap `fail`), and `unproved` for a round
- * with no proof. For another failure, it is the name of the class of the error, or `_OTHER` for a thrown value that is
- * not an `Error`.
+ * This function gives the value of `error.type` for a failed round. A round past its timeout gives `timeout`. A
+ * round that did not start because its lane was busy (the overlap `fail`) gives `blocked`. A round with no proof
+ * gives `unproved`. Another failure gives the name of the class of the error, and a thrown value that is not an
+ * `Error` gives `_OTHER`.
  */
 export const loopErrorType = (end: RoundEnd): string => {
   if (end.timedOut) return "timeout";
