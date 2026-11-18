@@ -104,12 +104,12 @@ export const connectionsProblems = (connections: LoadConnections): string[] => {
 
 /**
  * This function gives the lines that end the wait of a run for the client `load` or `schedule`.
- * The client writes `done` when each stream can do no more, also after an error. A pipeline stream
- * ends with the end of its one connection. A pool or a fresh stream goes on after the end of one of
- * its connections, thus only `done` and `deadline` end its run.
+ * Without streams, the end of the one connection ends the run.
+ * With streams, the client `load` writes `done` when each stream can do no more, also after an error.
+ * The end of one connection does not end the other streams, thus only `done`, `deadline` and `fail` end the wait.
  */
 export const loadEnds = (streams: readonly LoadStream[] | undefined): readonly string[] =>
-  (streams ?? []).some((stream) => (stream.connections?.mode ?? "pipeline") !== "pipeline") ? ["done", "deadline"] : ["done", "error", "eof", "deadline"];
+  streams === undefined || streams.length === 0 ? ["done", "error", "eof", "deadline"] : ["done", "deadline", "fail"];
 
 /**
  * This function gives the schedule of each stream of a cell, and the text of the plan of the client

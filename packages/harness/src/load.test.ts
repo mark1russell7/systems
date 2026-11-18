@@ -139,14 +139,15 @@ describe("the connections of a load stream", () => {
     expect(connectionsProblems({ mode: "keep" } as unknown as LoadConnections)).toEqual(["the connections have the mode keep: the mode is pipeline, pool or fresh"]);
   });
 
-  it("ends the run of a pool or a fresh stream only at done or deadline, because one connection can end", () => {
+  it("ends the run of streams only at done, deadline or fail, because the end of one connection does not end the other streams", () => {
     const plan = { profile: constant(100, 5_000), options: { arrivals: "uniform" as const } };
     const stream = (connections?: LoadConnections) => ({ key: "a", plan, requests: ["GET / HTTP/1.1\r\n\r\n"], ...(connections === undefined ? {} : { connections }) });
-    const pipeline = ["done", "error", "eof", "deadline"];
-    expect(loadEnds(undefined)).toEqual(pipeline);
-    expect(loadEnds([stream(), stream({ mode: "pipeline" })])).toEqual(pipeline);
-    expect(loadEnds([stream(), stream({ mode: "pool", size: 4 })])).toEqual(["done", "deadline"]);
-    expect(loadEnds([stream({ mode: "fresh" })])).toEqual(["done", "deadline"]);
+    const streams = ["done", "deadline", "fail"];
+    expect(loadEnds(undefined)).toEqual(["done", "error", "eof", "deadline"]);
+    // two pipelines: an eof of one leaves the other in its schedule
+    expect(loadEnds([stream(), stream({ mode: "pipeline" })])).toEqual(streams);
+    expect(loadEnds([stream(), stream({ mode: "pool", size: 4 })])).toEqual(streams);
+    expect(loadEnds([stream({ mode: "fresh" })])).toEqual(streams);
   });
 });
 

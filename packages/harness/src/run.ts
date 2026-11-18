@@ -665,7 +665,7 @@ const once = async (
           const moved = laterMove(fabricOf().routes.slice(routesFrom), fault?.t0 ?? 0);
           heal = moved === null ? null : { t0: moved, t1: moved };
         } else if (prediction.detects === null) {
-          // a distribution: the stream ends by itself, or the connection of a pipeline does
+          // a distribution: the client ends by itself, or its one connection does when it has no streams
           const window = valueIn(prediction.window, "s") * 1_000;
           await probe.until(loadEnds(cell.probe.streams), window).catch(() => undefined);
         } else if (prediction.detects) {
