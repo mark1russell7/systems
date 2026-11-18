@@ -93,6 +93,10 @@ describe.skipIf(!RUN)("the connection modes of the client load on real container
       await probe.go();
       const end = await probe.until(["done", "deadline", "fail"], 120_000);
       const events: readonly ProbeEvent[] = probe.events;
+      // the lines of the server come through the log of its container, thus some come after the last reply
+      const servedBy = Date.now() + 15_000;
+      const servedCount = () => lab.server.slice(serverFrom).filter((line) => line.ev === "served").length;
+      while (servedCount() < STREAMS.length * ARRIVALS && Date.now() < servedBy) await new Promise((resolve) => setTimeout(resolve, 100));
       const server = lab.server.slice(serverFrom);
       const scheduled = events.find((event) => event.ev === "scheduled")?.t ?? Number.NaN;
       const measures = streamsLoadOf(events, load.streams);
