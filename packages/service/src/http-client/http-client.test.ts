@@ -7,6 +7,8 @@ import type { LifecycleEvent } from "../index.ts";
 import { replay, service } from "../index.ts";
 import { fakeClock } from "../testing.ts";
 import type { CallContext } from "../call-context.ts";
+import type { Scope } from "../scope.ts";
+import { rootScope } from "../scope.ts";
 import type { HttpClientKnobs, HttpClientOptions, HttpClientSpec } from "../http-client.ts";
 import {
   HTTP_CLIENT_MACHINE,
@@ -533,17 +535,26 @@ describe("the agent of Node on a loopback server: the driver that the entry load
   });
 });
 
-/** This call context gives fixed headers, and counts its reads. */
+/** This call context gives fixed headers and the scope that the test sets, and counts its reads. */
 const fixedContext = (headers: Record<string, string>) => {
   let reads = 0;
+  let active: Scope | undefined;
   const callContext: CallContext = {
-    run: (_headers, _trusted, fn) => fn(),
+    trace: () => undefined,
+    run: (_scope, fn) => fn(),
+    current: () => active,
     headers: () => {
       reads += 1;
       return { ...headers };
     },
   };
-  return { callContext, reads: () => reads };
+  return {
+    callContext,
+    reads: () => reads,
+    enter: (scope: Scope | undefined) => {
+      active = scope;
+    },
+  };
 };
 
 describe("the call context: each request gets the headers of the context of its caller (C11)", () => {
@@ -555,6 +566,52 @@ describe("the call context: each request gets the headers of the context of its 
     expect(server.calls.at(-1)?.headers).toEqual({ traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", "x-id": "call" });
     // one read for each call, so each try of the call sends the same headers
     expect(reads() - before).toBe(1);
+  });
+
+  it("sends the remaining time of the active scope in timeout-ms, and a header of the call stays (SYS-134)", async () => {
+    const { callContext, enter } = fixedContext({});
+    const { client, server, clock } = await connected({}, {}, { callContext });
+    enter(rootScope({ name: "caller", kind: "service", clock, timeout: 300 }));
+    await clock.advance(120);
+    await client.request({ method: "GET", path: "/a" });
+    expect(server.calls.at(-1)?.headers).toEqual({ "timeout-ms": "180" });
+    await client.request({ method: "GET", path: "/a", headers: { "timeout-ms": "50" } });
+    expect(server.calls.at(-1)?.headers).toEqual({ "timeout-ms": "50" });
+    // a scope with no deadline sends no time
+    enter(rootScope({ name: "open", kind: "service", clock }));
+    await client.request({ method: "GET", path: "/a" });
+    expect(server.calls.at(-1)?.headers).toEqual({});
+  });
+
+  it("ends the wait at the deadline of the scope when it comes before request_timeout (SYS-134)", async () => {
+    const { callContext, enter } = fixedContext({});
+    const { client, server, clock } = await connected({}, {}, { callContext });
+    server.set("frozen");
+    enter(rootScope({ name: "caller", kind: "service", clock, timeout: 300 }));
+    const pending = client.request(post);
+    await clock.advance(300);
+    expect(await pending).toEqual({ outcome: "indeterminate", error: "no whole response in the deadline of the scope: the server can have the request", attempts: 1 });
+    expect(server.open()).toEqual([]);
+  });
+
+  it("keeps request_timeout when the deadline of the scope comes after it: a scope does not make the wait longer (SYS-134)", async () => {
+    const { callContext, enter } = fixedContext({});
+    const { client, server, clock } = await connected({}, {}, { callContext });
+    server.set("frozen");
+    enter(rootScope({ name: "caller", kind: "service", clock, timeout: 60_000 }));
+    const pending = client.request(post);
+    await clock.advance(800);
+    expect(await pending).toEqual({ outcome: "indeterminate", error: "no whole response in request_timeout: the server can have the request", attempts: 1 });
+  });
+
+  it("does not send a request when the deadline of the scope passed (SYS-134)", async () => {
+    const { callContext, enter } = fixedContext({});
+    const { client, server, clock } = await connected({}, {}, { callContext });
+    enter(rootScope({ name: "caller", kind: "service", clock, timeout: 100 }));
+    await clock.advance(100);
+    const before = server.calls.length;
+    expect(await client.request(post)).toMatchObject({ outcome: "error", reply: false, error: "no time is left in the bound of the request: request_timeout or the deadline of the scope" });
+    expect(server.calls.length).toBe(before);
   });
 
   it("sends the headers of the call only, without a call context", async () => {

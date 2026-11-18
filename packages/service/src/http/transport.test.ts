@@ -10,6 +10,7 @@ import type { RequestEvent, RequestStream } from "../requests.ts";
 import { tracker } from "../requests.ts";
 import { detachedLifecycle } from "../testing.ts";
 import type { CallContext, IncomingHeaders } from "../call-context.ts";
+import type { Scope } from "../scope.ts";
 import { FakeServer } from "./fake-server.ts";
 import type { FakeAnswer } from "./fake-server.ts";
 
@@ -25,8 +26,9 @@ const started = async (knobs: HttpKnobs = KNOBS, options: Parameters<typeof http
   const server = new FakeServer();
   const clock = fakeClock();
   const transport = httpTransport(server.asServer, knobs, { listen: { port: 8080 }, clock, ...options });
-  await transport.start(new AbortController().signal, detachedLifecycle());
-  return { server, clock, transport };
+  const life = detachedLifecycle(clock);
+  await transport.start(new AbortController().signal, life);
+  return { server, clock, transport, life };
 };
 
 const turns = async (count = 4): Promise<void> => {
@@ -848,39 +850,46 @@ describe("pathOf", () => {
   });
 });
 
-describe("the call context: each handler runs in the context of its request (C11)", () => {
-  /** This call context keeps each call of run, and gives the handler the headers it ran in. */
+describe("the call context: each handler runs in the scope of its request (C11)", () => {
+  /** This call context keeps each read of a trace, and keeps the active scope of each run. */
   const recording = () => {
     const runs: Array<{ headers: IncomingHeaders; trusted: boolean }> = [];
-    let active: IncomingHeaders | undefined;
+    let active: Scope | undefined;
     const callContext: CallContext = {
-      run: (headers, trusted, fn) => {
+      trace: (headers, trusted) => {
         runs.push({ headers, trusted });
+        return { headers, trusted };
+      },
+      run: (scope, fn) => {
         const before = active;
-        active = headers;
+        active = scope;
         try {
           return fn();
         } finally {
           active = before;
         }
       },
+      current: () => active,
       headers: () => ({}),
     };
     return { runs, callContext, active: () => active };
   };
 
-  it("runs each handler in the headers of its request, and trusts no baggage by default", async () => {
+  it("runs each handler in the scope of its request, with the trace of its headers, and trusts no baggage by default", async () => {
     const { runs, callContext, active } = recording();
     const { server, transport } = await started(KNOBS, { callContext });
-    let seen: IncomingHeaders | undefined;
-    transport.mount((_req, res) => {
+    let seen: Scope | undefined;
+    let given: MountContext | undefined;
+    transport.mount((_req, res, context) => {
       seen = active();
+      given = context;
       res.end("ok");
       return true;
     });
     const headers = { traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", baggage: "tenant=acme" };
-    expect((await server.request("/a", "GET", headers)).body).toBe("ok");
-    expect(seen).toEqual(headers);
+    expect((await server.request("/a?q=1", "GET", headers)).body).toBe("ok");
+    expect(seen).toBe(given);
+    expect(seen).toMatchObject({ kind: "request", name: "GET /a", trace: { headers, trusted: false }, identity: undefined });
     expect(runs).toEqual([{ headers, trusted: false }]);
   });
 
@@ -896,11 +905,98 @@ describe("the call context: each handler runs in the context of its request (C11
     expect(runs.map((run) => run.trusted)).toEqual([true, false]);
   });
 
-  it("runs an upgrade handler in the headers of its request too", async () => {
-    const { runs, callContext } = recording();
+  it("runs an upgrade handler in a scope of its own too, and the scope closes with its socket", async () => {
+    const { runs, callContext, active } = recording();
     const { server, transport } = await started(KNOBS, { callContext });
-    transport.upgrade("/ws", (_req, socket) => socket.destroy());
+    let seen: Scope | undefined;
+    let given: Scope | undefined;
+    transport.upgrade("/ws", (_req, socket, _head, context) => {
+      seen = active();
+      given = context;
+      socket.destroy();
+    });
     server.connect().upgrade("/ws");
     expect(runs).toEqual([{ headers: { upgrade: "websocket" }, trusted: false }]);
+    expect(seen).toBe(given);
+    expect(seen).toMatchObject({ kind: "request", name: "GET /ws" });
+    await turns();
+    expect(seen?.closed).toBe(true);
+  });
+});
+
+describe("the scope of each request (SYS-134)", () => {
+  it("gives two requests of one mount two scopes, each an entry under the work scope of the transport", async () => {
+    const { server, transport, life } = await started();
+    const contexts: MountContext[] = [];
+    transport.mount((_req, res, context) => {
+      contexts.push(context);
+      res.end("ok");
+      return true;
+    });
+    await server.request("/a");
+    await server.request("/b", "POST");
+    expect(contexts).toHaveLength(2);
+    expect(contexts[0]).not.toBe(contexts[1]);
+    expect(contexts.map((context) => [context.kind, context.name])).toEqual([
+      ["request", "GET /a"],
+      ["request", "POST /b"],
+    ]);
+    const work = contexts[0]?.parent;
+    expect(contexts[1]?.parent).toBe(work);
+    expect(work).toMatchObject({ kind: "phase", name: "httpTransport" });
+    expect(work?.parent).toBe(life.scope);
+    // the facts of the transport are on each scope of a request
+    expect(contexts[0]).toMatchObject({ life, retryAfter: s(2) });
+    expect(contexts[0]?.intake.aborted).toBe(false);
+    expect(contexts[0]?.keepAlive?.()).toBe(true);
+  });
+
+  it("closes the scope of a request when its response closes, with each resource deferred on it", async () => {
+    const { server, transport } = await started();
+    const closed: string[] = [];
+    let context: MountContext | undefined;
+    transport.mount((_req, res, given) => {
+      context = given;
+      given.defer(() => void closed.push("resource"));
+      res.end("ok");
+      return true;
+    });
+    await server.request("/a");
+    await turns();
+    expect(closed).toEqual(["resource"]);
+    expect(context?.closed).toBe(true);
+    expect(context?.signal.aborted).toBe(true);
+  });
+
+  it("gives a request the deadline of its header timeout-ms", async () => {
+    const { server, transport, clock } = await started();
+    const deadlines: number[] = [];
+    transport.mount((_req, res, context) => {
+      deadlines.push(context.deadline - clock.now());
+      res.end("ok");
+      return true;
+    });
+    await server.request("/a", "GET", { "timeout-ms": "250" });
+    await server.request("/a");
+    expect(deadlines).toEqual([250, Number.POSITIVE_INFINITY]);
+  });
+
+  it("aborts the scope of each request at the cooperative abort of the drain, with its reason, and closes it at the close", async () => {
+    const { server, transport, clock } = await started();
+    let context: MountContext | undefined;
+    transport.mount((_req, _res, given) => {
+      context = given;
+      return true;
+    });
+    void server.request("/a").catch(() => {});
+    await turns();
+    const cooperative = new AbortController();
+    const drained = transport.drain(clock.now() + 1000, cooperative.signal);
+    const reason = new Error("the cooperative abort of the drain");
+    cooperative.abort(reason);
+    expect(context?.signal.reason).toBe(reason);
+    await transport.close();
+    await drained;
+    expect(context?.closed).toBe(true);
   });
 });

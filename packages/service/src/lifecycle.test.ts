@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
 import { STAGES, cooperativeAbortAt, embeddedProcess, service } from "./index.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
+import { rootScope, type Scope } from "./scope.ts";
 import { seeded } from "./testing.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
@@ -228,6 +229,67 @@ describe("the shutdown, in its declared phases (A6, A8, A9, A12, A14)", () => {
     expect(await exited(r, life)).toBe(1);
     expect(life.errors).toEqual(["the phase drain failed: the consumer could not drain"]);
     expect(r.log.some((line) => line.endsWith("close db"))).toBe(true);
+  });
+});
+
+describe("the scopes of a lifecycle (SYS-134)", () => {
+  it("starts the phase after stop the poller with a signal that is not aborted: each phase is a child of the process scope", async () => {
+    const r = rig();
+    let phase: Scope | undefined;
+    let seen: { aborted: boolean; service: boolean | undefined } | undefined;
+    let service: AbortSignal | undefined;
+    r.svc.onPhase("tear down dependencies", (context) => {
+      phase = context;
+      seen = { aborted: context.signal.aborted, service: service?.aborted };
+    });
+    const life = await run(r);
+    service = life.signal;
+    void life.shutdown();
+    expect(await exited(r, life)).toBe(0);
+    // the service scope aborted after the poller stopped, and the phase did not start aborted
+    expect(seen).toEqual({ aborted: false, service: true });
+    expect(phase).toMatchObject({ kind: "phase", name: "tear down dependencies", closed: true });
+    expect(phase?.parent).toBe(life.scope.parent);
+    expect([life.scope.kind, life.scope.name, life.scope.parent?.kind, life.scope.parent?.name]).toEqual(["service", "svc", "process", "svc"]);
+    expect(life.signal).toBe(life.scope.signal);
+    expect((life.signal.reason as Error).message).toBe("the service stopped");
+    // the lifecycle owns its default process scope: it closes both at the end
+    expect([life.scope.closed, life.scope.parent?.closed]).toEqual([true, true]);
+  });
+
+  it("aborts the work of a phase at its cap with a TimeoutError", async () => {
+    const r = rig();
+    let reason: unknown;
+    r.svc.onPhase(
+      "close transports",
+      (context) =>
+        new Promise<void>((resolve) =>
+          context.signal.addEventListener(
+            "abort",
+            () => {
+              reason = context.signal.reason;
+              resolve();
+            },
+            { once: true },
+          ),
+        ),
+    );
+    const life = await run(r);
+    void life.shutdown();
+    await exited(r, life);
+    expect(reason).toBeInstanceOf(DOMException);
+    expect([(reason as DOMException).name, (reason as DOMException).message]).toEqual(["TimeoutError", 'The deadline of the scope "close transports" passed.']);
+  });
+
+  it("puts the service scope under the process scope of the option scope, and does not close a scope it does not own", async () => {
+    const r = rig();
+    const host = rootScope({ name: "host", kind: "process", clock: r.clock });
+    const life = await run(r, () => {}, { scope: host });
+    expect(life.scope.parent).toBe(host);
+    void life.shutdown();
+    expect(await exited(r, life)).toBe(0);
+    expect([life.scope.closed, host.closed, host.signal.aborted]).toEqual([true, false, false]);
+    expect(host.children()).toEqual([]);
   });
 });
 

@@ -9,7 +9,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GRPC_CLIENT_STARTING_KNOBS, grpcClient, grpcOperations, nodeGrpc } from "./grpc.ts";
 import { HTTP_CLIENT_STARTING_KNOBS, httpClient } from "./http-client.ts";
 import { httpTransport, pathOf } from "./http.ts";
+import { realClock } from "./clock.ts";
 import { callContext } from "./otel.ts";
+import { rootScope } from "./scope.ts";
 import { detachedLifecycle } from "./testing.ts";
 
 // The propagation gate of rigor-testkit (C11): one context id goes from an HTTP client of this package to an
@@ -61,7 +63,8 @@ beforeAll(async () => {
   await transport.start(new AbortController().signal, detachedLifecycle());
 
   // A gRPC server of grpc-js. systems has no gRPC server, so the handler takes the context of the call as a
-  // service does: callContext.run with the metadata of the call.
+  // service does: a scope of the call with the trace of its metadata, and callContext.run in that scope.
+  const calls = rootScope({ name: "grpc-server", kind: "service", clock: realClock });
   const specifier = "@grpc/grpc-js";
   const grpc = (await import(specifier)) as GrpcJs;
   grpcServer = new grpc.Server();
@@ -72,9 +75,14 @@ beforeAll(async () => {
       Run: (call, callback) => {
         const headers = Object.fromEntries(Object.entries(call.metadata.getMap()).map(([name, value]) => [name, String(value)]));
         // The client is the test itself, so each call is trusted
-        void callContext.run(headers, true, async () => {
-          if (handler !== undefined) await handler();
-          callback(null, call.request);
+        const scope = calls.entry("request", GATE_METHOD, { trace: callContext.trace(headers, true), identity: undefined, headers });
+        void callContext.run(scope, async () => {
+          try {
+            if (handler !== undefined) await handler();
+            callback(null, call.request);
+          } finally {
+            await scope.close();
+          }
         });
       },
     },

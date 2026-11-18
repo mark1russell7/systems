@@ -1,6 +1,6 @@
-// The units of work of a worker loop and of a queue drain: the count of the units in flight, the
-// drain to a deadline with the cooperative abort, the sleeps on the clock, the bound of each unit,
-// and the request tracking of the service for each unit.
+// The units of work of a worker loop and of a queue drain: the scope of the work of a transport, the
+// scope of each unit, the count of the units in flight, the drain to a deadline with the cooperative
+// abort, the sleeps on the clock, the bound of each unit, and the request tracking of the service for each unit.
 
 import type { Backoff } from "./backoff.ts";
 import { backoffProblems } from "./backoff.ts";
@@ -10,6 +10,7 @@ import type { KnobRecord } from "./knobs.ts";
 import { boundedMillisecondsOf } from "./knobs.ts";
 import type { Lifecycle } from "./lifecycle.ts";
 import type { RequestEnd } from "./requests.ts";
+import type { Principal, Scope } from "./scope.ts";
 
 /**
  * A unit request names the route of each unit of work in the request tracking of the service. Then
@@ -43,37 +44,58 @@ export const causeOf = (signal: AbortSignal): string =>
   signal.reason instanceof Error ? signal.reason.message : String(signal.reason ?? "the unit got an abort");
 
 /** These are the parts of one unit of work. */
-export interface UnitRun<U> {
-  readonly clock: Clock;
-  /** This time is the bound of the unit, in milliseconds, or infinity. At it, the signal of the work aborts. */
+export interface UnitRun<U, F extends object> {
+  /** This scope is the work scope of the transport. The scope of the unit is an entry under it, and an abort of it is a cut. */
+  readonly work: Scope;
+  /** This kind is the kind of the entry: `job` for a queue drain, `round` for a worker loop. */
+  readonly kind: "job" | "round";
+  /** This name is the name of the scope of the unit. */
+  readonly name: string;
+  /** This value is the trace of the scope of the unit. */
+  readonly trace: unknown;
+  /** This principal is the identity of the scope of the unit. */
+  readonly identity: Principal | undefined;
+  /** These facts become read-only properties of the scope of the unit. */
+  readonly facts: F;
+  /** This time is the bound of the unit, in milliseconds, or infinity. It is the timeout of the scope of the unit. */
   readonly bound: number;
-  /** This controller is the abort of the transport for the unit: the cooperative abort and the close. */
-  readonly abort: AbortController;
   readonly life: Lifecycle;
   readonly request: UnitRequest<U> | undefined;
   readonly unit: U;
-  /** This function starts the work, and gives its value or a promise. */
-  readonly work: (signal: AbortSignal) => unknown;
+  /** This function receives each error of the close of the scope of the unit. It does not change the end. */
+  readonly onError: (error: unknown) => void;
+  /** This function starts the work with the scope of the unit, and gives its value or a promise. */
+  readonly handle: (scope: Scope & Readonly<F>) => unknown;
 }
 
 /**
- * This function does one unit of work, and gives its end. With a request, the unit goes through
- * `life.request`, thus the service counts it, drains it and can cut it. A throw after the abort of
- * the transport is a cut, not a failure (S6 A10). A throw after the bound is a failure.
+ * This function does one unit of work in a scope of its own, and gives its end. The scope is an entry
+ * under the work scope of the transport, with the bound as its timeout. It closes after the work, before
+ * the end goes back. With a request, the unit goes through `life.request`, thus the service counts it,
+ * drains it and can cut it. A throw after the abort of the work scope is a cut, not a failure (S6 A10). A
+ * throw after the bound is a failure, with the `TimeoutError` of the scope.
  */
-export const runUnit = async <U>(run: UnitRun<U>): Promise<UnitEnd> => {
-  const { clock, bound, abort, life, request, unit, work } = run;
-  const timeout = new AbortController();
-  // the unit awaits its bound, thus the timer keeps the process alive (SYS-126)
-  const cancel: Cancel = Number.isFinite(bound)
-    ? clock.after(bound, () => timeout.abort(new Error(`the unit did not end in its unit_processing_time of ${bound} ms`)))
-    : () => {};
-  const call = async (tracker?: AbortSignal): Promise<unknown> =>
-    work(AbortSignal.any(tracker === undefined ? [abort.signal, timeout.signal] : [abort.signal, timeout.signal, tracker]));
+export const runUnit = async <U, F extends object>(run: UnitRun<U, F>): Promise<UnitEnd> => {
+  const { work, bound, life, request, unit, handle } = run;
+  let scope: Scope & Readonly<F>;
+  try {
+    scope = work.entry<F>(run.kind, run.name, {
+      trace: run.trace,
+      identity: run.identity,
+      timeout: Number.isFinite(bound) ? bound : undefined,
+      facts: run.facts,
+    });
+  } catch (error) {
+    // a fact with the name of a member of a scope
+    return { kind: "failed", error };
+  }
+  // the timer of the scope does not keep the process alive. The unit awaits its bound, thus this timer does (SYS-126)
+  const cancel: Cancel = Number.isFinite(bound) ? work.clock.after(bound, () => {}) : () => {};
+  const call = async (): Promise<unknown> => handle(scope);
   // the transport cannot read the idempotency of the route, thus a cut of its own does not go again
   const thrown = (error: unknown): UnitEnd => {
-    if (abort.signal.aborted) return { kind: "cut", cause: causeOf(abort.signal), retryable: false };
-    if (timeout.signal.aborted) return { kind: "failed", error: timeout.signal.reason };
+    if (work.signal.aborted) return { kind: "cut", cause: causeOf(work.signal), retryable: false };
+    if (scope.signal.aborted) return { kind: "failed", error: scope.signal.reason };
     return { kind: "failed", error };
   };
   try {
@@ -88,8 +110,17 @@ export const runUnit = async <U>(run: UnitRun<U>): Promise<UnitEnd> => {
     try {
       const route = typeof request.route === "string" ? request.route : request.route(unit);
       const detail = request.detail?.(unit);
-      // the value goes in a box: a work that gives an async iterable is one value here, not a stream
-      const stream = life.request(request.controller, route, (signal) => call(signal).then((value) => ({ value })), detail === undefined ? {} : { detail });
+      // the request is a call under the scope of the unit. An abort of the tracker (a cut) goes to the scope of the unit
+      const tracked = (signal: AbortSignal): Promise<{ readonly value: unknown }> => {
+        const relay = (): void => scope.abort(signal.reason);
+        if (signal.aborted) relay();
+        else signal.addEventListener("abort", relay, { once: true });
+        // the value goes in a box: a work that gives an async iterable is one value here, not a stream
+        return call()
+          .then((value) => ({ value }))
+          .finally(() => signal.removeEventListener("abort", relay));
+      };
+      const stream = life.request(request.controller, route, tracked, detail === undefined ? { scope } : { detail, scope });
       collected = stream.collect();
     } catch (error) {
       // an undeclared route, or a lifecycle with no service
@@ -102,16 +133,32 @@ export const runUnit = async <U>(run: UnitRun<U>): Promise<UnitEnd> => {
     return { kind: "cut", cause: end.cause, retryable: end.retryable };
   } finally {
     cancel();
+    try {
+      await scope.close();
+    } catch (error) {
+      try {
+        run.onError(error);
+      } catch {
+        // an error of the hook does not change the end
+      }
+    }
   }
 };
 
-/** A flight set counts the units in flight, from their events, and drains them to a deadline. */
+/** A flight set holds the work scope of a transport, counts the units in flight, and drains them to a deadline. */
 export interface Flights {
   /** This count is the number of units in flight. */
   readonly size: number;
-  /** This method adds a unit, and gives the function that removes it. A unit after the cooperative abort gets the abort at once. */
-  add(unit: AbortController): () => void;
-  /** This method aborts each unit in flight and each later unit: the cooperative abort, or the close. */
+  /** This scope is the work scope, or null before `open()`. */
+  readonly work: Scope | null;
+  /**
+   * This method makes the work scope one time: a `phase` child of the parent, for example of the service scope.
+   * After an abort of the flight set, the work scope starts aborted.
+   */
+  open(parent: Scope, name: string): Scope;
+  /** This method adds a unit, and gives the function that removes it. */
+  add(): () => void;
+  /** This method aborts the work scope, thus each unit in flight and each later unit: the cooperative abort, or the close. */
   abort(reason: unknown): void;
   /** This method removes each unit from the count: the close cuts them. */
   clear(): void;
@@ -125,10 +172,11 @@ export interface Flights {
 
 /** This function makes a flight set on a clock. */
 export const flights = (clock: Clock): Flights => {
-  const units = new Set<AbortController>();
+  const units = new Set<object>();
   const idle = new Set<() => void>();
   const lower = new Set<() => void>();
   let aborted: { readonly reason: unknown } | null = null;
+  let work: Scope | null = null;
   const settle = (): void => {
     for (const done of [...lower]) done();
     lower.clear();
@@ -136,15 +184,24 @@ export const flights = (clock: Clock): Flights => {
   };
   const abort = (reason: unknown): void => {
     aborted ??= { reason };
-    for (const unit of [...units]) if (!unit.signal.aborted) unit.abort(aborted.reason);
+    work?.abort(aborted.reason);
   };
   return {
     get size() {
       return units.size;
     },
-    add(unit) {
+    get work() {
+      return work;
+    },
+    open(parent, name) {
+      if (work !== null) return work;
+      work = parent.child("phase", name);
+      if (aborted !== null) work.abort(aborted.reason);
+      return work;
+    },
+    add() {
+      const unit = {};
       units.add(unit);
-      if (aborted !== null && !unit.signal.aborted) unit.abort(aborted.reason);
       return () => {
         if (units.delete(unit)) settle();
       };
@@ -267,6 +324,18 @@ export const settleWithin = (clock: Clock, ms: number, work: Promise<unknown>): 
       },
     );
   });
+
+/**
+ * This function closes the work scope of a flight set in a time budget. Each scope of a unit that is open closes
+ * with it. Each error of the close goes to `report`, and a close that does not end in the budget is an error too.
+ */
+export const closeWork = async (running: Flights, clock: Clock, budget: number, owner: string, report: (error: unknown) => void): Promise<void> => {
+  const work = running.work;
+  if (work === null) return;
+  const shut = await settleWithin(clock, budget, work.close());
+  if (shut.kind === "failed") report(shut.error);
+  if (shut.kind === "bound") report(new Error(`${owner}: the close of its work scope did not end in the close_bound of ${budget} ms that was left`));
+};
 
 /**
  * This function gives the value of a promise, or `stop` when the signal aborts first. Each wait adds

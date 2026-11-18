@@ -36,6 +36,7 @@ import type { Dependency } from "../description.ts";
 import type { DependencyHandle } from "../lifecycle.ts";
 import type { Operation } from "../operation.ts";
 import type { AgentExchange, AgentFactory, HttpAgent, HttpAgentOptions, HttpResponse, HttpSocket } from "./connection.ts";
+import { timeoutHeaders } from "../scope.ts";
 import { nodeAgent } from "./connection.ts";
 import { httpClientMeetings } from "./meets.ts";
 
@@ -101,8 +102,10 @@ export interface HttpClientSpec extends ClientSpec<HttpClientKnobs> {
 /** These options make a client. Without them, it uses the agent of Node, the real clock, and a dial with `OPTIONS *`. */
 export interface HttpClientOptions extends ClientOptions<AgentFactory> {
   /**
-   * With this call context, each request gets the headers of the active context of its caller, for
-   * example `traceparent`. A header of the call with the same name stays. `callContext` of the entry `/otel` gives one.
+   * With this call context, each request gets the trace headers of the active scope of its caller, for example
+   * `traceparent`. It also gets the remaining time of the scope in `timeout-ms`. A header of the call with the
+   * same name stays. The wait of each try ends at the earlier of `request_timeout` and the deadline of the scope:
+   * a scope does not make it longer. `callContext` of the entry `/otel` gives one.
    */
   readonly callContext?: CallContext | undefined;
 }
@@ -232,14 +235,19 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
   /**
    * This function makes one try of a call. The try waits for a socket of the agent: a free one, or a
    * new one in `connect_bound`. A failure before the socket is ready is certain: the request did not
-   * leave the client. After that, the try waits for the whole response in the rest of `request_timeout`.
+   * leave the client. After that, the try waits for the whole response in the rest of `request_timeout`. The
+   * deadline of the scope of the caller, `scopeEnd` on the clock of the client, ends the wait earlier.
    */
-  const attempt = async (call: HttpCall, signal: AbortSignal | undefined): Promise<Attempt<HttpResponse>> => {
+  const attempt = async (call: HttpCall, signal: AbortSignal | undefined, scopeEnd: number): Promise<Attempt<HttpResponse>> => {
     const a = agent;
     if (a === null) return notSent(`${name} has not connected`);
     if (closing()) return notSent(`${name} is ${status}: the request did not leave the client`);
     if (signal?.aborted) return notSent("the caller aborted the request before it left the client");
     const started = clock.now();
+    // the wait of the try ends at request_timeout from its start, or earlier at the deadline of the scope
+    const end = Math.min(started + requestTimeout, scopeEnd);
+    const bounded = end < started + requestTimeout ? "the deadline of the scope" : "request_timeout";
+    if (!(end > started)) return notSent("no time is left in the bound of the request: request_timeout or the deadline of the scope");
     const body = typeof call.body === "string" ? Buffer.from(call.body, "utf8") : call.body;
     const headers = { ...call.headers, ...(body === undefined ? {} : { "content-length": String(body.byteLength) }) };
 
@@ -327,7 +335,7 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
     const abandoned = (): void => stop("the caller abandoned the request before it left the client");
     signal?.addEventListener("abort", abandoned, { once: true });
     // the caller awaits the request, thus this bound keeps the process alive (SYS-126)
-    const queued = clock.after(requestTimeout, () => stop("no socket in request_timeout: the request did not leave the client"));
+    const queued = clock.after(end - started, () => stop(`no socket in ${bounded}: the request did not leave the client`));
     waiting.add(stop);
     const got = await leaving;
     signal?.removeEventListener("abort", abandoned);
@@ -339,10 +347,10 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
     return trackWithTimer<HttpResponse>(
       flight,
       clock,
-      Math.max(0, requestTimeout - (clock.now() - started)),
+      Math.max(0, end - clock.now()),
       signal,
       "the caller abandoned the request after it left the client",
-      "no whole response in request_timeout: the server can have the request",
+      `no whole response in ${bounded}: the server can have the request`,
       (settle) => {
         deliver = settle;
         if (early !== null) settle(early.value, early.cause);
@@ -356,16 +364,23 @@ export const httpClient = (name: string, spec: HttpClientSpec, options: HttpClie
   };
 
   const request = (given: HttpCall, sendOptions: SendOptions = {}): Promise<Sent<HttpResponse>> => {
-    // the headers of the context of the caller, read now: each try of the call sends the same ones
-    const call = options.callContext === undefined ? given : { ...given, headers: { ...options.callContext.headers(), ...given.headers } };
+    // the headers of the active scope of the caller, read now: each try of the call sends the same ones
+    const context = options.callContext;
+    const scope = context?.current();
+    const call =
+      context === undefined
+        ? given
+        : { ...given, headers: { ...context.headers(scope), ...(scope === undefined ? {} : timeoutHeaders(scope)), ...given.headers } };
     const method = call.method.toUpperCase();
     const named = call.operation ?? method;
+    // the deadline of the scope on the clock of the client, read now: it bounds each try, and the second try too
+    const scopeEnd = scope === undefined ? Number.POSITIVE_INFINITY : clock.now() + Math.max(0, scope.remaining());
     return sendWithReissue({
       clock,
-      bound: requestTimeout,
+      bound: Math.min(requestTimeout, scopeEnd - clock.now()),
       operation: operations[named],
       options: sendOptions,
-      attempt: (signal) => attempt({ ...call, method }, signal),
+      attempt: (signal) => attempt({ ...call, method }, signal, scopeEnd),
       onReissue: () => record("command.reissue", status, named),
     });
   };
