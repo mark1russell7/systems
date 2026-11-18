@@ -30,6 +30,8 @@ export const TIME_ATOMS: readonly Atom[] = [
 
 /** These are the units of frequency, and the counts per time that say what they count. */
 export const FREQUENCY_ATOMS: readonly Atom[] = [
+  // the deviation of the frequency of a grid from 50 or 60 Hz is a few mHz
+  atom("mHz", "millihertz", PER_T, r("1e-3")),
   atom("Hz", "hertz", PER_T, ONE, { aliases: ["hertz"] }),
   atom("kHz", "kilohertz", PER_T, r("1e3")),
   atom("MHz", "megahertz", PER_T, r("1e6")),
@@ -41,7 +43,11 @@ export const FREQUENCY_ATOMS: readonly Atom[] = [
 export const DIMENSIONLESS_ATOMS: readonly Atom[] = [
   atom("count", "count", NONE, ONE),
   atom("%", "percent", NONE, r("0.01"), { percent: true, aliases: ["percent", "pct"] }),
+  atom("ppm", "part per million", NONE, r("1e-6"), { percent: true }),
+  atom("ppb", "part per billion", NONE, r("1e-9"), { percent: true }),
   atom("dBA", "A-weighted decibel", NONE, ONE, { log: true, aliases: ["dBASPL"] }),
+  // a level with no weighting: it converts only to itself, as dBA does
+  atom("dB", "decibel", NONE, ONE, { log: true }),
 ];
 
 /** These are the whole spellings of other systems that name units of the three tables above. */

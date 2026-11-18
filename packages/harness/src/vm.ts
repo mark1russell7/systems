@@ -122,24 +122,37 @@ export const cellsEnv = (only: string, out: string, hz: string, base: NodeJS.Pro
 /** A command with its arguments, for one side of a pipe. */
 export type Command = readonly [string, ...string[]];
 
-/** This function pipes the output of one command to the input of another. It rejects if either side fails. */
+/**
+ * This function gives the failure of one side of a pipe when it ends, or `undefined` for no failure. The pipe
+ * does not stop a child or send it a message, thus an `error` event means that the child did not start.
+ * A source that ends by SIGPIPE is not a failure, because the sink ended first and names its own failure.
+ */
+const sideEnded = (child: ChildProcess, name: string, side: "source" | "sink"): Promise<string | undefined> =>
+  new Promise((resolve) => {
+    child.once("error", (error) => resolve(`${name} did not start: ${error.message}`));
+    child.once("close", (code, signal) => {
+      if (code === 0 || (side === "source" && signal === "SIGPIPE")) resolve(undefined);
+      else resolve(code === null ? `${name} ended by ${String(signal)}` : `${name} gave status ${String(code)}`);
+    });
+  });
+
+/**
+ * This function pipes the output of one command to the input of another, as a shell pipe does. The sink
+ * reads the pipe of the source itself, and the parent keeps no end of the pipe. Thus a sink that ends early
+ * stops the source with SIGPIPE, as in a shell. The promise settles after both commands end, thus no
+ * process stays after it. It rejects with each failure, also a failure of the source, which a shell pipe
+ * does not say.
+ */
 export const pipeTo = async (from: Command, to: Command): Promise<void> => {
   const [fromFile, ...fromArgs] = from;
   const [toFile, ...toArgs] = to;
   const source = spawn(fromFile, fromArgs, { stdio: ["ignore", "pipe", "inherit"] });
-  const sink = spawn(toFile, toArgs, { stdio: ["pipe", "inherit", "inherit"] });
-  source.stdout.pipe(sink.stdin);
-  // a sink that stops early gives this error, and the status of the sink names the failure
-  sink.stdin.on("error", () => undefined);
-  const ended = (child: ChildProcess, name: string): Promise<void> =>
-    new Promise((resolve, reject) => {
-      child.once("error", reject);
-      child.once("close", (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`${name} gave status ${String(code)}`));
-      });
-    });
-  await Promise.all([ended(source, fromFile), ended(sink, toFile)]);
+  const sink = spawn(toFile, toArgs, { stdio: [source.stdout, "inherit", "inherit"] });
+  // the sink has its own copy of the read end: the copy of the parent keeps the pipe open after the sink ends
+  source.stdout.destroy();
+  const failures = await Promise.all([sideEnded(source, fromFile, "source"), sideEnded(sink, toFile, "sink")]);
+  const failed = failures.filter((failure) => failure !== undefined);
+  if (failed.length > 0) throw new Error(failed.join(", and "));
 };
 
 interface StepOptions {
