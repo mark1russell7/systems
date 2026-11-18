@@ -1,13 +1,14 @@
 // @mark1russell7/service/channel: channels in the style of Go, on the clock of the service. It
-// imports only ./clock.ts and @mark1russell7/collections: no `node:` module and no zod. Thus a
-// client in a browser can use it, as it uses ./clock.
+// imports only ./clock.ts, the kernel of the loop core and @mark1russell7/collections: no `node:`
+// module, no zod and no quantity. Thus a client in a browser can use it, as it uses ./clock.
 //
 // The code came from @mark1russell7/collections 0.7 (the review of its API, C12, S2). The changes:
 // `timeout` and `ticker` take a clock, `ticker` does not drift, the functions that start work give
 // each failure to `onError` and write nothing to the console, and `fanIn` and `merge` take an array.
 
 import { asyncQueue, type AsyncQueue } from "@mark1russell7/collections";
-import { realClock, type Cancel, type Clock } from "./clock.ts";
+import { realClock, type Clock } from "./clock.ts";
+import { runLoop } from "./loop-kernel.ts";
 
 /** This function gets a failure of the work that a function of this entry started. */
 export type ErrorHandler = (error: unknown) => void;
@@ -273,24 +274,27 @@ export type Ticker = Channel<number> & { readonly stop: () => void };
  * comes due at start + (k + 1) * ms, so the ticks do not drift. A late timer gives the number of
  * the last tick that came due, and skips the ticks that it missed. The buffer has 1 value: a slow
  * receiver loses ticks, as with the ticker of Go.
+ *
+ * Each tick is a round of the loop core, from `start` with the overlap `skip`.
  */
 export const ticker = (ms: number, clock: Clock = realClock): Ticker => {
   if (!(Number.isFinite(ms) && ms > 0)) throw new RangeError(`The period of a ticker is a finite number above 0, not ${ms}`);
   const ch = new Channel<number>(1);
   const start = clock.now();
-  let cancel: Cancel | undefined;
-  const arm = (tick: number): void => {
+  const ticks = runLoop(
     // a ticker keeps the process alive until its caller stops it, as with setInterval (SYS-126)
-    cancel = clock.after(Math.max(0, start + (tick + 1) * ms - clock.now()), () => {
-      const due = Math.max(tick, Math.floor((clock.now() - start) / ms) - 1);
-      ch.trySend(due);
-      arm(due + 1);
-    });
-  };
-  arm(0);
+    { from: "start", period: ms, jitter: 0, first: ms, timeout: Number.POSITIVE_INFINITY, backoff: null, overlap: "skip", lanes: 1, budget: null, hold: true, stable: null },
+    ({ planned }) => {
+      // the round of tick k is planned at start + (k + 1) * ms. A late round gives the last tick that came due
+      const tick = Math.round((planned - start) / ms) - 1;
+      ch.trySend(Math.max(tick, Math.floor((clock.now() - start) / ms) - 1));
+    },
+    { name: "ticker", clock },
+  );
+  ticks.start();
   return Object.assign(ch, {
     stop: () => {
-      cancel?.();
+      void ticks.stop().catch(() => undefined);
       ch.close();
     },
   });
