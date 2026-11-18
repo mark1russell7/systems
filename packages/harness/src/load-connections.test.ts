@@ -20,8 +20,9 @@ const NODE = "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c
 
 /**
  * A server that answers `/wait/<ms>/<key>/<i>` after `ms`. It numbers each connection. For each
- * reply, it writes the stream, the arrival, the connection and the start of the request. It also
- * writes the count of requests of that connection in its handlers at the start (`inflight`).
+ * reply, it writes the stream, the arrival, the connection, the start of the request and the time
+ * before the write of the reply (`end`). It also writes the count of requests of that connection in
+ * its handlers at the start (`inflight`).
  */
 const SERVER = [
   'import http from "node:http";',
@@ -36,7 +37,8 @@ const SERVER = [
   '  const [, , ms, k, i] = req.url.split("/");',
   "  setTimeout(() => {",
   "    socket.inflight -= 1;",
-  '    res.on("finish", () => emit("served", { k, i: Number(i), conn: socket.conn, inflight, start }));',
+  "    const end = Number(process.hrtime.bigint());",
+  '    res.on("finish", () => emit("served", { k, i: Number(i), conn: socket.conn, inflight, start, end }));',
   '    res.end("ok");',
   "  }, Number(ms));",
   "});",
@@ -169,7 +171,8 @@ describe.skipIf(!RUN)("the connection modes of the client load on real container
         const send = events.find((one) => one.ev === "sent" && one["k"] === event["k"] && one["i"] === event["i"]);
         if (line === undefined || send === undefined) throw new Error(`no send or no served line for ${String(event["k"])} ${String(event["i"])}`);
         expect(Number(line["start"])).toBeGreaterThanOrEqual(send.t);
-        expect(line.t).toBeLessThanOrEqual(event.t);
+        // the stamp comes before the write of the reply: the finish event can come after the read of the client
+        expect(Number(line["end"])).toBeLessThanOrEqual(event.t);
       }
 
       // a pipeline: one connection. Node runs the handlers of pipelined requests at once and keeps only the
