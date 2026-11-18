@@ -73,6 +73,14 @@ export interface UnitSystem {
   readonly convertible: (from: string, to: string) => boolean;
   /** This function converts a value in one unit, exactly, into another unit. */
   readonly convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+  /**
+   * This function gives the canonical spelling of the product of two units. The exponents of one
+   * factor add, and a factor with the exponent 0 cancels: `{request}/s` times `{core}·ms/{request}`
+   * is `{core}·ms/s`. A factor does not cancel a different atom: `ms/s` stays.
+   */
+  readonly multiplyUnits: (a: string, b: string) => string;
+  /** This function gives the canonical spelling of the quotient of two units: `a` divided by `b`, as `multiplyUnits` does. */
+  readonly divideUnits: (a: string, b: string) => string;
 }
 
 export const sameVector = (a: Vector, b: Vector): boolean =>
@@ -337,6 +345,51 @@ export const unitSystem = (
     return sub(div(base, factorOn(b, on)), b.offset ?? ZERO);
   };
 
+  /**
+   * This function joins the factors of `a` and of `b` to the power `sign`. The factors keep their
+   * order: the factors of `a`, then the new factors of `b`. Thus the product of two units is the same
+   * amount in each order, and its spelling can change with the order.
+   */
+  const productOf = (from: string, by: string, sign: 1 | -1): string => {
+    const what = `${sign === 1 ? "the product" : "the quotient"} of ${from} and ${by}`;
+    const a = parseUnit(from);
+    const b = parseUnit(by);
+    for (const unit of [a, b]) {
+      if (unit.offset !== undefined) {
+        throw new UnitError(`${what}: ${unit.symbol} alone is an absolute temperature, and it has no product`);
+      }
+    }
+    const order: string[] = [];
+    const factors = new Map<string, Component>();
+    const join = (component: Component, power: number): void => {
+      const key = JSON.stringify([component.atom?.symbol ?? null, component.annotation ?? null]);
+      const held = factors.get(key);
+      if (held === undefined) order.push(key);
+      factors.set(key, { ...component, exponent: (held?.exponent ?? 0) + power * component.exponent });
+    };
+    for (const component of a.components) join(component, 1);
+    for (const component of b.components) join(component, sign);
+    const kept = order.flatMap((key) => {
+      const component = factors.get(key);
+      return component === undefined || component.exponent === 0 ? [] : [component];
+    });
+    if (kept.length === 0) {
+      const count = lookupAtom("count");
+      if (count === undefined) throw new UnitError(`${what}: each factor cancels, and the table has no unit count`);
+      return count.symbol;
+    }
+    const [lone] = kept;
+    if (kept.length === 1 && lone?.atom?.offset !== undefined && lone.exponent === 1 && lone.annotation === undefined) {
+      // a compound of degC is a difference of temperatures, and degC alone is an absolute temperature
+      throw new UnitError(`${what}: it leaves ${lone.atom.symbol} alone, and ${lone.atom.symbol} alone is an absolute temperature`);
+    }
+    const top = kept.filter((component) => component.exponent > 0).map(spell);
+    const bottom = kept.filter((component) => component.exponent < 0).map(spell);
+    const spelling =
+      bottom.length === 0 ? top.join("·") : `${top.join("·")}/${bottom.length > 1 ? `(${bottom.join("·")})` : bottom.join("")}`;
+    return parseUnit(spelling).symbol;
+  };
+
   return {
     atoms,
     atomBySymbol,
@@ -348,6 +401,8 @@ export const unitSystem = (
     kindOf: (spelling) => parseUnit(spelling).kind,
     whyNotConvertible,
     convertible: (from, to) => whyNotConvertible(from, to) === undefined,
+    multiplyUnits: (a, b) => productOf(a, b, 1),
+    divideUnits: (a, b) => productOf(a, b, -1),
     convertExact,
   };
 };
