@@ -3,8 +3,9 @@ import { fromDecimal } from "@mark1russell7/rational";
 
 /**
  * These are the base dimensions. A dimension is an exponent vector over them, as in SI, with two
- * more: data (the bit) and money (one currency). A second currency is a second base, because
- * currencies have no fixed rate. Counts and ratios have no dimension, thus a duration times a
+ * more: data (the bit) and money. Each currency is money with a name of its own (`Atom.apart`),
+ * because currencies have no fixed rate. Thus a price in EUR is money, and it does not convert to
+ * USD. Counts and ratios have no dimension, thus a duration times a
  * count is still a duration. The electric current (the ampere) is the last base, thus a volt is
  * a watt per ampere.
  */
@@ -97,6 +98,12 @@ export interface Atom {
   readonly log?: true;
   /** This name is what it counts, when it is a count of something: a GT is 10⁹ transfers, a bpm counts beats. */
   readonly counts?: string;
+  /**
+   * This name keeps the atom apart from the atoms of the same vector that do not have it. A sievert is a
+   * weighted dose, thus it is not a gray. Each currency has its own name, because currencies have no fixed
+   * rate. A steradian is apart from a plain ratio.
+   */
+  readonly apart?: string;
   /** A percentage makes a unit with no dimension a ratio. */
   readonly percent?: true;
   /** Its size changes with the system that it measures: a jiffy is 1/HZ seconds. */
