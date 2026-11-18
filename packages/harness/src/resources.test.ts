@@ -3,6 +3,7 @@ import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { valueIn } from "@mark1russell7/quantity";
 import { constant } from "@mark1russell7/rigor-chaos";
+import { median } from "@mark1russell7/rigor-statistics";
 import { describe, expect, it } from "vitest";
 import type { ContainerLimits, ProbeEvent, Target } from "./cell.ts";
 import { openLab, withLimits } from "./lab.ts";
@@ -430,8 +431,6 @@ const seen = async <T>(look: () => T | undefined, within: number, what: string):
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 };
-
-const median = (values: readonly number[]): number => [...values].sort((one, other) => one - other)[Math.floor(values.length / 2)] ?? Number.NaN;
 
 describe.skipIf(!RUN)("the resources of real containers (HARNESS_RESOURCES=1)", () => {
   it("reads the CPU time, the memory and the traffic of a target under its limits, and other values for the client", async () => {
