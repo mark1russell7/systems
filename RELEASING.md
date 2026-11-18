@@ -9,10 +9,9 @@ The workflow `.github/workflows/release.yml` publishes the packages of this repo
 | Job | What it uses |
 |---|---|
 | `verify` | The `ci.yml` of the repository. |
-| `build` | `reusable-release-build.yml` of the template, with `scripts/release/pack.mjs` and `scripts/release/tags.mjs` of the repository. Its input `after-pack` starts the smoke test `scripts/smoke.mjs`. |
+| `build` | `reusable-release-build.yml` of the template. It uses `scripts/release/pack.ts` and `scripts/release/tags.ts` of the template, so this repository has no copy of them. Its input `after-pack` starts the smoke test `scripts/smoke.mjs`. |
 | `publish` | A job of `release.yml`. Its step is the action `npm-publish` of the template, with `new-packages: warning`. |
-
-This repository has no job `tag` ("Git tags and GitHub releases").
+| `tag` | `reusable-release-tag.yml` of the template ("Git tags and GitHub releases"). |
 
 The job `publish` stays in `release.yml`. The trusted publisher of each package names this repository and `release.yml`. A composite action operates in the job that uses it, so npm sees the same workflow as before. The [`CI.md` of the template](https://github.com/mark1russell7/template/blob/main/CI.md) tells the reasons.
 
@@ -60,9 +59,13 @@ A release publishes only a commit that is on `main`. The first step of the build
 
 ## Git tags and GitHub releases
 
-This repository makes no git tags and no GitHub releases. Its `release.yml` has no job `tag`.
+The job `tag` makes a git tag and a GitHub release for each version that the job `publish` published. The build job writes the plan of the tags (`scripts/release/tags.ts` of the template). The job `tag` uses `gh` to make each tag on GitHub from that plan. It operates no code of the repository. Only this job has the permission `contents: write`.
 
-The build job writes the plan of the tags (`scripts/release/tags.mjs`). Thus the job `tag` of the template can come later. The `release.yml` of the template shows that job.
+The job `tag` also operates after a failed publish, for each version that the publish made before the failure.
+
+The versions before this job have no tag. The release session adds their tags one time with `release-train tags --write`.
+
+Do not change a workflow file between the merge of a version and its job `tag`. Then GitHub refuses the tag (HTTP 403).
 
 ## A new package
 

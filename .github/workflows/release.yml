@@ -3,14 +3,16 @@
 #
 #   verify    The gates of ci.yml.
 #   build     reusable-release-build.yml of the template: stops when the commit is not on main,
-#             builds and packs each published package (scripts/release/pack.mjs), and tests the
+#             builds and packs each published package (scripts/release/pack.ts of the template), writes
+#             the plan of the tags (scripts/release/tags.ts of the template), and tests the
 #             tarballs as an application installs them (scripts/smoke.mjs, the input after-pack).
 #   publish   The npm-publish action of the template: publishes each tarball whose version npm does
 #             not have. Only this job holds "id-token: write", and it runs no code of the
 #             repository: no checkout, no install, no build.
 #
-# This repository makes no git tags and no GitHub releases: this file has no tag job. The build job
-# still writes the plan of the tags (scripts/release/tags.mjs), so a tag job can come later.
+#   tag       reusable-release-tag.yml of the template: a git tag and a GitHub release for each
+#             version that the publish job published, from the plan of the build job. Only this
+#             job holds "contents: write", and it runs no code of the repository.
 #
 # The publish job stays in this file. Only its steps are shared (the npm-publish action). npm
 # trusted publishing matches the OIDC token of the run to the trusted publisher of each package:
@@ -83,3 +85,14 @@ jobs:
         with:
           # A package that is not on npm gets a warning, and the run does not fail.
           new-packages: warning
+
+  tag:
+    name: Git tag and GitHub release
+    needs: [build, publish]
+    # Also after a failed publish: each version that it published before the failure gets its tag.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+    permissions:
+      contents: write
+    with:
+      published: ${{ needs.publish.outputs.published }}
