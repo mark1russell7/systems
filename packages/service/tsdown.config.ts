@@ -11,7 +11,7 @@ export default defineConfig({
   // the HTTP client, which loads node:http only when it connects, the WebSocket client, which loads ws
   // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod, the channels on the clock, which load only collections,
   // the edge of a service in Node (node:http and node:net only), the files of a folder for that edge (node:fs, node:path and files), the keyed limiter, which loads only quantity,
-  // the drain rules as data, which load no module, the host of a program in Node, which uses only node: built-ins, the trace ids, which load only @opentelemetry/api and the context entry of otel-ts, and the scopes, which load only the clock
+  // the drain rules as data, which load no module, the host of a program in Node, which uses only node: built-ins, the trace ids, which load only @opentelemetry/api and the context entry of otel-ts, the scopes, which load only the clock, and the loop core, which loads only quantity and the clock
   entry: [
     "src/index.ts",
     "src/testing.ts",
@@ -33,6 +33,7 @@ export default defineConfig({
     "src/host.ts",
     "src/otel.ts",
     "src/scope.ts",
+    "src/loop.ts",
   ],
   // Each module of src/ is a file of build/. A bundle of a caller then drops each module that it
   // does not import. A shared chunk joins modules into one file, and the bundle keeps all of it.
