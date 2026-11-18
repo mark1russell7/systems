@@ -102,6 +102,12 @@ describe("the workflow Cells", () => {
     expect(workflow).toContain(`''|${names.join("|")}|refresh-[0-${ROUNDS - 1}]) ;;`);
   });
 
+  it("checks a dispatch of the selection night or drills as it checks the schedule of that selection", () => {
+    // a dispatch of a scheduled selection is that schedule by hand: a green run with no check proves nothing
+    expect(workflow).toContain("|| ((inputs.only == '^WS' || inputs.selection == 'night') && inputs.shards == '4') }}");
+    expect(workflow).toContain("|| ((inputs.only == '^RD[.]' || inputs.selection == 'drills') && inputs.shards == '1') }}");
+  });
+
   it("names the runs of the measured seconds", () => {
     expect(cost.runs.length).toBeGreaterThan(0);
     expect(Object.keys(cost.seconds).length).toBeGreaterThan(0);

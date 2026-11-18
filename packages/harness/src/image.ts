@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
@@ -7,7 +8,7 @@ import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import type { BuildImage, Client, ClientImage, ImageSource, Shipped, ShippedImage, Subject, Target } from "./cell.ts";
-import { LOCK_NAMES, locksOf, versionsOf, type ContextFile } from "./locks.ts";
+import { LOCK_NAMES, locksOf, npmDrift, versionsOf, type ContextFile } from "./locks.ts";
 
 /** These are the manifests of packages that `versionsOf` reads beside the lockfiles. */
 const READ_FOR_VERSIONS: ReadonlySet<string> = new Set(["package.json", "Cargo.toml"]);
@@ -83,6 +84,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   pgpool: { name: "loom-harness-pgpool", dockerfile: "harness/image/pgpool/Dockerfile", from: ["harness/image/pgpool"] },
   // docker-proxy of Docker Engine 29.1.5, a proxy hop: its binary from the static bundle of Docker, by its SHA-256
   "docker-proxy": { name: "loom-harness-docker-proxy", dockerfile: "harness/image/docker-proxy/Dockerfile", from: ["harness/image/docker-proxy"] },
+  // LazyFS of the commit 3edad01 on Node.js 24.21.0, the disk tier: each source by its SHA-256
+  lazyfs: { name: "loom-harness-lazyfs", dockerfile: "harness/image/lazyfs/Dockerfile", from: ["harness/image/lazyfs"] },
 };
 
 /** These are the names of the images that the harness ships. */
@@ -248,6 +251,26 @@ export const unlockedManifests = (paths: readonly string[]): string[] => {
   });
 };
 
+/** These are the npm lockfiles of a package.json in its folder, in the order of npm. The harness copies `npm-lock.json` to `package-lock.json` in a Dockerfile. */
+const NPM_LOCKS = ["npm-shrinkwrap.json", "package-lock.json", "npm-lock.json"] as const;
+
+/**
+ * This function gives a line for each package.json of a context that the npm lockfile in its folder
+ * does not satisfy (`npmDrift`). `npm ci` refuses such a pair in the build. A lockfile in a folder
+ * above, as of a workspace, is not read here.
+ */
+const driftedManifests = (files: ReadonlyArray<{ readonly file: string; readonly at: string }>): string[] => {
+  const byPath = new Map(files.map((each) => [each.at, each.file]));
+  return files.flatMap(({ file, at }) => {
+    if (posix.basename(at) !== "package.json") return [];
+    const folder = posix.dirname(at);
+    const lockAt = NPM_LOCKS.map((name) => (folder === "." ? name : `${folder}/${name}`)).find((path) => byPath.has(path));
+    if (lockAt === undefined) return [];
+    const lines = npmDrift(readFileSync(file, "utf8"), readFileSync(byPath.get(lockAt)!, "utf8"));
+    return lines.length === 0 ? [] : [`${at} and ${lockAt} do not agree (${lines.join(", ")}): make the lock again with npm install --package-lock-only`];
+  });
+};
+
 /**
  * An image plan tells how the harness gets the image of a source. It is a pull of an image by its
  * name, or a build of a context. A build has its tag, its Dockerfile, and each file with its path.
@@ -279,8 +302,11 @@ export interface BuildRecord {
   readonly versions: Readonly<Record<string, string>>;
 }
 
-/** This function gives each file under a path, in a stable sequence, but not the output of a local build. */
-const sources = (path: string): string[] => {
+/**
+ * This function gives each file under a path, in a stable sequence, but not the output of a local build. The disk
+ * tier uses it for the digest of a subject folder (`openDiskLab`). The index does not export it.
+ */
+export const sources = (path: string): string[] => {
   if (statSync(path).isFile()) return [path];
   return readdirSync(path, { withFileTypes: true })
     .filter((entry) => entry.name !== "target" && entry.name !== "node_modules")
@@ -321,7 +347,8 @@ const shippedPlans = new Map<Shipped, ImagePlan>();
  * Thus a changed program cannot operate as an old one.
  *
  * A build fails before it starts on a problem of its source. It also fails on a `FROM` that no
- * digest pins, and on a manifest of packages without a lockfile.
+ * digest pins, and on a manifest of packages without a lockfile. A package.json that the npm
+ * lockfile in its folder does not satisfy also stops it.
  */
 export const planOf = (source: string | ImageSource): ImagePlan => {
   if (typeof source === "string") return { kind: "pull", image: source };
@@ -339,11 +366,13 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
   const bases = basesOf(readFileSync(docker.file, "utf8"));
   const unpinned = bases.filter((image) => !PINNED.test(image));
   const unlocked = unlockedManifests(files.map((each) => each.at));
-  if (unpinned.length > 0 || unlocked.length > 0)
+  const drifted = driftedManifests(files);
+  if (unpinned.length > 0 || unlocked.length > 0 || drifted.length > 0)
     throw new Error(
       `${labelOf(source)}: ${[
         ...unpinned.map((image) => `the base ${image} is not pinned by digest`),
         ...unlocked.map((path) => `${path} has no lockfile`),
+        ...drifted,
       ].join(", ")}`,
     );
   const hash = createHash("sha256");
@@ -431,7 +460,7 @@ export const buildOnce = (
             const wait = waits[attempt];
             if (wait === undefined) throw error;
             process.stderr.write(`the build of ${plan.tag} failed (${error instanceof Error ? error.message : String(error)}): try ${attempt + 2} after ${wait} ms\n`);
-            await new Promise((resolve) => setTimeout(resolve, wait));
+            await sleep(wait);
           }
         }
       } finally {

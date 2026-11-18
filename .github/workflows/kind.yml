@@ -1,35 +1,39 @@
-# Runs the kind catalogs, T07, T15 and T18, on GitHub's runners. Each shard gets a runner of its own,
-# and each job makes its own kind clusters with the pinned kind and node image, then deletes them.
+# Runs the kind catalogs, T07, T15 and T18, on GitHub's runners. Each shard gets a runner of its own.
+# Each job makes its own kind clusters with the pinned kind and node image, then deletes them.
 # A cell of T15 gets Istio 1.31.3 in its cluster, from the pinned istioctl and images pinned by digest.
 #
-#   plan    The shards: the input for a dispatch, one for a pull request.
+#   plan    Gives the shards: the input of a dispatch that names its cells, or one.
 #   kind    Writes what the runner is, and which kube-proxy modes its kernel can do. Then it runs
-#           the cells whose names match `only` (KIND_LAB=1), a shard on each runner, and uploads each
-#           raw record and summary.ndjson as an artifact. A cell of a mode that the kernel cannot do
-#           waits, with its reason in summary.ndjson. An ambient cell waits the same way when a
+#           the cells whose names match `only` (KIND_LAB=1), a shard on each runner. It uploads each
+#           raw record and `summary.ndjson` as an artifact. A cell of a mode that the kernel cannot
+#           do waits, with its reason in `summary.ndjson`. An ambient cell waits the same way when a
 #           module of istio-cni does not load.
-#   capture Makes a cluster with the dataplane cilium, and dumps the services of the agent of each
-#           node in three states of the backends (src/cilium.capture.test.ts). It uploads the dump as
-#           the artifact cilium-capture. It starts on a pull request, and on a dispatch with capture=true.
+#   capture Makes a cluster with the dataplane cilium. It dumps the services of the agent of each
+#           node in three states of the backends. The test is `src/cilium.capture.test.ts`, and the
+#           dump is the artifact cilium-capture. It starts on a pull request, on a dispatch with no
+#           only, and on a dispatch with capture=true.
 #
-# Start it with: gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10
+# Start it with `gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10`.
 # The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
 # A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
+# A dispatch with no only is the gate of a pull request: the same smoke on one shard, and the capture.
+# The queue starts this dispatch on each pull request that is behind main (SYS-118).
+# To run each cell of the catalogs, give -f only=. by name.
 #
 # The step The cells stops after `minutes` (36 by default), approximately 3 times the 12 min of a
 # shard of the backlog cells. Thus a shard that does not end fails fast, and the job still uploads
 # its records. A dispatch of a long catalog sets a larger bound, for example -f minutes=300.
 #
-# A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at about 1.2 GB
-# and a quarter of a CPU, thus each job makes one cluster at a time.
+# A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at approximately
+# 1.2 GB and a quarter of a CPU. Thus each job makes one cluster at a time.
 name: Kind
 
 on:
   workflow_dispatch:
     inputs:
       only:
-        description: A regular expression of the cell names to run
-        default: "."
+        description: A regular expression of the cell names to run (. for each cell, empty for the gate of a pull request)
+        default: ""
       shards:
         description: How many runners share the cells (1 to 20)
         default: "10"
@@ -45,6 +49,9 @@ on:
       minutes:
         description: The bound of the step The cells on each runner, in minutes (5 to 330)
         default: "36"
+      held:
+        description: The run claims that its cells hold, and it fails unless each cell has a record and holds (true or false)
+        default: "false"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
@@ -52,16 +59,17 @@ on:
 permissions:
   contents: read
 
-# The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch has a group
-# of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of other cells.
+# The runs of a pull request share a group, and a newer push cancels the older run. The gate dispatches of one
+# branch (each with no only) share a group in the same way. Each other dispatch has a group of its own.
+# GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of other cells.
 # With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
 defaults:
   run:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '')) && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.only == '') }}
 
 jobs:
   changes:
@@ -74,7 +82,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           paths: |
             .github/workflows/kind.yml
@@ -90,8 +98,9 @@ jobs:
     steps:
       - id: shards
         env:
-          SHARDS: ${{ github.event_name == 'workflow_dispatch' && inputs.shards || '1' }}
-          MINUTES: ${{ github.event_name == 'workflow_dispatch' && inputs.minutes || '36' }}
+          # a pull request and a dispatch with no only (the gate) get the smoke: one shard, 36 minutes
+          SHARDS: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '1' || inputs.shards }}
+          MINUTES: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '36' || inputs.minutes }}
         run: |
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
@@ -119,17 +128,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 340
     env:
-      KIND_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '^T07 (iptables|ipvs|nftables), the propagation' }}
-      # an empty count of a dispatch keeps the count of the catalog
-      KIND_RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.runs || (github.event_name != 'workflow_dispatch' && '2' || '') }}
-      KIND_ENVIRONMENTS: ${{ github.event_name == 'workflow_dispatch' && inputs.environments || '1' }}
+      # the smoke of a pull request and of a dispatch with no only (the gate): 2 runs, one cluster
+      KIND_ONLY: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '^T07 (iptables|ipvs|nftables), the propagation' || inputs.only }}
+      # an empty count of a dispatch that names its cells keeps the count of the catalog
+      KIND_RUNS: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '2' || inputs.runs }}
+      KIND_ENVIRONMENTS: ${{ (github.event_name != 'workflow_dispatch' || inputs.only == '') && '1' || inputs.environments }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -172,8 +182,8 @@ jobs:
           echo "KIND_MODES=$modes" >> "$GITHUB_ENV"
           echo "KIND_WAITING=$waiting" >> "$GITHUB_ENV"
       # The dataplane cilium: Cilium 1.20.4 replaces kube-proxy. Its socket LB in a kind node needs
-      # cgroup v2, and a cgroup namespace for each node (Documentation/installation/kind.rst). kind
-      # v0.33.0 gives each node a private cgroup namespace, thus this step examines only cgroup v2.
+      # cgroup v2, and a cgroup namespace for each node (Documentation/installation/kind.rst). Version
+      # v0.33.0 of kind gives each node a private cgroup namespace, thus this step examines only cgroup v2.
       - name: The Cilium dataplane of this runner
         run: |
           cgroup="$(stat -fc %T /sys/fs/cgroup)"
@@ -212,18 +222,21 @@ jobs:
           echo "KIND_AMBIENT_WAITING=$waiting" >> "$GITHUB_ENV"
       # Each kind node is a container on the kernel of the runner, thus the pods of all nodes share its
       # inotify limits. The default of 128 instances for each user is too few for a cluster with the
-      # DaemonSets and the sidecars of a mesh, and a kubelet or a log stream then fails with "too many
+      # DaemonSets and the sidecars of a mesh. Then a kubelet or a log stream fails with "too many
       # open files". These are the limits that the known issues of kind give.
       - name: The inotify limits of the nodes
         run: |
           sudo sysctl -w fs.inotify.max_user_instances=512 fs.inotify.max_user_watches=524288
           echo "inotify: $(sysctl -n fs.inotify.max_user_instances) instances, $(sysctl -n fs.inotify.max_user_watches) watches" | tee -a "$RUNNER_TEMP/kindcells/runner.txt"
+      - name: The conntrack tool
+        uses: ./.github/actions/apt-install
+        with:
+          packages: conntrack
       # A dump of conntrack through netlink walks each bucket of the table of the kernel with the
-      # softirqs off, and a segment that comes in that walk waits for its end. The agent of each node
+      # softirqs off. A segment that comes in that walk waits for its end. The agent of each node
       # dumps the table each second. A runner of 16 GB has 262144 buckets: the table gets 16384.
       - name: A small conntrack table
         run: |
-          sudo apt-get install -y -qq conntrack >/dev/null
           sudo modprobe nf_conntrack
           listing() {
             sudo unshare --net python3 -c 'import subprocess, time
@@ -275,13 +288,25 @@ jobs:
           fi
       - name: The cells
         # a bound for a shard that does not end (SYS-43): the step fails, and the steps below still run
-        timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.minutes || '36') }}
+        timeout-minutes: ${{ fromJSON((github.event_name != 'workflow_dispatch' || inputs.only == '') && '36' || inputs.minutes) }}
         env:
           KIND_LAB: "1"
           KIND_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
           KIND_OUT: ${{ runner.temp }}/kindcells
           KIND_WORK: ${{ runner.temp }}/kind-work
         run: pnpm --filter @systems/cells test
+      # A failing cell of a manual run is a finding, thus it does not fail this workflow. A dispatch with
+      # held=true claims that its cells hold. This step judges each record again, and it fails unless each
+      # cell of the shard has a record that pins its programs and holds. A cell that waits has no record.
+      # Its flip test then turns the check red with four changes. These are an injected fault, a record
+      # gone, an image by a tag and a checkout with changes. The clean copy stays green.
+      - name: The cells hold
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.held == 'true' }}
+        env:
+          SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
+        run: |
+          pnpm exec tsx packages/site/scripts/held.ts --kind "$KIND_ONLY" --shard "$SHARD" "$RUNNER_TEMP/kindcells"
+          pnpm exec tsx packages/site/scripts/held.ts --flip --kind "$KIND_ONLY" --shard "$SHARD" "$RUNNER_TEMP/kindcells"
       # a job that stopped in the middle leaves its clusters: the pinned kind deletes them
       - name: Delete each cluster
         if: always()
@@ -292,7 +317,7 @@ jobs:
           fi
           docker network ls --format '{{.Name}}' | grep '^systems-lab-' | xargs -r docker network rm || true
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kind-${{ matrix.shard }}
           path: ${{ runner.temp }}/kindcells/
@@ -301,15 +326,15 @@ jobs:
 
   capture:
     needs: changes
-    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'pull_request' || inputs.capture == 'true') }}
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'workflow_dispatch' || inputs.only == '' || inputs.capture == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -339,7 +364,7 @@ jobs:
           fi
           docker network ls --format '{{.Name}}' | grep '^systems-' | xargs -r docker network rm || true
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cilium-capture
           path: ${{ runner.temp }}/cilium-capture/
@@ -354,7 +379,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@fc41ae3906e671ae746e9597ccc351a4e7ce8a3b # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: capture

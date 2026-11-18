@@ -78,6 +78,21 @@ describe("serviceProblems", () => {
     expect(serviceProblems({ ...linuxSpec, restart: { after: { value: 1, unit: "MB" } } })).toEqual(["the restart wait is not a time of zero or more"]);
     expect(serviceProblems({ ...dailySpec, timeLimit: { value: 0, unit: "s" } })).toEqual(["the time limit is not a time above zero"]);
     expect(serviceProblems({ ...linuxSpec, program: "", stateDir: "" })).toEqual(["the program is empty", "the stateDir is empty"]);
+    expect(serviceProblems({ ...linuxSpec, stopGrace: { value: 0, unit: "s" } })).toEqual(["the stop grace is not a time above zero"]);
+    expect(serviceProblems({ ...linuxSpec, stopGrace: { value: 5, unit: "MB" } })).toEqual(["the stop grace is not a time above zero"]);
+    expect(serviceProblems({ ...linuxSpec, stopsChildren: "yes" as unknown as boolean })).toEqual(["the stopsChildren is not true or false"]);
+  });
+
+  it("names a boot start that is not in the background, and a visible console in the background", () => {
+    expect(serviceProblems({ ...windowsSpec, start: "boot" })).toEqual([]);
+    expect(serviceProblems({ ...windowsSpec, start: "boot", background: false })).toEqual(["a boot start runs before a logon: give background true, or leave it out"]);
+    expect(serviceProblems({ ...windowsSpec, start: "boot", console: "visible" })).toEqual([
+      "a program in the background has no desktop: give the console hidden, or leave it out",
+    ]);
+    expect(serviceProblems({ ...dailySpec, background: true, console: "visible" })).toEqual([
+      "a program in the background has no desktop: give the console hidden, or leave it out",
+    ]);
+    expect(serviceProblems({ ...windowsSpec, console: "visible", background: false })).toEqual([]);
   });
 
   it("makes each render throw on a problem", () => {
@@ -146,6 +161,43 @@ describe("renderTaskXml", () => {
     expect(once).toContain("<LogonTrigger>");
     expect(once).not.toContain("<TimeTrigger>");
   });
+
+  it("runs a task at logon only in the session of the user", () => {
+    expect(xml).toContain(`      <UserId>HOST\\test</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>`);
+  });
+
+  it("starts a boot task at boot with an S4U logon, and again each 2 minutes for a wait of 90 s", () => {
+    const boot = renderTaskXml({ ...windowsSpec, start: "boot" }, context);
+    expect(boot).toContain(`  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+    </BootTrigger>
+    <TimeTrigger>
+      <Enabled>true</Enabled>
+      <StartBoundary>2000-01-01T00:00:00</StartBoundary>
+      <Repetition>
+        <Interval>PT2M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+    </TimeTrigger>
+  </Triggers>`);
+    expect(boot).toContain(`      <UserId>HOST\\test</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>`);
+    expect(boot).not.toContain("LogonTrigger");
+    expect(boot).toContain("<Command>Z:\\Windows\\System32\\conhost.exe</Command>");
+    const once = renderTaskXml({ ...windowsSpec, start: "boot", restart: null }, context);
+    expect(once).toContain("<BootTrigger>");
+    expect(once).not.toContain("<TimeTrigger>");
+  });
+
+  it("gives a daily job in the background an S4U logon", () => {
+    const daily = renderTaskXml({ ...dailySpec, program: "Z:\\node.exe", args: [], background: true }, context);
+    expect(daily).toContain("<CalendarTrigger>");
+    expect(daily).toContain("<LogonType>S4U</LogonType>");
+  });
 });
 
 describe("utf16le", () => {
@@ -156,7 +208,7 @@ describe("utf16le", () => {
 });
 
 describe("renderSystemdUnit and renderSystemdTimer", () => {
-  it("gives a simple service at logon, with Restart=on-failure and escapes", () => {
+  it("gives a simple service at logon, with Restart=always and escapes", () => {
     expect(renderSystemdUnit(linuxSpec)).toBe(`[Unit]
 Description=Demo host at 100%%
 
@@ -164,13 +216,41 @@ Description=Demo host at 100%%
 Type=simple
 ExecStart="/opt/node runtime/bin/node" /srv/demo/host.js --name a$$b
 WorkingDirectory=/srv/demo 100%%
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=default.target
 `);
     expect(renderSystemdTimer(linuxSpec)).toBeNull();
+  });
+
+  it("gives a supervisor the stop signal alone and a stop grace, in whole seconds", () => {
+    const supervisor: ServiceSpec = { ...linuxSpec, start: "boot", stopsChildren: true, stopGrace: { value: 102_500, unit: "ms" } };
+    expect(renderSystemdUnit(supervisor)).toBe(`[Unit]
+Description=Demo host at 100%%
+
+[Service]
+Type=simple
+ExecStart="/opt/node runtime/bin/node" /srv/demo/host.js --name a$$b
+WorkingDirectory=/srv/demo 100%%
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=103
+
+[Install]
+WantedBy=default.target
+`);
+    // False keeps the stop signal for each process: the unit has no kill mode.
+    expect(renderSystemdUnit({ ...linuxSpec, stopsChildren: false })).toBe(renderSystemdUnit(linuxSpec));
+    // On Windows, the two fields change nothing.
+    expect(renderTaskXml({ ...windowsSpec, stopsChildren: true, stopGrace: { value: 2, unit: "min" } }, context)).toBe(renderTaskXml(windowsSpec, context));
+  });
+
+  it("gives a boot start the same unit as a start at logon, and no timer", () => {
+    expect(renderSystemdUnit({ ...linuxSpec, start: "boot" })).toBe(renderSystemdUnit(linuxSpec));
+    expect(renderSystemdTimer({ ...linuxSpec, start: "boot" })).toBeNull();
   });
 
   it("gives a oneshot daily job and its timer", () => {

@@ -14,10 +14,11 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7",
-    "@mark1russell7/site-pages": "^0.4.1",
+    "@mark1russell7/site-pages": "^0.8.0",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.3",
     "vitest": "^5.0.3"
@@ -31,7 +32,8 @@
     "@mark1russell7/machines": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/rigor-bench": "^0.2.3",
-    "@mark1russell7/rigor-statistics": "^0.1.3",
+    "@mark1russell7/rigor-statistics": "^0.2.1",
+    "@mark1russell7/service": "workspace:^",
     "astro": "^7.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

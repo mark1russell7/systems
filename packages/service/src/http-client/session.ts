@@ -1,7 +1,7 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity } from "@mark1russell7/quantity";
 import type { Clock } from "../clock.ts";
-import { realClock } from "../clock.ts";
+import { realClock, unrefClock } from "../clock.ts";
 import { ms, timeProblems, wrapperTimerProblems, zeroProblems } from "../client/core.ts";
 import type { Heartbeat } from "../heartbeat.ts";
 import { heartbeat } from "../heartbeat.ts";
@@ -102,7 +102,9 @@ export const sessionCheck = (session: H2Session, options: SessionCheckOptions): 
     interval: ms(knobs.keepalive_time),
     timeout: ms(knobs.keepalive_timeout),
     misses: 1,
-    clock,
+    // the session decides if it keeps the process alive: its owner can unref an idle session.
+    // Thus the heartbeat does not keep the process alive (SYS-126)
+    clock: unrefClock(clock),
     due: () => {
       const quiet = !heardSince;
       heardSince = false;

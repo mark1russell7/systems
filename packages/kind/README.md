@@ -330,7 +330,7 @@ The cells operate on the runners of GitHub, and not on a machine that does other
 - **The capture.** The job `capture` makes a cluster of `cilium` and dumps the services of the agent of each node in three states of the backends (`src/cilium.capture.test.ts`). It uploads the artifact `cilium-capture`. The unit tests of `ciliumBackendsOf` read a part of a real dump (`test/cilium/`).
 - **The inotify limits.** The pods of each node share the inotify limits of the kernel of the runner. Thus the job raises them to 512 instances and 524288 watches, the values of the known issues of kind.
 - **The shards.** `shardOf` gives each shard an equal share of the estimated time, and the cells of one mode stay together. Thus a shard makes few clusters.
-- **The output.** Each job uploads its raw records, `summary.ndjson`, and what the runner is. The run folder of each cluster stays out of the output, because a kubeconfig holds credentials.
+- **The output.** Each job uploads its raw records, `summary.ndjson`, `selection.ndjson` and what the runner is. The run folder of each cluster stays out of the output, because a kubeconfig holds credentials.
 - **A pull request** that changes the workflow starts a smoke run: the calibration of each mode, with 2 runs on one cluster.
 
 ## Releases

@@ -2,7 +2,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
-import { PORT_RANGE_CELLS, PORT_RANGE_SPECS, searchShares } from "./port-range.ts";
+import { PORT_RANGE_CELLS, PORT_RANGE_SPECS } from "./port-range.ts";
 
 const lawOf = (plan: string) => {
   const cell = PORT_RANGE_CELLS.find((each) => each.name.startsWith(plan));
@@ -11,39 +11,23 @@ const lawOf = (plan: string) => {
   return cell.prediction.ports;
 };
 
-describe("the exact law of the search for a port", () => {
-  it("gives an even range its size in each round", () => {
-    for (const size of [2, 4, 6, 16]) {
-      expect([...searchShares(size).keys()]).toEqual([size]);
-      expect(searchShares(size).get(size)).toBeCloseTo(1, 9);
-    }
-  });
-
-  it("gives a range of 3 two connects in each round", () => {
-    expect([...searchShares(3).keys()]).toEqual([2]);
-    expect(searchShares(3).get(2)).toBeCloseTo(1, 9);
-  });
-
-  it("gives an odd range one port less in some rounds, with the chance of the chain", () => {
-    // a seeded simulation of the kernel code gave 35447 rounds of 4 in 200000 rounds of a range of 5
-    expect(searchShares(5).get(4)).toBeCloseTo(45 / 256, 9);
-    expect(searchShares(5).get(5)).toBeCloseTo(211 / 256, 9);
-    expect(searchShares(7).get(6)).toBeCloseTo(0.0612, 3);
-    expect(searchShares(9).get(8)).toBeCloseTo(0.0968, 3);
-  });
-});
-
 describe("the cells of the port range", () => {
   it("joins the catalog, four counted runs and one cell at a time", () => {
-    expect(PORT_RANGE_CELLS).toHaveLength(7);
+    expect(PORT_RANGE_CELLS).toHaveLength(8);
     for (const cell of PORT_RANGE_CELLS) {
       expect(ALL.some((each) => each.name === cell.name)).toBe(true);
       expect(cell.name).toMatch(/^PR[.]\d /);
       expect(cell.runs).toBe(4);
       expect(cell.concurrency).toBe(1);
-      expect(cell.fault).toBe("none");
       expect(cell.sysctls).toHaveProperty("net.ipv4.ip_local_port_range");
     }
+    // only PR.8 has a fault, and its client starts its rounds after the fault
+    expect(PORT_RANGE_CELLS.filter((cell) => cell.fault !== "none").map((cell) => cell.name.slice(0, 4))).toEqual(["PR.8"]);
+  });
+
+  it("gives the client the flag of a timed reclaim only when the target closes first and a port has a band", () => {
+    const reclaims = PORT_RANGE_CELLS.filter((cell) => typeof cell.client === "object" && cell.client.command.includes("--reclaim"));
+    expect(reclaims.map((cell) => cell.name.slice(0, 4))).toEqual(["PR.8"]);
   });
 
   it("sets a range of the size of its law", () => {
@@ -82,5 +66,18 @@ describe("the cells of the port range", () => {
 
   it("holds no port and sends no SYN again if the target closes first", () => {
     expect(lawOf("PR.7")).toMatchObject({ counts: [4], retransmissions: 0 });
+  });
+
+  it("holds each port in LAST_ACK for one RTO when the first ACK of its FIN drops", () => {
+    const cell = PORT_RANGE_CELLS.find((each) => each.name.startsWith("PR.8"));
+    expect(cell).toMatchObject({ fault: "fin-ack", faultAt: "client", probe: { mode: "inflight" } });
+    const law = lawOf("PR.8");
+    expect(law).toMatchObject({ counts: [4], rounds: 1, retransmissions: 4 });
+    if (law.freed === undefined) throw new Error("no band");
+    // the RTO floor is tcp_rto_min, 200 ms: the band starts below it and ends well before a second RTO
+    expect(valueIn(law.freed.low, "s")).toBeLessThanOrEqual(0.2);
+    expect(valueIn(law.freed.low, "s")).toBeGreaterThan(0.15);
+    expect(valueIn(law.freed.high, "s")).toBeGreaterThan(0.2);
+    expect(valueIn(law.freed.high, "s")).toBeLessThan(0.4);
   });
 });

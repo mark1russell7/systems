@@ -1,0 +1,55 @@
+---
+title: The accept queue
+description: A program listens and does not accept. See how many connections its queue holds, and what a full queue does to each new connect.
+tableOfContents: false
+---
+
+import AcceptQueue from "../../../components/AcceptQueue.tsx";
+import QueueResults from "../../../components/QueueResults.tsx";
+import Term from "../../../components/Term.tsx";
+import copy from "../../../data/accept-queue-2026-11-16.json";
+
+A program calls listen(2) with a <Term name="backlog" />, and the kernel keeps each new connection in the accept queue until the program accepts it. When the program stops its accepts, the queue fills. A full queue drops a SYN with no answer, and it drops the final ACK of a handshake. This page computes, in your browser, how many connections the queue holds, and how each connect ends.
+
+<AcceptQueue client:visible />
+
+## How to read the page
+
+- **The headline** tells the first overflow of the queue and how its connect ends.
+- **The timeline** has three lanes. The queue lane shows when the queue is full and the first overflow. The SYN lane follows the first connect whose SYN drops. The final ACK lane follows the first connect whose final ACK drops. Press **Play** to see the story.
+- **The cards** below the timeline give each lane, with its knobs. Change a knob, and each time on the page changes.
+- **The presets** are the settings of the cells AQ.1 to AQ.10 of the harness.
+- **The measured values** below give each cell as the runners of GitHub measured it. Each row is one term of the law, with its band and its median.
+
+## The law of the count
+
+listen(2) clamps the backlog to <Term name="somaxconn" />, and this value is the limit of the queue. A full queue holds the limit plus one, because the kernel tests for more than the limit. Thus a backlog of 4 holds 5 connections, and a backlog of 0 holds 1.
+
+Node gives listen(2) 511 for a backlog of 0. Thus a server on Node that declares 0 holds 512 connections.
+
+## Two kinds of overflow
+
+- **A SYN at a full queue** drops with no answer. The client sends its SYN again on its ladder: 1 s for each of the first five waits, then 2, 4, 8, 16, 32 and 64 s. With <Term name="tcp_syn_retries" /> 6, the connect ends with <Term name="ETIMEDOUT" /> at 131 s.
+- **A final ACK at a full queue** comes after the client is connected. With <Term name="tcp_abort_on_overflow" /> 1, the target sends a reset, and the client gets <Term name="ECONNRESET" /> one round trip later.
+- **With tcp_abort_on_overflow 0**, the target drops the ACK and keeps the request. It sends its <Term name="SYN-ACK" /> again at 1, 3, 7, 15 and 31 s. At 63 s it forgets the request.
+
+After the expiry, the next segment of the client meets the listener, and it gets a reset. A client that sends nothing stays connected to nothing. When the program accepts before the expiry, the next SYN-ACK gets a <Term name="challenge ACK" /> from the client, and that ACK finds a place.
+
+## The measured values
+
+Each cell fills a real queue on a runner of GitHub, and the harness measures each term of its law. The band of a term is the prediction of the cell. The median is the middle value of the counted trials. A median outside its band shows as a failure. A cell with no record keeps its place.
+
+<QueueResults copy={copy} />
+
+## Where the numbers come from
+
+The count is the law of `acceptQueueLimit` and `acceptQueueHeld` of `@mark1russell7/automata`. The ladders come from the timers of the document of Linux TCP, `LINUX_TCP` of `@mark1russell7/machines`: `syn_retransmit`, `syn_giveup`, `synack_retransmit`, `synack_giveup` and `retransmit`.
+
+Each timer fires on a tick of <Term name="HZ" />, thus each firing can come late. The band of a time on the page is the sum of how early and how late each wait before it can fire. Each amount prints through `format` of `@mark1russell7/quantity`. The page does no timer arithmetic of its own.
+
+## Limits
+
+- The page puts one half of the round trip on each way of the path.
+- From the accept, the page gives a place to each packet. A program that accepts slowly frees one place for each accept.
+- When the queue of requests is full, the target sends a <Term name="SYN cookie" />. The page counts the cookie, but it does not show its later steps.
+- A client that sends data stops after <Term name="tcp_retries2" />. The page shows the first segment after the expiry, which comes well before that end.

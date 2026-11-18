@@ -49,6 +49,7 @@ const PINNED = limit("The engine has a pinned version, but the driver, the probe
 const CALIBRATION = limit("Stage 0 of the calibration occurs again after each change of the harness.");
 const TIMERS = limit("The rule for a void run is in the current harness.");
 const BAND = limit("The band comes from the current algebra at each build.");
+const KERNEL = limit("The subject is the kernel of the runner, and GitHub updates it. The driver, the prober and the bands are code of this repository.");
 
 /** The pages of the lab machine. Their Q cells are not in the catalog, thus no run of the current code can reproduce them. */
 const HISTORY: NoAgeLimit = {
@@ -84,6 +85,7 @@ const STUDIES: Readonly<Record<string, Study>> = {
   "results/rabbitmq": study(PINNED, file("rabbitmq-2026-10-19.json")),
   "results/grpc": study(PINNED, file("grpc-2026-10-20.json")),
   "results/mesh": study(PINNED, file("t15-2026-10-25.json")),
+  "results/port-range": study(KERNEL, file("port-range-2026-11-17.json")),
 };
 
 /**

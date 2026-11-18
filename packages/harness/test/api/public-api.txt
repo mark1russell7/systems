@@ -37,14 +37,33 @@ type Cut: build/index.d.ts#Cut
 DAEMONS: build/index.d.ts#DAEMONS
 DEBUG: build/index.d.ts#DEBUG
 DIRTY: build/index.d.ts#DIRTY
+DISK_MOUNT: build/index.d.ts#DISK_MOUNT
+DISK_RECORD_FORMAT: build/index.d.ts#DISK_RECORD_FORMAT
+DISK_ROOT: build/index.d.ts#DISK_ROOT
+DISK_SUBJECT: build/index.d.ts#DISK_SUBJECT
 DROP_HANDLING: build/index.d.ts#DROP_HANDLING
 type Decision: build/index.d.ts#Decision
+type DeliveryPrediction: build/cell.chunk.d.ts#DeliveryPrediction
+type DeliveryReading: build/index.d.ts#DeliveryReading
+type DeliveryStream: build/index.d.ts#DeliveryStream
+type DiskImage: build/index.d.ts#DiskImage
+type DiskLab: build/index.d.ts#DiskLab
+type DiskLabOptions: build/index.d.ts#DiskLabOptions
+type DiskPinnable: build/index.d.ts#DiskPinnable
+type DiskRecord: build/index.d.ts#DiskRecord
+type DiskSubject: build/index.d.ts#DiskSubject
+type DiskWriterRecord: build/index.d.ts#DiskWriterRecord
 type Drill: build/cell.chunk.d.ts#Drill
 type DrillRoom: build/cell.chunk.d.ts#DrillRoom
 type DriverBand: build/cell.chunk.d.ts#DriverBand
 type DriverSocket: build/index.d.ts#DriverSocket
 type DriverStep: build/cell.chunk.d.ts#DriverStep
 type DriverStepTime: build/index.d.ts#DriverStepTime
+type EgressBurst: build/cell.chunk.d.ts#EgressBurst
+type EgressPacketLaw: build/cell.chunk.d.ts#EgressPacketLaw
+type EgressPacketReading: build/index.d.ts#EgressPacketReading
+type EgressPrediction: build/cell.chunk.d.ts#EgressPrediction
+type EgressReading: build/index.d.ts#EgressReading
 type ErrorOnTheWay: build/index.d.ts#ErrorOnTheWay
 type EstimateVerdict: build/index.d.ts#EstimateVerdict
 FABRIC_CLIENT: build/index.d.ts#FABRIC_CLIENT
@@ -56,6 +75,7 @@ type FabricLab: build/index.d.ts#FabricLab
 type FabricManifest: build/cell.chunk.d.ts#FabricManifest
 type FabricParts: build/index.d.ts#FabricParts
 type Fault: build/cell.chunk.d.ts#Fault
+type FaultOptions: build/index.d.ts#FaultOptions
 type FaultPlace: build/cell.chunk.d.ts#FaultPlace
 type FaultSide: build/index.d.ts#FaultSide
 GIVES_AWAY: build/index.d.ts#GIVES_AWAY
@@ -93,7 +113,9 @@ type KafkaLab: build/index.d.ts#KafkaLab
 type KafkaMember: build/index.d.ts#KafkaMember
 type KafkaPause: build/cell.chunk.d.ts#KafkaPause
 type KernelRecord: @mark1russell7/prober#KernelRecord (external)
-LAYERS: build/index.d.ts#LAYERS
+LAYERS: build/layers.d.ts#LAYERS
+LAYER_FACTS: build/layers.d.ts#LAYER_FACTS
+LIMITS: build/layers.d.ts#LIMITS
 LINGER_MS: build/index.d.ts#LINGER_MS
 LISTING: build/index.d.ts#LISTING
 LOAD_FORMAT: build/index.d.ts#LOAD_FORMAT
@@ -101,8 +123,11 @@ LOAD_PATH: build/index.d.ts#LOAD_PATH
 LOCK_NAMES: build/index.d.ts#LOCK_NAMES
 LOSS_MARGIN: build/index.d.ts#LOSS_MARGIN
 type Lab: build/index.d.ts#Lab
-type Layer: build/index.d.ts#Layer
+type Layer: build/layers.d.ts#Layer
+type LayerFacts: build/layers.d.ts#LayerFacts
+type LayerState: build/layers.d.ts#LayerState
 type LeafViews: build/index.d.ts#LeafViews
+type Limit: build/layers.d.ts#Limit
 type LineCount: build/cell.chunk.d.ts#LineCount
 type LineMatch: build/cell.chunk.d.ts#LineMatch
 type LoadBand: build/cell.chunk.d.ts#LoadBand
@@ -118,6 +143,15 @@ type Manifest: build/index.d.ts#Manifest
 type ManifestHop: build/index.d.ts#ManifestHop
 type Measured: build/index.d.ts#Measured
 type MemberLine: build/index.d.ts#MemberLine
+type MemoryLimits: build/cell.chunk.d.ts#MemoryLimits
+type MemoryOomPrediction: build/cell.chunk.d.ts#MemoryOomPrediction
+type MemoryOomTask: build/cell.chunk.d.ts#MemoryOomTask
+type MemoryPrediction: build/cell.chunk.d.ts#MemoryPrediction
+type MemoryReading: build/index.d.ts#MemoryReading
+type MemoryStep: build/cell.chunk.d.ts#MemoryStep
+type MemoryStepReading: build/index.d.ts#MemoryStepReading
+type MemoryTaskReading: build/index.d.ts#MemoryTaskReading
+type MemoryThrottlePrediction: build/cell.chunk.d.ts#MemoryThrottlePrediction
 type MiddleboxEvent: build/cell.chunk.d.ts#MiddleboxEvent
 type MiddleboxExpectation: build/cell.chunk.d.ts#MiddleboxExpectation
 type MiddleboxForm: build/cell.chunk.d.ts#MiddleboxForm
@@ -208,6 +242,7 @@ type ShippedImage: build/cell.chunk.d.ts#ShippedImage
 type Sibling: build/index.d.ts#Sibling
 type SocketPlace: build/index.d.ts#SocketPlace
 type Spread: build/index.d.ts#Spread
+type StackChange: build/index.d.ts#StackChange
 type Stage: build/cell.chunk.d.ts#Stage
 type StageBand: build/cell.chunk.d.ts#StageBand
 type StageVerdict: build/index.d.ts#StageVerdict
@@ -219,6 +254,7 @@ type Subject: build/cell.chunk.d.ts#Subject
 type Substrate: build/index.d.ts#Substrate
 type SubstrateSource: build/index.d.ts#SubstrateSource
 type Target: build/cell.chunk.d.ts#Target
+type TimeFromFault: build/index.d.ts#TimeFromFault
 type Topology: build/cell.chunk.d.ts#Topology
 type Toxic: build/cell.chunk.d.ts#Toxic
 type Verdict: build/index.d.ts#Verdict
@@ -245,13 +281,18 @@ clusterOnce: build/index.d.ts#clusterOnce
 clusterStagesOf: build/index.d.ts#clusterStagesOf
 clusterViewOf: build/index.d.ts#clusterViewOf
 commitProblems: build/index.d.ts#commitProblems
+commitVoid: build/index.d.ts#commitVoid
 comparable: build/index.d.ts#comparable
 controllerEnv: build/index.d.ts#controllerEnv
 crossingsOf: build/index.d.ts#crossingsOf
 cutOf: build/index.d.ts#cutOf
 deadlineOf: build/index.d.ts#deadlineOf
 delayVoids: build/index.d.ts#delayVoids
+deliveryFinding: build/index.d.ts#deliveryFinding
+deliveryOf: build/index.d.ts#deliveryOf
 deviceOf: build/index.d.ts#deviceOf
+diskRecordProblems: build/index.d.ts#diskRecordProblems
+diskSubjectProblems: build/index.d.ts#diskSubjectProblems
 drillOnce: build/index.d.ts#drillOnce
 drillSpan: build/index.d.ts#drillSpan
 dropFinding: build/index.d.ts#dropFinding
@@ -267,6 +308,7 @@ exitOf: build/index.d.ts#exitOf
 fieldOf: build/index.d.ts#fieldOf
 fieldsOf: build/index.d.ts#fieldsOf
 firstUnanswered: build/index.d.ts#firstUnanswered
+folderDigest: build/index.d.ts#folderDigest
 frrConf: build/index.d.ts#frrConf
 goHttpImage: build/index.d.ts#goHttpImage
 goVersions: build/index.d.ts#goVersions
@@ -281,6 +323,7 @@ highestHeld: build/index.d.ts#highestHeld
 hikariClientImage: build/index.d.ts#hikariClientImage
 hzOf: build/index.d.ts#hzOf
 imageOf: build/index.d.ts#imageOf
+imagePinProblems: build/index.d.ts#imagePinProblems
 imageProblems: build/index.d.ts#imageProblems
 inContext: build/index.d.ts#inContext
 infoOf: build/index.d.ts#infoOf
@@ -300,8 +343,10 @@ kafkaViewOf: build/index.d.ts#kafkaViewOf
 lagsOf: build/index.d.ts#lagsOf
 laterMove: build/index.d.ts#laterMove
 latestEndOf: build/cell.chunk.d.ts#latestEndOf
+layerOf: build/layers.d.ts#layerOf
 leafLacks: build/index.d.ts#leafLacks
 leftAfter: build/index.d.ts#leftAfter
+limitsOf: build/layers.d.ts#limitsOf
 loadOf: build/index.d.ts#loadOf
 loadPlanOf: build/index.d.ts#loadPlanOf
 loadVerdict: build/index.d.ts#loadVerdict
@@ -313,7 +358,9 @@ matches: build/index.d.ts#matches
 measure: build/index.d.ts#measure
 measureConntrack: build/index.d.ts#measureConntrack
 measureDriver: build/index.d.ts#measureDriver
+measureEgress: build/index.d.ts#measureEgress
 measureGroup: build/index.d.ts#measureGroup
+measureMemory: build/index.d.ts#measureMemory
 measurePause: build/index.d.ts#measurePause
 measurePorts: build/index.d.ts#measurePorts
 measureQueue: build/index.d.ts#measureQueue
@@ -334,10 +381,12 @@ nodeLineOf: build/index.d.ts#nodeLineOf
 nodeNameOf: build/index.d.ts#nodeNameOf
 nodesOnMonotonic: build/index.d.ts#nodesOnMonotonic
 noiseOf: build/index.d.ts#noiseOf
+npmDrift: build/index.d.ts#npmDrift
 npmVersions: build/index.d.ts#npmVersions
 numbersOf: build/index.d.ts#numbersOf
 onMonotonic: build/index.d.ts#onMonotonic
 openClusterLab: build/index.d.ts#openClusterLab
+openDiskLab: build/index.d.ts#openDiskLab
 openFabric: build/index.d.ts#openFabric
 openGroupLab: build/index.d.ts#openGroupLab
 openKafkaLab: build/index.d.ts#openKafkaLab
@@ -354,6 +403,7 @@ pgClientImage: build/index.d.ts#pgClientImage
 pingsOf: build/index.d.ts#pingsOf
 plainOf: build/index.d.ts#plainOf
 planOf: build/index.d.ts#planOf
+pongsOf: build/index.d.ts#pongsOf
 poolOf: build/index.d.ts#poolOf
 programLines: build/index.d.ts#programLines
 programOf: build/index.d.ts#programOf
@@ -380,6 +430,7 @@ routeLine: build/index.d.ts#routeLine
 routerImage: build/index.d.ts#routerImage
 routesOf: build/index.d.ts#routesOf
 runCell: build/index.d.ts#runCell
+runDiskFault: build/index.d.ts#runDiskFault
 seedScript: build/index.d.ts#seedScript
 sentinelConfig: build/index.d.ts#sentinelConfig
 sessionsOf: build/index.d.ts#sessionsOf
@@ -396,7 +447,10 @@ standaloneCommand: build/index.d.ts#standaloneCommand
 standbyCommand: build/index.d.ts#standbyCommand
 statusViewOf: build/index.d.ts#statusViewOf
 stealShare: build/index.d.ts#stealShare
+stepBand: build/index.d.ts#stepBand
 stopScript: build/index.d.ts#stopScript
+streamEnded: build/index.d.ts#streamEnded
+streamOf: build/index.d.ts#streamOf
 streamsLoadOf: build/index.d.ts#streamsLoadOf
 subjectClient: build/index.d.ts#subjectClient
 subjectProblems: build/index.d.ts#subjectProblems
@@ -427,6 +481,18 @@ clientSchema: build/schema.d.ts#clientSchema
 imageSourceSchema: build/schema.d.ts#imageSourceSchema
 subjectSchema: build/schema.d.ts#subjectSchema
 
+## ./layers (build/layers.d.ts): names
+
+LAYERS: build/layers.d.ts#LAYERS
+LAYER_FACTS: build/layers.d.ts#LAYER_FACTS
+LIMITS: build/layers.d.ts#LIMITS
+Layer: build/layers.d.ts#Layer
+LayerFacts: build/layers.d.ts#LayerFacts
+LayerState: build/layers.d.ts#LayerState
+Limit: build/layers.d.ts#Limit
+layerOf: build/layers.d.ts#layerOf
+limitsOf: build/layers.d.ts#limitsOf
+
 ## Declarations
 
 ### build/cell.chunk.d.ts#BuildImage
@@ -439,7 +505,7 @@ interface BuildImage {
 }
 
 ### build/cell.chunk.d.ts#CLIENT_CAPABILITIES
-declare const CLIENT_CAPABILITIES: readonly ["NET_ADMIN"];
+declare const CLIENT_CAPABILITIES: readonly ["IPC_LOCK", "NET_ADMIN", "SYS_RESOURCE"];
 
 ### build/cell.chunk.d.ts#Cell
 interface Cell {
@@ -452,6 +518,7 @@ interface Cell {
     readonly streams?: readonly LoadStream[];
     readonly count?: number;
     readonly interval?: Quantity;
+    readonly sender?: "client" | "target";
     readonly keepalive: boolean;
     readonly userTimeout?: Quantity;
     readonly request?: string;
@@ -496,6 +563,7 @@ interface Cell {
   readonly targetSetup?: readonly (readonly string[])[];
   readonly namespaceSetup?: readonly (readonly string[])[];
   readonly hostSysctls?: readonly HostSysctl[];
+  readonly cgroup?: Readonly<Record<string, string>>;
   readonly prediction: Prediction;
   readonly observer?: Observer;
   readonly targetSettings?: Readonly<Record<string, string>>;
@@ -586,6 +654,13 @@ interface CountBand {
   readonly high: number;
 }
 
+### build/cell.chunk.d.ts#DeliveryPrediction
+interface DeliveryPrediction {
+  readonly lost: CountBand;
+  readonly duplicates: CountBand;
+  readonly recovered?: boolean;
+}
+
 ### build/cell.chunk.d.ts#Drill
 interface Drill {
   readonly tenants: number;
@@ -627,6 +702,33 @@ interface DriverStep {
   readonly high: Quantity;
 }
 
+### build/cell.chunk.d.ts#EgressBurst
+interface EgressBurst {
+  readonly at: Quantity;
+  readonly count: number;
+  readonly payload: number;
+}
+
+### build/cell.chunk.d.ts#EgressPacketLaw
+type EgressPacketLaw = {
+  readonly kind: "sent";
+  readonly left: QueueBand;
+} | {
+  readonly kind: "dropped";
+  readonly why: "limit" | "size";
+};
+
+### build/cell.chunk.d.ts#EgressPrediction
+interface EgressPrediction {
+  readonly qdisc: string;
+  readonly kind: string;
+  readonly bursts: readonly EgressBurst[];
+  readonly packets: readonly EgressPacketLaw[];
+  readonly spread: Quantity;
+  readonly jitter: Quantity;
+  readonly read: number;
+}
+
 ### build/cell.chunk.d.ts#Fabric
 interface Fabric {
   readonly keepalive: Quantity;
@@ -644,7 +746,7 @@ interface FabricManifest extends Fabric {
 }
 
 ### build/cell.chunk.d.ts#Fault
-type Fault = "blackhole" | "freeze-process" | "rst" | "stall" | "fin" | "unreachable" | "simplex" | "mtu-blackhole" | "netem" | "middlebox-forget" | "proxy-idle" | "toxic" | "server-close" | "partition" | "planned-failover" | "app-stall" | "step-down" | "drain" | "hop-event" | "silence" | "none";
+type Fault = "blackhole" | "freeze-process" | "rst" | "stall" | "fin" | "unreachable" | "simplex" | "mtu-blackhole" | "netem" | "fin-ack" | "middlebox-forget" | "proxy-idle" | "toxic" | "server-close" | "partition" | "planned-failover" | "app-stall" | "step-down" | "drain" | "hop-event" | "silence" | "none";
 
 ### build/cell.chunk.d.ts#FaultPlace
 type FaultPlace = "target" | "client" | HopPlace | GroupPlace;
@@ -838,6 +940,55 @@ interface LoadStream {
   readonly requests: readonly string[];
 }
 
+### build/cell.chunk.d.ts#MemoryLimits
+interface MemoryLimits {
+  readonly high: number | null;
+  readonly max: number | null;
+  readonly swap: number;
+  readonly page: number;
+}
+
+### build/cell.chunk.d.ts#MemoryOomPrediction
+interface MemoryOomPrediction {
+  readonly kind: "oom";
+  readonly limits: MemoryLimits;
+  readonly tasks: readonly MemoryOomTask[];
+  readonly kills: number;
+}
+
+### build/cell.chunk.d.ts#MemoryOomTask
+interface MemoryOomTask {
+  readonly name: string;
+  readonly pages: number;
+  readonly adj: number;
+  readonly outcome: "held" | "killed";
+}
+
+### build/cell.chunk.d.ts#MemoryPrediction
+type MemoryPrediction = MemoryThrottlePrediction | MemoryOomPrediction;
+
+### build/cell.chunk.d.ts#MemoryStep
+interface MemoryStep {
+  readonly usage: number;
+  readonly band: QueueBand;
+  readonly high: number;
+}
+
+### build/cell.chunk.d.ts#MemoryThrottlePrediction
+interface MemoryThrottlePrediction {
+  readonly kind: "throttle";
+  readonly limits: MemoryLimits;
+  readonly hz: number;
+  readonly batch: number;
+  readonly until: number;
+  readonly sleepFrom: number;
+  readonly capFrom: number;
+  readonly drift: number;
+  readonly quiet: QueueBand;
+  readonly steps: readonly MemoryStep[];
+  readonly read: number;
+}
+
 ### build/cell.chunk.d.ts#MiddleboxEvent
 interface MiddleboxEvent {
   readonly ev: string;
@@ -937,6 +1088,7 @@ type Prediction = {
   readonly reconnects?: Reconnects;
   readonly drop?: "frame" | "close";
   readonly exits?: true;
+  readonly delivery?: DeliveryPrediction;
 } | {
   readonly detects: false;
   readonly window: Quantity;
@@ -963,6 +1115,8 @@ type Prediction = {
   readonly conntrack?: ConntrackPrediction;
   readonly pause?: PausePrediction;
   readonly load?: LoadPrediction;
+  readonly memory?: MemoryPrediction;
+  readonly egress?: EgressPrediction;
 };
 
 ### build/cell.chunk.d.ts#ProbeEvent
@@ -1066,7 +1220,7 @@ interface Recovers {
 }
 
 ### build/cell.chunk.d.ts#Reference
-type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "first-sent" | "syn-sent";
+type Reference = "last-received" | "last-reply" | "last-data" | "first-retransmission" | "request-sent" | "peer-closed" | "fault" | "client-start" | "ping-sent" | "pong-sent" | "first-sent" | "syn-sent";
 
 ### build/cell.chunk.d.ts#ReplicaSet
 interface ReplicaSet {
@@ -1233,6 +1387,10 @@ interface RunTopology {
     readonly netns: number;
     readonly client: string;
     readonly target: string;
+    readonly address?: {
+      readonly client: string;
+      readonly target: string;
+    };
   }>>;
 }
 
@@ -1250,7 +1408,7 @@ interface SentinelEvent {
 type SentinelStage = "+sdown" | "+odown" | "+try-failover" | "+elected-leader" | "+selected-slave" | "+promoted-slave" | "+switch-master" | "+convert-to-slave";
 
 ### build/cell.chunk.d.ts#Shipped
-type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "kafka" | "grpc" | "grpc-go" | "etcd" | "router" | "pgbouncer" | "pgpool" | "docker-proxy";
+type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "kafka" | "grpc" | "grpc-go" | "etcd" | "router" | "pgbouncer" | "pgpool" | "docker-proxy" | "lazyfs";
 
 ### build/cell.chunk.d.ts#ShippedImage
 interface ShippedImage {
@@ -1326,6 +1484,7 @@ interface WsProbe {
   readonly requestTimeout: Quantity;
   readonly connectionTimeout: Quantity;
   readonly hold?: Quantity;
+  readonly retries?: number;
 }
 
 ### build/cell.chunk.d.ts#environmentProblems
@@ -1474,11 +1633,106 @@ export declare const DEBUG = "the record is of a local debug run, and no page re
 ### build/index.d.ts#DIRTY
 export declare const DIRTY = "the checkout has changes to tracked files that no commit holds";
 
+### build/index.d.ts#DISK_MOUNT
+export declare const DISK_MOUNT = "/mnt/disk";
+
+### build/index.d.ts#DISK_RECORD_FORMAT
+export declare const DISK_RECORD_FORMAT = "harness-disk/1";
+
+### build/index.d.ts#DISK_ROOT
+export declare const DISK_ROOT = "/var/disk";
+
+### build/index.d.ts#DISK_SUBJECT
+export declare const DISK_SUBJECT = "/opt/subject";
+
 ### build/index.d.ts#DROP_HANDLING
 export declare const DROP_HANDLING: Quantity;
 
 ### build/index.d.ts#Decision
 type Decision = "holds" | "fails" | "extend" | "inconclusive" | "measured";
+
+### build/index.d.ts#DeliveryReading
+interface DeliveryReading {
+  readonly emitted: number;
+  readonly got: number;
+  readonly lost: number;
+  readonly duplicates: number;
+  readonly unknown: number;
+  readonly recovered: boolean | null;
+  readonly ended: boolean;
+}
+
+### build/index.d.ts#DeliveryStream
+interface DeliveryStream {
+  readonly count: number;
+  readonly sender: "client" | "target";
+}
+
+### build/index.d.ts#DiskImage
+interface DiskImage {
+  readonly tag: string;
+  readonly build?: BuildRecord;
+}
+
+### build/index.d.ts#DiskLab
+interface DiskLab {
+  readonly subject: DiskSubject;
+  readonly digest: string;
+  readonly image: DiskImage;
+  readonly code: RecordCode;
+  readonly substrate: Substrate;
+}
+
+### build/index.d.ts#DiskLabOptions
+interface DiskLabOptions {
+  readonly subject: DiskSubject;
+  readonly code: RecordCode;
+}
+
+### build/index.d.ts#DiskPinnable
+interface DiskPinnable {
+  readonly code?: RecordCode | undefined;
+  readonly image: DiskImage;
+}
+
+### build/index.d.ts#DiskRecord
+interface DiskRecord {
+  readonly format: typeof DISK_RECORD_FORMAT;
+  readonly fault: DiskFault;
+  readonly subject: {
+    readonly name: string;
+    readonly digest: string;
+  };
+  readonly image: DiskImage & {
+    readonly id: string;
+  };
+  readonly code: RecordCode;
+  readonly substrate: Substrate;
+  readonly writer: DiskWriterRecord;
+  readonly persisted: unknown;
+  readonly at: string;
+}
+
+### build/index.d.ts#DiskSubject
+interface DiskSubject {
+  readonly name: string;
+  readonly folder: string;
+  readonly writer: readonly [string, ...string[]];
+  readonly check: readonly [string, ...string[]];
+  readonly env?: Readonly<Record<string, string>>;
+  readonly timeoutMs?: number;
+}
+
+### build/index.d.ts#DiskWriterRecord
+interface DiskWriterRecord {
+  readonly exit: number;
+  readonly stopped: boolean;
+  readonly steps: number;
+  readonly lastStep: number | null;
+  readonly lastLabel: string | null;
+  readonly ms: number;
+  readonly output: string;
+}
 
 ### build/index.d.ts#DriverSocket
 interface DriverSocket {
@@ -1494,6 +1748,28 @@ interface DriverStepTime {
   readonly what: string;
   readonly name: string | null;
   readonly elapsed: Quantity | null;
+}
+
+### build/index.d.ts#EgressPacketReading
+interface EgressPacketReading {
+  readonly key: number;
+  readonly burst: number;
+  readonly outcome: "sent" | "dropped" | "unread";
+  readonly arrived: Quantity;
+  readonly left: Quantity | null;
+}
+
+### build/index.d.ts#EgressReading
+interface EgressReading {
+  readonly kind: string;
+  readonly packets: readonly EgressPacketReading[];
+  readonly spreads: readonly Quantity[];
+  readonly starts: readonly Quantity[];
+  readonly counts: {
+    readonly packets: number;
+    readonly drops: number;
+  };
+  readonly step: Quantity;
 }
 
 ### build/index.d.ts#ErrorOnTheWay
@@ -1552,6 +1828,16 @@ interface FabricParts {
   readonly injector: StartedTestContainer;
   readonly opened: StartedTestContainer[];
   readonly output: (container: StartedTestContainer, argv: string[]) => Promise<string>;
+}
+
+### build/index.d.ts#FaultOptions
+interface FaultOptions {
+  readonly direction?: "in" | "out";
+  readonly protocol?: "tcp" | "udp" | "icmp" | "all";
+  readonly code?: "host" | "net" | "port" | "admin";
+  readonly above?: number;
+  readonly handshake?: "pass";
+  readonly peers?: readonly string[];
 }
 
 ### build/index.d.ts#FaultSide
@@ -1752,9 +2038,6 @@ interface KafkaMember extends GroupClient {
   signal(signal: "STOP" | "CONT", at?: number): Promise<Stamp>;
 }
 
-### build/index.d.ts#LAYERS
-export declare const LAYERS: readonly ["E0", "E1", "E2", "E3", "E4", "E5", "E6"];
-
 ### build/index.d.ts#LINGER_MS
 export declare const LINGER_MS = 1e3;
 
@@ -1836,14 +2119,11 @@ interface Lab {
   probe(args: readonly string[], files?: ReadonlyArray<{
     readonly content: string;
     readonly target: string;
-  }>): Promise<Probe>;
+  }>, cgroup?: Readonly<Record<string, string>>): Promise<Probe>;
   settle(): Promise<number | null>;
   manifest(sysctls: Readonly<Record<string, string>>, settings?: Readonly<Record<string, string>>, targetSysctls?: Readonly<Record<string, string>>): Promise<Manifest>;
   close(): Promise<void>;
 }
-
-### build/index.d.ts#Layer
-type Layer = (typeof LAYERS)[number];
 
 ### build/index.d.ts#LeafViews
 interface LeafViews {
@@ -1985,12 +2265,15 @@ interface Measured {
   readonly queue?: QueueReading;
   readonly ports?: PortsReading;
   readonly conntrack?: ConntrackReading;
+  readonly memory?: MemoryReading;
+  readonly egress?: EgressReading;
   readonly request?: RequestReading | null;
   readonly driver?: {
     readonly steps: readonly DriverStepTime[];
   };
   readonly reconnect?: ReconnectReading;
   readonly call?: CallReading;
+  readonly delivery?: DeliveryReading;
   readonly left?: Quantity | null;
   readonly exited?: Quantity;
   readonly pairing?: Pairing;
@@ -2010,6 +2293,35 @@ interface MemberLine extends SentinelEvent {
   readonly attr: Readonly<Record<string, unknown>>;
 }
 
+### build/index.d.ts#MemoryReading
+interface MemoryReading {
+  readonly limits: {
+    readonly high: string;
+    readonly max: string;
+    readonly swap: string;
+  };
+  readonly start: number;
+  readonly steps: readonly MemoryStepReading[];
+  readonly tasks: readonly MemoryTaskReading[];
+  readonly events: Readonly<Record<string, number>>;
+  readonly stall: Quantity | null;
+}
+
+### build/index.d.ts#MemoryStepReading
+interface MemoryStepReading {
+  readonly usage: number;
+  readonly time: Quantity;
+  readonly high: number;
+  readonly read: boolean;
+}
+
+### build/index.d.ts#MemoryTaskReading
+interface MemoryTaskReading {
+  readonly name: string;
+  readonly outcome: string;
+  readonly signal: number | null;
+}
+
 ### build/index.d.ts#NODE_MARKS
 export declare const NODE_MARKS: Readonly<Record<Exclude<ClusterStage, "first-write">, {
   readonly message: RegExp;
@@ -2020,7 +2332,7 @@ export declare const NODE_MARKS: Readonly<Record<Exclude<ClusterStage, "first-wr
 export declare const NOISE: Quantity;
 
 ### build/index.d.ts#NetworkFault
-type NetworkFault = "blackhole" | "rst" | "reject" | "mtu";
+type NetworkFault = "blackhole" | "rst" | "reject" | "mtu" | "fin-ack" | "silence";
 
 ### build/index.d.ts#NodeLine
 interface NodeLine extends SentinelEvent {
@@ -2134,6 +2446,7 @@ interface PortsReading {
   readonly lastFreed: Quantity | null;
   readonly freed: number;
   readonly tries: number;
+  readonly stack: StackChange | null;
 }
 
 ### build/index.d.ts#Probe
@@ -2359,6 +2672,12 @@ interface Spread {
   readonly max: Quantity;
 }
 
+### build/index.d.ts#StackChange
+interface StackChange {
+  readonly client: Readonly<Record<string, number>>;
+  readonly target: Readonly<Record<string, number>>;
+}
+
 ### build/index.d.ts#StageVerdict
 interface StageVerdict {
   readonly stage: Stage;
@@ -2421,6 +2740,13 @@ interface SubstrateSource {
   readonly substrate?: Substrate;
   readonly kernel?: string;
   readonly hz?: string | null;
+}
+
+### build/index.d.ts#TimeFromFault
+interface TimeFromFault {
+  readonly at: Quantity;
+  readonly low: Quantity;
+  readonly high: Quantity;
 }
 
 ### build/index.d.ts#Verdict
@@ -2541,6 +2867,9 @@ export declare const clusterViewOf: (cluster: Cluster, rows: readonly StatusRow[
 ### build/index.d.ts#commitProblems
 export declare const commitProblems: (commit: string | undefined) => string[];
 
+### build/index.d.ts#commitVoid
+export declare const commitVoid: (commit: Quantity, times: readonly TimeFromFault[]) => string | null;
+
 ### build/index.d.ts#comparable
 export declare const comparable: (a: Substrate, b: Substrate) => boolean;
 
@@ -2559,8 +2888,20 @@ export declare const deadlineOf: (cell: Cell) => number;
 ### build/index.d.ts#delayVoids
 export declare const delayVoids: (behind: number, hz: number | undefined, noise: Quantity) => boolean;
 
+### build/index.d.ts#deliveryFinding
+export declare const deliveryFinding: (prediction: DeliveryPrediction, stream: DeliveryStream, read: DeliveryReading) => string | null;
+
+### build/index.d.ts#deliveryOf
+export declare const deliveryOf: (run: Run, stream: DeliveryStream) => DeliveryReading;
+
 ### build/index.d.ts#deviceOf
 export declare const deviceOf: (route: string) => string;
+
+### build/index.d.ts#diskRecordProblems
+export declare const diskRecordProblems: (record: DiskPinnable) => string[];
+
+### build/index.d.ts#diskSubjectProblems
+export declare const diskSubjectProblems: (subject: DiskSubject) => string[];
 
 ### build/index.d.ts#drillOnce
 export declare const drillOnce: (lab: ReplicaSetLab, cell: Cell, environment: number, index: number) => Promise<Run>;
@@ -2606,6 +2947,9 @@ export declare const fieldsOf: (text: string) => Array<Record<string, string>>;
 
 ### build/index.d.ts#firstUnanswered
 export declare const firstUnanswered: (pings: readonly ProgramEvent[], socket: readonly KernelRecord[], until?: number) => ProgramEvent | undefined;
+
+### build/index.d.ts#folderDigest
+export declare const folderDigest: (folder: string) => string;
 
 ### build/index.d.ts#frrConf
 export declare const frrConf: (router: Router, fabric: Fabric) => string;
@@ -2657,6 +3001,9 @@ export declare const hzOf: (first: {
 
 ### build/index.d.ts#imageOf
 export declare const imageOf: (source: string | ImageSource) => Promise<string>;
+
+### build/index.d.ts#imagePinProblems
+export declare const imagePinProblems: (what: string, image: string, build: BuildRecord | undefined) => string[];
 
 ### build/index.d.ts#imageProblems
 export declare const imageProblems: (source: ImageSource) => string[];
@@ -2757,8 +3104,14 @@ export declare const measureConntrack: (run: Run, expected: ConntrackPrediction)
 ### build/index.d.ts#measureDriver
 export declare const measureDriver: (cell: Cell, run: Run) => Measured;
 
+### build/index.d.ts#measureEgress
+export declare const measureEgress: (run: Run, expected: EgressPrediction) => Measured;
+
 ### build/index.d.ts#measureGroup
 export declare const measureGroup: (cell: Cell, run: Run) => GroupReading;
+
+### build/index.d.ts#measureMemory
+export declare const measureMemory: (run: Run, expected: MemoryPrediction) => Measured;
 
 ### build/index.d.ts#measurePause
 export declare const measurePause: (run: Run, prediction: PausePrediction) => Measured;
@@ -2822,6 +3175,9 @@ export declare const noiseOf: (cell: {
   readonly noise?: Quantity | undefined;
 }) => Quantity;
 
+### build/index.d.ts#npmDrift
+export declare const npmDrift: (manifest: string, lock: string) => string[];
+
 ### build/index.d.ts#npmVersions
 export declare const npmVersions: (lock: string) => Record<string, string>;
 
@@ -2833,6 +3189,9 @@ export declare const onMonotonic: (log: readonly MemberLine[], offset: number | 
 
 ### build/index.d.ts#openClusterLab
 export declare const openClusterLab: (cluster: Cluster) => Promise<ClusterLab>;
+
+### build/index.d.ts#openDiskLab
+export declare const openDiskLab: (options: DiskLabOptions) => Promise<DiskLab>;
 
 ### build/index.d.ts#openFabric
 export declare const openFabric: (parts: FabricParts) => Promise<FabricLab>;
@@ -2846,7 +3205,7 @@ export declare const openGroupLab: (group: Group, options?: {
 export declare const openKafkaLab: (kafka: Kafka) => Promise<KafkaLab>;
 
 ### build/index.d.ts#openLab
-export declare const openLab: (target: Target, kind?: Client | ClientImage, topology?: Topology) => Promise<Lab>;
+export declare const openLab: (target: Target, kind?: Client | ClientImage, topology?: Topology, setup?: ReadonlyArray<readonly string[]>) => Promise<Lab>;
 
 ### build/index.d.ts#openReplicaSetLab
 export declare const openReplicaSetLab: (set: ReplicaSet, backups?: boolean) => Promise<ReplicaSetLab>;
@@ -2892,6 +3251,9 @@ export declare const plainOf: (text: string) => string;
 
 ### build/index.d.ts#planOf
 export declare const planOf: (source: string | ImageSource) => ImagePlan;
+
+### build/index.d.ts#pongsOf
+export declare const pongsOf: (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown, delta?: Quantity) => ProgramEvent[];
 
 ### build/index.d.ts#poolOf
 export declare const poolOf: (measures: readonly RunLoad[]) => RunLoad & {
@@ -2982,6 +3344,9 @@ export declare const routesOf: (hops: readonly Pick<Hop, "kind">[]) => Array<{
 ### build/index.d.ts#runCell
 export declare const runCell: (cell: Cell, say?: (line: string) => void) => Promise<CellResult>;
 
+### build/index.d.ts#runDiskFault
+export declare const runDiskFault: (lab: DiskLab, fault: DiskFault) => Promise<DiskRecord>;
+
 ### build/index.d.ts#seedScript
 export declare const seedScript: (drill: Drill, copies: number) => string;
 
@@ -3033,8 +3398,23 @@ export declare const statusViewOf: (set: ReplicaSet, ips: Readonly<Record<string
 ### build/index.d.ts#stealShare
 export declare const stealShare: (before: CpuTime, after: CpuTime) => number | null;
 
+### build/index.d.ts#stepBand
+export declare const stepBand: (expected: MemoryThrottlePrediction, usage: number) => {
+  readonly band: QueueBand;
+  readonly high: {
+    readonly low: number;
+    readonly high: number;
+  };
+};
+
 ### build/index.d.ts#stopScript
 export declare const stopScript: (terminate: boolean) => string;
+
+### build/index.d.ts#streamEnded
+export declare const streamEnded: (run: Run, stream: DeliveryStream) => boolean;
+
+### build/index.d.ts#streamOf
+export declare const streamOf: (cell: Cell) => DeliveryStream;
 
 ### build/index.d.ts#streamsLoadOf
 export declare const streamsLoadOf: (events: readonly ProbeEvent[], streams: readonly RunStream[]) => {
@@ -3107,6 +3487,43 @@ export declare const viewOf: (group: Group, ips: Readonly<Record<string, string>
 
 ### build/index.d.ts#writesOf
 export declare const writesOf: (run: Run, after: number, primary: string) => Writes;
+
+### build/layers.d.ts#LAYERS
+export declare const LAYERS: readonly ["E0", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+### build/layers.d.ts#LAYER_FACTS
+export declare const LAYER_FACTS: Readonly<Record<Layer, LayerFacts>>;
+
+### build/layers.d.ts#LIMITS
+export declare const LIMITS: readonly ["queue", "ports", "conntrack", "memory", "egress"];
+
+### build/layers.d.ts#Layer
+export type Layer = (typeof LAYERS)[number];
+
+### build/layers.d.ts#LayerFacts
+export interface LayerFacts {
+  readonly name: string;
+  readonly proves: string;
+  readonly cannot: readonly string[];
+  readonly tools: readonly string[];
+  readonly state: LayerState;
+  readonly faults: readonly string[];
+  readonly limits: readonly Limit[];
+}
+
+### build/layers.d.ts#LayerState
+export type LayerState = "today" | "new" | "later" | "waiting";
+
+### build/layers.d.ts#Limit
+export type Limit = (typeof LIMITS)[number];
+
+### build/layers.d.ts#layerOf
+export declare const layerOf: (topology: Topology | undefined) => Layer;
+
+### build/layers.d.ts#limitsOf
+export declare const limitsOf: (cell: {
+  readonly prediction: object;
+}) => readonly Limit[];
 
 ### build/schema.d.ts#clientImageSchema
 export declare const clientImageSchema: z.ZodType<ClientImage>;

@@ -313,6 +313,7 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
     channel = null;
     if (closing() || c === null) return;
     record(on, "failing", detail);
+    // the calls in flight await this settle, thus the timer keeps the process alive (SYS-126)
     clock.after(0, () => flight.settleAll(`the generation ended with the call in flight (${detail})`));
     // the end of the channel leaves its connection open: the client closes it
     if (on === "channel.end") retire(c);
@@ -384,6 +385,7 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
       record("connect.failed", "failing", `${address}: ${detail}`);
       scheduleRetry();
     };
+    // a caller can await the connection, thus this bound keeps the process alive (SYS-126)
     const bound = clock.after(ms(knobs.connect_bound), () => fail("no open connection and channel in connect_bound"));
     void (async () => {
       const c = await create(rabbitOptions(name, spec, index));

@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cluster } from "./cluster.ts";
@@ -197,8 +198,6 @@ export const vipOf = (subnet: string): string => {
   if (address <= first + 1) throw new Error(`the subnet ${subnet} is too small for a VIP`);
   return [24, 16, 8, 0].map((shift) => Math.floor(address / 2 ** shift) % 256).join(".");
 };
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface PodList {
   readonly items: ReadonlyArray<{

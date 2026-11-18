@@ -1,6 +1,6 @@
 //! ports target PORT
 //! ports client [--rounds N] [--close reset|client|target] [--destinations N] [--settle-ms N]
-//!              [--retry-ms N] [--wait-s N] HOST PORT [--mode M] [--max-s N]
+//!              [--retry-ms N] [--wait-s N] [--reclaim] HOST PORT [--mode M] [--max-s N]
 //!
 //! This program is the two ends of the port range cells: a target that accepts each connection,
 //! and a client that connects until its range has no port. Each line is JSON with an `ev` and a `t`
@@ -8,6 +8,7 @@
 //!
 //! The target listens on PORT and on PORT + 2, the two destinations of a cell. It serves one command
 //! on PORT + 1, its control port: `close COUNT` waits until it holds COUNT connections, and closes them.
+//! `stack` gives the counters of the network stack of the target (`stack_counters`).
 //!
 //! The client does these steps in each round:
 //!
@@ -19,14 +20,22 @@
 //!    each `--retry-ms`, until it holds each port or `--wait-s` passes. A `freed` line gives each port.
 //!    It then closes those connections with a reset, so that the next run finds each port free.
 //! 4. `--close target` makes the target close first. The client reads the FIN of each connection,
-//!    closes it, and waits `--settle-ms`.
+//!    closes it, and waits `--settle-ms`. With `--reclaim`, the client reads each FIN first. It then
+//!    writes `closing` and closes each connection. It connects again as after `--close client`.
+//!
+//! Before its first round and after its last round, the client writes two `stack` lines: the counters
+//! of its own network stack, then those of the target. The change of a counter between the two lines
+//! tells where a segment went, for example a drop at a full backlog or an ACK that the target skipped.
+//!
+//! With `--mode inflight`, the client writes `ready` and waits for the file `/tmp/go` before its first
+//! round. The harness makes this file after it applies the fault, thus the fault acts on each round.
 //!
 //! The control connection takes a port of the range. Its destination is not a destination of the
 //! search, thus it does not change a count. It has SO_LINGER 0 from its connect, so that its close is a
 //! reset and holds no port. A FIN at the exit of the client holds that port in TIME_WAIT for 60 s. A
 //! range of 3 has only 2 ports for a search. Thus the third run of an environment had no control port.
 
-use harness_native::emit;
+use harness_native::{emit, stack_counters};
 use prober::{errno_name, monotonic_ns};
 use serde_json::{json, Value};
 use std::error::Error;
@@ -79,6 +88,7 @@ fn serve(stream: TcpStream, held: &Mutex<Vec<TcpStream>>) -> Result<(), Box<dyn 
         let mut words = line.split_whitespace();
         let reply = match (words.next(), words.next().and_then(|word| word.parse::<usize>().ok())) {
             (Some("close"), Some(count)) => json!({ "closed": close_held(held, count) }),
+            (Some("stack"), None) if line.trim() == "stack" => json!({ "stack": stack_counters() }),
             _ => json!({ "refused": line }),
         };
         writeln!(writer, "{reply}")?;
@@ -118,7 +128,14 @@ struct Plan {
     settle_ms: u64,
     retry_ms: u64,
     wait_s: u64,
+    /// `--mode inflight`: the rounds start when the file of the signal is there, after the fault
+    go: bool,
+    /// `--reclaim`: after a close of the target, the client connects again until it holds each port
+    reclaim: bool,
 }
+
+/// the file whose presence tells a client in flight to start
+const GO: &str = "/tmp/go";
 
 fn plan_of(args: &[String]) -> Result<Plan, Box<dyn Error>> {
     let mut plan = Plan {
@@ -130,6 +147,8 @@ fn plan_of(args: &[String]) -> Result<Plan, Box<dyn Error>> {
         settle_ms: 50,
         retry_ms: 10,
         wait_s: 80,
+        go: false,
+        reclaim: false,
     };
     let mut places = Vec::new();
     let mut rest = args.iter();
@@ -149,8 +168,10 @@ fn plan_of(args: &[String]) -> Result<Plan, Box<dyn Error>> {
             "--settle-ms" => plan.settle_ms = value()?.parse()?,
             "--retry-ms" => plan.retry_ms = value()?.parse()?,
             "--wait-s" => plan.wait_s = value()?.parse()?,
-            // the harness gives these flags to each client, and the plan does not read them
-            "--mode" | "--max-s" => {
+            "--reclaim" => plan.reclaim = true,
+            // the harness gives these flags to each client. The plan reads only the mode in flight
+            "--mode" => plan.go = value()? == "inflight",
+            "--max-s" => {
                 value()?;
             }
             other if other.starts_with("--") => return Err(format!("no flag {other}").into()),
@@ -178,6 +199,14 @@ impl Control {
         self.reader.read_line(&mut line)?;
         Ok(serde_json::from_str(&line)?)
     }
+}
+
+/// Writes the two `stack` lines: the counters of the client, then those of the target, at the point `at`.
+fn stack_lines(at: &str, control: &mut Control) -> Result<(), Box<dyn Error>> {
+    emit("stack", json!({ "side": "client", "at": at, "counters": stack_counters() }));
+    let reply = control.ask("stack")?;
+    emit("stack", json!({ "side": "target", "at": at, "counters": reply["stack"] }));
+    Ok(())
 }
 
 /// Closes a connection with a reset: SO_LINGER with a time of 0, then close(2).
@@ -275,6 +304,23 @@ fn close_round(plan: &Plan, first: SocketAddrV4, control: &mut Control, held: Ve
             }
             control.ask(&format!("close {reclaimed}"))?;
         }
+        Close::Target if plan.reclaim => {
+            control.ask(&format!("close {count}"))?;
+            let mut sink = [0u8; 16];
+            for mut stream in &held {
+                // each read ends at the FIN of the target
+                stream.read(&mut sink)?;
+            }
+            // the FIN of each connection of the client goes out at this instant: each socket is in LAST_ACK
+            emit("closing", json!({}));
+            drop(held);
+            let again = reclaim(plan, first, count)?;
+            let reclaimed = again.len();
+            for stream in again {
+                reset(stream)?;
+            }
+            control.ask(&format!("close {reclaimed}"))?;
+        }
         Close::Target => {
             control.ask(&format!("close {count}"))?;
             for mut stream in held {
@@ -298,6 +344,17 @@ fn client(args: &[String]) -> Result<(), Box<dyn Error>> {
     let mut control = Control { reader: BufReader::new(stream.try_clone()?), writer: stream };
     let destinations: Vec<SocketAddrV4> = (0..plan.destinations).map(|at| SocketAddrV4::new(ip, plan.port + 2 * at)).collect();
     emit("ready", json!({}));
+    if plan.go {
+        let end = monotonic_ns() + plan.wait_s * 1_000_000_000;
+        while !std::path::Path::new(GO).exists() {
+            if monotonic_ns() > end {
+                emit("deadline", json!({}));
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+    stack_lines("start", &mut control)?;
     for index in 0..plan.rounds {
         let mut held = Vec::new();
         for destination in &destinations {
@@ -305,6 +362,7 @@ fn client(args: &[String]) -> Result<(), Box<dyn Error>> {
         }
         close_round(&plan, destinations[0], &mut control, held)?;
     }
+    stack_lines("end", &mut control)?;
     emit("done", json!({}));
     Ok(())
 }
@@ -335,8 +393,32 @@ mod tests {
         assert_eq!(plan.close, Close::Client);
         assert_eq!(plan.destinations, 2);
         assert_eq!(plan.retry_ms, 10);
+        assert!(!plan.go && !plan.reclaim);
+        let inflight: Vec<String> = ["--close", "target", "--reclaim", "10.0.0.2", "6392", "--mode", "inflight"]
+            .iter()
+            .map(|each| each.to_string())
+            .collect();
+        let plan = plan_of(&inflight).expect("a plan in flight");
+        assert_eq!(plan.close, Close::Target);
+        assert!(plan.go && plan.reclaim);
         assert!(plan_of(&["--no-such".to_string()]).is_err());
         assert!(plan_of(&["--close".to_string(), "soon".to_string(), "h".to_string(), "1".to_string()]).is_err());
+    }
+
+    #[test]
+    fn the_control_port_gives_the_counters_of_the_stack_and_refuses_another_word() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("a listener");
+        let address = listener.local_addr().expect("an address");
+        let held = Arc::new(Mutex::new(Vec::new()));
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("an accept");
+            serve(stream, &held).expect("the control lines");
+        });
+        let stream = TcpStream::connect(address).expect("a connect");
+        let mut control = Control { reader: BufReader::new(stream.try_clone().expect("a clone")), writer: stream };
+        let reply = control.ask("stack").expect("a reply");
+        assert!(reply["stack"]["Tcp.ActiveOpens"].as_u64().is_some(), "{reply}");
+        assert_eq!(control.ask("stack now").expect("a reply")["refused"], "stack now");
     }
 
     #[test]

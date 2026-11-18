@@ -1,3 +1,4 @@
+import { delay } from "@mark1russell7/automata/clock";
 import type { Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { ContractCase } from "./contract.ts";
@@ -163,8 +164,8 @@ interface Tracked {
 }
 
 const realNow = (): number => performance.now();
-const turn = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+// The waits of the case keep the process alive: each timer of realClock does (SYS-126).
+const turn = (): Promise<void> => delay(realClock, 0);
 
 /** This function waits on the real clock, until the test is true or the bound ends. It gives the test at the end. */
 const within = async (bound: number, test: () => boolean): Promise<boolean> => {
@@ -236,7 +237,7 @@ export const transportConformance = (make: SubjectFactory, options: ConformanceO
   const holds = options.holds ?? 3;
 
   const timeOf = (): Time => {
-    if (!fake) return { clock: realClock, pass: sleep };
+    if (!fake) return { clock: realClock, pass: (ms: number) => delay(realClock, ms) };
     const clock = fakeClock();
     return { clock, pass: (ms) => clock.advance(ms) };
   };

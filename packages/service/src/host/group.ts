@@ -32,6 +32,21 @@ export interface ReadySpec {
   readonly within: Quantity;
 }
 
+/**
+ * An alive spec tells how the supervisor finds that a ready program still works. A program can hang and not exit:
+ * its process stays, and only a probe finds it. After `failures` failures in sequence, the supervisor stops the
+ * program in stages and starts it again after its backoff.
+ */
+export interface AliveSpec {
+  readonly probe: ReadyProbe;
+  /** This time is the pause between two uses of the probe. The first use is one interval after the program is ready. */
+  readonly interval: Quantity;
+  /** This time is the most that one use of the probe can take. */
+  readonly timeout: Quantity;
+  /** This count of failures in sequence stops the program: a whole number of 1 or more. A pass sets the count to 0. */
+  readonly failures: number;
+}
+
 /** A program restart tells how the supervisor starts a program again after it stops. */
 export interface ProgramRestart {
   /** This backoff gives the wait before each start again, in milliseconds, as `retrier` uses it. */
@@ -65,6 +80,8 @@ export interface ProgramSpec {
   readonly after?: readonly string[] | undefined;
   /** This spec tells when the program is ready. Without it, the program is ready when it starts. */
   readonly ready?: ReadySpec | undefined;
+  /** This spec tells how the supervisor finds that the ready program still works. Without it, only an exit starts the program again. */
+  readonly alive?: AliveSpec | undefined;
   /** This policy starts the program again after it stops. The default is `DEFAULT_RESTART`. Null does not start it again. */
   readonly restart?: ProgramRestart | null | undefined;
   /** This spec tells the log file. The default is `<stateDir>/logs/<name>.log`, 10 MB, with 3 old files. Null keeps no log. */
@@ -187,6 +204,13 @@ export const groupProblems = (spec: GroupSpec): string[] => {
       for (const field of ["interval", "timeout", "within"] as const)
         if (!isTimeAtLeast(program.ready[field], 0, true)) problems.push(`${of}: the ${field} of the probe is not a time above zero`);
     }
+    if (program.alive !== undefined) {
+      problems.push(...probeProblems(program.alive.probe).map((problem) => `${of}: the liveness probe: ${problem}`));
+      for (const field of ["interval", "timeout"] as const)
+        if (!isTimeAtLeast(program.alive[field], 0, true)) problems.push(`${of}: the ${field} of the liveness probe is not a time above zero`);
+      if (!(Number.isInteger(program.alive.failures) && program.alive.failures >= 1))
+        problems.push(`${of}: the failures of the liveness probe is not a whole number of 1 or more`);
+    }
     if (program.restart !== undefined && program.restart !== null) {
       problems.push(...backoffProblems(program.restart.backoff).map((problem) => `${of}: ${problem}`));
       if (!isTimeAtLeast(program.restart.resetAfter, 0, false)) problems.push(`${of}: the resetAfter is not a time of zero or more`);
@@ -224,6 +248,8 @@ interface Unit {
   child: ChildHandle | null;
   lock: InstanceLock | null;
   timers: Cancel[];
+  /** This cancel stops the next use of the liveness probe. It is one timer, thus a long life adds no timers. */
+  watch: Cancel | null;
   restarts: number;
   detail: string | null;
   /** This text tells why the supervisor stopped the child, or it is null. */
@@ -277,6 +303,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
       child: null,
       lock: null,
       timers: [],
+      watch: null,
       restarts: 0,
       detail: null,
       reason: null,
@@ -287,6 +314,8 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
 
   const clearTimers = (unit: Unit): void => {
     for (const cancel of unit.timers.splice(0)) cancel();
+    unit.watch?.();
+    unit.watch = null;
   };
 
   const environment = async (unit: Unit): Promise<Record<string, string>> => {
@@ -342,13 +371,54 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
     unit.detail = null;
     say("info", `${unit.spec.name} is ready`, { program: unit.spec.name, pid: child.pid });
     const restart = unit.spec.restart === undefined ? DEFAULT_RESTART : unit.spec.restart;
-    if (unit.retry !== null && restart !== null)
-      unit.timers.push(
-        ports.clock.after(ms(restart.resetAfter), () => {
-          if (unit.child === child && unit.phase === "ready") unit.retry?.reset();
-        }),
-      );
+    if (unit.retry !== null && restart !== null) {
+      const reset = ports.clock.after(ms(restart.resetAfter), () => {
+        if (unit.child === child && unit.phase === "ready") unit.retry?.reset();
+      });
+      // the child keeps the supervisor alive, thus this timer does not (SYS-126)
+      reset.unref?.();
+      unit.timers.push(reset);
+    }
+    if (unit.spec.alive !== undefined) watch(unit, child, unit.spec.alive);
     considerAll();
+  };
+
+  /** This function uses the liveness probe of a ready program each interval, and stops the program after `failures` failures in sequence. */
+  const watch = (unit: Unit, child: ChildHandle, alive: AliveSpec): void => {
+    let failures = 0;
+    const current = (): boolean => unit.child === child && unit.phase === "ready" && !stopping;
+    const next = (): void => {
+      unit.watch = ports.clock.after(ms(alive.interval), () => {
+        unit.watch = null;
+        void check();
+      });
+      // the child keeps the supervisor alive, thus the watch does not (SYS-126)
+      unit.watch.unref?.();
+    };
+    const check = async (): Promise<void> => {
+      if (!current()) return;
+      const result = await probeOnce(alive.probe, ms(alive.timeout), ports);
+      if (!current()) return;
+      if (result.ok) {
+        if (failures > 0) say("info", `${unit.spec.name} is alive again`, { program: unit.spec.name, pid: child.pid, failures });
+        failures = 0;
+        unit.detail = null;
+        next();
+        return;
+      }
+      failures += 1;
+      unit.detail = `the liveness probe failed ${failures} of ${alive.failures} times in sequence (${result.why})`;
+      if (failures < alive.failures) {
+        say("warn", `${unit.spec.name}: ${unit.detail}`, { program: unit.spec.name, pid: child.pid, why: result.why });
+        next();
+        return;
+      }
+      unit.reason = `its liveness probe failed ${failures} times in sequence (${result.why})`;
+      unit.detail = unit.reason;
+      say("warn", `${unit.spec.name} is not alive, thus it stops`, { program: unit.spec.name, pid: child.pid, why: result.why });
+      void stagedStop(unit, child);
+    };
+    next();
   };
 
   const probe = (unit: Unit, child: ChildHandle, ready: ReadySpec): void => {
@@ -369,7 +439,10 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
         void stagedStop(unit, child);
         return;
       }
-      unit.timers.push(ports.clock.after(ms(ready.interval), () => void attempt()));
+      const again = ports.clock.after(ms(ready.interval), () => void attempt());
+      // the child keeps the supervisor alive, thus the poll of its readiness does not (SYS-126)
+      again.unref?.();
+      unit.timers.push(again);
     };
     void attempt();
   };
@@ -450,6 +523,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
         resolve(true);
         return;
       }
+      // the stop awaits this wait, thus it keeps the process alive (SYS-126)
       const cancel = ports.clock.after(wait, () => resolve(unit.child !== child));
       unit.waiters.push(() => {
         cancel();

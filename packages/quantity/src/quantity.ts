@@ -1,8 +1,10 @@
-import type { Unit } from "./parse.ts";
-import { UnitError, isCanonicalUnit, parseUnit, sameVector } from "./parse.ts";
+import { UnitError, convertExact, isCanonicalUnit, parseUnit, whyNotConvertible } from "./parse.ts";
 import type { Rational } from "@mark1russell7/rational";
 import * as q from "@mark1russell7/rational";
+import type { MeasuredOn } from "./system.ts";
 import type { Kind } from "./units.ts";
+
+export type { MeasuredOn } from "./system.ts";
 
 /** A quantity is an amount in a unit: `{ "value": 7200, "unit": "s" }`. Its unit is always canonical. */
 export interface Quantity {
@@ -39,12 +41,6 @@ export const STATISTICS = [
 ] as const;
 export type Statistic = (typeof STATISTICS)[number];
 
-/** These are the facts about the measured system that a conversion uses. */
-export interface MeasuredOn {
-  /** The timer frequency of the kernel converts jiffies: at 250, one jiffy is 4 ms. */
-  readonly hz?: number | undefined;
-}
-
 export const isUnbounded = (extent: Extent): extent is Unbounded => extent.value === "infinite";
 
 /** This function tells if a value from data is a quantity: a finite number and a canonical unit. */
@@ -73,59 +69,6 @@ export const unbounded = (unit: string): Unbounded => ({
   value: "infinite",
   unit: parseUnit(unit).symbol,
 });
-
-const factorOn = (unit: Unit, on: MeasuredOn | undefined): Rational => {
-  if (unit.param !== "hz") return unit.factor;
-  const hz = on?.hz;
-  if (hz === undefined || !Number.isInteger(hz) || hz <= 0) {
-    throw new UnitError(`${unit.symbol} depends on the kernel's HZ: say which, as { hz: 250 }`);
-  }
-  const jiffies = unit.components
-    .filter((component) => component.atom?.param === "hz")
-    .reduce((sum, component) => sum + component.exponent, 0);
-  return q.mul(unit.factor, q.pow(q.rational(1n, BigInt(hz)), jiffies));
-};
-
-const counted = (unit: Unit): string => {
-  const names = Object.entries(unit.counts).map(([name, power]) =>
-    power === 1 ? name : `${name}^${power}`,
-  );
-  return names.length === 0 ? "nothing in particular" : names.join(" and ");
-};
-
-/** This function gives the reason that `from` cannot become `to`, or undefined when it can. */
-export const whyNotConvertible = (from: string, to: string): string | undefined => {
-  const a = parseUnit(from);
-  const b = parseUnit(to);
-  if (!sameVector(a.vector, b.vector)) {
-    return `${a.symbol} is a ${a.kind} and ${b.symbol} is a ${b.kind}`;
-  }
-  const aCounts = JSON.stringify(Object.entries(a.counts).sort());
-  const bCounts = JSON.stringify(Object.entries(b.counts).sort());
-  if (aCounts !== bCounts) return `${a.symbol} counts ${counted(a)} and ${b.symbol} ${counted(b)}`;
-  if ((a.log || b.log) && a.symbol !== b.symbol) {
-    return `${a.symbol} and ${b.symbol} are levels, and a level converts only to itself`;
-  }
-  return undefined;
-};
-
-export const convertible = (from: string, to: string): boolean =>
-  whyNotConvertible(from, to) === undefined;
-
-/** This function converts a value in one unit, exactly, into another unit. */
-export const convertExact = (
-  value: Rational,
-  from: string,
-  to: string,
-  on?: MeasuredOn,
-): Rational => {
-  const why = whyNotConvertible(from, to);
-  if (why !== undefined) throw new UnitError(`cannot convert ${from} to ${to}: ${why}`);
-  const a = parseUnit(from);
-  const b = parseUnit(to);
-  const base = q.mul(q.add(value, a.offset ?? q.ZERO), factorOn(a, on));
-  return q.sub(q.div(base, factorOn(b, on)), b.offset ?? q.ZERO);
-};
 
 export const convert = (amount: Quantity, to: string, on?: MeasuredOn): Quantity => {
   const unit = parseUnit(to).symbol;

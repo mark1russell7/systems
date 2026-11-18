@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +25,10 @@ import { F6_MANIFESTATIONS, F6_POSTURES, recoverBand, reportBand, tripBand } fro
 const RUN = process.env["REDIS_F6"] === "1";
 const REDIS = "redis:7.4@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f";
 const NODE = "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1";
-const PROBE = "f6-redis-probe:dev";
+/** The name of the image of the probe. Its tag comes from the files of its build (`probeTag`). */
+const PROBE = "f6-redis-probe";
+/** The tag of the image of the probe, from `buildProbe` in `beforeAll`. */
+let probeImage = "";
 const REPO = fileURLToPath(new URL("../../../../", import.meta.url));
 const FILES = fileURLToPath(new URL("../../test/f6/", import.meta.url));
 /** The noise of the pipeline: the event loop of the probe and the scheduler of the VM, in milliseconds. */
@@ -101,8 +105,22 @@ class SharedPidContainer extends GenericContainer {
 
 const shell = process.platform === "win32";
 
-/** This function builds the image of the probe from the tarballs of the workspace, as an application installs them. */
-const buildProbe = async (): Promise<void> => {
+/**
+ * This function gives the tag of the probe for the files of a build context: the SHA-256 of each name and
+ * its bytes. A change of the code gives a new tag. Thus an old image cannot stand in for a build that failed.
+ */
+const probeTag = (context: string): string => {
+  const hash = createHash("sha256");
+  for (const file of readdirSync(context).sort()) hash.update(`${file}\0`).update(readFileSync(join(context, file))).update("\0");
+  return `${PROBE}:${hash.digest("hex").slice(0, 16)}`;
+};
+
+/**
+ * This function builds the image of the probe from the tarballs of the workspace, as an application installs
+ * them, and gives its tag. The testcontainers library does not show the errors of a build. Thus the function reads the image
+ * from Docker after the build, and a build that made no image stops the test (SYS-127).
+ */
+const buildProbe = async (): Promise<string> => {
   const context = mkdtempSync(join(tmpdir(), "f6-"));
   try {
     execFileSync("pnpm", ["--filter", "@mark1russell7/quantity", "--filter", "@mark1russell7/automata", "--filter", "@mark1russell7/service", "build"], { cwd: REPO, shell, stdio: "ignore" });
@@ -137,7 +155,14 @@ const buildProbe = async (): Promise<void> => {
         "",
       ].join("\n"),
     );
-    await GenericContainer.fromDockerfile(context).build(PROBE, { deleteOnExit: false });
+    const tag = probeTag(context);
+    await GenericContainer.fromDockerfile(context).build(tag, { deleteOnExit: false });
+    try {
+      execFileSync("docker", ["image", "inspect", tag], { shell, stdio: "ignore" });
+    } catch {
+      throw new Error(`the build of ${tag} made no image: build the context of the probe with docker build to see its error`);
+    }
+    return tag;
   } finally {
     rmSync(context, { recursive: true, force: true });
   }
@@ -177,7 +202,7 @@ const open = async (): Promise<Environment> => {
     .withAddedCapabilities("NET_ADMIN", "NET_RAW")
     .start();
   containers.push(injector);
-  const agent = await new SharedPidContainer(PROBE)
+  const agent = await new SharedPidContainer(probeImage)
     .withNetworkMode(`container:${redis.getId()}`)
     .withPidMode(`container:${redis.getId()}`)
     .withCommand(["sleep", "infinity"])
@@ -185,7 +210,7 @@ const open = async (): Promise<Environment> => {
   containers.push(agent);
   const lines: Line[] = [];
   let partial = "";
-  const probe = await new GenericContainer(PROBE)
+  const probe = await new GenericContainer(probeImage)
     .withNetwork(network)
     .withCommand(["node", "probe.mjs", JSON.stringify(probeConfig)])
     .withLogConsumer((stream) =>
@@ -250,7 +275,7 @@ const show = (band: Band): string => `[${band.low}, ${band.high}] ms`;
 
 describe.skipIf(!RUN)("F6 for Redis against a real Redis 7.4 (REDIS_F6=1)", () => {
   beforeAll(async () => {
-    await buildProbe();
+    probeImage = await buildProbe();
     await harnessImage();
   }, 900_000);
 

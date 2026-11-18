@@ -3,6 +3,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { LADDER_FORMAT, ladderVerdict, type Ladder, type LadderVerdict, type RungEvidence, type RungRecord } from "@mark1russell7/rigor-bench";
 import { ms, s, sysctlsOf } from "./catalog.ts";
+import { FAULT_FACTOR } from "./held.ts";
 import { MONGO_IMAGE } from "./mongo/cells.ts";
 import { MEMBER_STAMPS, SET_DEFAULTS, replicaSetOf } from "./mongo/harness.ts";
 import { INTERVAL, linuxValues } from "./mongo/model.ts";
@@ -252,6 +253,48 @@ export const RECOVERY_LADDER: Ladder = {
 
 /** This function gives the verdict of the ladder of recovery, with `now` as the time of the verdict in ISO 8601. */
 export const recoveryVerdict = (records: readonly RungRecord[], now: string): LadderVerdict => ladderVerdict(RECOVERY_LADDER, records, { now });
+
+/** These are the measures of the budgets of the ladder, each one time. */
+export const RECOVERY_MEASURES: readonly string[] = [...new Set(RECOVERY_LADDER.rungs.flatMap((rung) => rung.budgets.map((budget) => budget.measure)))];
+
+/** This function gives the value of the injected fault of a budget: `FAULT_FACTOR` times its limit, or 1 above a limit of 0. */
+const faultOf = (limit: number): number => (limit === 0 ? 1 : limit * FAULT_FACTOR);
+
+/**
+ * This function injects the fault of the flip test (SYS-99) in the records of the rungs. Each
+ * value of the measure reads `FAULT_FACTOR` times the limit of its budget, or 1 above a limit of 0.
+ * The values of the other measures stay as they are.
+ */
+export const faultedRecords = (records: readonly RungRecord[], measure: string): RungRecord[] =>
+  records.map((record) => {
+    const budget = RECOVERY_LADDER.rungs.find((rung) => rung.name === record.rung)?.budgets.find((each) => each.measure === measure);
+    if (budget === undefined) return record;
+    const over = faultOf(budget.limit);
+    return {
+      ...record,
+      evidence: record.evidence.map((each) => (each.measure === measure && each.kind === "worst" ? { ...each, values: each.values.map(() => over) } : each)),
+    };
+  });
+
+/** The flip of one measure names each locked rung whose budget of that measure is not `beyond` under its fault. */
+export interface RungFlip {
+  readonly measure: string;
+  readonly stayed: readonly string[];
+}
+
+/**
+ * This function gives the flip of each measure of the ladder of recovery (SYS-99). Under the fault
+ * of a measure, the budget of that measure of each locked rung must be `beyond`. A rung with fewer
+ * drills than its budget needs stays `cannot decide`, thus the flip names it.
+ */
+export const recoveryFlip = (records: readonly RungRecord[], now: string): RungFlip[] =>
+  RECOVERY_MEASURES.map((measure) => {
+    const verdict = recoveryVerdict(faultedRecords(records, measure), now);
+    const stayed = verdict.rungs
+      .filter((rung) => rung.locked && rung.budgets.find((budget) => budget.measure === measure)?.outcome !== "beyond")
+      .map((rung) => rung.rung);
+    return { measure, stayed };
+  });
 
 /** This list states what a drill does not do. A rung shows it beside its verdict. */
 const SYNTHETIC: readonly string[] = [

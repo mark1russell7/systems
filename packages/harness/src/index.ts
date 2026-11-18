@@ -5,7 +5,9 @@
 // Sentinels, a replica set whose members elect their own primary, or a cluster of RabbitMQ whose
 // quorum queue elects its leader. A program with its own
 // detector, a WebSocket heartbeat, writes lines that the kernel stamps. The subject of a cell is
-// data: an image pinned by digest, a build context, or an image that the harness ships.
+// data: an image pinned by digest, a build context, or an image that the harness ships. The disk
+// tier applies a disk plan to the files of a program on LazyFS: a power cut loses each write after
+// the last fsync (`openDiskLab`, `runDiskFault`).
 
 export type {
   BuildImage,
@@ -47,6 +49,7 @@ export type {
   Outcomes,
   Pair,
   CountBand,
+  DeliveryPrediction,
   Fault,
   PinnedImage,
   KernelRecord,
@@ -57,6 +60,15 @@ export type {
   LoadPlan,
   LoadStream,
   LoadPrediction,
+  MemoryLimits,
+  MemoryOomPrediction,
+  MemoryOomTask,
+  MemoryPrediction,
+  MemoryStep,
+  MemoryThrottlePrediction,
+  EgressBurst,
+  EgressPacketLaw,
+  EgressPrediction,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -110,17 +122,24 @@ export {
   jitterOfLines,
   leftAfter,
   pingsOf,
+  pongsOf,
   programLines,
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
+export type { DeliveryReading, DeliveryStream } from "./delivery.ts";
+export { deliveryFinding, deliveryOf, streamEnded, streamOf } from "./delivery.ts";
 export type { EstimateVerdict, LoadJudgement, LoadSpread, LoadVerdict, RunEstimate, RunLoad } from "./load.ts";
 export { CLOSED_TOLERANCE, LOAD_FORMAT, LOAD_PATH, SCHEDULE_PATH, estimateOf, estimateVerdict, loadOf, loadPlanOf, loadVerdict, poolOf, streamsLoadOf } from "./load.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { ConntrackReading, StallReading } from "./conntrack.ts";
 export { measureConntrack } from "./conntrack.ts";
-export type { PortsReading } from "./ports.ts";
+export type { MemoryReading, MemoryStepReading, MemoryTaskReading } from "./memory.ts";
+export { measureMemory, stepBand } from "./memory.ts";
+export type { EgressPacketReading, EgressReading } from "./egress.ts";
+export { measureEgress } from "./egress.ts";
+export type { PortsReading, StackChange } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
 export { measureQueue } from "./queue.ts";
@@ -141,12 +160,13 @@ export {
   stagesOf,
   writesOf,
 } from "./timeline.ts";
-export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
+export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, TimeFromFault, Verdict } from "./verdict.ts";
 export {
   INJECT,
   NOISE,
   RELATIVE,
   STEPS,
+  commitVoid,
   delayVoids,
   groupVerdictOf,
   medianInterval,
@@ -158,7 +178,7 @@ export {
   spreadOf,
   verdictOf,
 } from "./verdict.ts";
-export type { Agent, FaultSide, HostSetting, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
+export type { Agent, FaultOptions, FaultSide, HostSetting, Lab, Manifest, ManifestHop, NetworkFault, Probe, Sibling } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, buildOf, deviceOf, endpointAfter, harnessRecord, hzOf, openLab, routesOf, shippedClientRecord, templated, toxicBody } from "./lab.ts";
 export { INSERT, RESTART, STANDBY_READY, cancelsOf, numbersOf, openStandby, pairArgs, pairOnce, standbyCommand } from "./standby.ts";
 export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
@@ -178,13 +198,17 @@ export {
   sessionsOf,
   topologyOf,
 } from "./fabric.ts";
-export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
-export { AWS_FROM, CLOUDS, LAYERS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export type { Layer, LayerFacts, LayerState, Limit } from "./layers.ts";
+export { LAYERS, LAYER_FACTS, LIMITS, layerOf, limitsOf } from "./layers.ts";
+export type { Cloud, Host, Substrate, SubstrateSource } from "./substrate.ts";
+export { AWS_FROM, CLOUDS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
-export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
+export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmDrift, npmVersions, versionsOf } from "./locks.ts";
 export type { Pinnable, RecordCode } from "./pins.ts";
-export { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
+export { commitProblems, DEBUG, DIRTY, imagePinProblems, manifestProblems, recordProblems } from "./pins.ts";
+export type { DiskImage, DiskLab, DiskLabOptions, DiskPinnable, DiskRecord, DiskSubject, DiskWriterRecord } from "./disk.ts";
+export { DISK_MOUNT, DISK_RECORD_FORMAT, DISK_ROOT, DISK_SUBJECT, diskRecordProblems, diskSubjectProblems, folderDigest, openDiskLab, runDiskFault } from "./disk.ts";
 export {
   CLIENT_NAMES,
   PINNED,

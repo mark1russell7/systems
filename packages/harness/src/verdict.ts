@@ -31,6 +31,36 @@ export const NOISE: Quantity = quantity(4, "ms");
  */
 export const INJECT: Quantity = NOISE;
 
+/** A time from the fault is one time of a run from the start of the commit of its fault. It has the edges of the band that judges it. */
+export interface TimeFromFault {
+  readonly at: Quantity;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * This function gives the void of a run from the commit of its fault, or null (SYS-99). A fault
+ * starts somewhere in its commit, thus each time from the start of the commit is too long by the
+ * commit or less. A commit up to `INJECT` is in the noise. A longer commit voids the run only when
+ * that shift can move a time across an edge of its band. Thus a drill with a band of minutes keeps
+ * a run with a commit of 8 ms. `times` holds each time that a band judges, with the edges of the
+ * verdict. A run with no time is void.
+ */
+export const commitVoid = (commit: Quantity, times: readonly TimeFromFault[]): string | null => {
+  const took = valueIn(commit, "s");
+  if (took <= valueIn(INJECT, "s")) return null;
+  const crosses = (time: TimeFromFault): boolean => {
+    const at = valueIn(time.at, "s");
+    const low = valueIn(time.low, "s");
+    const high = valueIn(time.high, "s");
+    const inside = at - took >= low && at <= high;
+    const outside = at < low || at - took > high;
+    return !inside && !outside;
+  };
+  if (times.length > 0 && !times.some(crosses)) return null;
+  return `the commit of the fault took ${Math.round(valueIn(commit, "ms") * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+};
+
 /** This function gives the δ_abs of a cell: its own, or `NOISE` for a cell that gives none. */
 export const noiseOf = (cell: { readonly noise?: Quantity | undefined }): Quantity => cell.noise ?? NOISE;
 
@@ -471,7 +501,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
-    // the law of an accept queue, a port range, a paused consumer or a conntrack table: each run holds each term of it, or the run is outside
+    // the law of an accept queue, a port range, a paused consumer, a conntrack table, a memory limit or an egress qdisc: each run holds each term of it, or the run is outside
     const law =
       prediction.queue !== undefined
         ? "queue"
@@ -481,7 +511,11 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
             ? "paused consumer"
             : prediction.conntrack !== undefined
               ? "conntrack table"
-              : undefined;
+              : prediction.memory !== undefined
+                ? "memory limit"
+                : prediction.egress !== undefined
+                  ? "egress qdisc"
+                  : undefined;
     if (law !== undefined) {
       const off = new Set(outside.map((each) => each.run)).size;
       return {

@@ -3,6 +3,8 @@ import { ACCEPT_QUEUE_CELLS, SERVICE_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { CONNTRACK_CELLS } from "./conntrack.ts";
+import { EGRESS_CELLS } from "./egress.ts";
+import { MEMORY_CELLS } from "./memory.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
@@ -24,6 +26,7 @@ import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { LADDER_CELLS } from "./ladder.ts";
 import { OPEN_LOOP_CELLS } from "./open-loop.ts";
+import { BORDER_CELLS } from "./stability.ts";
 import { RESEND_CELLS } from "./resend.ts";
 import { RECOVERY_CELLS, RECOVERY_SIZE_CELLS } from "./recovery.ts";
 import { REFRESH_CELLS } from "./refresh.ts";
@@ -37,6 +40,7 @@ import { WATCH_CELLS } from "./etcd-watch.ts";
 import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
+import { SOCKETIO_CELLS } from "./socketio.ts";
 import { WRITES_CELLS } from "./writes.ts";
 import { wsCells } from "./ws.ts";
 
@@ -56,13 +60,14 @@ export interface Subjects {
  * of S3 use the same group. The cells of `acks` of S3 follow them, on a group of Kafka. The HTTP
  * cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
- * WST cells: the same client through a router or a proxy. The cells of the writes of S3 on a replica
+ * WST cells: the same client through a router or a proxy. The Socket.IO cells (SIO) follow them. The cells of the writes of S3 on a replica
  * set come next, then the MongoDB cells of T01, T03 and T11. The PostgreSQL cells of T01, T03 and
  * T10 follow, then the cells of a COMMIT with no reply. The RabbitMQ cells of T01 and T11 and of
  * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
  * (O29 and O30) and of a pool at its limit come next. The cells of the accept queue, of the port
  * range, of conntrack and of the routed fabric are after them. The retry count of T14 (O08) follows. The recovery
- * drills follow, and the open-loop cells are last.
+ * drills follow, then the open-loop cells and the cells of the border of a stable system. The ladder
+ * follows them, and the cells of the memory controller of a cgroup are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -82,6 +87,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),
     ...wstCells(subjects.procedures),
+    ...SOCKETIO_CELLS,
     ...T11_WRITES_CELLS,
     ...MONGO_CELLS,
     ...T01_PG,
@@ -109,7 +115,10 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...RECOVERY_CELLS,
     ...RECOVERY_SIZE_CELLS,
     ...OPEN_LOOP_CELLS,
+    ...BORDER_CELLS,
     ...LADDER_CELLS,
+    ...MEMORY_CELLS,
+    ...EGRESS_CELLS,
   ];
 };
 
@@ -148,3 +157,18 @@ export const needsContainerlab = (cell: Cell): boolean => cell.topology?.fabric 
  */
 export const selectedOf = (source: readonly Cell[], only: RegExp, shard: number, of: number): readonly Cell[] =>
   source.filter((each) => only.test(each.name)).filter((_, at) => at % of === shard);
+
+/** This count is the most runs that CELLS_RUNS can give a cell: 25 times the 4 runs of most cells. */
+export const MOST_RUNS = 100;
+
+/**
+ * This function gives each cell the count of runs in `text`, the variable CELLS_RUNS. The rate of a
+ * rare outcome needs more runs than its cell has (SYS-121). The record of each cell holds its count.
+ * Empty text keeps the count of each cell.
+ */
+export const withRuns = (cells: readonly Cell[], text: string | undefined): readonly Cell[] => {
+  if (text === undefined || text === "") return cells;
+  const runs = Number(text);
+  if (!Number.isInteger(runs) || runs < 1 || runs > MOST_RUNS) throw new Error(`CELLS_RUNS is ${text}: give a whole count of runs from 1 to ${MOST_RUNS}`);
+  return cells.map((cell) => ({ ...cell, runs }));
+};

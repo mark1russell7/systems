@@ -184,9 +184,75 @@ export const SLIDING_WINDOW_MACHINE: Machine = {
   ],
 };
 
+/**
+ * An in-flight bound of one key, as a `mark1russell7.machine/1` document. The store keeps the start of
+ * each held unit of the key. A unit stays held until its release, or until the end of its lease.
+ * - A take is permitted when fewer than `limit` units are held.
+ * - A release removes the held units of one take. Thus the next take can be permitted at once.
+ * - A refused take waits for the declared `retry_after`, or less when the oldest lease ends first.
+ *   That `retry_after` is the longest `Retry-After` of the policy (`retry_after@limiter` of the law).
+ * - One lease after the last take, or at the release of the last held unit, the key is equal to a
+ *   new key. The lease is the idle span, and the longest wait of a new key at the cap of keys
+ *   (`retry_after_at_cap@limiter`).
+ */
+export const IN_FLIGHT_MACHINE: Machine = {
+  ...COMMON,
+  id: "service.machine.limiter.in-flight",
+  title: "An in-flight bound of one key of the keyed limiter",
+  events: {
+    ...EVENTS,
+    release: {
+      kind: "app",
+      note: "one call of release(key, decision) when the call of a permitted take ends. It removes the held units of that take",
+    },
+  },
+  knobs: {
+    limit: count("limiters.<name>.policy.limit"),
+    lease: { key: "limiters.<name>.policy.lease", scope: "limiter", unit: "s", default: null },
+    retry_after: { key: "limiters.<name>.policy.retryAfter", scope: "limiter", unit: "s", default: null },
+    ...KNOBS,
+  },
+  timers: {
+    oldest: {
+      duration: { knob: "lease", unit: "s" },
+      early: { knob: "lease", unit: "s" },
+      arms: ["enter:limited"],
+      cancels: ["idle"],
+      fires: "unit.back",
+      note: "with no release, the oldest held unit leaves at most one lease after the take that filled the bound. The Retry-After of each refusal is the lesser of retry_after and the time to this firing",
+    },
+    last: {
+      duration: { knob: "lease", unit: "s" },
+      early: { knob: "lease", unit: "s" },
+      arms: ["take"],
+      fires: "idle",
+      note: "the units of the last permitted take leave one lease after its time. When a release removed them, an earlier unit can leave first. A refused take does not move it",
+    },
+  },
+  transitions: [
+    t("first", "new", "take", "open", { guard: "limit > 1", emits: ["allow"] }),
+    t("first-last", "new", "take", "limited", { guard: "limit = 1", emits: ["allow"] }),
+    t("take", "open", "take", "open", { guard: "fewer than limit - 1 units are held before the take", emits: ["allow"] }),
+    t("take-last", "open", "take", "limited", { guard: "the take holds the limit-th unit", emits: ["allow"] }),
+    ...COMMON_TRANSITIONS,
+    t("release", "open", "release", "open", { guard: "a held unit stays held after the release" }),
+    t("release-last", "open", "release", "new", { guard: "the release removes the last held unit" }),
+    t("release-limited", "limited", "release", "open", { guard: "the release removes a held unit, and a held unit stays held" }),
+    t("release-all", "limited", "release", "new", { guard: "each held unit is a unit of the take: limit = 1, or each take came at once" }),
+    t("release-late", "limited", "release", "limited", { guard: "the lease of the take ended: the release removes no unit" }),
+    t("release-new", "new", "release", "new", { guard: "the lease of the take ended: no unit is held" }),
+    t("oldest-leaves", "limited", "unit.back", "open", { timer: "oldest", guard: "a held unit of a later take stays held" }),
+    t("last-leaves", "open", "idle", "new", { timer: "last" }),
+    t("all-leave", "limited", "idle", "new", {
+      timer: "last",
+      guard: "each held unit has one start: limit = 1, or each take came at once",
+    }),
+  ],
+};
+
 /** This function gives the machine document of the policy of a limiter. */
 export const limiterMachine = (policy: LimitPolicy): Machine =>
-  policy.type === "token-bucket" ? TOKEN_BUCKET_MACHINE : SLIDING_WINDOW_MACHINE;
+  policy.type === "token-bucket" ? TOKEN_BUCKET_MACHINE : policy.type === "in-flight" ? IN_FLIGHT_MACHINE : SLIDING_WINDOW_MACHINE;
 
 /**
  * This function gives the state of a key of a store as its machine document names it, at the time

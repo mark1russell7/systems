@@ -1,7 +1,9 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
 import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
 import { environmentProblems, isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
+import { streamEnded, streamOf } from "./delivery.ts";
 import { drillOnce } from "./drill.ts";
 import { countOf, longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
@@ -53,6 +55,17 @@ const droppedSoFar = (records: readonly KernelRecord[]): number => {
   return 0;
 };
 
+/**
+ * This function gives the length in seconds of the stream of a WebSocket client: `count` events,
+ * one each `interval`. It throws for a stream without them.
+ */
+const streamLength = (cell: Cell): number => {
+  const { count, interval } = cell.probe;
+  if (count === undefined || interval === undefined)
+    throw new RangeError(`${cell.name}: a stream of a WebSocket client needs probe.count and probe.interval`);
+  return count * valueIn(interval, "s");
+};
+
 /** This function gives the argv of the client for a cell, with a deadline far after all that it waits for. */
 const probeArgs = (cell: Cell, lab: Lab): string[] => {
   const { prediction, probe } = cell;
@@ -96,7 +109,19 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     args.push("--request-timeout-ms", String(valueIn(ws.requestTimeout, "ms")));
     args.push("--connection-timeout-ms", String(valueIn(ws.connectionTimeout, "ms")));
     if (ws.hold !== undefined) args.push("--hold-ms", String(valueIn(ws.hold, "ms")));
-    args.push("--max-s", String(Math.ceil((longest + waits) * 2 + 10)));
+    if (ws.retries !== undefined) args.push("--retries", String(ws.retries));
+    // a stream of a WebSocket client sends `count` events, one each `interval`, from its sender
+    const stream = probe.mode === "stream" ? streamLength(cell) : 0;
+    if (probe.mode === "stream")
+      args.push(
+        "--count",
+        String(probe.count),
+        "--interval-ms",
+        String(valueIn(probe.interval!, "ms")),
+        "--sender",
+        probe.sender ?? "client",
+      );
+    args.push("--max-s", String(Math.ceil((longest + waits + stream) * 2 + 10)));
     return args;
   }
   if (probe.http !== undefined) {
@@ -193,8 +218,6 @@ const observerError = (
     look();
   });
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * This time is the pause between the client's first reply and the fault. It is more than Linux's
  * TCP_DELACK_MAX of 200 ms. Thus the delayed ACK of the reply is out before the fault.
@@ -262,7 +285,7 @@ const beforeOnce = async (lab: Lab, cell: Cell, environment: number, index: numb
   const fault = await lab.fault(kind, faultAt, options);
   let probe: Probe | undefined;
   try {
-    probe = await lab.probe(probeArgs(cell, lab));
+    probe = await lab.probe(probeArgs(cell, lab), undefined, cell.cgroup);
     const started = probe;
     // the topology too: a band can be on the socket that a hop opens toward the target
     const current = (): Run => ({
@@ -386,7 +409,7 @@ const once = async (
     ...(plan === undefined ? [] : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }]),
     ...(load === undefined ? [] : [{ content: load.content, target: LOAD_PATH }]),
   ];
-  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files);
+  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files, cell.cgroup);
   const server = cell.observer === "server";
   const peer = server
     ? { freeze: () => probe.freeze(), thaw: () => probe.thaw() }
@@ -501,6 +524,9 @@ const once = async (
             return netemOn(cell.netem);
           case "rst":
             return lab.fault("rst", faultAt);
+          // the ACK of a FIN of the client drops where it arrives: the namespace of the client
+          case "fin-ack":
+            return lab.fault("fin-ack", cell.faultAt ?? "client");
           // the router or the proxy of the topology is the fault, or a calibration has none, or the
           // server holds the reply by itself: nothing to inject
           case "middlebox-forget":
@@ -574,6 +600,8 @@ const once = async (
             return undefined;
           case "rst":
             return lab.lift("rst", faultAt);
+          case "fin-ack":
+            return lab.lift("fin-ack", cell.faultAt ?? "client");
           case "toxic":
             await lab.toxic(null);
             return undefined;
@@ -663,6 +691,18 @@ const once = async (
         const waits = expected.waits.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
         await dials(probe, 1 + expected.waits.length, waits * 2_000 + 5_000);
       }
+      // a stream crosses the fault: the run ends when the receiver gets the last event, or when the
+      // client stops. A lost last event is a finding of the run, not a reason to wait more
+      const delivery = cell.prediction.detects === true ? cell.prediction.delivery : undefined;
+      if (delivery !== undefined) {
+        const stream = streamOf(cell);
+        const within = streamLength(cell) * 2_000 + 10_000;
+        const started = Date.now();
+        const stopped = () => probe.events.some((event) => event.ev === "deadline" || event.ev === "fail");
+        const current = (): Run => ({ ...partial(), server: lab.server.slice(serverFrom) });
+        while (!streamEnded(current(), stream) && !stopped() && Date.now() - started < within) await sleep(20);
+        await sleep(TAIL_MS);
+      }
     }
   } finally {
     await probe.stop();
@@ -743,12 +783,12 @@ const inEnvironment = async (
   if (cell.cluster !== undefined) return inClusterEnvironment(cell, environment, count, say);
   if (cell.kafka !== undefined) return inKafkaEnvironment(cell, environment, count, say);
   if (cell.pair !== undefined) return inPairEnvironment(cell, environment, count, say);
-  const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
+  // the setup of the target comes before the hops: a hop can connect to the target at its start
+  const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology, cell.targetSetup);
   try {
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
     const settings = await lab.configure(cell.targetSettings ?? {});
     const targetSysctls = await lab.targetSysctl(cell.targetSysctls ?? {});
-    if (cell.targetSetup !== undefined) await lab.setup(cell.targetSetup);
     // netem and a length match act on segments only when TSO, GSO and GRO are off on the two ends,
     // and on the hop that the fault is at
     if (cell.fault === "mtu-blackhole" || cell.fault === "netem") {

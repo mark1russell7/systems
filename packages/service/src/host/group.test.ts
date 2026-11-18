@@ -269,6 +269,96 @@ describe("superviseGroup starts a program again after it stops", () => {
   });
 });
 
+describe("superviseGroup stops a ready program that does not pass its liveness probe", () => {
+  const ALIVE = "http://127.0.0.1:8080/liveness";
+  const watched = (): GroupSpec =>
+    one({
+      name: "api",
+      program: "/bin/api",
+      alive: { probe: { kind: "http", url: ALIVE }, interval: ms(1000), timeout: ms(100), failures: 3 },
+      stop: { grace: ms(500) },
+      restart: quick,
+    });
+
+  it("names each bad value of the liveness probe", () => {
+    const spec = one({ name: "api", program: "/bin/api", alive: { probe: { kind: "tcp", port: 0 }, interval: ms(0), timeout: { value: 1, unit: "MB" }, failures: 1.5 } });
+    expect(groupProblems(spec)).toEqual([
+      'the program "api": the liveness probe: the port 0 is not a port from 1 to 65535',
+      'the program "api": the interval of the liveness probe is not a time above zero',
+      'the program "api": the timeout of the liveness probe is not a time above zero',
+      'the program "api": the failures of the liveness probe is not a whole number of 1 or more',
+    ]);
+    expect(groupProblems(one({ ...watched().programs[0]!, alive: { probe: { kind: "http", url: ALIVE }, interval: ms(1), timeout: ms(1), failures: 0 } }))).toEqual([
+      'the program "api": the failures of the liveness probe is not a whole number of 1 or more',
+    ]);
+  });
+
+  it("counts the failures in sequence, and a pass sets the count to 0", async () => {
+    const host = fakeHost();
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(watched(), host.ports);
+    group.start();
+    await host.settle();
+    expect(phases(group)).toEqual({ api: "ready" });
+    host.http.set(ALIVE, 500);
+    await step(host, 1000);
+    await step(host, 1000);
+    expect(group.states()[0]).toMatchObject({ phase: "ready", detail: `the liveness probe failed 2 of 3 times in sequence (${ALIVE} gave 500, not 200)` });
+    host.http.set(ALIVE, 200);
+    await step(host, 1000);
+    expect(group.states()[0]).toMatchObject({ phase: "ready", detail: null });
+    host.http.set(ALIVE, 500);
+    await step(host, 1000);
+    await step(host, 1000);
+    expect(host.signals).toEqual([]);
+    expect(host.children).toHaveLength(1);
+  });
+
+  it("stops a hung program in stages after its failures, and starts it again after its backoff", async () => {
+    const host = fakeHost();
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(watched(), host.ports);
+    group.start();
+    await host.settle();
+    host.http.delete(ALIVE);
+    await step(host, 1000);
+    await step(host, 1000);
+    expect(host.signals).toEqual([]);
+    await step(host, 1000);
+    // the hung program does not stop on SIGTERM, thus the process group stops after the grace
+    expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
+    await step(host, 500);
+    expect(host.signals).toEqual([
+      { pid: 1000, signal: "SIGTERM", group: false },
+      { pid: 1000, signal: "SIGKILL", group: true },
+    ]);
+    expect(group.states()[0]).toMatchObject({
+      phase: "backoff",
+      detail: `its liveness probe failed 3 times in sequence (${ALIVE} gave no answer in 100 ms), then it exited with the signal SIGKILL`,
+    });
+    host.http.set(ALIVE, 200);
+    await step(host, 1000);
+    expect(group.states()[0]).toMatchObject({ phase: "ready", pid: 1001, restarts: 1, detail: null });
+    await step(host, 3000);
+    expect(host.children).toHaveLength(2);
+  });
+
+  it("stops the probe with the group", async () => {
+    const host = fakeHost();
+    host.polite = true;
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(watched(), host.ports);
+    group.start();
+    await host.settle();
+    await group.stop();
+    host.http.delete(ALIVE);
+    await step(host, 10_000);
+    expect(phases(group)).toEqual({ api: "stopped" });
+    expect(host.children).toHaveLength(1);
+    expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
+  });
+});
+
 describe("superviseGroup keeps one instance of each program", () => {
   it("does not start a program whose lock a live process holds, and takes the lock after it stops", async () => {
     const host = fakeHost({ files: { "/state/worker.lock": lockText({ pid: 4242, startedAt: WALL - 5000 }) } });

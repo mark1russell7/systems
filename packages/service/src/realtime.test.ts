@@ -91,5 +91,7 @@ describe("in real time", () => {
     expect(health.verdict().ready).toBe(true);
     health.stop();
     await server.close();
+    // the close waits for each connection: the count is not stale
+    expect(server.connections).toBe(0);
   });
 });

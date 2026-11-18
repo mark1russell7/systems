@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Backoff, KindCell } from "./cell.ts";
@@ -333,8 +334,6 @@ export const ownerAtRest = (state: ProducerState, clients: number): { readonly o
   if (owners.size !== 1) return `the lookups name ${[...owners].join(" and ")}`;
   return { owner: [...owners][0]! };
 };
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * This function waits until each broker is ready and the producers are at rest (`ownerAtRest`). It

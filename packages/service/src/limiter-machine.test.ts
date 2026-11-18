@@ -5,6 +5,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { Decision, KeyState, LimiterSpec, LimiterStore, LimitRule } from "./index.ts";
 import {
+  IN_FLIGHT_MACHINE,
   SLIDING_WINDOW_MACHINE,
   TOKEN_BUCKET_MACHINE,
   decide,
@@ -14,6 +15,7 @@ import {
   limiterStateOf,
   limitRule,
   memoryStore,
+  releaseLease,
   replay,
 } from "./index.ts";
 import { fakeClock } from "./testing.ts";
@@ -36,6 +38,13 @@ const bucket = (rate: number, burst: number, maxKeys = 100): LimiterSpec => ({
 const windowed = (limit: number, window: number, maxKeys = 100): LimiterSpec => ({
   key: "tenant",
   policy: { type: "sliding-window", limit: count(limit), window: s(window) },
+  store: { kind: "local" },
+  evict: { maxKeys: count(maxKeys) },
+});
+
+const inFlight = (limit: number, lease: number, retryAfter: number, maxKeys = 100): LimiterSpec => ({
+  key: "tenant",
+  policy: { type: "in-flight", limit: count(limit), lease: s(lease), retryAfter: s(retryAfter) },
   store: { kind: "local" },
   evict: { maxKeys: count(maxKeys) },
 });
@@ -65,6 +74,7 @@ const trace = (spec: LimiterSpec, options: { shared?: boolean } = {}) => {
           if (failing) throw new Error("the store is down");
           return memory.take(request);
         },
+        release: (request) => memory.release(request),
       }
     : memory;
   const limiterSpec: LimiterSpec = options.shared
@@ -88,7 +98,8 @@ const trace = (spec: LimiterSpec, options: { shared?: boolean } = {}) => {
     transitions.push({ at, machine: doc.id, instance: key, from, on, to });
     current.set(key, to);
     if (to === "limited" && from !== "limited") limitedSince.set(key, at);
-    if (from === "limited" && to !== "limited") waits.push({ timer: back, ms: at - limitedSince.get(key)! });
+    // a release is an event of the app, not the firing of a timer: no timer bounds its time
+    if (from === "limited" && to !== "limited" && on !== "release") waits.push({ timer: back, ms: at - limitedSince.get(key)! });
     if (on === "idle") waits.push({ timer: idle, ms: at - lastTake.get(key)! });
     if (to === "new") states.delete(key);
   };
@@ -101,6 +112,8 @@ const trace = (spec: LimiterSpec, options: { shared?: boolean } = {}) => {
     if (step.decision.allowed) return freeAt(rule, state);
     // a take of one unit is never over the capacity
     if (step.decision.cause === "capacity") throw new Error("a take of one unit is over the capacity");
+    // an in-flight refusal can wait for its declared retryAfter, before the oldest held unit leaves
+    if (rule.type === "in-flight" && state.type === "in-flight") return state.starts.find((start) => start + rule.lease > now + 1e-6)! + rule.lease;
     return now + msOf(step.decision.retryAfter);
   };
 
@@ -158,6 +171,18 @@ const trace = (spec: LimiterSpec, options: { shared?: boolean } = {}) => {
       move(key, from, "take", stateOf(key, now), now);
       return decision;
     },
+    /** This method releases the lease of a decision of a take of a key, and records its transition. */
+    async release(key: string, decision: Decision): Promise<void> {
+      const now = clock.now();
+      const from = current.get(key) ?? "new";
+      expect(stateOf(key, now), `${key} at ${now}`).toBe(from);
+      await limiter.release(key, decision);
+      if (decision.allowed && decision.lease !== undefined) {
+        const after = releaseLease(rule, states.get(key), now, decision.lease);
+        if (after !== undefined) states.set(key, after);
+      }
+      move(key, from, "release", stateOf(key, now), now);
+    },
   };
 };
 
@@ -211,8 +236,52 @@ const scenarios = async () => {
     await one.to(20_000);
     out.push(one);
   }
+  // a bound of 3 in flight: releases in each state, a refusal, and the end of the last lease
+  {
+    const run = trace(inFlight(3, 60, 5));
+    const first = await run.take("a");
+    const second = await run.take("a");
+    await run.to(1000);
+    await run.release("a", first);
+    const third = await run.take("a");
+    const fourth = await run.take("a");
+    await run.take("a");
+    await run.to(2000);
+    await run.release("a", second);
+    await run.release("a", third);
+    await run.release("a", fourth);
+    await run.take("a");
+    await run.to(200_000);
+    out.push(run);
+  }
+  // a bound of 1: the release of the one held unit, its lease to the end, and a release after it
+  {
+    const run = trace(inFlight(1, 10, 10));
+    const first = await run.take("a");
+    await run.take("a");
+    await run.to(1000);
+    await run.release("a", first);
+    const second = await run.take("a");
+    await run.to(20_000);
+    await run.release("a", second);
+    out.push(run);
+  }
+  // a bound of 2: a refusal that waits for retryAfter, the oldest lease to its end, and a late release
+  {
+    const run = trace(inFlight(2, 10, 2));
+    const first = await run.take("a");
+    await run.to(5000);
+    await run.take("a");
+    await run.take("a");
+    await run.to(10_000);
+    await run.take("a");
+    await run.to(12_000);
+    await run.release("a", first);
+    await run.to(100_000);
+    out.push(run);
+  }
   // the cap of keys: two held keys, and a new key that waits for the earliest of them
-  for (const spec of [bucket(1, 2, 2), windowed(2, 30, 2)]) {
+  for (const spec of [bucket(1, 2, 2), windowed(2, 30, 2), inFlight(2, 30, 30, 2)]) {
     const run = trace(spec);
     await run.take("a");
     await run.to(500);
@@ -224,7 +293,7 @@ const scenarios = async () => {
     out.push(run);
   }
   // a shared store that fails, in each state of a key
-  for (const spec of [bucket(1, 2), windowed(2, 30)]) {
+  for (const spec of [bucket(1, 2), windowed(2, 30), inFlight(2, 30, 30)]) {
     const run = trace(spec, { shared: true });
     run.fail(true);
     await run.take("a");
@@ -253,6 +322,7 @@ describe("the machine of a key of the keyed limiter is a document (SYS-28)", () 
   it.each([
     ["token bucket", TOKEN_BUCKET_MACHINE],
     ["sliding window", SLIDING_WINDOW_MACHINE],
+    ["in-flight bound", IN_FLIGHT_MACHINE],
   ])("the %s document is valid, consistent, and the algebra reads each timer", (_name, doc) => {
     expect(machineSchema.safeParse(doc).success).toBe(true);
     expect(machineProblems(doc)).toEqual([]);
@@ -262,6 +332,7 @@ describe("the machine of a key of the keyed limiter is a document (SYS-28)", () 
   it("gives the document of each policy, and the state of a key as the document names it", () => {
     expect(limiterMachine(bucket(1, 3).policy)).toBe(TOKEN_BUCKET_MACHINE);
     expect(limiterMachine(windowed(3, 60).policy)).toBe(SLIDING_WINDOW_MACHINE);
+    expect(limiterMachine(inFlight(3, 60, 5).policy)).toBe(IN_FLIGHT_MACHINE);
     const rule = limitRule(bucket(1, 3).policy);
     expect(limiterStateOf(rule, undefined, 0)).toBe("new");
     expect(limiterStateOf(rule, { type: "token-bucket", full: 1000 }, 0)).toBe("open");
@@ -278,7 +349,7 @@ describe("the machine of a key of the keyed limiter is a document (SYS-28)", () 
       for (const each of run.transitions) steps.add(`${each.from} ${each.on} ${each.to}`);
       seen.set(run.doc.id, steps);
     }
-    for (const doc of [TOKEN_BUCKET_MACHINE, SLIDING_WINDOW_MACHINE])
+    for (const doc of [TOKEN_BUCKET_MACHINE, SLIDING_WINDOW_MACHINE, IN_FLIGHT_MACHINE])
       expect([...(seen.get(doc.id) ?? [])].sort(), doc.id).toEqual([...new Set(stepsOf(doc))].sort());
   });
 
@@ -301,7 +372,22 @@ describe("the timers of the limiter documents bound the times of the runtime (th
     const runs = await scenarios();
     let checked = 0;
     // these are the specs of the scenarios, in their sequence
-    const specs: LimiterSpec[] = [bucket(1, 3), bucket(2, 1), windowed(3, 60), windowed(2, 60), windowed(1, 10), bucket(1, 2, 2), windowed(2, 30, 2), bucket(1, 2), windowed(2, 30)];
+    const specs: LimiterSpec[] = [
+      bucket(1, 3),
+      bucket(2, 1),
+      windowed(3, 60),
+      windowed(2, 60),
+      windowed(1, 10),
+      inFlight(3, 60, 5),
+      inFlight(1, 10, 10),
+      inFlight(2, 10, 2),
+      bucket(1, 2, 2),
+      windowed(2, 30, 2),
+      inFlight(2, 30, 30, 2),
+      bucket(1, 2),
+      windowed(2, 30),
+      inFlight(2, 30, 30),
+    ];
     expect(runs.length).toBe(specs.length);
     runs.forEach((run, index) => {
       const spec = specs[index]!;
@@ -323,5 +409,6 @@ describe("the timers of the limiter documents bound the times of the runtime (th
     expect(msOf(timerOf(TOKEN_BUCKET_MACHINE, "token", valuesOf(bucket(4, 10))).duration)).toBe(250);
     expect(msOf(timerOf(TOKEN_BUCKET_MACHINE, "full", valuesOf(bucket(4, 10))).duration)).toBe(2500);
     expect(msOf(timerOf(SLIDING_WINDOW_MACHINE, "oldest", valuesOf(windowed(120, 60))).duration)).toBe(60_000);
+    expect(msOf(timerOf(IN_FLIGHT_MACHINE, "oldest", valuesOf(inFlight(8, 30, 2))).duration)).toBe(30_000);
   });
 });

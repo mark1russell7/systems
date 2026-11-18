@@ -1,0 +1,33 @@
+# The queue of the pull requests with auto-merge (SYS-118, the CI.md of the template, "The queue").
+#
+# With strict status checks in the ruleset of main, GitHub merges a pull request only when its branch has the newest
+# main. This job merges main into each pull request with auto-merge that is behind. That push starts the pull_request
+# workflows of the new head, and GitHub holds each one (the conclusion action_required). The job starts each of them.
+# With strict off, no pull request is behind, and the job changes nothing.
+name: Queue
+
+on:
+  # A merge into main makes the other pull requests behind
+  push:
+    branches: [main]
+  # A pull request can be behind already when it gets auto-merge
+  pull_request:
+    types: [auto_merge_enabled]
+  # A person starts a run by hand from the Actions tab
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time in the repository. A run in progress ends, and GitHub keeps only the newest run that waits. Each run
+# reads all the pull requests, thus the newest run does the work of a run that GitHub cancelled.
+concurrency:
+  group: queue
+  cancel-in-progress: false
+
+jobs:
+  queue:
+    uses: mark1russell7/template/.github/workflows/reusable-queue.yml@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write

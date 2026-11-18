@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, KernelRecord, MiddleboxEvent, ProbeEvent, Run } from "./cell.ts";
-import { deviceOf, endpointAfter, routesOf, templated, toxicBody } from "./lab.ts";
+import { deviceOf, endpointAfter, routesOf, runTopologyOf, templated, toxicBody } from "./lab.ts";
 import { measure, socketOf } from "./observe.ts";
 import { judge } from "./run.ts";
 import { quantileOf, verdictOf } from "./verdict.ts";
@@ -197,6 +197,20 @@ describe("a run in a topology, measured from the records of each namespace", () 
     expect(at(13.3e6).void).toBe("the commit of the fault took 13.3 ms, longer than the noise of the pipeline: its start is not known");
   });
 
+  it("keeps a run with a long commit when no start in the commit moves its time across an edge of the band", () => {
+    const wide: Cell = {
+      ...ROUTER,
+      fault: "toxic",
+      prediction: { detects: true, timer: "toxic timeout", errno: "EOF", from: "fault", low: s(1), high: s(3) },
+    };
+    const kernel = [k("rx", T - 50_000), k("state", T + 2_101_500_000, { old: 1, new: 8 })];
+    const at = (commit: number) =>
+      measure(wide, run({ kernel, events: [...events, { ev: "eof", t: T + 2_101_600_000 }], fault: { t0: T + 100e6, t1: T + 100e6 + commit } }));
+    expect(at(13.3e6)).toMatchObject({ outcome: { kind: "eof" }, elapsed: s(2.0015), void: null });
+    // a commit of 1.5 s can start the fault at 0.5015 s before the end, below the low edge of 1 s
+    expect(at(1.5e9).void).toBe("the commit of the fault took 1500 ms, longer than the noise of the pipeline: its start is not known");
+  });
+
   it("measures a cell with no band from its reference, and judges no warm-up run", () => {
     const only: Cell = {
       ...ROUTER,
@@ -298,6 +312,30 @@ describe("the chain of a topology", () => {
     expect(deviceOf("172.21.0.3 dev eth0 src 172.21.0.2 uid 0 \\    cache ")).toBe("eth0");
     expect(deviceOf("172.22.0.2 via 172.21.0.4 dev eth1 src 172.21.0.2 uid 0")).toBe("eth1");
     expect(() => deviceOf("RTNETLINK answers: Network is unreachable")).toThrow("no device");
+  });
+
+  it("gives each hop of a run topology its peer and its own address on each side", () => {
+    const hop = (name: string, netns: number, peer: readonly [string, string], ip: readonly [string, string]) => ({
+      hop: { name },
+      netns,
+      peer: { client: peer[0], target: peer[1] },
+      ip: { client: ip[0], target: ip[1] },
+    });
+    expect(runTopologyOf("172.21.0.2", [])).toBeNull();
+    // client 172.20.0.2 → proxy edge → router gw → target 172.22.0.3: the address of gw toward the client is the gateway of the proxy
+    const placed = runTopologyOf("172.22.0.2", [
+      hop("edge", HOP, ["172.20.0.2", "172.22.0.3:443"], ["172.20.0.3", "172.21.0.2"]),
+      hop("gw", HOP + 1, ["172.21.0.2", "172.22.0.3:443"], ["172.21.0.3", "172.22.0.2"]),
+    ]);
+    expect(placed).toEqual({
+      targetPeer: "172.22.0.2",
+      hops: {
+        edge: { netns: HOP, client: "172.20.0.2", target: "172.22.0.3:443", address: { client: "172.20.0.3", target: "172.21.0.2" } },
+        gw: { netns: HOP + 1, client: "172.21.0.2", target: "172.22.0.3:443", address: { client: "172.21.0.3", target: "172.22.0.2" } },
+      },
+    });
+    // the address of the last hop toward the target is the peer that the target sees
+    expect(placed?.hops["gw"]?.address?.target).toBe(placed?.targetPeer);
   });
 
   it("writes the next hop into the files of a proxy, and a toxic as the API of Toxiproxy takes it", () => {

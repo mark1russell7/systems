@@ -1,0 +1,55 @@
+---
+title: The port range cells
+sidebar:
+  label: Port range
+description: The cells PR.1 to PR.8 on the runners of GitHub. One client connects from a small range of local ports to one target. Each cell measures the search for a port, or the time of a held port. Each of the 8 cells holds.
+---
+
+import PortCells from "../../../components/PortCells.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="port-range" />
+
+These are the results of the cells of the port range, from 2026-11-17. Each cell puts one client in a small `ip_local_port_range` against one target. The client connects again and again, and the cell records the local port of each connect. The [page of the port range](../../lab/ports/) computes the same laws in your browser, and its orange dots link to these cells.
+
+- **The search** (PR.1 to PR.4): a reset ends each connection, thus a closed connection holds no port. A search connects until a connect gets `EADDRNOTAVAIL`. The cell counts the connects of each search and the ports that they got.
+- **A held port** (PR.5 to PR.8): one search takes each port, and then each connection closes. The cell measures the time until the first connect gets a port again.
+
+The predictions come from `portSearchSpan` and `portSearchShares` of `@mark1russell7/automata`, and from the timers of `LINUX_TCP` of `@mark1russell7/machines`. The low port of each range is 40000.
+
+CI started the cells at main in the run [44177444372](https://github.com/mark1russell7/systems/actions/runs/44177444372), in 4 shards on the hosted runners of GitHub. The kernel is Linux 7.0, with HZ 1000. Each cell has 4 runs in 2 fresh environments, with one warm-up run in each environment.
+
+Each of the 8 cells holds against the prediction of the algebra. The cells have 32 counted runs, and no run is void.
+
+## What the cells found
+
+### The search
+
+- **An even range gives each of its ports.** A range of 16 ports gave 16 connects in each of the 200 searches of PR.1. The next connect got `EADDRNOTAVAIL` in 120 µs or less.
+- **An odd range can lose its top port.** A range of 3 ports gave 2 connects in each search of PR.2. The search rounds 3 down to 2, thus the top port stays out of reach.
+- **The share of each count comes from the search.** A range of 5 ports gave 5 connects in 1,303 of the 1,600 searches of PR.3, and 4 connects in the others. The share of 5 in each run was 0.8 to 0.8275, inside the band of the algebra, 0.7291 to 0.9194.
+- **The count is for each destination.** With two ports of one target, a range of 16 gave 16 connects to each port in each of the 400 searches of PR.4. The search refuses a 4-tuple, not a local port.
+
+<PortCells part="search" />
+
+### A held port
+
+- **TIME_WAIT holds a port for 60 s, plus the wheel.** In PR.5 the client closes first. The first port came back 60.551 s to 61.121 s after the FIN of the target. The band is 59.999 s to 64.156 s. The default `tcp_tw_reuse` of 2 is for loopback only, and this path is a veth.
+- **`tcp_tw_reuse` 1 gives the port back after 1 s.** In PR.6 the first port came back 1.001 s to 1.011 s after the FIN of the target. The band is 0.999 s to 1.061 s.
+- **The side that closes first holds the port.** In PR.7 the target closes first. Each of the 10 rounds of each run got the 4 ports at once, with no retransmission.
+- **A lost ACK of a FIN holds the port for one RTO.** In PR.8 the first ACK of each FIN of the client drops. The client holds each port in `LAST_ACK`, and its FIN goes again. The first port came back after 203.1 ms to 213.9 ms, inside the band of 199 ms to 268 ms. Each run had 4 retransmissions, one for each port.
+
+<PortCells part="hold" />
+
+## The rate of PR.7
+
+PR.7 held in this read, but it does not hold in each read. A read of 40 runs at main, the run [44163293814](https://github.com/mark1russell7/systems/actions/runs/44163293814), failed in 7 of 40 runs with no fault in its plan. The rate is 0.175, and its Wilson interval of 95 % is 0.087 to 0.319.
+
+Each failed run has one retransmission, and no run that held has one. That retransmission is a tail loss probe of a FIN with no data, from a client socket in `LAST_ACK`. In six runs it came during the rounds, thus the client held that port longer, and a later round got 3 ports, not 4. In one run it came 201 ms after the last round, thus each round got 4 ports. No counter of a drop moved at either end.
+
+At this rate, a read of 4 runs holds PR.7 with a chance of 0.46. Thus a refresh can show PR.7 as a failure. That failure is a finding of the same cause, and no band gets wider to hide it.
+
+## Limits
+
+- Each cell has 4 runs. A rare failure, as the one of PR.7, needs a longer read.
+- Each run puts the client and the target in two network namespaces, with a pair of veth devices between them. A NAT or a router on the path keeps its own table of connections, and these cells do not measure it.

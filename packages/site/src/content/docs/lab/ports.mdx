@@ -1,0 +1,50 @@
+---
+title: The port range
+description: A client connects again and again from a small range of local ports. See when a connect gets EADDRNOTAVAIL, and when a held port is free again.
+tableOfContents: false
+---
+
+import PortRange from "../../../components/PortRange.tsx";
+import Term from "../../../components/Term.tsx";
+
+A client opens a new connection to one target again and again. Each connect takes a local port from <Term name="ip_local_port_range" />. A closed connection can hold its port for a time, for example in <Term name="TIME_WAIT" />. When each port of a destination is held, a connect gets <Term name="EADDRNOTAVAIL" />. This page computes, in your browser, when the first connect fails and when the first port is free again.
+
+<PortRange client:visible />
+
+## How to read the page
+
+- **The headline** tells when the first connect fails, or why no connect fails.
+- **The timeline** has two lanes. The search lane ends at the first error. The hold lane ends when the first held port comes back. Press **Play** to see the story.
+- **The cards** below the timeline give each lane, with its knobs. Change a knob, and each time on the page changes.
+- **An orange dot** is the median that a cell of the harness measured. It shows only when your settings are the settings of that cell. Its link opens the cell.
+
+## The law of the first error
+
+The client makes one connect each `gap`, to its `d` destinations in turn. Thus each destination gets one connect each `d · gap`. The search of one destination reaches `cap` ports, and each closed connection holds its port for a time `H`.
+
+When `H` is more than `cap · d · gap`, the connect after the first `cap` connects of a destination finds no free port. That connect comes at `cap · d · gap`, and it gets EADDRNOTAVAIL at once. No SYN leaves. Thus the smallest gap with no error is `H / (cap · d)`.
+
+With the defaults of Linux and one connect each 1 ms, connect 28,233 fails at 28.232 s. TIME_WAIT holds each port for 60 s, thus the first port comes back at 60 s.
+
+## Where the numbers come from
+
+The search for a port is the law of `portSearchSpan` and `portSearchShares` of `@mark1russell7/automata`. Linux reads the range in two passes. The first pass reads the ports of one parity, and the second pass reads the ports of the other parity.
+
+- **An even range** gives each of its ports to each destination.
+- **An odd range** can miss one port. Thus a search gets each port of the range, or one port less. For an odd range of 15 ports or fewer, the algebra gives the share of each count.
+
+The time of a held port comes from the timers of the document of Linux TCP, `LINUX_TCP` of `@mark1russell7/machines`.
+
+- **The client closes first.** Its socket waits in TIME_WAIT for 60 s. The timer fires on a tick of <Term name="HZ" />, thus the port can come back late. With <Term name="tcp_tw_reuse" /> 1, a connect takes a port in TIME_WAIT after `tcp_tw_reuse_delay`.
+- **The target closes first.** The client waits in <Term name="LAST_ACK" /> until the ACK of its FIN arrives, one round trip later. When that ACK drops, the FIN goes again after one <Term name="RTO" />.
+- **A reset** holds no port.
+
+Each amount prints through `format` of `@mark1russell7/quantity`. The page does no timer arithmetic of its own.
+
+The cells PR.1 to PR.8 measure each law on the runners of GitHub. Their results are on the [page of the port range cells](../../results/port-range/).
+
+## Limits
+
+- The page makes one connect each gap, at a fixed rate. A client that connects in bursts gets the error at the same count, but sooner.
+- A destination is one address and one port of the target. Two ports of one target are two destinations, thus the client gets two times the connects.
+- A NAT on the path keeps its own table of connections, with its own limit. This page does not show that table.

@@ -263,10 +263,11 @@ These cells (`src/port-range.ts`, SYS-64) give the law of `ip_local_port_range` 
 
 - **The two ends.** The native program `ports` is a target that accepts each connection, and a client that connects until a connect fails. The harness ships it in its image. The target closes its sockets at a command on its control port, thus a cell chooses the side that closes first.
 - **An even range.** `PR.1` gets 16 connects from a range of 16, then `EADDRNOTAVAIL` at once. The first 8 connects get the ports of the parity of the low port.
-- **An odd range.** The search rounds the size down to an even number. `PR.2` gets 2 connects from a range of 3, and the search does not reach the top port. `PR.3` gets 4 or 5 from a range of 5. Each round starts from the same table, and `searchShares` gives the exact share of each count.
+- **An odd range.** The search rounds the size down to an even number. `PR.2` gets 2 connects from a range of 3, and the search does not reach the top port. `PR.3` gets 4 or 5 from a range of 5. Each round starts from the same table, and `portSearchShares` of the algebra package gives the exact share of each count.
 - **The unit of the count.** `PR.4` connects to two ports of one target. The search refuses a 4-tuple, not a port, thus the count is for each destination.
-- **TIME_WAIT.** `PR.5` closes the client first. Each port stays held for 60 s from the FIN of the target, plus the timer wheel. `PR.6` sets `tcp_tw_reuse` to 1, and each port comes back 1000 ms after that FIN. The default of 2 is for loopback only.
+- **TIME_WAIT.** `PR.5` closes the client first. Each port stays held for 60 s from the FIN of the target, plus the timer wheel. The timer `time_wait` of the document of Linux TCP gives the bounds of the wheel. `PR.6` sets `tcp_tw_reuse` to 1, and each port comes back 1000 ms after that FIN. The default of 2 is for loopback only.
 - **The other ways to close.** A reset holds nothing, thus each round of `PR.1` to `PR.4` starts with each port free. `PR.7` closes the target first. The client holds no port, and each new SYN passes the TIME_WAIT of the target.
+- **LAST_ACK.** `PR.8` closes the target first, and the fault `fin-ack` drops the first ACK of each FIN of the client. Each port stays held in `LAST_ACK` until its FIN goes again, at the RTO at the latest.
 
 ## The cells of the retry count
 
@@ -406,6 +407,26 @@ The CI dispatches 39070231927 and 39073727730 did each cell of WS and WST 11 tim
 - **The failure of the first dispatch.** It waited 10 s for the band of `none`, which is 1 ms wide. In 3 of 11 runs, a beat refreshed the flow before the forget, and the next beat was due at 10.6 s. The client process ended first.
   - The second dispatch waits for the latest ping (`startsBy`), and each of its 11 runs detected it. In each one, a beat refreshed the flow first.
 - **Void runs.** In the second dispatch, 5 of 11 runs of `reset-next` are void. The retransmit timer of the ping was 2 to 7 jiffies behind its slot. That ping stays in flight for 12 s, thus its timer fires more times than in a cell of the client.
+
+## The Socket.IO catalog
+
+The Socket.IO catalog has the client and the server of Socket.IO 4.8.4 on a direct pair, with the WebSocket transport only (`src/socketio.ts`, SYS-87). The names of its cells start with `SIO`, thus the nightly selection of the WS catalog does not take them.
+
+- **The subject.** The image of `targets/socketio` holds the two programs. One lockfile pins socket.io 4.8.4, socket.io-client 4.8.4, engine.io-client 6.6.7, engine.io 6.6.11 and ws 8.21.3. The lines of the programs are the lines of the procedures subject, thus the judge of the harness reads both.
+- **The documents** (`SOCKETIO_CLIENT` and `SOCKETIO_SERVER` of `@mark1russell7/machines`) cite the files of each tarball at its version.
+- **The heartbeat.** The server writes a ping each `pingInterval`, and it gives `pingInterval` and `pingTimeout` to the client in its handshake. Thus the settings of the server set the timers of both sides:
+  - The client waits `pingInterval + pingTimeout` for each ping, from the last ping that it read. At the end of that wait, close() of ws writes a close frame.
+  - The server waits `pingTimeout` for the pong of each ping. At the end of that wait, it writes a close frame.
+- **The cells.** Each cell has a ping each 2 s and a wait of 1 s for its pong:
+  - A black hole, idle or with a call in flight, and a frozen server. The client drops the connection 3 s after the pong of its last ping. The band counts from the write of that pong (`pong-sent`).
+  - A FIN. The client reads the end of the file at once, and the reconnect waits 0.5 s, 1 s and 2 s.
+  - The server, with a black hole. The server drops the connection 1 s after its first ping without an answer.
+- **The delivery cells** (`DELIVERY_SPECS`, slice 2 of `docs/S7.md`). A stream of numbered events crosses a stall of 5.6 s, and the cell counts the events that the receiver loses or gets twice:
+  - D1, D2 and D4: the server streams to the client. D1 has no recovery (`--recovery off`), and D2 has a recovery of 30 s. D4 has a recovery of 2 s, which ends before the new connection.
+  - U1, U2 and U3: the client streams to the server, with no retries, 3 retries and 2 retries.
+  - The client names a room in its auth (`stream`). The server sends the stream to that room, thus each connection of the client gets it, and no other client does.
+  - `deliveryOf` derives the bands `lost` and `duplicates` and the value of `recovered`. It refuses a cell where an edge of a timer falls in a band. An example is the end of the stall in the band of a SYN.
+- **What stays for later.** D3: a recovery whose session lives, but whose events the timer of the adapter removed. It needs a quiet time of 70 s before the fault.
 
 ## The calibration of the proxies
 
@@ -583,6 +604,6 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 - A record with a problem of its pins is not a record, thus its cell fails, and the run exits with 1. A commit with changes to tracked files is not a pin. The read of a schedule refuses such a record too.
 - `CELLS_DEBUG=1` marks a local debug run. Such a run can operate from a checkout with changes. Each of its records has `debug: true`, and no page reads it.
 
-`KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
+`KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). Before its first cell, the runner writes `selection.ndjson` to that folder: the input `only`, the shard and the name of each cell of the shard. The held read of SYS-99 takes the cells of the shard from it. CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
 
 Without `CELLS=1`, only the tests of the catalog start. Each cell has a prediction or the reason that it has none, and the bands agree with the algebra.

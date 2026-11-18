@@ -3,4 +3,4 @@
 // change. That entry imports nothing: no `node:` module and no zod. Thus a client in a browser can use it.
 
 export type { Cancel, Clock, PlatformClockOptions } from "@mark1russell7/automata/clock";
-export { platformClock, realClock } from "@mark1russell7/automata/clock";
+export { platformClock, realClock, unrefClock } from "@mark1russell7/automata/clock";

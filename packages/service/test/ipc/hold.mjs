@@ -1,9 +1,9 @@
 // The child of src/process-it.test.ts for the hold of the process (A14): a service under run()
-// whose only part is a worker loop on the real clock. The timers of that clock do not keep the
-// process alive, thus only the hold of the lifecycle keeps it alive until its exit. The child has
-// no IPC channel and no socket. Each stage writes a line on stdout.
+// whose only part is a worker loop. The service gets a clock whose timers do not keep the process
+// alive. Thus only the hold of the lifecycle keeps it alive until its exit. The child has no IPC
+// channel and no socket. Each stage writes a line on stdout.
 
-import { ephemeral, service, workerLoop } from "../../src/index.ts";
+import { ephemeral, platformClock, service, workerLoop } from "../../src/index.ts";
 
 const line = (text) => void process.stdout.write(`${text}\n`);
 const s = (value) => ({ value, unit: "s" });
@@ -14,5 +14,5 @@ const beat = workerLoop(
 );
 const svc = service("held").profile(ephemeral).worker("beat", beat.knobs, beat);
 
-await svc.run();
+await svc.run({ clock: platformClock({ unref: true }) });
 line("ready");

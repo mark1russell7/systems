@@ -3,6 +3,7 @@
 //   node scripts/smoke.mjs <folder>
 //
 // 1. Each tarball holds the files that its package reads at run time, other than build/.
+//    Each source map that a file of the tarball names is in the tarball.
 // 2. An empty project installs all the tarballs from disk, with their other dependencies from npm.
 //    Each @mark1russell7 package resolves to its tarball, because npm does not have a new version yet.
 // 3. Each package imports from the built JavaScript, and a few functions give their known results.
@@ -11,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { gunzipSync } from "node:zlib";
@@ -108,26 +109,41 @@ const NEEDS = {
     "src/client-lines.ts",
   ],
 };
-/** the paths in a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
+/** the entries of a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
 const entries = (tarball) => {
   const tar = gunzipSync(readFileSync(tarball));
-  const paths = [];
+  const found = [];
   for (let at = 0; at + 512 <= tar.length; ) {
     const header = tar.subarray(at, at + 512);
     if (header.every((byte) => byte === 0)) break;
     const text = (from, to) => header.subarray(from, to).toString("utf8").replace(/\0.*$/s, "");
     const prefix = text(345, 500);
-    paths.push(prefix === "" ? text(0, 100) : `${prefix}/${text(0, 100)}`);
     const size = parseInt(text(124, 136).trim() || "0", 8);
+    const path = prefix === "" ? text(0, 100) : `${prefix}/${text(0, 100)}`;
+    found.push({ path: path.replace(/^package\//, ""), body: tar.subarray(at + 512, at + 512 + size) });
     at += 512 + Math.ceil(size / 512) * 512;
   }
-  return paths;
+  return found;
+};
+/** the file that the last `sourceMappingURL` comment of a JavaScript or declaration file names, or null */
+const mapOf = (path, body) => {
+  if (!/\.(c|m)?js$|\.d\.(c|m)?ts$/.test(path)) return null;
+  const named = [...body.toString("utf8").matchAll(/^\/\/# sourceMappingURL=(\S+)\s*$/gm)].at(-1)?.[1];
+  if (named === undefined || named.startsWith("data:")) return null;
+  return posix.join(posix.dirname(path), named);
 };
 for (const { name, tarball } of releases) {
-  const listed = new Set(entries(tarball).map((path) => path.replace(/^package\//, "")));
+  const packed = entries(tarball);
+  const listed = new Set(packed.map(({ path }) => path));
   for (const file of ["package.json", "README.md", "LICENSE", "build/index.js", "build/index.d.ts"])
     check(listed.has(file), `${name} holds ${file}`);
   for (const file of NEEDS[name] ?? []) check(listed.has(file), `${name} holds ${file}`);
+  // a source map comment that names no file makes a debugger or an editor read a 404
+  const dangling = packed
+    .map(({ path, body }) => [path, mapOf(path, body)])
+    .filter(([, map]) => map !== null && !listed.has(map))
+    .map(([path]) => path);
+  check(dangling.length === 0, `${name} holds the map of each sourceMappingURL${dangling.length === 0 ? "" : `: not for ${dangling.join(", ")}`}`);
 }
 
 // 2. an empty project installs the tarballs
@@ -332,6 +348,34 @@ try {
       fake.after(5, () => (fired = fake.now()));
       await fake.advance(5);
       check(typeof clockEntry.realClock.now() === "number" && fired === 15, "algebra/clock gives the clock of the platform and a fake clock");
+      // a scaled wall clock: a timer of 600 ms on the clock ends after 10 real ms at the speed 60
+      const scaled = clockEntry.wallClock({ speed: 60, start: 1000 });
+      const due = await new Promise((resolve) => scaled.after(600, () => resolve(scaled.now())));
+      check(scaled.time === "wall" && Number.isInteger(due) && due >= 1600, "algebra/clock gives a scaled wall clock");
+      // the run of a live instance without zod, on the fake clock
+      const runEntry = await load("@mark1russell7/automata/run");
+      const lock = {
+        format: "mark1russell7.machine/1",
+        id: "lock",
+        title: "A lock",
+        layer: "self",
+        version: "1",
+        sources: [],
+        states: { loading: { initial: true }, armed: {} },
+        events: { stop: { kind: "app" }, settled: { kind: "timer" } },
+        knobs: { settle: { key: "settle", scope: "lock", unit: "ms", default: 2000 } },
+        timers: { settle: { duration: { knob: "settle", unit: "ms" }, arms: ["stop"], fires: "settled" } },
+        transitions: [{ id: "arm", from: "loading", to: "armed", on: "settled" }],
+      };
+      const lockClock = clockEntry.fakeClock();
+      const trace = [];
+      const lockRun = runEntry.runMachine(lock, { clock: lockClock, onTransition: (transition) => trace.push(transition) });
+      lockRun.send("stop");
+      await lockClock.advance(2000);
+      check(
+        lockRun.state === "armed" && trace.length === 1 && replayEntry.replay(lock, trace).length === 0,
+        "algebra/run starts a timer on the fake clock, and its trace replays",
+      );
       const wait =module.evaluate(doc, { expr: "min(500 * pow(1.5, fired), 4000)", unit: "ms" }, () => undefined, 3);
       check(wait.value === 1687.5, "algebra raises to a whole power: the fourth wait of a backoff of 1.5");
     }
@@ -340,7 +384,7 @@ try {
       const algebra = await load("@mark1russell7/automata");
       const { machineSchema } = await load("@mark1russell7/automata/schema");
       const documents = Object.values(module.MACHINES);
-      check(documents.length === 46 && module.MACHINES["deadline-call"] === module.DEADLINE_CALL && module.MACHINES["kubelet-readiness"] === module.KUBELET_READINESS && module.MACHINES["haproxy-tcp"] === module.HAPROXY_TCP && module.MACHINES["ztunnel-hbone"] === module.ZTUNNEL_HBONE && module.MACHINES["istio-sidecar-outbound"] === module.ISTIO_SIDECAR_OUTBOUND &&module.MACHINES["istio-sidecar-inbound"] === module.ISTIO_SIDECAR_INBOUND && module.MACHINES["pilot-agent"] === module.PILOT_AGENT && module.MACHINES["traefik-http2"] === module.TRAEFIK_HTTP2 && module.MACHINES["nginx-grpc"] === module.NGINX_GRPC && module.MACHINES["undici-retry-agent"] === module.UNDICI_RETRY && module.MACHINES["caddy-http2"] === module.CADDY_HTTP2 && module.MACHINES["envoy-http2"] === module.ENVOY_HTTP2 && module.MACHINES["toxiproxy-link"] === module.TOXIPROXY_LINK && module.MACHINES["docker-proxy-link"] === module.DOCKER_PROXY_LINK && module.MACHINES["grpc-js"] === module.GRPC_JS && module.MACHINES["grpc-go-server"] === module.GRPC_GO_SERVER && module.MACHINES["etcd-server"] === module.ETCD_SERVER && module.MACHINES["amqplib"] === module.AMQPLIB &&module.MACHINES["rabbitmq-connection"] === module.RABBITMQ_CONNECTION && module.MACHINES["aten"] === module.ATEN_DETECTOR && module.MACHINES["ra-member"] === module.RA_MEMBER && module.MACHINES["linux-tcp"] === module.LINUX_TCP && module.MACHINES["postgres-session"] === module.POSTGRES_SESSION && module.MACHINES["pgbouncer-client"] === module.PGBOUNCER_CLIENT && module.MACHINES["pgbouncer-server"] === module.PGBOUNCER_SERVER && module.MACHINES["pgpool-session"] === module.PGPOOL_SESSION && module.MACHINES["supavisor-client"] === module.SUPAVISOR_CLIENT && module.MACHINES["supavisor-server"] === module.SUPAVISOR_SERVER, "machines gives each document by its identifier");
+      check(documents.length === 48 && module.MACHINES["socketio-client"] === module.SOCKETIO_CLIENT && module.MACHINES["socketio-server"] === module.SOCKETIO_SERVER && module.MACHINES["deadline-call"] === module.DEADLINE_CALL && module.MACHINES["kubelet-readiness"] === module.KUBELET_READINESS && module.MACHINES["haproxy-tcp"] === module.HAPROXY_TCP && module.MACHINES["ztunnel-hbone"] === module.ZTUNNEL_HBONE && module.MACHINES["istio-sidecar-outbound"] === module.ISTIO_SIDECAR_OUTBOUND &&module.MACHINES["istio-sidecar-inbound"] === module.ISTIO_SIDECAR_INBOUND && module.MACHINES["pilot-agent"] === module.PILOT_AGENT && module.MACHINES["traefik-http2"] === module.TRAEFIK_HTTP2 && module.MACHINES["nginx-grpc"] === module.NGINX_GRPC && module.MACHINES["undici-retry-agent"] === module.UNDICI_RETRY && module.MACHINES["caddy-http2"] === module.CADDY_HTTP2 && module.MACHINES["envoy-http2"] === module.ENVOY_HTTP2 && module.MACHINES["toxiproxy-link"] === module.TOXIPROXY_LINK && module.MACHINES["docker-proxy-link"] === module.DOCKER_PROXY_LINK && module.MACHINES["grpc-js"] === module.GRPC_JS && module.MACHINES["grpc-go-server"] === module.GRPC_GO_SERVER && module.MACHINES["etcd-server"] === module.ETCD_SERVER && module.MACHINES["amqplib"] === module.AMQPLIB &&module.MACHINES["rabbitmq-connection"] === module.RABBITMQ_CONNECTION && module.MACHINES["aten"] === module.ATEN_DETECTOR && module.MACHINES["ra-member"] === module.RA_MEMBER && module.MACHINES["linux-tcp"] === module.LINUX_TCP && module.MACHINES["postgres-session"] === module.POSTGRES_SESSION && module.MACHINES["pgbouncer-client"] === module.PGBOUNCER_CLIENT && module.MACHINES["pgbouncer-server"] === module.PGBOUNCER_SERVER && module.MACHINES["pgpool-session"] === module.PGPOOL_SESSION && module.MACHINES["supavisor-client"] === module.SUPAVISOR_CLIENT && module.MACHINES["supavisor-server"] === module.SUPAVISOR_SERVER, "machines gives each document by its identifier");
       check(
         documents.every((doc) => machineSchema.safeParse(doc).success && algebra.machineProblems(doc).length === 0),
         "machines holds only documents that the algebra accepts",

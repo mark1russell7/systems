@@ -54,6 +54,9 @@ export const HZ = Number(process.env["CELLS_HZ"] ?? 250);
 export const LINUX_66: Readonly<Record<string, Extent>> = {
   tcp_syn_retries: count(6),
   tcp_syn_linear_timeouts: count(4),
+  tcp_synack_retries: count(5),
+  somaxconn: count(4096),
+  tcp_abort_on_overflow: count(0),
   tcp_retries2: count(15),
   tcp_rto_min: ms(200),
   tcp_rto_max: ms(120_000),

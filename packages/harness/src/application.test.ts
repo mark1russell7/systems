@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DROP_HANDLING, callOf, dropFinding, dropOf, exitOf, jitterOfLines, reconnectFinding } from "./application.ts";
+import { DROP_HANDLING, callOf, dropFinding, dropOf, exitOf, jitterOfLines, pongsOf, reconnectFinding } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { latestEndOf } from "./cell.ts";
 import { jitterOf, measure } from "./observe.ts";
@@ -136,6 +136,46 @@ describe("a detection by the program of the observer, from its lines and the ker
     expect(verdict).toMatchObject({ decision: "holds", outside: [] });
     expect(verdict.reconnect?.waits[0]?.median).toEqual(s(0.5009));
     expect(verdict.why).toContain("Reconnect: the waits before each try, median 500.9 ms; the first SYN median 503.07 ms");
+  });
+
+  it("times a heartbeat that the peer starts from the last pong before the fault, not from the last data", () => {
+    // the server pings, and the client answers with a pong. Its wait for the next ping starts at that pong
+    const W = T + 100_000_000;
+    const D2 = W + 3_000_990_000;
+    const lines: ProbeEvent[] = [
+      ...client.filter((line) => line.t <= T),
+      { ev: "write", t: W, conn: 1, local: LOCAL, type: "pong" },
+      // a frame of a stream, after the pong: it is not a pong
+      { ev: "write", t: W + 50_000_000, conn: 1, local: LOCAL, type: "message" },
+      { ev: "drop", t: D2, conn: 1, local: LOCAL },
+      { ev: "status", t: D2 + 100_000, status: "disconnected", reason: "ping timeout" },
+    ];
+    const records: KernelRecord[] = [
+      k("rx", T - 50_000, data(40)),
+      // the ping of the server, and the pong of the client
+      k("rx", W - 50_000, data(3)),
+      k("tx", W + 20_000, data(3)),
+      k("tx", W + 50_020_000, data(30)),
+      // an event of the stream from the server, before the fault
+      k("rx", T + 250_000_000, data(60)),
+      // the close frame of the drop
+      k("tx", D2 + 30_000, data(6)),
+    ];
+    const pongs = pongsOf(lines, records, LOCAL);
+    expect(pongs).toHaveLength(1);
+    expect(pongs[0]).toMatchObject({ at: W + 20_000, kernel: true, record: "write" });
+    expect(pongsOf(lines, records, "172.21.0.3:59240")).toEqual([]);
+    const pong: Cell = {
+      ...HEARTBEAT,
+      name: "W1P",
+      prediction: { detects: true, timer: "ping", errno: "DROPPED", from: "pong-sent", low: s(2.999), high: s(3.004) },
+    };
+    const read = measure(pong, run(lines, records));
+    // the interval of the pings and the wait for a ping: 2 s and 1 s, from the write of the pong
+    expect(read).toMatchObject({ outcome: { kind: "dropped" }, elapsed: s(3.001), finding: null });
+    // the last data counts from the event of the stream, 150 ms after the pong
+    const last: Cell = { ...pong, prediction: { ...pong.prediction, from: "last-data" } as Cell["prediction"] };
+    expect(measure(last, run(lines, records)).elapsed).toEqual(s(2.85102));
   });
 
   it("lets the kernel win when its report comes before the drop, and the drop win when it comes first", () => {

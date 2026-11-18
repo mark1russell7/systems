@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { evaluate, timerOf } from "@mark1russell7/automata";
+import { acceptQueueHeld, acceptQueueLimit, evaluate, timerOf } from "@mark1russell7/automata";
 import type { Cell, QueueBand, QueueConnection, QueuePrediction, Target } from "@mark1russell7/harness";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { given, HZ, LINUX_66, ms, seconds, s } from "./catalog.ts";
@@ -72,22 +72,33 @@ export const synGiveup = (): QueueBand => {
   return band(end - seconds(bounds.early, "how early the end comes") - SLACK, end + seconds(bounds.lateness, "how late the end comes") + SLACK);
 };
 
-/** This function gives the wait `k` of the SYN-ACK timer: 1 s doubled at each firing (`tcp_reqsk_timeout`). */
-const synAckTimer = (k: number): number => 2 ** k;
-
-/** This function gives the band of the wait `k` of a SYN-ACK at the client. The first wait counts from the dial, and it holds one way of the path. */
+/** This function gives the band of the wait `k` of a SYN-ACK at the client, from the timer `synack_retransmit`. The first wait counts from the dial, and it holds one way of the path. */
 export const synAckWait = (k: number): QueueBand => {
-  const wait = synAckTimer(k);
-  const path = k === 0 ? LATENCY : 0;
-  return band(wait + path - 1 / HZ - SLACK, wait + path + wheelOf(wait) + SLACK);
+  const bounds = timerOf(LINUX_TCP, "synack_retransmit", LINUX, k);
+  const wait = seconds(bounds.duration, `the wait ${k} of the SYN-ACK`) + (k === 0 ? LATENCY : 0);
+  return band(
+    wait - seconds(bounds.early, "how early the SYN-ACK timer fires") - SLACK,
+    wait + seconds(bounds.lateness, "how late the SYN-ACK timer fires") + SLACK,
+  );
 };
 
-/** This function gives the band of the firing of the SYN-ACK timer after the given count of waits, from the arming of the timer. */
-export const synAckFiring = (waits: number): QueueBand => {
-  const all = Array.from({ length: waits }, (_, k) => synAckTimer(k));
-  const sum = all.reduce((total, wait) => total + wait, 0);
-  const late = all.reduce((total, wait) => total + wheelOf(wait), 0);
-  return band(sum - waits / HZ - SLACK, sum + late + SLACK);
+/**
+ * This function gives the band of the SYN-ACK timer at the end of the given count of waits of
+ * `synack_retransmit`. The band starts `after` seconds after the arming of the timer.
+ */
+export const synAckFiring = (waits: number, after = 0): QueueBand => {
+  const all = Array.from({ length: waits }, (_, k) => timerOf(LINUX_TCP, "synack_retransmit", LINUX, k));
+  const sum = all.reduce((total, bounds) => total + seconds(bounds.duration, "a wait of the SYN-ACK"), 0);
+  const early = all.reduce((total, bounds) => total + seconds(bounds.early, "how early the SYN-ACK timer fires"), 0);
+  const late = all.reduce((total, bounds) => total + seconds(bounds.lateness, "how late the SYN-ACK timer fires"), 0);
+  return band(after + sum - early - SLACK, after + sum + late + SLACK);
+};
+
+/** This function gives the band of the expiry of a request at the target, from the timer `synack_giveup`: 63 s at the defaults. */
+export const synAckExpiry = (): QueueBand => {
+  const bounds = timerOf(LINUX_TCP, "synack_giveup", LINUX);
+  const end = seconds(bounds.duration, "the expiry of the request");
+  return band(end - seconds(bounds.early, "how early the expiry comes") - SLACK, end + seconds(bounds.lateness, "how late the expiry comes") + SLACK);
 };
 
 /** This band is the time from a segment or a final ACK of the client to the reset of the target. */
@@ -161,26 +172,42 @@ const queueCell = (spec: QueueSpec, target: Target = TARGET): Cell => ({
   concurrency: 1,
 });
 
-/** This function gives a cell of the count: a client that connects one at a time until `attempts`, with no accept. */
-const countSpec = (plan: string, name: string, backlog: number, somaxconn: number, attempts: number, limit: number): QueueSpec => ({
-  plan,
-  name,
-  backlog,
-  somaxconn,
-  abort: 0,
-  flags: ["--fill", String(attempts)],
-  latency: false,
-  window: 5,
-  why: "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
-  queue: {
-    max: limit,
-    held: limit + 1,
-    connected: limit + 1,
-    overflows: { low: attempts - limit - 1, high: attempts - limit - 1 },
-    resets: 0,
-    connections: [],
-  },
+/** These are the settings of a cell before its count: the count comes from the law of the accept queue. */
+type UncountedSpec = Omit<QueueSpec, "queue"> & { readonly queue: Omit<QueuePrediction, "max" | "held"> };
+
+/**
+ * This function gives a spec with its count from the law of `@mark1russell7/automata`. The count is the limit
+ * of the queue and the connections that a full queue holds. `listen` is the backlog that listen(2) gets.
+ */
+const counted = (spec: UncountedSpec, listen = spec.backlog): QueueSpec => ({
+  ...spec,
+  queue: { max: acceptQueueLimit(listen, spec.somaxconn), held: acceptQueueHeld(listen, spec.somaxconn), ...spec.queue },
 });
+
+/** This function gives a cell of the count: a client that connects one at a time until `attempts`, with no accept. */
+const countSpec = (plan: string, name: string, backlog: number, somaxconn: number, attempts: number, listen = backlog): QueueSpec => {
+  const held = acceptQueueHeld(listen, somaxconn);
+  return counted(
+    {
+      plan,
+      name,
+      backlog,
+      somaxconn,
+      abort: 0,
+      flags: ["--fill", String(attempts)],
+      latency: false,
+      window: 5,
+      why: "listen(2) clamps the backlog to somaxconn, and the queue holds the limit plus one. Each later SYN is one overflow.",
+      queue: {
+        connected: held,
+        overflows: { low: attempts - held, high: attempts - held },
+        resets: 0,
+        connections: [],
+      },
+    },
+    listen,
+  );
+};
 
 const CONNECTED: QueueConnection = { name: "in", connects: true, ends: null, unacked: 0 };
 /** The waits of the two connections whose final ACK overflowed: five SYN-ACKs, until the target forgets them. */
@@ -190,10 +217,10 @@ const BURST_FLAGS = ["--fill", "4", "--burst", "3"];
 
 /** These are the laws that the cells check, one cell for each. */
 export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
-  countSpec("AQ.1", "the count: a backlog of 4 under a somaxconn of 4096 holds 5", 4, 4096, 7, 4),
-  countSpec("AQ.2", "the count: somaxconn 8 clamps a backlog of 511, and the queue holds 9", 511, 8, 11, 8),
-  countSpec("AQ.3", "the count: a backlog of 0 holds 1", 0, 4096, 3, 0),
-  {
+  countSpec("AQ.1", "the count: a backlog of 4 under a somaxconn of 4096 holds 5", 4, 4096, 7),
+  countSpec("AQ.2", "the count: somaxconn 8 clamps a backlog of 511, and the queue holds 9", 511, 8, 11),
+  countSpec("AQ.3", "the count: a backlog of 0 holds 1", 0, 4096, 3),
+  counted({
     plan: "AQ.4",
     name: "a SYN at a full queue meets the SYN ladder of the client, and ETIMEDOUT",
     backlog: 1,
@@ -204,8 +231,6 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
     window: LONG_HOLD + 10,
     why: "The kernel drops each SYN at a full queue with no answer. Each of the 11 SYNs is one overflow, and the connect ends on the timer of the client.",
     queue: {
-      max: 1,
-      held: 2,
       connected: 2,
       overflows: { low: 11, high: 11 },
       resets: 0,
@@ -218,8 +243,8 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
         },
       ],
     },
-  },
-  {
+  }),
+  counted({
     plan: "AQ.5",
     name: "a final ACK at a full queue: the client connects, the target forgets it at 63 s, and the next segment meets a reset",
     backlog: 4,
@@ -230,13 +255,11 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
     window: LONG_HOLD + 10,
     why: "tcp_abort_on_overflow 0 keeps the request and drops the final ACK. The client is ESTABLISHED, and only a later segment tells it the truth. The count of overflows depends on the retransmissions of the client, thus it has a floor and no band.",
     queue: {
-      max: 4,
-      held: 5,
       connected: 7,
       overflows: { low: 2, high: 1000 },
       resets: 0,
       admitted: "in",
-      expiry: { timeouts: 12, within: synAckFiring(6) },
+      expiry: { timeouts: 12, within: synAckExpiry() },
       connections: [
         CONNECTED,
         {
@@ -248,8 +271,8 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
         { name: "quiet", connects: true, synAcks: FIVE_SYN_ACKS, ends: { errno: "ECONNRESET", from: "sent", within: RESET } },
       ],
     },
-  },
-  {
+  }),
+  counted({
     plan: "AQ.6",
     name: "a final ACK at a full queue with tcp_abort_on_overflow 1: connected, then ECONNRESET one round trip later",
     backlog: 4,
@@ -260,8 +283,6 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
     window: 5,
     why: "tcp_abort_on_overflow 1 answers an overflow of a final ACK with a reset. A SYN at a full queue stays silent, because the sysctl does not change that path.",
     queue: {
-      max: 4,
-      held: 5,
       connected: 7,
       overflows: { low: 3, high: 3 },
       resets: 2,
@@ -273,8 +294,8 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
         { name: "blocked", connects: false, syns: [], ends: null },
       ],
     },
-  },
-  {
+  }),
+  counted({
     plan: "AQ.7",
     name: "the queue drains before the expiry: the next SYN-ACK brings a challenge ACK, and no connection fails",
     backlog: 4,
@@ -285,13 +306,11 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
     window: 10,
     why: "The request stays until its expiry. The SYN-ACK at 3 s gets a challenge ACK, and that ACK finds a place. The blocked SYN finds a place at its next firing. The count of overflows depends on the retransmissions before the accept, thus its band is wide.",
     queue: {
-      max: 4,
-      held: 5,
       connected: 8,
       overflows: { low: 9, high: 15 },
       resets: 0,
       admitted: "in",
-      rise: { count: 4, within: band(3 + LATENCY - 2 / HZ - SLACK, 3 + LATENCY + wheelOf(1) + wheelOf(2) + SLACK) },
+      rise: { count: 4, within: synAckFiring(2, LATENCY) },
       drained: 8,
       connections: [
         CONNECTED,
@@ -300,11 +319,14 @@ export const ACCEPT_QUEUE_SPECS: readonly QueueSpec[] = [
         { name: "blocked", connects: true, syns: [0, 1, 2].map(synWait), ends: null, unacked: 0 },
       ],
     },
-  },
+  }),
 ];
 
 /** These are the cells of the accept queue, for the harness. */
 export const ACCEPT_QUEUE_CELLS: readonly Cell[] = ACCEPT_QUEUE_SPECS.map((spec) => queueCell(spec));
+
+/** This function gives the backlog that Node gives listen(2) for a declared backlog: `backlog || 511` (`lib/net.js` of Node 24.21.0, line 2325). */
+const nodeBacklog = (declared: number): number => declared || 511;
 
 /**
  * These are the laws of `AQ.1` to `AQ.3` with a server of the service as the listener (SYS-103). The
@@ -313,10 +335,10 @@ export const ACCEPT_QUEUE_CELLS: readonly Cell[] = ACCEPT_QUEUE_SPECS.map((spec)
  * gives 511 in service 0.7.3, and the queue holds 512.
  */
 export const SERVICE_QUEUE_SPECS: readonly QueueSpec[] = [
-  countSpec("AQ.8", `the count of service ${BACKLOG_LABEL}: a declared backlog of 4 under a somaxconn of 4096 holds 5`, 4, 4096, 7, 4),
-  countSpec("AQ.9", `the count of service ${BACKLOG_LABEL}: somaxconn 8 clamps a declared backlog of 511, and the queue holds 9`, 511, 8, 11, 8),
+  countSpec("AQ.8", `the count of service ${BACKLOG_LABEL}: a declared backlog of 4 under a somaxconn of 4096 holds 5`, 4, 4096, 7),
+  countSpec("AQ.9", `the count of service ${BACKLOG_LABEL}: somaxconn 8 clamps a declared backlog of 511, and the queue holds 9`, 511, 8, 11),
   {
-    ...countSpec("AQ.10", `the count of service ${BACKLOG_LABEL}: Node gives listen(2) 511 for a declared backlog of 0, and the queue holds 512`, 0, 4096, 514, 511),
+    ...countSpec("AQ.10", `the count of service ${BACKLOG_LABEL}: Node gives listen(2) 511 for a declared backlog of 0, and the queue holds 512`, 0, 4096, 514, nodeBacklog(0)),
     why: "Node gives listen(2) 511 for a backlog of 0, thus the declared 0 of service 0.7.3 is a limit of 511. The queue holds the limit plus one, and each later SYN is one overflow.",
   },
 ];

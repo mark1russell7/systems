@@ -15,6 +15,13 @@ const PACKAGE = join(SRC, "..");
 const IDENTITY_MAPS: Readonly<Record<string, number>> = { "drains.ts": 3, "http/answers.ts": 1 };
 
 /**
+ * The maps inside a function. Each value that the function makes has its own map, and only that
+ * value reads it. Thus a value of another copy of service loses no state in these maps. The
+ * `keyedLimiter` of `limiter/store.ts` keeps the key of each lease that the limiter gave.
+ */
+const LOCAL_MAPS: Readonly<Record<string, number>> = { "limiter/store.ts": 1 };
+
+/**
  * The roots. `Lifecycle` keys the late holds and the outside counts, and `RequestStream` keys the
  * owners. The values of `TransportImpl` and `RequestHandler` write the holds and the marks of their copy.
  */
@@ -176,7 +183,9 @@ describe("the types that service knows by identity", () => {
     const maps = Object.fromEntries(
       [...modules].map(([file, module]) => [file, (module.blanked.match(/new Weak(Map|Set|Ref)\b/g) ?? []).length] as const).filter(([, count]) => count > 0),
     );
-    expect(maps).toEqual(IDENTITY_MAPS);
+    const expected: Record<string, number> = { ...IDENTITY_MAPS };
+    for (const [file, count] of Object.entries(LOCAL_MAPS)) expected[file] = (expected[file] ?? 0) + count;
+    expect(maps).toEqual(expected);
   });
 
   it("checks no class of service with instanceof, thus a value of another copy passes each check", () => {

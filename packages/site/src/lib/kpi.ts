@@ -25,12 +25,18 @@ export interface RoadmapMeasure {
   readonly unit: string;
 }
 
-/** This function splits the roadmap into its entries, by the id of the item. */
+/**
+ * This function splits the roadmap into its entries, by the id of the item.
+ *
+ * @throws When two entries have one id. Each reader of the roadmap takes one entry for each id, and a second entry hides the first.
+ */
 export function roadmapEntries(roadmap: string): ReadonlyMap<string, string> {
   const entries = new Map<string, string>();
   for (const part of roadmap.split(/^### /m).slice(1)) {
     const id = /^(SYS-\d+) /.exec(part)?.[1];
-    if (id !== undefined) entries.set(id, part);
+    if (id === undefined) continue;
+    if (entries.has(id)) throw new Error(`The roadmap has two entries ${id}. Give the later one the next free id.`);
+    entries.set(id, part);
   }
   return entries;
 }
