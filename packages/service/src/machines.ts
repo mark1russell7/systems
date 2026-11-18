@@ -178,7 +178,7 @@ export const POLLER_MACHINE: Machine = {
       arms: ["start", "tick"],
       cancels: ["stop"],
       fires: "tick",
-      note: "the interval, with its jitter: a fixed delay from the start of each poll",
+      note: "the interval, with its jitter: a fixed delay from the planned start of each poll",
     },
     poll_timeout: {
       duration: { knob: "timeout", unit: "s" },

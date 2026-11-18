@@ -1,6 +1,7 @@
 import type { Extent, Quantity, Rational } from "@mark1russell7/quantity";
-import { convertExact, quantity, rationals as r, valueIn } from "@mark1russell7/quantity";
+import { convertExact, isUnbounded, quantity, rationals as r, valueIn } from "@mark1russell7/quantity";
 import { detectionTime } from "./heartbeat.ts";
+import type { Schedule } from "./loop.ts";
 
 /**
  * All policies have the same timing shape. A timing is a count of polls (a debounce) or a
@@ -64,6 +65,34 @@ const count = (polls: number, what: string): Rational => {
   return r.rational(BigInt(polls));
 };
 
+/**
+ * This function gives the poll of a span, and the way the step fails on it. A schedule of the loop core gives its period,
+ * its jitter and its timeout. The model of the span holds for a schedule from `start` with one lane. Its period and its
+ * timeout have a bound, and it has no backoff, no budget and no stable time.
+ *
+ * The overlap `fail` is the model of the poller. With the overlap `allow`, each due round is a new call, thus a step that
+ * hangs fails as a step that times out. Its recovery differs: when the step heals, the call in flight answers at once
+ * (`healed`). With the overlap `skip`, a round that hangs gives one failure only, thus its span has no bound.
+ */
+const pollOf = (
+  given: Poll | Schedule,
+  by: FailsBy,
+): { readonly poll: Poll; readonly by: FailsBy; readonly healed: boolean } => {
+  if (!("from" in given)) return { poll: given, by, healed: false };
+  const problems: string[] = [];
+  if (given.from !== "start") problems.push("a schedule from end spaces its polls by the time of each round");
+  if (isUnbounded(given.period) || isUnbounded(given.timeout)) problems.push("its period and its timeout need a bound");
+  if (given.backoff !== null) problems.push("a backoff changes the delay after each failure");
+  if (given.lanes !== 1) problems.push("the span is for one lane");
+  if (given.budget !== null) problems.push("a budget can delay a poll");
+  if (given.stable !== null) problems.push("a stable time can make a pass a failure");
+  if (given.overlap === "skip" && by === "hang") problems.push("with the overlap skip, a round that hangs gives one failure only");
+  if (problems.length > 0) throw new RangeError(`the schedule has no span: ${problems.join("; ")}`);
+  const poll: Poll = { interval: given.period as Quantity, jitter: given.jitter, timeout: given.timeout as Quantity };
+  const healed = given.overlap === "allow" && by === "hang";
+  return { poll, by: healed ? "timeout" : by, healed };
+};
+
 /** N polls with jitter take from N − 1 short intervals to N long intervals. */
 const debounced = (polls: Rational, interval: Rational, jitter: Rational): [Rational, Rational] => [
   r.mul(r.sub(polls, r.ONE), r.mul(interval, r.sub(r.ONE, jitter))),
@@ -77,12 +106,16 @@ const debounced = (polls: Rational, interval: Rational, jitter: Rational): [Rati
  * a timeout adds the timeout of the poll. At 3 polls of 5 s ± 20 %, the latch fails in 8–18 s on
  * an error, and in 12–22 s on a 4 s timeout. A step that hangs adds the timeout only where its
  * first failure ends the sequence: a window, or a debounce of one poll.
+ *
+ * The poll can also be the schedule of the loop of the check, for example `pollSchedule(poll)`. The function throws a
+ * `RangeError` for a schedule that the model does not hold.
  */
-export const failSpan = (timing: Timing, poll: Poll, by: FailsBy = "error"): Span => {
+export const failSpan = (timing: Timing, given: Poll | Schedule, by: FailsBy = "error"): Span => {
+  const { poll, by: fails } = pollOf(given, by);
   const jitter = fraction(poll.jitter);
   const first = timing.type === "window" || timing.failAfter === 1;
   const late =
-    by === "timeout" || (by === "hang" && first) ? seconds(poll.timeout) : r.ZERO;
+    fails === "timeout" || (fails === "hang" && first) ? seconds(poll.timeout) : r.ZERO;
   if (timing.type === "debounce") {
     const [min, max] = debounced(
       count(timing.failAfter, "failAfter"),
@@ -96,20 +129,31 @@ export const failSpan = (timing: Timing, poll: Poll, by: FailsBy = "error"): Spa
   return { min: out(r.add(duration, late)), max: out(r.add(r.add(duration, interval), late)) };
 };
 
-/** This function gives the time that a policy takes to recover after its signal becomes good. */
-export const recoverSpan = (timing: Timing, poll: Poll): Span => {
+/**
+ * This function gives the time that a policy takes to recover after its signal becomes good. The poll can also be the
+ * schedule of the loop of the check, as for `failSpan`.
+ *
+ * On a schedule with the overlap `allow`, a step that hangs recovers one timeout sooner. When the step heals, the call in
+ * flight answers at once, thus it is the first pass. A heal after the timeout of that call leaves at most one interval
+ * minus the timeout to the next poll. On the poller, the call in flight is past its timeout, thus its answer counts for
+ * nothing.
+ */
+export const recoverSpan = (timing: Timing, given: Poll | Schedule, by: FailsBy = "error"): Span => {
+  const { poll, healed } = pollOf(given, by);
   const jitter = fraction(poll.jitter);
+  const sooner = healed ? seconds(poll.timeout) : r.ZERO;
+  const floor = (value: Rational): Rational => (r.sign(value) < 0 ? r.ZERO : value);
   if (timing.type === "debounce") {
     const [min, max] = debounced(
       count(timing.recoverAfter, "recoverAfter"),
       seconds(timing.interval),
       jitter,
     );
-    return { min: out(min), max: out(max) };
+    return { min: out(floor(r.sub(min, sooner))), max: out(floor(r.sub(max, sooner))) };
   }
   const duration = timing.recoverAfter === undefined ? r.ZERO : seconds(timing.recoverAfter);
   const interval = r.mul(seconds(poll.interval), r.add(r.ONE, jitter));
-  return { min: out(duration), max: out(r.add(duration, interval)) };
+  return { min: out(duration), max: out(floor(r.sub(r.add(duration, interval), sooner))) };
 };
 
 /** This function gives the window that a debounce approximates: N polls of an interval fail after N intervals. */

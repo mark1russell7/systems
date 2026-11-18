@@ -438,7 +438,7 @@ const WORKER_GAP_KNOBS = ["worker_sleep", "unit_processing_time", "retry_base", 
 /**
  * This function gives the longest gap between two marks of each loop with a name. The rule counts
  * a mark at the end of each turn of the loop, also a turn that fails.
- * - A check polls on a fixed delay from the start of each poll, and each poll ends at its timeout
+ * - A check polls on a fixed delay from the planned start of each poll, and each poll ends at its timeout
  *   at the latest. Thus the gap is `interval × (1 + jitter) + timeout`.
  * - After an iteration, a lane of a worker waits its sleep, or its backoff after a failure. The
  *   longest backoff is `retry_cap` plus its jitter of up to `retry_base`. The next iteration then
