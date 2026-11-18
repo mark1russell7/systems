@@ -18,11 +18,12 @@
     "**/__fixtures__/**",
     "packages/harness/image/**",
     "packages/kind/image/**",
-    "packages/cells/targets/**"
+    "packages/cells/targets/**",
+    "packages/reference/image/**"
   ],
   "packageRules": [
     {
-      "description": "The images of the harness and of kind, and the targets of the cells, pin the systems that the cells measure. Each machine document cites their versions. They change only with their documents, thus Renovate leaves them (ignorePaths, after the defaults of config:recommended). The prober is the tool of each measurement: its updates come in one group.",
+      "description": "The images of the harness, of kind and of the reference service, and the targets of the cells, pin the systems that the cells measure. Each machine document cites their versions. Their lockfiles have the name npm-lock.json, which Renovate does not update, thus an update of their package.json breaks the build of the image. They change only by hand, with a new lockfile, thus Renovate leaves them (ignorePaths, after the defaults of config:recommended). The prober is the tool of each measurement: its updates come in one group.",
       "matchFileNames": [
         "packages/prober/image/**",
         "packages/prober/native/**",
