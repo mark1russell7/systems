@@ -13,6 +13,7 @@ At most three items are in progress at one time. A score puts the items in order
 
 SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
+- **SYS-134** (P1): one scope for each request, job and loop round. Its design goes to review first, and its part 1 starts when a place opens.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
@@ -3941,6 +3942,84 @@ The test:
 - A month whose 1st has no 00:00: America/Asuncion in October 2017 and October 2023. From 2015 to 2026, the time zone data of Node 24 has no other such month in ten zones, America/Santiago and America/Havana among them.
 - The step from December to January, and a name that is not a zone.
 - For each month, its `end` is the `start` of the next month.
+
+### SYS-134 · One scope for each request, job and loop round
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Mark said go on 2026-11-18. The service package gives its work five separate contexts. Each context holds a part of the same facts: a signal, a deadline, the clock and the trace. A handler of `@procedures/client` gets one more context, `ProcedureContext`. This item makes one scope type, and each of these contexts comes from it.
+
+The scope:
+
+```ts
+type ScopeKind = "process" | "service" | "phase" | "request" | "job" | "round" | "call";
+
+interface Scope {
+  readonly kind: ScopeKind;
+  readonly name: string;
+  readonly parent: Scope | null;
+  /** This signal aborts with the parent, at the deadline, or at `abort()`. */
+  readonly signal: AbortSignal;
+  /** This time is in milliseconds on the monotonic clock of `clock`. Infinity is no deadline. */
+  readonly deadline: number;
+  /** This clock is the clock of `@mark1russell7/algebra/clock`. */
+  readonly clock: Clock;
+  /** This value is opaque. The entry `/otel` puts the context of OpenTelemetry in it. */
+  readonly trace: Trace | undefined;
+  /** This value has the shape of the principal of `@procedures/client`: `{ id, via, claims }`. */
+  readonly identity: Principal | undefined;
+  /** This function gives the value of a key: the bound client, or another value of a domain. */
+  get<T>(key: ScopeKey<T>): T | undefined;
+  remaining(): number;
+  child(kind: ScopeKind, name: string, options?: ChildOptions): Scope;
+  defer(close: () => void | PromiseLike<void>): void;
+  abort(reason?: unknown): void;
+  close(): Promise<void>;
+}
+```
+
+The rules of the nest:
+
+- Each kind has a rank: `process` 0, `service` 1, `phase` 2, `request`, `job` and `round` 3, and `call` 4. A child has a higher rank than its parent. A `call` can also be the child of a `call`, for a nested procedure. Each other child throws.
+- A child gets each value of its parent. The clock does not change.
+- The deadline of a child is the earlier of its own deadline and the deadline of its parent. Thus a child can only make the deadline earlier.
+- Only an entry sets the trace and the identity. An entry is a scope of rank 3 that comes from an incoming request, with its headers and its authentication. Below an entry, each child has the trace and the identity of its parent.
+- Each key of a value (`ScopeKey<T>`) has its rule: `inherit`, or `narrow` with a meet. The capability of a procedure is a key with a meet. The bound client is a key, and each child binds its value again. The service package does not know the client of procedures. Thus the client is a key, not a field.
+- A child is a resource of its parent. The close of a parent aborts and closes each open child first.
+- A child of a closed or aborted scope is aborted at its start.
+
+The laws, as model tests on fast-check (`rigor-testkit`), in the CI of the package:
+
+1. An abort reaches each child of the aborted scope, and no scope outside its subtree.
+2. The deadline of a child is not later than the deadline of its parent. The signal aborts at the deadline on the clock, and not before it.
+3. Each resource closes once, in the reverse order of its open, also after a throw. A resource whose open threw does not close. The close gives each error of each close.
+4. A child has the clock, the trace and the identity of its parent, except at an entry.
+5. A closed child keeps no listener on the signal of its parent, and no timer. Thus the memory of a service scope stays bounded after 100,000 requests.
+
+The contexts that become scopes:
+
+| The context | The scope |
+| --- | --- |
+| `PhaseContext`: the deadline, the signal and the clock | a scope of kind `phase`, a child of the service scope |
+| `JobContext`: the signal, the intake, the delivery and the lifecycle | a scope of kind `job`, with the intake, the delivery and the lifecycle |
+| `IterationContext`: the signal, the intake, the state, the lane, the failures and the lifecycle | a scope of kind `round`, with the facts of its loop |
+| `MountContext`: the intake, the signal, the lifecycle, `retryAfter` and `keepAlive` | a scope of kind `request` for each request, with the facts of the mount. One context of a mount serves each request of the mount at this time. |
+| `CallContext`: `run` and `headers` | the port of the trace. The entry `/otel` reads the trace of an incoming request into its scope. It writes the headers of an outgoing request from the scope. |
+
+The function of a request (`RequestFn`) also gets the scope of its request, beside its signal.
+
+`ProcedureContext` of `@procedures/client` then comes from the scope: the signal, the principal, the client and the deadline of the capability. The capability gives its deadline in milliseconds since the epoch. The scope gives its deadline on the monotonic clock. The adapter converts at the edge: the wall time plus `remaining()`. The sync engine of the client takes a structural type, `Pick<Scope, "signal" | "deadline" | "clock">`. Thus neither item waits for the other.
+
+The parts:
+
+1. The type, the entry `@mark1russell7/service/scope` and the laws. The entry imports no `node:` module, thus a browser can use it. A new entry is a PATCH before 1.0: `0.10.1`.
+2. The five contexts become scopes, in one change. The process, the service and each phase of `run()` get their scopes. The changed interfaces break the code that makes these contexts. Thus the release is a MINOR before 1.0: `0.11.0`.
+3. The client makes `ProcedureContext` from the scope, after its own releases.
 
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
