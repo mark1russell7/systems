@@ -20,6 +20,7 @@ import * as otelEntry from "./otel.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
 import * as rulesEntry from "./rules.ts";
+import * as scopeEntry from "./scope.ts";
 import * as wsEntry from "./websocket.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -91,7 +92,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "http-folder.ts", "websocket.ts", "grpc.ts", "clock.ts", "channel.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts", "otel.ts", "scope.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -541,6 +542,38 @@ describe("the otel entry: the only entry that loads the API of OpenTelemetry, an
     };
     expect(manifest.exports["./otel"]).toBe("./src/otel.ts");
     expect(manifest.publishConfig.exports["./otel"]).toEqual({ types: "./build/otel.d.ts", default: "./build/otel.js" });
+  });
+});
+
+describe("the scope entry: a client in a browser can import it (SYS-134)", () => {
+  it("loads only the clock of the algebra: no node: module, no zod and no API of OpenTelemetry", () => {
+    expect(reach("scope.ts")).toEqual({ files: ["clock.ts", "scope.ts"], packages: ["@mark1russell7/algebra/clock"] });
+    expect(reachAll("scope.ts")).toEqual([]);
+  });
+
+  it("gives the scopes, their keys and the header of the remaining time, and the root gives none of them", () => {
+    expect(Object.keys(scopeEntry).sort()).toEqual([
+      "DEADLINE",
+      "SCOPE_RANK",
+      "ScopeCloseError",
+      "ScopeError",
+      "TIMEOUT_HEADER",
+      "bind",
+      "readTimeout",
+      "rootScope",
+      "scopeKey",
+      "timeoutHeaders",
+    ]);
+    for (const name of Object.keys(scopeEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./scope"]).toBe("./src/scope.ts");
+    expect(manifest.publishConfig.exports["./scope"]).toEqual({ types: "./build/scope.d.ts", default: "./build/scope.js" });
   });
 });
 

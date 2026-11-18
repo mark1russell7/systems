@@ -1028,6 +1028,28 @@ type TraceIdsSource: build/logger.d.ts#TraceIdsSource
 callContext: build/otel.d.ts#callContext
 traceIds: build/otel.d.ts#traceIds
 
+## ./scope (build/scope.d.ts): names
+
+ChildOptions: build/scope.d.ts#ChildOptions
+DEADLINE: build/scope.d.ts#DEADLINE
+EntryKind: build/scope.d.ts#EntryKind
+EntryOptions: build/scope.d.ts#EntryOptions
+Principal: build/scope.d.ts#Principal
+RootOptions: build/scope.d.ts#RootOptions
+SCOPE_RANK: build/scope.d.ts#SCOPE_RANK
+Scope: build/scope.d.ts#Scope
+ScopeBinding: build/scope.d.ts#ScopeBinding
+ScopeCloseError: build/scope.d.ts#ScopeCloseError
+ScopeError: build/scope.d.ts#ScopeError
+ScopeKey: build/scope.d.ts#ScopeKey
+ScopeKind: build/scope.d.ts#ScopeKind
+TIMEOUT_HEADER: build/scope.d.ts#TIMEOUT_HEADER
+bind: build/scope.d.ts#bind
+readTimeout: build/scope.d.ts#readTimeout
+rootScope: build/scope.d.ts#rootScope
+scopeKey: build/scope.d.ts#scopeKey
+timeoutHeaders: build/scope.d.ts#timeoutHeaders
+
 ## Declarations
 
 ### build/backoff.d.ts#Backoff
@@ -4725,6 +4747,111 @@ export declare const O10: Rule;
 
 ### build/rules.d.ts#O16
 export declare const O16: Rule;
+
+### build/scope.d.ts#ChildOptions
+export interface ChildOptions {
+  readonly timeout?: number | undefined;
+  readonly bind?: readonly ScopeBinding[] | undefined;
+}
+
+### build/scope.d.ts#DEADLINE
+export declare const DEADLINE: ScopeKey<number>;
+
+### build/scope.d.ts#EntryKind
+export type EntryKind = "request" | "job" | "round";
+
+### build/scope.d.ts#EntryOptions
+export interface EntryOptions extends ChildOptions {
+  readonly trace: unknown;
+  readonly identity: Principal | undefined;
+  readonly headers?: IncomingHeaders | undefined;
+}
+
+### build/scope.d.ts#Principal
+export interface Principal {
+  readonly id: string;
+  readonly via: string;
+  readonly claims?: Readonly<Record<string, unknown>> | undefined;
+}
+
+### build/scope.d.ts#RootOptions
+export interface RootOptions extends ChildOptions {
+  readonly name: string;
+  readonly kind?: "process" | "service" | undefined;
+  readonly clock?: Clock | undefined;
+  readonly trace?: unknown;
+  readonly identity?: Principal | undefined;
+}
+
+### build/scope.d.ts#SCOPE_RANK
+export declare const SCOPE_RANK: Readonly<Record<ScopeKind, number>>;
+
+### build/scope.d.ts#Scope
+export interface Scope {
+  readonly kind: ScopeKind;
+  readonly name: string;
+  readonly parent: Scope | null;
+  readonly signal: AbortSignal;
+  readonly deadline: number;
+  readonly clock: Clock;
+  readonly trace: unknown;
+  readonly identity: Principal | undefined;
+  readonly closed: boolean;
+  get<T>(key: ScopeKey<T>): T | undefined;
+  remaining(): number;
+  children(): readonly Scope[];
+  child(kind: ScopeKind, name: string, options?: ChildOptions): Scope;
+  entry(kind: EntryKind, name: string, options: EntryOptions): Scope;
+  defer(close: () => void | PromiseLike<void>): void;
+  use<T>(open: () => T | PromiseLike<T>, close: (value: T) => void | PromiseLike<void>): Promise<T>;
+  abort(reason?: unknown): void;
+  close(): Promise<void>;
+}
+
+### build/scope.d.ts#ScopeBinding
+export interface ScopeBinding {
+  readonly key: ScopeKey<unknown>;
+  readonly value: unknown;
+}
+
+### build/scope.d.ts#ScopeCloseError
+export declare class ScopeCloseError extends AggregateError {
+  override readonly name = "ScopeCloseError";
+}
+
+### build/scope.d.ts#ScopeError
+export declare class ScopeError extends Error {
+  readonly code: "rank" | "closed";
+  override readonly name = "ScopeError";
+  constructor(code: "rank" | "closed", message: string);
+}
+
+### build/scope.d.ts#ScopeKey
+export interface ScopeKey<T> {
+  readonly name: string;
+  readonly meet?: ((a: T, b: T) => T) | undefined;
+}
+
+### build/scope.d.ts#ScopeKind
+export type ScopeKind = "process" | "service" | "phase" | "request" | "job" | "round" | "call";
+
+### build/scope.d.ts#TIMEOUT_HEADER
+export declare const TIMEOUT_HEADER = "timeout-ms";
+
+### build/scope.d.ts#bind
+export declare const bind: <T>(key: ScopeKey<T>, value: T) => ScopeBinding;
+
+### build/scope.d.ts#readTimeout
+export declare const readTimeout: (headers: IncomingHeaders | undefined) => number | undefined;
+
+### build/scope.d.ts#rootScope
+export declare const rootScope: (options: RootOptions) => Scope;
+
+### build/scope.d.ts#scopeKey
+export declare const scopeKey: <T>(name: string, meet?: (a: T, b: T) => T) => ScopeKey<T>;
+
+### build/scope.d.ts#timeoutHeaders
+export declare const timeoutHeaders: (scope: Pick<Scope, "deadline" | "remaining">) => Record<string, string>;
 
 ### build/stops.d.ts#DRAIN_RULE_IDS
 export declare const DRAIN_RULE_IDS: readonly string[];
