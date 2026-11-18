@@ -83,6 +83,7 @@ LATCH_MACHINE: build/machines.d.ts#LATCH_MACHINE
 LAW_STATISTIC: build/lint.d.ts#LAW_STATISTIC
 LIMITER_RULES: build/lint.d.ts#LIMITER_RULES
 LOG_LEVELS: build/logger.d.ts#LOG_LEVELS
+LOOP_MACHINE: build/machines.d.ts#LOOP_MACHINE
 type Lease: build/limiter/policy.d.ts#Lease
 type Lifecycle: build/lifecycle.d.ts#Lifecycle
 type LifecycleEvent: build/events.d.ts#LifecycleEvent
@@ -244,6 +245,7 @@ cooperativeAbortAt: build/lifecycle.d.ts#cooperativeAbortAt
 daemon: build/profiles.d.ts#daemon
 decide: build/limiter/policy.d.ts#decide
 detectionTime: build/heartbeat.d.ts#detectionTime
+doublingBackoff: build/backoff.d.ts#doublingBackoff
 drainMachine: build/machines.d.ts#drainMachine
 embeddedProcess: build/process.d.ts#embeddedProcess
 ephemeral: build/profiles.d.ts#ephemeral
@@ -783,6 +785,7 @@ Jitter: build/backoff.d.ts#Jitter
 backoffBand: build/backoff.d.ts#backoffBand
 backoffDelay: build/backoff.d.ts#backoffDelay
 backoffProblems: build/backoff.d.ts#backoffProblems
+doublingBackoff: build/backoff.d.ts#doublingBackoff
 
 ## ./http (build/http.d.ts): names
 
@@ -1057,6 +1060,28 @@ rootScope: build/scope.d.ts#rootScope
 scopeKey: build/scope.d.ts#scopeKey
 timeoutHeaders: build/scope.d.ts#timeoutHeaders
 
+## ./loop (build/loop.d.ts): names
+
+Budget: build/loop.d.ts#Budget
+LOOP_MACHINE: build/machines.d.ts#LOOP_MACHINE
+Loop: build/loop.d.ts#Loop
+LoopEvent: build/loop.d.ts#LoopEvent
+LoopOptions: build/loop.d.ts#LoopOptions
+LoopRecord: build/loop.d.ts#LoopRecord
+LoopState: build/loop.d.ts#LoopState
+Round: build/loop.d.ts#Round
+RoundContext: build/loop.d.ts#RoundContext
+RoundDefer: build/loop.d.ts#RoundDefer
+RoundEnd: build/loop.d.ts#RoundEnd
+RoundSkip: build/loop.d.ts#RoundSkip
+RoundStart: build/loop.d.ts#RoundStart
+Schedule: build/loop.d.ts#Schedule
+loop: build/loop.d.ts#loop
+pollSchedule: build/loop.d.ts#pollSchedule
+scheduleProblems: build/loop.d.ts#scheduleProblems
+streamSchedule: build/loop.d.ts#streamSchedule
+workerSchedule: build/loop.d.ts#workerSchedule
+
 ## Declarations
 
 ### build/backoff.d.ts#Backoff
@@ -1092,6 +1117,9 @@ export declare const backoffDelay: (policy: Backoff, attempt: number, random?: (
 
 ### build/backoff.d.ts#backoffProblems
 export declare const backoffProblems: (policy: Backoff) => string[];
+
+### build/backoff.d.ts#doublingBackoff
+export declare const doublingBackoff: (base: number, cap: number) => Backoff;
 
 ### build/builder.d.ts#ControllerBuilder
 export interface ControllerBuilder {
@@ -3765,6 +3793,141 @@ export declare const consoleLogger: (options?: ConsoleLoggerOptions) => Logger;
 ### build/logger.d.ts#logEvents
 export declare const logEvents: (logger: Logger, description?: ServiceDescription) => Recorder;
 
+### build/loop.d.ts#Budget
+export interface Budget {
+  readonly rounds: number;
+  readonly per: Quantity;
+}
+
+### build/loop.d.ts#Loop
+export interface Loop {
+  readonly name: string;
+  readonly schedule: Schedule;
+  states(): LoopState[];
+  start(): void;
+  wake(): boolean;
+  inFlight(): number;
+  settle(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+### build/loop.d.ts#LoopEvent
+export type LoopEvent = "start" | "tick" | "retry" | "window" | "wake" | "answer" | "more" | "fail" | "timeout" | "late-answer" | "stop";
+
+### build/loop.d.ts#LoopOptions
+export interface LoopOptions {
+  readonly name: string;
+  readonly scope?: Scope | undefined;
+  readonly clock?: Clock | undefined;
+  readonly random?: (() => number) | undefined;
+  readonly record?: ((record: LoopRecord) => void) | undefined;
+  readonly onTransition?: ((transition: Transition) => void) | undefined;
+}
+
+### build/loop.d.ts#LoopRecord
+export type LoopRecord = RoundStart | RoundEnd | RoundSkip | RoundDefer;
+
+### build/loop.d.ts#LoopState
+export type LoopState = "idle" | "waiting" | "calling" | "hung" | "backoff" | "deferred" | "stopped";
+
+### build/loop.d.ts#Round
+export type Round = (context: RoundContext) => void | "more" | PromiseLike<void | "more">;
+
+### build/loop.d.ts#RoundContext
+export interface RoundContext {
+  readonly scope: Scope;
+  readonly signal: AbortSignal;
+  readonly lane: number;
+  readonly round: number;
+  readonly planned: number;
+  readonly failures: number;
+  reset(): void;
+}
+
+### build/loop.d.ts#RoundDefer
+export interface RoundDefer {
+  readonly kind: "defer";
+  readonly loop: string;
+  readonly lane: number;
+  readonly planned: number;
+  readonly at: number;
+  readonly until: number;
+}
+
+### build/loop.d.ts#RoundEnd
+export interface RoundEnd {
+  readonly kind: "end";
+  readonly loop: string;
+  readonly lane: number;
+  readonly round: number;
+  readonly planned: number;
+  readonly start: number;
+  readonly end: number;
+  readonly outcome: "pass" | "more" | "fail";
+  readonly timedOut: boolean;
+  readonly blocked: boolean;
+  readonly error: unknown;
+}
+
+### build/loop.d.ts#RoundSkip
+export interface RoundSkip {
+  readonly kind: "skip";
+  readonly loop: string;
+  readonly lane: number;
+  readonly planned: number;
+  readonly at: number;
+  readonly count: number;
+}
+
+### build/loop.d.ts#RoundStart
+export interface RoundStart {
+  readonly kind: "start";
+  readonly loop: string;
+  readonly lane: number;
+  readonly round: number;
+  readonly planned: number;
+  readonly start: number;
+}
+
+### build/loop.d.ts#Schedule
+export interface Schedule {
+  readonly from: "start" | "end";
+  readonly period: Extent;
+  readonly jitter: number;
+  readonly first: Extent;
+  readonly timeout: Extent;
+  readonly backoff: Backoff | null;
+  readonly overlap: "fail" | "skip" | "allow";
+  readonly lanes: number;
+  readonly budget: Budget | null;
+  readonly hold: boolean;
+  readonly stable: Extent | null;
+}
+
+### build/loop.d.ts#loop
+export declare const loop: (schedule: Schedule, round: Round, options: LoopOptions) => Loop;
+
+### build/loop.d.ts#pollSchedule
+export declare const pollSchedule: (poll: Poll, options?: {
+  readonly first?: Extent;
+  readonly hold?: boolean;
+}) => Schedule;
+
+### build/loop.d.ts#scheduleProblems
+export declare const scheduleProblems: (schedule: Schedule) => string[];
+
+### build/loop.d.ts#streamSchedule
+export declare const streamSchedule: (backoff: Backoff, options?: {
+  readonly stable?: Extent;
+  readonly budget?: Budget | null;
+  readonly hold?: boolean;
+}) => Schedule;
+
+### build/loop.d.ts#workerSchedule
+export declare const workerSchedule: (knobs: WorkerKnobs, options?: {
+  readonly hold?: boolean;
+}) => Schedule;
+
 ### build/machines.d.ts#EXIT_MACHINE
 export declare const EXIT_MACHINE: Machine;
 
@@ -3773,6 +3936,9 @@ export declare const GATE_MACHINE: Machine;
 
 ### build/machines.d.ts#LATCH_MACHINE
 export declare const LATCH_MACHINE: Machine;
+
+### build/machines.d.ts#LOOP_MACHINE
+export declare const LOOP_MACHINE: Machine;
 
 ### build/machines.d.ts#MACHINES
 export declare const MACHINES: Readonly<Record<Exclude<MachineName, "drain" | "client">, Machine>>;
