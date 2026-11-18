@@ -434,6 +434,8 @@ await request.close();
 - **The resources.** `defer(close)` and `use(open, close)` add a close to the scope. `close()` aborts and closes each open child, the last child first. Then it closes the resources of the scope, the last first. Each close starts, also after a throw, and the promise rejects with a `ScopeCloseError` that holds each error. A resource whose open throws does not close.
 - **The hop.** `timeoutHeaders(scope)` writes the remaining time in whole milliseconds, in the header `timeout-ms`. `entry()` reads it from `headers` with `readTimeout`. The header holds a time, not an instant. Thus a skew of the clocks of two hosts cannot make the deadline later.
 - **The memory.** A parent keeps only its open children, and a scope has no listener on the signal of its parent. A scope has a timer only when its deadline is earlier than the deadline of its parent. A closed child leaves no timer.
+- **The active scope.** `runScope(scope, fn)` from `@mark1russell7/service/otel` makes a scope the active scope while `fn` operates. `currentScope()` gives it, also after `await`. The scope is a value in the context of OpenTelemetry. Thus it has the same store as the trace: the context manager that the program registers, for example with `startNodeTelemetry()` of otel-ts. Without a context manager, `currentScope()` gives `undefined`.
+- **The trace of a scope.** `traceOf(headers, trusted)` reads the trace and the baggage of an incoming request for the option `trace` of `entry()`. A request that is not trusted keeps its trace and loses its baggage. Inside `runScope`, each span starts in the trace of the scope. A child keeps each span that started in the scope of its parent. `scopeHeaders(scope)` writes the trace and the remaining time of a scope for an outgoing request.
 
 ## The keyed limiter
 
@@ -959,7 +961,7 @@ pnpm add @mark1russell7/service
 
 For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`.
 
-For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids and the call context of `/otel`, it installs `@opentelemetry/api@1`.
+For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids, the call context and the scope functions of `/otel`, it installs `@opentelemetry/api@1`.
 
 ### One copy of service
 
@@ -1081,6 +1083,7 @@ for await (const event of stream) {
 - **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`. The host reaches only `quantity` and five `node:` modules, and it loads none of its fakes.
 - **The scopes (SYS-134).** A model test on fast-check builds random trees of scopes, with aborts and steps of a test clock. It holds laws 1, 2, 4 and 5 against a plain model. It checks the reach and the reason of each abort, each deadline, the trace, the identity, and the count of the children and the timers.
 - **The resources and the keys of a scope.** A property test holds the close order and each error of each close (law 3). Another one holds the meet of each key (law 6). One more test holds the deadline across a hop, for each skew of the two clocks. After 100,000 requests, the service scope keeps no child, no timer and no listener.
+- **The active scope (law 7).** Inside `runScope`, `currentScope()` gives the scope, also after `await`. The active context has the span and the baggage of the trace of the scope. A property test holds this over random trees of scopes and random nests of `runScope`, with a span that starts in each step.
 - **The requests.** A unary work is a stream of one item, and a stream gives each item when its reader asks. The drain waits for an open stream. The cooperative abort ends a stream through `return()`, and a cut or a failure after the first item ends in-band. A reader that stops early stops the work. The function of a route pattern decides the answer of each cut request.
 - **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
 - **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.

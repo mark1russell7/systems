@@ -1026,7 +1026,11 @@ type IncomingHeaders: build/call-context.d.ts#IncomingHeaders
 type TraceIds: build/logger.d.ts#TraceIds
 type TraceIdsSource: build/logger.d.ts#TraceIdsSource
 callContext: build/otel.d.ts#callContext
+currentScope: build/otel.d.ts#currentScope
+runScope: build/otel.d.ts#runScope
+scopeHeaders: build/otel.d.ts#scopeHeaders
 traceIds: build/otel.d.ts#traceIds
+traceOf: build/otel.d.ts#traceOf
 
 ## ./scope (build/scope.d.ts): names
 
@@ -4021,8 +4025,20 @@ export declare const mayReissue: (operation: Operation, since: Quantity) => bool
 ### build/otel.d.ts#callContext
 export declare const callContext: CallContext;
 
+### build/otel.d.ts#currentScope
+export declare const currentScope: () => Scope | undefined;
+
+### build/otel.d.ts#runScope
+export declare const runScope: <T>(scope: Scope, fn: () => T) => T;
+
+### build/otel.d.ts#scopeHeaders
+export declare const scopeHeaders: (scope: Scope) => Record<string, string>;
+
 ### build/otel.d.ts#traceIds
 export declare const traceIds: () => TraceIds | undefined;
+
+### build/otel.d.ts#traceOf
+export declare const traceOf: (headers: IncomingHeaders, trusted: boolean) => Context;
 
 ### build/pg/client.d.ts#PgClient
 export interface PgClient extends Client<PgStep, PgJoin> {
