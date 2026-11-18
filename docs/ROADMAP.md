@@ -16,6 +16,8 @@ SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured v
 - **SYS-134** (P1): one scope for each request, job and loop round. Its design goes to review first, and its part 1 starts when a place opens.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
+- **SYS-136:** a run of any command in the guest of the VM tier. A consumer asked for it on 2026-11-18, for its kernel world.
+- **SYS-137:** a lab of the kind tier with the interface of the harness, after SYS-92.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-93:** the next slices of the reference service. Their dispatches wait for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
@@ -3627,6 +3629,45 @@ The format has two test values from the start. The first is the leaf and spine f
 - **The size.** Seven nodes on the smallest runner.
 
 The next world of that consumer gives a home router with NAT and DHCP, and two providers with eBGP to it. Thus it has two paths and a fault on one path only. An Open vSwitch node with VLANs comes later. Each image is free: FRR, Open vSwitch and Debian.
+
+The first fabric joins only the client and one server to the leaves, and its one fault is the silence of a spine. In the new format, each sibling of a lab is a host node on a leaf. A target, a reference and a resolver can sit behind the same leaf. Each fault of a plan goes on a port of a leaf or a spine, with the same `NetworkFault` kinds as a chain.
+
+### SYS-136 · A run of any command in the guest of the VM tier
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The arm of SYS-81 operates only the cells of this repository in the guest. A consumer that finds the cause of a network fault has its own kernel world, and that world needs the kernel of the guest too. This item gives a run of one command of another repository in the guest.
+
+- **The input.** A folder of the runner, an argv, a time limit and an output folder. The folder is a checkout of the consumer, with its own lockfile.
+- **The run.** The command `run` boots the guest and copies the folder into `/work` through ssh. The records of the arm come back the same way. The guest installs the folder from its lockfile, and Docker is ready before the argv starts.
+- **The output.** The guest gives back its folder `/out` and the exit code of the argv, also after a failure. After the time limit, the guest stops, and the record says why.
+- **The workflow.** A reusable workflow of this repository takes the same inputs. Thus the consumer adds one job, with no copy of the scripts of the VM tier.
+- **The test.** A test of this repository operates `uname -r` and one Docker container through the new path. It reads the release of the guest kernel in `/out`.
+
+A new command and a new workflow are a feature, thus the release of the harness is a PATCH before 1.0.
+
+### SYS-137 · A lab of the kind tier with the interface of the harness
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-92
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The kind tier holds the cells of connection timers in a cluster. Its lab has its own interface, `KindLab`. Thus a world that a consumer writes for `openLab` of the harness cannot operate in a cluster. This item gives a lab of the kind tier with the interface `Lab` of the harness.
+
+- **The input.** The topology of SYS-92: its nodes, its links and the siblings of the lab. Each node is a pod, and a router is a pod with IP forwarding on.
+- **The faults.** The same `NetworkFault` kinds at the same places. The agent of each node applies the rules in the network namespace of the pod, as the faults of the kind cells do. The stamps of the injector bracket each fault.
+- **The interface.** `openKindTopology(cluster, topology)` gives a `Lab`. A method with no meaning in a cluster gives an error that names the method.
+- **The test.** One world operates on both tiers with the same code: a client, one router and a target. A black hole at the router gives the same verdict on both tiers.
+
+A new export is a feature, thus the release of kind is a PATCH before 1.0.
 
 ### SYS-114 · A Proxmox VE guest: a real API for the provider of runner-dispatch
 
