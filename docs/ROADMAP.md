@@ -14,6 +14,7 @@ At most three items are in progress at one time. A score puts the items in order
 SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
 - **SYS-134** (P1): one scope for each request, job and loop round. Its design goes to review first, and its part 1 starts when a place opens.
+- **SYS-135** (P1): the service package in a browser, after parts 1 and 2 of SYS-134. Its design goes to review first.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
@@ -4057,6 +4058,57 @@ The parts:
 1. The type, the keys, the entry `@mark1russell7/service/scope` and the laws 1 to 6. The entry imports no `node:` module, thus a browser can use it. A new entry is a PATCH before 1.0: `0.10.1`. The entry `/node` and the scope functions of `/otel`, with law 7, come in the same release or in a stacked PATCH.
 2. The five contexts become scopes, in one change. The process, the service and each phase of `run()` get their scopes. The changed interfaces break the code that makes these contexts. Thus the release is a MINOR before 1.0: `0.11.0`. The changeset names the change of behavior: one scope for each request, not one context for each mount. The pull request lists each public dependent of the package, with its bump.
 3. The client makes `ProcedureContext` from the scope, after its own releases. It adds the type test of `Principal`.
+
+### SYS-135 · The service package in a browser
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-134 (parts 1 and 2)
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Mark said go on 2026-11-18. The front ends of the program move onto the service package, one at a time. Each front end starts after the browser gate of this item is green.
+
+A front end then gets three things from the package. Its start and its stop follow the lifecycle of the page. Its loops have a backoff. When the page closes, its open work aborts.
+
+The gap:
+
+- The root entry and the entries `/clock`, `/heartbeat`, `/backoff`, `/channel`, `/limiter` and `/scope` load no `node:` module. The entry test holds this with a search of the imports. No test operates them in a browser.
+- The entries `/http-client` and `/websocket` import `client/dial.ts`, and that file imports `node:net` at its top. Thus a browser cannot load them.
+- The two clients use `Buffer` at their run, and their drivers are `node:http` and ws.
+- The process port of `run()` reads the signals of a process. A page has no signal.
+
+The scope in a browser:
+
+- The scope of SYS-134 goes through parameters. Each function gets its scope as an argument. The entry `/scope` has no store of `AsyncLocalStorage`, thus it operates in a browser as it is.
+- A callback that cannot get a parameter reads the scope through `currentScope()`. In Node, the entry `/node` keeps the scope in the context of OpenTelemetry. In a browser, the same function reads the same context. Its manager is the context manager of `async-browser-context` (its entry `/opentelemetry`).
+- That package keeps a context through `await` only with its Vite plugin or its Babel preset. Thus parameters stay the contract, and `currentScope()` is a convenience.
+
+The parts:
+
+1. **The browser gate.** The package gets a second project of Vitest in browser mode, with the Playwright provider. Chromium starts headless with `--disable-gpu`. Playwright is 1.64.0, the version of the site shots.
+   - The list of its test files is a query: each test file of the package whose imports reach no `node:` module. A new test of a browser entry thus joins the gate with no change to a list.
+   - A floor holds the scope laws and the tests of the clock, the heartbeat, the backoff, the channel and the limiter in the list. A test that gets a `node:` import leaves the list, and the floor then fails.
+   - The job operates in the CI workflow, in the check `CI OK`. This part needs no change to the code of the package.
+2. **Bytes, not `Buffer`.** The two clients use `Uint8Array`, `TextEncoder` and `TextDecoder` at their run. `client/dial.ts` loads `node:net` only at a dial, as `nodeAgent` loads `node:http`. The types of the bytes get a type parameter with the default `Buffer`: `HttpResponse`, `WsListeners` and `WsConnection`. Thus the Node drivers keep their types, and the release is a PATCH.
+3. **The entry `/browser`.** It gives three ports, and it imports no `node:` module:
+   - `fetchAgent`: an agent of the HTTP client over `fetch`. Each request has its own `AbortController`, and `destroy()` aborts each open request. A browser hides its pool, thus `sockets()` gives an empty list. `fetch` tells no connect, thus the agent counts a request as sent at the call of `fetch`. A failed call that is not idempotent is then `indeterminate`, and not `error`. Thus the outcome in three values stays true.
+   - `browserWs`: a factory of the WebSocket client over the WebSocket of the browser. A message comes as a `Uint8Array`. A browser cannot send a ping frame. Thus a declaration with this factory has no heartbeat of ping frames, and the check of the spec gives a problem for one. A heartbeat of the protocol, as a procedure, stays possible.
+   - `pageProcess(lifecycle)`: the process port of `run()` in a page. Its input is the part of a lifecycle tracker that it reads: `getState()` and `subscribe(listener)`. This is the shape of `page-lifecycle-tracker`, and a type test holds the two shapes equal. The package does not import the tracker.
+   - The transition to `terminated` gives the runtime its stop. A `pagehide` into the back/forward cache stops the run too. A page that comes back from the cache starts a new run with a new root scope. Thus each resource still closes once. `onUncaught` reads the events `error` and `unhandledrejection` of the window.
+   - The check of a spec for a browser gives a problem for each knob that a browser holds itself. These knobs are the timers and the counts of the pool, and the dial step.
+4. **The stop of a page.** A page gets no time after `pagehide`. Thus a stop from `pageProcess` aborts the process scope in the same task, before the first stage of the drain. The abort reaches each child scope at once: each `fetch` aborts, each WebSocket sends its close frame, and each loop clears its timer. Each close of a resource starts in that task. A close can send its last record with `navigator.sendBeacon`, which a browser sends after the page closes.
+5. **The laws in a real page.** A Playwright test operates a page with a service. The service has a loop of requests each 50 ms, one open WebSocket, one long request and three resources with ids. A Node server in the job records each event. The test closes the page in three ways. These are a navigation to another page, `page.close()` with the unload handlers, and a navigation into the back/forward cache and back.
+
+   The laws:
+   1. After the close, no request of the loop comes to the server.
+   2. The WebSocket sends one close frame, and the long request aborts.
+   3. Each resource closes once, in the reverse order of its open. The server counts the beacons of each id.
+   4. After a return from the cache, the new run has new ids, and no old resource closes again.
+   5. A request with a deadline sends `timeout-ms`, and its `fetch` aborts at the deadline with a `TimeoutError`.
+
+Parts 2 and 3 are features, thus each release is a PATCH before 1.0. The first front end starts after the gate of part 5 is green in CI.
 
 ### SYS-108 · A new npm name for the state-machine package: `@mark1russell7/automata`
 
