@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SHIPPED_NAMES, buildRecordOf, planOf } from "./image.ts";
-import { cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
+import { cargoVersions, goVersions, jarVersions, locksOf, npmDrift, npmVersions, versionsOf } from "./locks.ts";
 
 const NPM_LOCK = JSON.stringify({
   name: "client",
@@ -39,6 +39,31 @@ version = "0.9.1"
 describe("the lockfiles of a build context", () => {
   it("reads the direct dependencies of an npm lockfile, not the packages under them", () => {
     expect(npmVersions(NPM_LOCK)).toEqual({ ioredis: "6.0.0", "fsevents-like": "1.0.0" });
+  });
+
+  it("gives each direct dependency of a package.json that its npm lockfile does not satisfy, as npm ci does", () => {
+    const manifest = (fields: Record<string, Record<string, string>>): string => JSON.stringify({ name: "client", ...fields });
+    expect(npmDrift(manifest({ dependencies: { ioredis: "6.0.0" }, optionalDependencies: { "fsevents-like": "^1.0.0" } }), NPM_LOCK)).toEqual([]);
+    // a dependency of the build stage that the lock holds under the root, in a range
+    expect(npmDrift(manifest({ devDependencies: { denque: "~2.1.0" } }), NPM_LOCK)).toEqual([]);
+    // an update of the manifest alone, as Renovate makes in a lock that it does not know (SYS-93)
+    expect(npmDrift(manifest({ dependencies: { ioredis: "6.1.0", "new-one": "^2.0.0" } }), NPM_LOCK)).toEqual([
+      "ioredis 6.1.0 has 6.0.0 in the lock",
+      "new-one ^2.0.0 is not in the lock",
+    ]);
+    expect(npmDrift(manifest({ devDependencies: { denque: "^3.0.0" } }), NPM_LOCK)).toEqual(["denque ^3.0.0 has 2.1.0 in the lock"]);
+  });
+
+  it("reads only the semver ranges of a manifest, and no lock of lockfileVersion 1", () => {
+    const lock = JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/next": { version: "2.0.0-rc.1" } } });
+    const other = { dependencies: { a: "latest", b: "npm:ioredis@6.0.0", c: "github:owner/c", d: "file:../d" } };
+    expect(npmDrift(JSON.stringify(other), lock)).toEqual([]);
+    // npm matches a pre-release to `*` and to an empty range, but not to a range of releases
+    expect(npmDrift(JSON.stringify({ dependencies: { next: "*" } }), lock)).toEqual([]);
+    expect(npmDrift(JSON.stringify({ dependencies: { next: "" } }), lock)).toEqual([]);
+    expect(npmDrift(JSON.stringify({ dependencies: { next: "^1.0.0" } }), lock)).toEqual(["next ^1.0.0 has 2.0.0-rc.1 in the lock"]);
+    const v1 = JSON.stringify({ lockfileVersion: 1, dependencies: { ioredis: { version: "5.0.0" } } });
+    expect(npmDrift(JSON.stringify({ dependencies: { ioredis: "6.0.0" } }), v1)).toEqual([]);
   });
 
   it("reads the direct dependencies of the root of a Cargo.lock: a name, or a name and a version when the lock has two", () => {
