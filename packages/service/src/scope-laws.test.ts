@@ -337,4 +337,23 @@ describe("the law of the close, on random trees", () => {
     await first;
     expect(closes).toBe(1);
   });
+
+  it("ends the close of an ancestor that a close of a grandchild starts with no await", async () => {
+    // the close of the grandchild does not await the close of the root: the root awaits the grandchild
+    const root = rootScope({ name: "root", clock: fakeClock() });
+    const request = root.child("service", "s").child("phase", "p");
+    const order: string[] = [];
+    let started: Promise<void> | undefined;
+    root.defer(() => void order.push("root"));
+    request.defer(() => {
+      order.push("phase");
+      started = root.close();
+    });
+    await request.close();
+    expect(started).toBeDefined();
+    await started;
+    expect(order).toEqual(["phase", "root"]);
+    expect(root.closed).toBe(true);
+    expect(root.children()).toEqual([]);
+  });
 });

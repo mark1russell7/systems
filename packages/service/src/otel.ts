@@ -39,8 +39,13 @@ const incoming: TextMapGetter<IncomingHeaders> = {
  * registers, read from the headers. It starts from the root context, thus the request gets no value of the
  * context that runs the server. A request that is not trusted keeps its trace and loses its baggage.
  * Give the result to the option `trace` of `entry()`.
+ *
+ * The home of this function is otel-ts, the package of the context of a trace. This copy is the code that was
+ * in `callContext` before, with a name and an export. Its end: a pull request to otel-ts adds the extract of an
+ * incoming request with this trust rule. After its release, this export becomes a re-export of it, with no
+ * break, and this copy goes.
  */
-export const traceOf = (headers: IncomingHeaders, trusted: boolean): Context => {
+export const traceOf =(headers: IncomingHeaders, trusted: boolean): Context => {
   const kept = trusted ? headers : Object.fromEntries(Object.entries(headers).filter(([name]) => name !== "baggage"));
   return propagation.extract(ROOT_CONTEXT, kept, incoming);
 };

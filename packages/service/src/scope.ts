@@ -141,6 +141,9 @@ export interface Scope {
    * scope, the last first, and aborts its signal. Each close starts, also after a throw. The promise rejects
    * with a `ScopeCloseError` that holds each error. A second `close()` gives the same promise, also from a
    * listener of a signal of the tree during the close.
+   *
+   * A close or a listener can start the close of an ancestor, but it cannot await that close. The close of the
+   * ancestor awaits the close of this scope, thus the two promises wait on each other, and neither settles.
    */
   close(): Promise<void>;
 }
