@@ -14,6 +14,7 @@ import {
   inWindow,
   instantsOf,
   localTime,
+  monthOf,
   nextBoundary,
   offsetChanges,
   platformClock,
@@ -242,6 +243,7 @@ describe("the wall clock", () => {
 // Civil time. The oracle below takes the offsets of each zone in 2026 from a table, not from Intl.
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 const utc = (month: number, day: number, hour: number, minute = 0, second = 0): number => Date.UTC(2026, month - 1, day, hour, minute, second);
 
 /** The zones of the tests: their offsets in minutes and the two changes of 2026. */
@@ -808,6 +810,67 @@ describe("firstInstantOf", () => {
     expect(firstInstantOf(0, "Mars/Olympus")).toBeUndefined();
     expect(firstInstantOf(Number.NaN, "UTC")).toBeUndefined();
     expect(firstInstantOf(1e20, "UTC")).toBeUndefined();
+  });
+});
+
+describe("monthOf (SYS-133)", () => {
+  const at = (iso: string): number => Date.parse(iso);
+
+  it("gives a month with a change of the offset: New York in March and in November", () => {
+    // 2026-03-08: the clock goes from 02:00 to 03:00, thus March is one hour shorter than 31 days
+    const march = { start: at("2026-03-01T05:00:00Z"), end: at("2026-04-01T04:00:00Z") };
+    expect(monthOf(at("2026-03-15T12:00:00Z"), "America/New_York")).toEqual(march);
+    expect(march.end - march.start).toBe(31 * DAY - HOUR);
+    // 2026-11-01: 01:00 occurs two times, and both are in November, which is one hour longer than 30 days
+    const november = { start: at("2026-11-01T04:00:00Z"), end: at("2026-12-01T05:00:00Z") };
+    expect(monthOf(at("2026-11-01T05:30:00Z"), "America/New_York")).toEqual(november);
+    expect(monthOf(at("2026-11-01T06:30:00Z"), "America/New_York")).toEqual(november);
+    expect(november.end - november.start).toBe(30 * DAY + HOUR);
+  });
+
+  it("starts a month whose 1st has no 00:00 at the end of the gap: Asuncion in October 2017 and 2023", () => {
+    for (const year of [2017, 2023]) {
+      // the clock goes from 00:00 to 01:00 at 04:00 UTC, thus October starts at 01:00 on the wall
+      const change = at(`${year}-10-01T04:00:00Z`);
+      expect(monthOf(at(`${year}-10-15T12:00:00Z`), "America/Asuncion")).toEqual({ start: change, end: at(`${year}-11-01T03:00:00Z`) });
+      expect(monthOf(change - 1, "America/Asuncion")).toEqual({ start: at(`${year}-09-01T04:00:00Z`), end: change });
+      expect(localTime(change, "America/Asuncion")).toMatchObject({ month: 10, day: 1, hour: 1, minute: 0 });
+    }
+  });
+
+  it("goes from December to January of the next year, on the wall clock and not in UTC", () => {
+    const december = { start: at("2026-12-01T05:00:00Z"), end: at("2027-01-01T05:00:00Z") };
+    expect(monthOf(at("2026-12-31T12:00:00Z"), "America/New_York")).toEqual(december);
+    // 03:00 UTC on 2027-01-01 is 22:00 on 2026-12-31 in New York
+    expect(monthOf(at("2027-01-01T03:00:00Z"), "America/New_York")).toEqual(december);
+    expect(monthOf(december.end, "America/New_York")).toEqual({ start: december.end, end: at("2027-02-01T05:00:00Z") });
+    expect(monthOf(at("2026-12-31T23:59:59.999Z"), "UTC")).toEqual({ start: at("2026-12-01T00:00:00Z"), end: at("2027-01-01T00:00:00Z") });
+  });
+
+  it("gives undefined for a name that is not a time zone, and for an instant that is not a date", () => {
+    expect(monthOf(0, "Mars/Olympus")).toBeUndefined();
+    expect(monthOf(Number.NaN, "UTC")).toBeUndefined();
+    expect(monthOf(1e20, "UTC")).toBeUndefined();
+  });
+
+  it("chains each month to the next from 2015 to 2026, and each month holds its instants", () => {
+    // zones with gaps, offsets of 30 and 45 minutes, and a change of a full day (Apia, 2011, is before the range)
+    const zones = ["America/Asuncion", "America/Santiago", "America/Havana", "America/New_York", "Asia/Beirut", "Asia/Tehran", "Australia/Lord_Howe", "Asia/Kathmandu", "Pacific/Apia", "UTC"];
+    for (const zone of zones) {
+      let month = monthOf(at("2015-01-15T12:00:00Z"), zone);
+      for (let step = 0; step < 12 * 12; step += 1) {
+        expect(month, `${zone} ${step}`).toBeDefined();
+        if (month === undefined) break;
+        const first = localTime(month.start, zone);
+        const last = localTime(month.end - 1, zone);
+        expect(first?.day, `${zone} ${new Date(month.start).toISOString()}`).toBe(1);
+        expect(last?.month, `${zone} ${new Date(month.end).toISOString()}`).toBe(first?.month);
+        expect(monthOf(Math.floor((month.start + month.end) / 2), zone)).toEqual(month);
+        const next = monthOf(month.end, zone);
+        expect(next?.start, `${zone} ${new Date(month.end).toISOString()}`).toBe(month.end);
+        month = next;
+      }
+    }
   });
 });
 

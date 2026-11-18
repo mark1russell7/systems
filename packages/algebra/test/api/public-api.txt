@@ -102,6 +102,7 @@ FakeClock: build/clock.chunk.d.ts#FakeClock
 FakeWallClock: build/clock.chunk.d.ts#FakeWallClock
 FrameClock: build/clock.chunk.d.ts#FrameClock
 FrameClockOptions: build/clock.chunk.d.ts#FrameClockOptions
+LocalMonth: build/clock.chunk.d.ts#LocalMonth
 LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
@@ -116,6 +117,7 @@ inWindow: build/clock.chunk.d.ts#inWindow
 instantsOf: build/clock.chunk.d.ts#instantsOf
 isFrameClock: build/clock.chunk.d.ts#isFrameClock
 localTime: build/clock.chunk.d.ts#localTime
+monthOf: build/clock.chunk.d.ts#monthOf
 nextBoundary: build/clock.chunk.d.ts#nextBoundary
 offsetChanges: build/clock.chunk.d.ts#offsetChanges
 platformClock: build/clock.chunk.d.ts#platformClock
@@ -184,6 +186,12 @@ interface FrameClockOptions {
   readonly driftLimit?: number | undefined;
 }
 
+### build/clock.chunk.d.ts#LocalMonth
+interface LocalMonth {
+  readonly start: number;
+  readonly end: number;
+}
+
 ### build/clock.chunk.d.ts#LocalTime
 interface LocalTime {
   readonly year: number;
@@ -250,6 +258,9 @@ declare function isFrameClock(clock: WallClock): clock is FrameClock;
 
 ### build/clock.chunk.d.ts#localTime
 declare function localTime(instant: number, zone: string): LocalTime | undefined;
+
+### build/clock.chunk.d.ts#monthOf
+declare function monthOf(at: number, zone: string): LocalMonth | undefined;
 
 ### build/clock.chunk.d.ts#nextBoundary
 declare function nextBoundary(instant: number, window: TimeWindow): WindowBoundary | undefined;

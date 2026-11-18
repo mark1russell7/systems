@@ -3922,10 +3922,10 @@ The test: each unit of the list parses, converts in its dimension and formats ag
 
 ### SYS-133 · The calendar month of an instant in a time zone
 
-- **Status:** todo
+- **Status:** in progress
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-17
 - **Shipped:**
 - **Links:**
 
