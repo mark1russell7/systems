@@ -197,6 +197,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.2.11
+        version: 0.2.11
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
@@ -1590,8 +1593,16 @@ packages:
     resolution: {integrity: sha512-z5Ia9gDuS/I9pV/4rOoRx3o2DAhW2VE2UYoqIlHo88pmLPX7SWJcympg2N+QS9sSA6Dn0vTPcicxeDX6oXzAGw==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-generators@0.2.0':
+    resolution: {integrity: sha512-eTyJhK4Nowx1KQ3QrsQqLiAlhFoL+8m1OT6He+X0Lf0G/0f9OyQC8ponQLViQKRkP/ef10B6oACFjtjnKErobg==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-statistics@0.1.29':
     resolution: {integrity: sha512-Wh91NJIwxIRN3+a5V2bqUkMhdPcjHI+gVZBCnohf12ZegdSTNqGlpqS2WXYmrRVjasF9EBgm1lC8GQNYpBSg7Q==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.2.11':
+    resolution: {integrity: sha512-heKnYcMqfQNyPa0F6chPeO0jMGuPpw9ol62Z1tO7kYXDMOcQxdEGunCkWRh2vEDMtNE5MxhSCElKS8YehGINJg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-statistics@0.2.2':
@@ -5228,7 +5239,7 @@ snapshots:
     dependencies:
       '@mark1russell7/algebra': 0.8.3(zod@4.6.7)
       '@mark1russell7/optional': 1.2.0
-      '@mark1russell7/rigor-statistics': 0.2.2
+      '@mark1russell7/rigor-statistics': 0.2.11
     transitivePeerDependencies:
       - zod
 
@@ -5308,9 +5319,15 @@ snapshots:
 
   '@mark1russell7/rigor-generators@0.1.18': {}
 
+  '@mark1russell7/rigor-generators@0.2.0': {}
+
   '@mark1russell7/rigor-statistics@0.1.29':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.16
+
+  '@mark1russell7/rigor-statistics@0.2.11':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.2.0
 
   '@mark1russell7/rigor-statistics@0.2.2':
     dependencies:
