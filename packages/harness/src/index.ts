@@ -95,6 +95,7 @@ export type {
   RunGroup,
   RunPart,
   RunFabric,
+  RunResources,
   RunRoute,
   RunStream,
   RunTopology,
