@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
-import type { BuildImage, Cell, LoadStream, ProxyHop } from "@mark1russell7/harness";
-import { constant } from "@mark1russell7/rigor-chaos";
+import type { BuildImage, Cell, LoadPlan, LoadStream, ProxyHop } from "@mark1russell7/harness";
+import { constant, schedule } from "@mark1russell7/rigor-chaos";
 import { RUNS, ms, q } from "./catalog.ts";
 import { INITIATE, MONGO_ONE } from "./mongo/harness.ts";
 import { SET_NAME } from "./mongo/cells.ts";
@@ -13,10 +13,13 @@ import { SET_NAME } from "./mongo/cells.ts";
  * planned time.
  *
  * A rung names its count of tenants. Ten percent of them are active, and at least one is. Each
- * active tenant sends 10 requests each second. The rung holds when the share of failed arrivals is
+ * active tenant sends 10 requests each second.
+ *
+ * The rung holds when the share of failed arrivals is
  * under its limit: 1 minus the availability of the rung. The verdict reads the Wilson interval at
- * 0.95, thus each rung has enough arrivals to decide. This slice measures the latency, and the first
- * records set its budgets. The other tenants, as data at rest, are a later slice.
+ * 0.95, thus each rung has enough arrivals to decide, also with 2 void runs. This slice measures
+ * the latency, and the records of the night set its budgets. The other tenants, as data at rest, are
+ * a later slice.
  */
 
 /** This folder is the build context of the hop: the package of the reference service. */
@@ -85,14 +88,40 @@ export const decidingCount = (limit: number): number => {
 /** This time is the shortest schedule of a run, in ms. A short run gives more weight to the start of a connection. */
 const SHORTEST = 5_000;
 
+/** This time is the longest schedule of a run, in ms. A rung that needs more has an error in its data. */
+const LONGEST = 600_000;
+
 /**
- * This function gives the time of the schedule of each run of a rung, in ms. The counted runs
- * together hold at least the deciding count of arrivals, and each run takes 5 s at least.
+ * With this count of void runs, a rung still decides. The night holds each rung (SYS-93), thus one
+ * void run must not turn a rung into "cannot decide".
+ */
+export const VOID_MARGIN = 2;
+
+/** This function gives the seeded plan of the schedule of a tenant of a rung, for a run of `ms`. */
+const planOf = (rung: Rung, tenant: string, ms: number): LoadPlan => ({
+  profile: constant(TENANT_RATE, ms),
+  options: { arrivals: "poisson", seed: `LADDER.${rung.tenants}.${tenant}` },
+});
+
+/**
+ * This function gives the planned arrivals of one run of a rung with a schedule of `ms`. Each
+ * schedule has a seed, thus each run of the rung has the same arrivals, and this count is exact.
+ */
+export const plannedOf = (rung: Rung, ms: number): number =>
+  Array.from({ length: activeOf(rung) }, (_, index) => {
+    const plan = planOf(rung, tenantName(index), ms);
+    return schedule(plan.profile, plan.options).times.length;
+  }).reduce((sum, count) => sum + count, 0);
+
+/**
+ * This function gives the time of the schedule of each run of a rung, in ms. It is the least whole
+ * count of seconds, 5 s at least, that holds the deciding count. The counted runs less
+ * `VOID_MARGIN` must plan that count of arrivals.
  */
 export const durationOf = (rung: Rung): number => {
-  const rate = activeOf(rung) * TENANT_RATE;
-  const each = Math.ceil(decidingCount(1 - rung.availability) / RUNS);
-  return Math.max(SHORTEST, Math.ceil(each / rate) * 1000);
+  const needed = decidingCount(1 - rung.availability);
+  for (let ms = SHORTEST; ms <= LONGEST; ms += 1000) if ((RUNS - VOID_MARGIN) * plannedOf(rung, ms) >= needed) return ms;
+  throw new Error(`the rung of ${rung.tenants} tenants needs runs longer than ${LONGEST / 1000} s to decide`);
 };
 
 /** This name is the `Host` of each request. The listener checks it only on a loopback socket, and the socket of a hop is not one. */
@@ -120,15 +149,13 @@ export const tenantRequests = (tenant: string, host: string = REFERENCE_HOST): r
 };
 
 /** This function gives the streams of a rung: one connection for each active tenant, each on its own Poisson schedule. */
-export const ladderStreams = (rung: Rung): readonly LoadStream[] =>
-  Array.from({ length: activeOf(rung) }, (_, index) => {
+export const ladderStreams = (rung: Rung): readonly LoadStream[] => {
+  const ms = durationOf(rung);
+  return Array.from({ length: activeOf(rung) }, (_, index) => {
     const tenant = tenantName(index);
-    return {
-      key: tenant,
-      plan: { profile: constant(TENANT_RATE, durationOf(rung)), options: { arrivals: "poisson", seed: `LADDER.${rung.tenants}.${tenant}` } },
-      requests: tenantRequests(tenant),
-    };
+    return { key: tenant, plan: planOf(rung, tenant, ms), requests: tenantRequests(tenant) };
   });
+};
 
 /**
  * This function gives the hop of the reference service for a rung. The service reads the address of
@@ -158,6 +185,7 @@ export const ladderCell = (rung: Rung): Cell => {
   const active = activeOf(rung);
   const rate = active * TENANT_RATE;
   const seconds = durationOf(rung) / 1000;
+  const planned = plannedOf(rung, seconds * 1000);
   const limit = Math.round((1 - rung.availability) * 1e6) / 1e6;
   const tenants = rung.tenants === 1 ? "1 tenant" : `${rung.tenants.toLocaleString("en-US")} tenants`;
   return {
@@ -172,7 +200,7 @@ export const ladderCell = (rung: Rung): Cell => {
     prediction: {
       detects: null,
       window: q(seconds * 2 + 20),
-      why: `the rung of ${tenants} at an availability of ${rung.availability * 100} %: ${RUNS} runs give ${(RUNS * rate * seconds).toLocaleString("en-US")} arrivals, and ${decidingCount(limit).toLocaleString("en-US")} with no failure decide it`,
+      why: `the rung of ${tenants} at an availability of ${rung.availability * 100} %: ${RUNS} runs give ${(RUNS * planned).toLocaleString("en-US")} planned arrivals, and ${decidingCount(limit).toLocaleString("en-US")} with no failure decide it, also with ${VOID_MARGIN} void runs`,
       load: { lag: LAG, bands: [], failures: limit },
     },
     runs: RUNS,
