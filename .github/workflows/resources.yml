@@ -1,0 +1,110 @@
+# Starts the proof of the resource readings of the harness (HARNESS_RESOURCES=1) on GitHub's runners. The test opens a lab
+# with a Node server under a CPU limit, a list of CPUs and a memory limit, and the client load on another CPU. The server
+# burns a known CPU time, holds a known amount of memory and sends a known count of bytes. The test compares the readings
+# of the cgroup and of the devices of the server to those amounts, each with its tolerance. The readings of the client are
+# the control: they are far from the bounds of the server. The lab needs Docker and privileged containers. Thus the
+# proof operates only here.
+#
+# The job builds the image of the harness, runs src/resources.test.ts, and uploads the record of the run (the readings,
+# the series and the lines of the client) as the artifact resources-records.
+#
+# A pull request that changes the reader, the lab, the native programs or this file starts it. Start it by hand with:
+#   gh workflow run resources.yml -R mark1russell7/systems --ref <branch>
+name: Resources
+
+on:
+  workflow_dispatch:
+  # Each pull request starts this workflow. Thus the summary check of the gate is always present. The job changes skips the
+  # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/resources.yml"
+      - "packages/harness/src/resources.ts"
+      - "packages/harness/src/resources.test.ts"
+      - "packages/harness/src/lab.ts"
+      - "packages/harness/image/Dockerfile"
+      - "packages/harness/image/native/**"
+
+permissions:
+  contents: read
+
+# A pull request and a dispatch share a group with the later workflows of their ref. A later one cancels an earlier one. The queue
+# dispatches this gate on each pull request that is behind main (SYS-118). A push to main cancels nothing.
+concurrency:
+  group: resources-${{ github.event_name != 'push' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+        with:
+          paths: |
+            .github/workflows/resources.yml
+            packages/harness/src/resources.ts
+            packages/harness/src/resources.test.ts
+            packages/harness/src/lab.ts
+            packages/harness/image/Dockerfile
+            packages/harness/image/native/**
+
+  resources:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    # the test pins the server to CPU 0, and the client and the readers to the last CPU: this runner has 4 CPUs
+    runs-on: ubuntu-24.04
+    # the lab builds the image of the harness on the runner, with its programs in Rust
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The image builds once in the step. The log keeps the line of the test with the numbers of the run.
+      - name: The readings of the resources of real containers
+        env:
+          HARNESS_RESOURCES: "1"
+          HARNESS_RESOURCES_OUT: ${{ runner.temp }}/resources-records
+        run: pnpm --filter @mark1russell7/harness exec vitest run src/resources.test.ts --silent=false
+      # the error of a failed build holds its error lines and its last lines: this step gives the end of the whole log
+      - name: The image of the harness when it does not build, after a failure
+        if: failure()
+        run: |
+          # the context of the image is packages/, as the lab gives it (src/image.ts)
+          if ! docker build --progress=plain -f packages/harness/image/Dockerfile packages > /tmp/build.log 2>&1; then
+            tail -n 120 /tmp/build.log
+          fi
+      - name: The record of the run
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: resources-records
+          path: ${{ runner.temp }}/resources-records
+          if-no-files-found: warn
+
+  resources-ok:
+    name: Resources OK
+    if: ${{ !cancelled() }}
+    needs: [changes, resources]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+        with:
+          needs: ${{ toJSON(needs) }}
