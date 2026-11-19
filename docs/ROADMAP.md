@@ -12,12 +12,12 @@ At most three items are in progress at one time. A score puts the items in order
 2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 shipped on 2026-11-18 (#604): the type, the keys, the entry `/scope` and the laws 1 to 7, in service `0.10.1`. Part 2 (#606) merged on 2026-11-18: the five contexts are scopes, in the MINOR `0.11.0`, and its release waits in the queue. Part 3 is the procedure context of the client.
 3. **SYS-138** (P1): one loop core, with the schedule as data. Its design passed review on 2026-11-18 (#614). Part 1 (#620) has the core and the laws 1 to 7, for service `0.11.1`. Part 2 starts with the metrics of the loops (#622), and the five loops follow on the core.
 
-SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
+SYS-136 shipped on 2026-11-18: a consumer operates one command of its own in the guest of the VM tier, through `vm-run.yml` (#612). SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
 - **SYS-135** (P1): the service package in a browser. Its design passed review on 2026-11-18 (#610). It waits for the release of part 2 of SYS-134.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
-- **SYS-136:** a run of any command in the guest of the VM tier. A consumer asked for it on 2026-11-18, for its kernel world.
+- **SYS-145:** `vm-run.yml` finds its own commit in its OIDC token. A consumer then names the commit of this repository one time, and Renovate moves it.
 - **SYS-137:** a lab of the kind tier with the interface of the harness, after SYS-92.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
@@ -3634,12 +3634,12 @@ The first fabric joins only the client and one server to the leaves, and its one
 
 ### SYS-136 · A run of any command in the guest of the VM tier
 
-- **Status:** later
+- **Status:** done
 - **Area:** harness
 - **Depends on:** SYS-81
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-11-18
+- **Shipped:** 2026-11-18
+- **Links:** [#612](https://github.com/mark1russell7/systems/pull/612), [the test in the guest](https://github.com/mark1russell7/systems/actions/runs/44442803478), [#619, `@mark1russell7/harness` 0.16.19](https://github.com/mark1russell7/systems/pull/619)
 
 The arm of SYS-81 operates only the cells of this repository in the guest. A consumer that finds the cause of a network fault has its own kernel world, and that world needs the kernel of the guest too. This item gives a run of one command of another repository in the guest.
 
@@ -3650,6 +3650,10 @@ The arm of SYS-81 operates only the cells of this repository in the guest. A con
 - **The test.** A test of this repository operates `uname -r` and one Docker container through the new path. It reads the release of the guest kernel in `/out`.
 
 A new command and a new workflow are a feature, thus the release of the harness is a PATCH before 1.0.
+
+**The state on 2026-11-18.** #612 merged the command `run`, the workflow `vm-run.yml` and its test. The test booted the guest at the head of #612. The guest wrote the kernel release 6.18.60 in `/out/release`, and the container in the guest wrote the same release. The run ended by the exit of the argv, not by the time limit.
+
+#618 took harness `0.16.18` before #612 merged. Thus the change of #612 went to npm in harness `0.16.19` (#619). The code of the tier is not in the npm package. A consumer adds one job that uses `vm-run.yml` at a commit of this repository. The job checks out the code of the tier at the commit of the input `harness`, a second copy of that commit. SYS-145 removes that second copy.
 
 ### SYS-137 · A lab of the kind tier with the interface of the harness
 
@@ -3668,6 +3672,25 @@ The kind tier holds the cells of connection timers in a cluster. Its lab has its
 - **The test.** One world operates on both tiers with the same code: a client, one router and a target. A black hole at the router gives the same verdict on both tiers.
 
 A new export is a feature, thus the release of kind is a PATCH before 1.0.
+
+### SYS-145 · `vm-run.yml` finds its own commit
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-136
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A consumer of `vm-run.yml` names one commit of this repository two times: in the line `uses:` of its job and in the input `harness`. Renovate moves the pin of the line `uses:` and keeps the input. Then the guest operates the code of the tier of one commit under the workflow of a different commit, and no check sees it.
+
+- **The commit.** The OIDC token of a job that uses a reusable workflow has the claim `job_workflow_sha`, the commit of the workflow file. `vm-run.yml` asks for a token, reads the claim and checks out the code of the tier at that commit.
+- **The input.** The input `harness` becomes optional. When a caller gives it and it is not equal to the claim, the job stops before the boot. The error names the two commits.
+- **No token.** A pull request from a fork gets no OIDC token. Then the input `harness` gives the commit, and a job with no token and no input stops with an error.
+- **The callers.** Each job that uses `vm-run.yml` grants `id-token: write`. `vm-run-test.yml` grants it in the same change.
+- **The stopgap.** Until this item ships, a consumer turns off the Renovate updates of its pin of this repository. After it ships, the consumer grants the permission and removes the input and the rule. Then Renovate moves the one pin.
+
+The test: one job of `vm-run-test.yml` gives a wrong commit in the input `harness`, and the job stops with the two commits in the error. The test of SYS-136 operates with no input `harness`.
 
 ### SYS-114 · A Proxmox VE guest: a real API for the provider of runner-dispatch
 
