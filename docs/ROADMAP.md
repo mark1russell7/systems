@@ -4002,12 +4002,12 @@ The test: the example above converts to 0.45 `{core}`. A property test holds tha
 
 ### SYS-141 · A git tag and a GitHub release for each published version
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-18
-- **Shipped:**
-- **Links:** [#624](https://github.com/mark1russell7/systems/pull/624)
+- **Shipped:** 2026-11-18
+- **Links:** [#624](https://github.com/mark1russell7/systems/pull/624), [the first release run with the job](https://github.com/mark1russell7/systems/actions/runs/44439327902), [#628](https://github.com/mark1russell7/systems/pull/628)
 
 The release owner holds this item. The release of this repository makes no git tag and no GitHub release. Approximately 111 published versions have no tag. #624 adds a job `tag` to `release.yml`. The job uses the plan of the tags that the build job writes, and it operates after the publish job.
 
@@ -4016,6 +4016,13 @@ The release owner holds this item. The release of this repository makes no git t
 - **The text of the release.** `RELEASING.md` names `pack.ts` and `tags.ts` of the template, not files of this repository. After #624 merges, a docs change removes each old name that stays.
 
 The test: the first release run after the merge shows the job `tag`, with a tag for each version that the run published.
+
+**The state on 2026-11-18.** #624 merged. Its first release run published service `0.11.2` (#622), and its job `tag` passed. The job made 6 tags, each with a GitHub release that is not a draft and not a prerelease:
+
+- `@mark1russell7/service@0.11.2` at the commit of #622, published by the run.
+- The latest versions of quantity, algebra, harness, kind and machines. Each had no tag, and npm had each from a commit of this repository, with provenance.
+
+GitHub refused the tag of prober `0.3.5` with HTTP 403: the workflow files of its commit differ from those of each branch. The workflow token cannot make that tag. The release owner makes it with the other untagged versions, with one script. The pull request #628 removes the old names of the release scripts from `RELEASING.md`.
 
 ### SYS-144 · `scale` refuses a factor that is not finite
 
