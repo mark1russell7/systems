@@ -6,16 +6,19 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { templated } from "@mark1russell7/harness";
+import { schedule } from "@mark1russell7/rigor-chaos";
 import { RUNS } from "./catalog.ts";
 import {
   LADDER_CELLS,
   REFERENCE_BUILD,
   REFERENCE_FILES,
   RUNGS,
+  VOID_MARGIN,
   activeOf,
   decidingCount,
   durationOf,
   ladderStreams,
+  plannedOf,
   procedureRequest,
   referenceHop,
   tenantName,
@@ -32,13 +35,19 @@ describe("the rungs of the ladder", () => {
     expect(RUNGS.map(activeOf)).toEqual([1, 1, 10, 100]);
   });
 
-  it("gives each rung enough arrivals in its counted runs to decide, and runs of 5 s at least", () => {
+  it("gives each rung enough planned arrivals to decide with 2 void runs, and runs of 5 s at least", () => {
     for (const rung of RUNGS) {
-      const arrivals = RUNS * activeOf(rung) * 10 * (durationOf(rung) / 1000);
-      expect(arrivals).toBeGreaterThanOrEqual(decidingCount(1 - rung.availability));
+      // the arrivals of one run, from the schedules that the client of the harness follows
+      const each = ladderStreams(rung).reduce((sum, stream) => sum + schedule(stream.plan.profile, stream.plan.options).times.length, 0);
+      expect(each).toBe(plannedOf(rung, durationOf(rung)));
+      expect((RUNS - VOID_MARGIN) * each).toBeGreaterThanOrEqual(decidingCount(1 - rung.availability));
       expect(durationOf(rung)).toBeGreaterThanOrEqual(5_000);
+      // a run 1 s shorter does not hold the count, unless the run is at its shortest
+      if (durationOf(rung) > 5_000) expect((RUNS - VOID_MARGIN) * plannedOf(rung, durationOf(rung) - 1_000)).toBeLessThan(decidingCount(1 - rung.availability));
     }
-    expect(RUNGS.map(durationOf)).toEqual([5_000, 7_000, 5_000, 5_000]);
+    expect(VOID_MARGIN).toBe(2);
+    // the first records of the ladder planned 58, 483 and 5,051 arrivals at 5 s (SYS-93)
+    expect([RUNGS[0]!, RUNGS[2]!, RUNGS[3]!].map((each) => plannedOf(each, 5_000))).toEqual([58, 483, 5_051]);
   });
 
   it("gives one stream for each active tenant, each with its own seed, at 10 requests each second", () => {
