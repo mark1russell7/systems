@@ -1,4 +1,4 @@
-import type { Cell, Measured, Verdict } from "@mark1russell7/harness";
+import type { Cell, LoadPrediction, Measured, RunLoad, Verdict } from "@mark1russell7/harness";
 import { noiseOf, verdictOf } from "@mark1russell7/harness";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 
@@ -85,12 +85,40 @@ const timedOf = (cell: Cell): { readonly high: number } | undefined => {
   return timed === undefined ? undefined : { high: valueIn(timed.high, "s") };
 };
 
+/** This function gives the injected value of a limit: `FAULT_FACTOR` times the limit, or 1 above a limit of 0. */
+const over = (limit: number): number => (limit === 0 ? 1 : limit * FAULT_FACTOR);
+
+/**
+ * This function injects the fault in the load of one run of an open-loop cell (SYS-93). The fault
+ * goes into each claim on the target. With a band, each latency and each censored age reads
+ * `FAULT_FACTOR` times the highest top. With a limit of failures, the run gets `FAULT_FACTOR` times
+ * that share of its planned arrivals as failed arrivals. A limit of 0 gets 1 failed arrival. A cell
+ * with neither claim gets the fault on its schedule: each lag reads `FAULT_FACTOR` times its limit.
+ */
+export const faultedLoad = (prediction: LoadPrediction, load: RunLoad): RunLoad => {
+  const tops = prediction.bands.map((band) => valueIn(band.high, "ms"));
+  const slow = tops.length === 0 ? null : over(Math.max(...tops));
+  const latency = slow === null ? load.latency : load.latency.map(() => slow);
+  const censored = slow === null ? load.censored : load.censored.map(() => slow);
+  const { failures } = prediction;
+  const failed = load.failed ?? 0;
+  const lost = load.unsent + load.unfinished + failed;
+  const wanted = failures === undefined ? lost : Math.min(load.planned, Math.ceil(failures === 0 ? 1 : load.planned * failures * FAULT_FACTOR));
+  const added = Math.max(0, Math.min(wanted, load.planned) - lost);
+  const lag = slow === null && failures === undefined ? load.lag.map(() => over(valueIn(prediction.lag, "ms"))) : load.lag;
+  return { ...load, latency, censored, lag, ...(added === 0 && load.failed === undefined ? {} : { failed: failed + added }) };
+};
+
 /**
  * This function injects the fault in the measures of a cell. Each counted run of a timed cell reads
- * `FAULT_FACTOR` times the top of its band. Each counted run of a silent cell gets a detection. A
- * cell with no band stays as it is: its decision is not `holds` in any case.
+ * `FAULT_FACTOR` times the top of its band. Each counted run of a silent cell gets a detection. Each
+ * counted run of an open-loop cell with a load prediction gets the fault of `faultedLoad`. A cell
+ * with no band stays as it is: its decision is not `holds` in any case.
  */
 export const faulted = (cell: Cell, runs: readonly Measured[]): Measured[] => {
+  // only the open-loop branch of the prediction has a load
+  const load = "load" in cell.prediction ? cell.prediction.load : undefined;
+  if (load !== undefined) return runs.map((run) => (run.void === null && run.load !== undefined ? { ...run, load: faultedLoad(load, run.load) } : run));
   if (cell.prediction.detects === null) return [...runs];
   const timed = timedOf(cell);
   if (timed === undefined) return runs.map((run) => (run.void === null ? { ...run, finding: FAULT_DETECTION } : run));
