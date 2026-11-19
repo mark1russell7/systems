@@ -122,6 +122,23 @@ describe("the image sources", () => {
     expect(buildFailure("ERROR: failed to solve\n")).toBe("ERROR: failed to solve");
   });
 
+  it("gives the panic of a failed Rust test with its message, which the tail of BuildKit does not hold (SYS-146)", () => {
+    // the shape of the first E4 run of a consumer: the summary of the test is in the tail, its panic is not
+    const head = [
+      "#15 72.90 running 4 tests",
+      "#15 72.95 ---- tests::a_region_takes_a_touch_of_each_of_its_pages stdout ----",
+      "#15 72.95 thread 'tests::a_region_takes_a_touch_of_each_of_its_pages' panicked at src/bin/memory.rs:466:42:",
+      '#15 72.95 a mapping: Os { code: 22, kind: InvalidInput, message: "Invalid argument" }',
+      "#15 72.95 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+      "#15 73.00 error: test failed, to rerun pass `--bin memory`",
+    ];
+    const tail = Array.from({ length: 15 }, (_, at) => `73.00 summary line ${at}`);
+    expect(buildFailure([...head, ...tail].join("\n")).split("\n")).toEqual([head[2], head[3], head[5], "...", ...tail]);
+    // each panic of several takes its message, in the order of the output, and a panic on the last line before the tail has no message to take
+    const panics = ["thread 'a' panicked at x.rs:1:1:", "message a", "thread 'b' panicked at y.rs:2:2:"];
+    expect(buildFailure([...panics, ...tail].join("\n")).split("\n")).toEqual([...panics, "...", ...tail]);
+  });
+
   it("builds a caller's context: each file with its path in the context, and a new tag when a file changes", () => {
     const context = contextWith(APP);
     const plan = builtOf(build(context));

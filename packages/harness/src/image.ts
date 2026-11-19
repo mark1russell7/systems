@@ -393,17 +393,29 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
 
 /** These counts are how many lines of the output of a failed build its error holds: its error lines, then its last lines. */
 const BUILD_ERRORS = 10;
+const BUILD_PANICS = 4;
 const BUILD_TAIL = 15;
+const ERROR_LINE = /\berror\b/i;
+/** A failed Rust test writes "thread '<test>' panicked at <file>:<line>:<column>:", and its message on the next line. */
+const PANIC_LINE = /\bpanicked at\b/;
 
 /**
- * This function gives the lines of the output of a failed build that its error holds. They are each
- * line that names an error, for example the diagnostic of a compiler, then the last lines.
+ * This function gives the lines of the output of a failed build that its error holds. It keeps each
+ * line that names an error, for example a compiler diagnostic, and each panic of a test with its
+ * message. Then it keeps the last lines. The tail of BuildKit holds the summary of a failed test, not its panic (SYS-146).
  */
 export const buildFailure = (output: string): string => {
   const lines = output.trim().split(/\r?\n/);
   const tail = lines.slice(-BUILD_TAIL);
-  const errors = lines.slice(0, -BUILD_TAIL).filter((line) => /\berror\b/i.test(line)).slice(0, BUILD_ERRORS);
-  return [...errors, ...(errors.length > 0 ? ["..."] : []), ...tail].join("\n");
+  const head = lines.slice(0, -BUILD_TAIL);
+  const indexesOf = (pattern: RegExp, limit: number): number[] =>
+    head.flatMap((line, index) => (pattern.test(line) ? [index] : [])).slice(0, limit);
+  const picked = new Set([...indexesOf(ERROR_LINE, BUILD_ERRORS), ...indexesOf(PANIC_LINE, BUILD_PANICS).flatMap((index) => [index, index + 1])]);
+  const kept = [...picked]
+    .filter((index) => index < head.length)
+    .sort((left, right) => left - right)
+    .map((index) => head[index]!);
+  return [...kept, ...(kept.length > 0 ? ["..."] : []), ...tail].join("\n");
 };
 
 /**

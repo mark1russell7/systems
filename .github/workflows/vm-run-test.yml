@@ -33,6 +33,10 @@ jobs:
             .github/workflows/vm-run-test.yml
             packages/harness/src/vm.ts
             packages/harness/vm/**
+            packages/harness/src/image.ts
+            packages/harness/src/image.guest.test.ts
+            packages/harness/image/Dockerfile
+            packages/harness/image/native/**
 
   # In this repository, vm-run.yml takes the tier from the commit of the run, thus the test examines the code of the pull request.
   test:
@@ -41,7 +45,8 @@ jobs:
     uses: ./.github/workflows/vm-run.yml
     with:
       harness: ${{ github.sha }}
-      limit: 10
+      # the build of the harness image in the guest takes minutes (SYS-146)
+      limit: 30
 
   vm-run-ok:
     name: VM run OK

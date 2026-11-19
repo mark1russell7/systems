@@ -243,6 +243,13 @@ fn lock() -> bool {
     unsafe { libc::mlockall(libc::MCL_CURRENT) == 0 }
 }
 
+/// Linux gives `EINVAL` for `MADV_NOHUGEPAGE` when the kernel has no transparent huge pages
+/// (`CONFIG_TRANSPARENT_HUGEPAGE` is not set). Then the fault of each page takes one page, and the
+/// advice has nothing to turn off. The range of a new mapping is aligned, thus `EINVAL` has no other cause here.
+fn no_huge_pages(error: &std::io::Error) -> bool {
+    error.raw_os_error() == Some(libc::EINVAL)
+}
+
 /// Anonymous memory with no huge pages: the fault of each page charges one page to the cgroup.
 struct Region {
     base: *mut u8,
@@ -269,7 +276,10 @@ impl Region {
         }
         // SAFETY: the range is the mapping above
         if unsafe { libc::madvise(base, bytes, libc::MADV_NOHUGEPAGE) } != 0 {
-            return Err(std::io::Error::last_os_error().into());
+            let error = std::io::Error::last_os_error();
+            if !no_huge_pages(&error) {
+                return Err(error.into());
+            }
         }
         Ok(Region { base: base.cast(), pages, page })
     }
@@ -456,5 +466,13 @@ mod tests {
         region.touch(0, 100);
         // SAFETY: the page is inside the mapping
         assert_eq!(unsafe { std::ptr::read_volatile(region.base.add((7 * page) as usize)) }, 1);
+    }
+
+    #[test]
+    fn einval_of_the_advice_is_a_kernel_with_no_huge_pages_and_each_other_error_stays() {
+        assert!(no_huge_pages(&std::io::Error::from_raw_os_error(libc::EINVAL)));
+        assert!(!no_huge_pages(&std::io::Error::from_raw_os_error(libc::ENOMEM)));
+        assert!(!no_huge_pages(&std::io::Error::from_raw_os_error(libc::EPERM)));
+        assert!(!no_huge_pages(&std::io::Error::other("no code")));
     }
 }
