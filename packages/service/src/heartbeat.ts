@@ -1,9 +1,11 @@
-// @mark1russell7/service/heartbeat: a heartbeat on a clock, with no other part of the package. A
-// ping starts each interval, each ping has a timeout, and a count of misses in sequence finds a
-// dead peer. The entry imports no `node:` module and no zod. Thus a client in a browser can use it.
+// @mark1russell7/service/heartbeat: a heartbeat on a clock. A ping starts each interval, each ping
+// has a timeout, and a count of misses in sequence finds a dead peer. Each tick is a round of the
+// loop core. The entry imports no `node:` module, no zod and no quantity. Thus a client in a browser can use it.
 
 import type { Cancel, Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
+import type { RoundContext } from "./loop.ts";
+import { runLoop } from "./loop-kernel.ts";
 
 /** These options make a heartbeat. Each time is in milliseconds on the clock. */
 export interface HeartbeatOptions {
@@ -63,23 +65,33 @@ export interface Heartbeat {
 }
 
 interface Waiting {
-  readonly settle: (answered: boolean) => void;
-  readonly controller: AbortController;
+  readonly settle: (answered: boolean, error?: unknown) => void;
+  readonly scope: RoundContext["scope"];
   timer: Cancel | null;
 }
+
+/** This function gives the reason of the abort of a ping at its timeout: a `TimeoutError`, as at the deadline of a scope. */
+const timedOut = (timeout: number): DOMException => new DOMException(`The ping had no answer in its timeout of ${timeout} ms.`, "TimeoutError");
 
 /**
  * This function starts a heartbeat. The first tick comes one interval after the start. Each tick
  * starts the next one first, thus the ticks keep their interval while a ping waits. A ping that has
  * no answer at its timeout is a miss. The last miss of `misses` in sequence starts `onDead`.
+ *
+ * Each tick is a round of the loop core, from `start` with the overlap `allow`. Thus `due()` operates
+ * at each tick, also while a ping waits. The heartbeat keeps its own rule of one ping at a time. A
+ * round ends at the answer of its ping, and a miss is a failure of the round. At the timeout, the
+ * miss counts first, and then the scope of the round aborts with a `TimeoutError`.
  */
 export const heartbeat = (options: HeartbeatOptions): Heartbeat => {
   const { interval, timeout, misses: limit, clock = realClock } = options;
   if (!Number.isInteger(limit) || limit < 1)
     throw new RangeError(`a heartbeat needs a count of misses that is a whole number above zero, not ${limit}`);
+  // an interval that is not finite starts no tick. A timer of zero or less waits 1 ms on the platform, thus such an
+  // interval ticks each millisecond, as the old timer of the heartbeat did
+  const every = !Number.isFinite(interval) ? Number.POSITIVE_INFINITY : interval > 0 ? interval : 1;
   let misses = 0;
   let stopped = false;
-  let next: Cancel | null = null;
   const pings = new Set<Waiting>();
 
   const count = (answered: boolean): void => {
@@ -97,46 +109,68 @@ export const heartbeat = (options: HeartbeatOptions): Heartbeat => {
     }
   };
 
-  const send = (): void => {
-    const controller = new AbortController();
-    const entry: Waiting = {
-      controller,
-      timer: null,
-      settle: (answered) => {
-        if (!pings.delete(entry)) return;
-        entry.timer?.();
-        const done = (): void => count(answered);
-        if (options.turn === undefined) done();
-        else void options.turn().then(done, done);
-      },
-    };
-    pings.add(entry);
-    if (Number.isFinite(timeout))
-      entry.timer = clock.after(timeout, () => {
-        entry.settle(false);
-        controller.abort();
-      });
-    let result: Promise<boolean> | void;
-    try {
-      result = options.ping(controller.signal);
-    } catch {
-      entry.settle(false);
-      return;
-    }
-    if (result !== undefined)
-      result.then(
-        (answered) => entry.settle(answered === true),
-        () => entry.settle(false),
-      );
-  };
+  /** One ping, as the round of a tick. Its promise resolves at the answer, and it rejects at a miss. */
+  const send = ({ scope, signal }: RoundContext): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      const entry: Waiting = {
+        scope,
+        timer: null,
+        settle: (answered, error) => {
+          if (!pings.delete(entry)) return;
+          entry.timer?.();
+          if (answered) resolve();
+          else reject(error ?? new Error("The peer did not answer the ping."));
+          // a ping that the stop settles counts nothing, and it waits for no turn
+          if (stopped) return;
+          const done = (): void => count(answered);
+          if (options.turn === undefined) done();
+          else void options.turn().then(done, done);
+        },
+      };
+      pings.add(entry);
+      if (Number.isFinite(timeout))
+        entry.timer = clock.after(timeout, () => {
+          entry.settle(false, timedOut(timeout));
+          scope.abort(timedOut(timeout));
+        });
+      let result: Promise<boolean> | void;
+      try {
+        result = options.ping(signal);
+      } catch (error) {
+        entry.settle(false, error);
+        return;
+      }
+      if (result !== undefined)
+        result.then(
+          (answered) => entry.settle(answered === true),
+          (error: unknown) => entry.settle(false, error),
+        );
+    });
 
-  const tick = (): void => {
-    next = clock.after(interval, tick);
-    if (options.due !== undefined && !options.due()) return;
-    if (stopped || (options.overlap !== true && pings.size > 0)) return;
-    send();
-  };
-  if (Number.isFinite(interval)) next = clock.after(interval, tick);
+  const ticks = runLoop(
+    {
+      from: "start",
+      period: every,
+      jitter: 0,
+      first: every,
+      // the heartbeat bounds each ping with its own timer: the miss counts before the abort of the ping
+      timeout: Number.POSITIVE_INFINITY,
+      backoff: null,
+      overlap: "allow",
+      lanes: 1,
+      budget: null,
+      // the clock decides: the owner of a connection gives `unrefClock(clock)`
+      hold: true,
+      stable: null,
+    },
+    (context) => {
+      if (options.due !== undefined && !options.due()) return;
+      if (stopped || (options.overlap !== true && pings.size > 0)) return;
+      return send(context);
+    },
+    { name: "heartbeat", clock },
+  );
+  ticks.start();
 
   return {
     answer() {
@@ -147,13 +181,13 @@ export const heartbeat = (options: HeartbeatOptions): Heartbeat => {
     stop() {
       if (stopped) return;
       stopped = true;
-      next?.();
-      next = null;
       for (const entry of [...pings]) {
-        pings.delete(entry);
-        entry.timer?.();
-        entry.controller.abort();
+        // the round of the ping ends, and its scope aborts the ping
+        entry.settle(false, new DOMException("The heartbeat stopped.", "AbortError"));
+        entry.scope.abort();
       }
+      // the stop aborts and closes the scope of each round in flight. A ping holds no resource of its scope
+      void ticks.stop().catch(() => undefined);
     },
     get misses() {
       return misses;
