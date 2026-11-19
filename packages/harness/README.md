@@ -44,6 +44,10 @@ The folder `vm/`, the file `src/vm.ts` and the workflow `vm.yml` operate a lab i
 
 `runCells` in that file is the one command of the cells for the runner and for a guest. Rule 3 of that document pairs the two in one job. A guest cannot read its runner, thus the runner gives its host in `LAB_RUNNER`. `substrateHere` writes E4 with that cloud and image, and with the kernel and HZ of the guest. A run also records `steal`, the share of the CPU that the host took (`stealShare`). A guest sees only the host above it, thus this number does not show the layer below a hosted runner.
 
+The command `run` of `src/vm.ts` and the workflow `vm-run.yml` operate one command of another repository in the guest (SYS-136). The guest copies a folder of the caller to `/work`, with no `node_modules`, and installs it from its lockfile. The argv starts in `/work` when Docker is ready. It writes its output to `/out`, and `/out` comes back to the runner, also after a failure.
+
+After the time limit, each process of the argv stops. The file `run.json` in `/out` tells why the run ended, the exit code and the kernel of the guest. A consumer adds one job that uses `vm-run.yml` at a commit of this repository. One file, `vm/linux.json`, pins the kernel for `vm.yml` and `vm-run.yml`.
+
 ## The topologies
 
 A topology (`Topology`) is the chain of hops from the client to the target, as data. Each hop is on two networks, one for each side. Network j joins element j and element j + 1: the client is element 0, and the target is the last element.

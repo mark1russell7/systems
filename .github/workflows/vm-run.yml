@@ -1,0 +1,262 @@
+# Operates one command of another repository in a guest of QEMU, layer E4 of docs/S7.md (SYS-136).
+#
+# A consumer adds one job:
+#
+#   e4:
+#     uses: mark1russell7/systems/.github/workflows/vm-run.yml@<commit>
+#     with:
+#       harness: <the same commit>
+#       argv: '["node", "src/main.ts", "--out", "/out/lab"]'
+#
+# A void run ends green. A gate thus reads the outputs: present is false for a void run, and ended
+# and status come from run.json.
+#
+#   kvm     A runner with no KVM ends here as void, as in vm.yml (rule 8).
+#   kernel  The pin of packages/harness/vm/linux.json, at the HZ of the input. The cache keeps it.
+#   root    Writes the guest's disk from packages/harness/vm/Dockerfile.
+#   run     The guest copies the folder of the caller's checkout to /work, with no node_modules, and
+#           installs it from its lockfile. When Docker is ready, the argv starts in /work. The argv
+#           writes its output to /out, also in $VM_OUT. After the time limit, each process of the argv
+#           stops. /out comes back also after a failure.
+#   record  /out/run.json tells why the run ended, its exit code and the kernel of the guest. The job
+#           fails if that kernel is not the pinned kernel.
+#
+# With no argv, the run operates the test argv of this tier: uname -r and one container. Each of the two
+# must give the release of the pinned kernel. vm-run-test.yml operates it on each pull request that
+# changes this tier.
+name: VM run
+
+on:
+  workflow_call:
+    inputs:
+      argv:
+        description: The command, as a JSON list of strings. No shell splits it. The default is the test argv.
+        type: string
+        default: ""
+      folder:
+        description: The folder of the caller's checkout that goes into the guest. The default is the root.
+        type: string
+        default: "."
+      limit:
+        description: The time limit of the argv in minutes, from 1 to 120.
+        type: number
+        default: 60
+      hz:
+        description: CONFIG_HZ of the guest. 1000 is the runner's value.
+        type: string
+        default: "1000"
+      artifact:
+        description: The name of the artifact that holds /out.
+        type: string
+        default: vm-run
+      harness:
+        description: The commit of mark1russell7/systems that gives the VM tier, the commit of the uses line.
+        type: string
+        required: true
+    outputs:
+      present:
+        description: true when the runner has KVM, and false for a void run with no guest.
+        value: ${{ jobs.run.outputs.present }}
+      ended:
+        description: Why the run ended, from run.json. It is empty when the guest gave no record.
+        value: ${{ jobs.run.outputs.ended }}
+      status:
+        description: The exit code of the run, from run.json. It is empty when the guest gave no record.
+        value: ${{ jobs.run.outputs.status }}
+  workflow_dispatch:
+    inputs:
+      argv:
+        description: The command, as a JSON list of strings. The default is the test argv.
+        type: string
+        default: ""
+      limit:
+        description: The time limit of the argv in minutes, from 1 to 120.
+        type: number
+        default: 10
+      hz:
+        description: CONFIG_HZ of the guest. 1000 is the runner's value.
+        type: choice
+        options: ["100", "250", "1000"]
+        default: "1000"
+
+permissions:
+  contents: read
+
+# In a call, the github context is of the caller. The artifact name keeps two calls of one caller apart.
+concurrency:
+  group: vm-run-${{ github.workflow }}-${{ inputs.artifact || 'vm-run' }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
+defaults:
+  run:
+    shell: bash
+
+env:
+  # The release of the guest kernel goes to /out twice: from the guest, and from a container in it.
+  TEST_ARGV: '["sh", "-c", "uname -r > /out/release && docker run --rm alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 uname -r > /out/container-release"]'
+
+jobs:
+  run:
+    name: VM run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    outputs:
+      present: ${{ steps.kvm.outputs.present }}
+      ended: ${{ steps.record.outputs.ended }}
+      status: ${{ steps.record.outputs.status }}
+    steps:
+      - name: The caller's checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: caller
+          persist-credentials: false
+      # in this repository the tier comes from the commit of the run, thus a pull request tests its own code
+      - name: The VM tier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mark1russell7/systems
+          ref: ${{ github.repository == 'mark1russell7/systems' && github.sha || inputs.harness }}
+          path: harness
+          persist-credentials: false
+      - name: The inputs
+        env:
+          ARGV: ${{ inputs.argv || env.TEST_ARGV }}
+          FOLDER: ${{ inputs.folder || '.' }}
+          LIMIT: ${{ inputs.limit || 10 }}
+          HZ: ${{ inputs.hz || '1000' }}
+        run: |
+          if ! jq -e 'type == "array" and length > 0 and all(type == "string")' <<< "$ARGV" > /dev/null; then
+            echo "::error::the argv is a JSON list of strings, with one string or more"
+            exit 1
+          fi
+          if ! [[ "$LIMIT" =~ ^[0-9]+$ ]] || [ "$LIMIT" -lt 1 ] || [ "$LIMIT" -gt 120 ]; then
+            echo "::error::the time limit is from 1 to 120 minutes, not $LIMIT"
+            exit 1
+          fi
+          if ! [[ "$HZ" =~ ^(100|250|1000)$ ]]; then
+            echo "::error::the HZ is 100, 250 or 1000, not $HZ"
+            exit 1
+          fi
+          # the values go into GITHUB_ENV, thus a value has no line break
+          case "$FOLDER" in /* | *..* | *$'\n'*)
+            echo "::error::the folder is a path in the caller's checkout, not $FOLDER"
+            exit 1
+          esac
+          VM="$RUNNER_TEMP/vm"
+          mkdir -p "$VM"
+          {
+            echo "VM=$VM"
+            echo "LIMIT_SECONDS=$((LIMIT * 60))"
+            echo "HZ=$HZ"
+            echo "LINUX_VERSION=$(jq -r .version harness/packages/harness/vm/linux.json)"
+            echo "LINUX_SHA256=$(jq -r .sha256 harness/packages/harness/vm/linux.json)"
+          } >> "$GITHUB_ENV"
+          # the argv and the folder go through the environment, thus no expression writes them into a script
+          echo "RUN_ARGV=$(jq -c . <<< "$ARGV")" >> "$GITHUB_ENV"
+          echo "RUN_FOLDER=$GITHUB_WORKSPACE/caller/$FOLDER" >> "$GITHUB_ENV"
+      - name: The runner, beside the output
+        run: |
+          {
+            echo "kernel: $(uname -r)"
+            echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+            echo "cpus: $(nproc)"
+            echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
+            echo "image: $ImageOS $ImageVersion"
+            df -h / "$RUNNER_TEMP"
+          } | tee "$VM/runner.txt"
+      - name: The KVM of the runner
+        id: kvm
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sleep 1
+          if [ -w /dev/kvm ]; then
+            echo "kvm: yes" | tee -a "$VM/runner.txt"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "void: this runner has no KVM" | tee -a "$VM/runner.txt"
+            echo "::notice::void: this runner has no KVM"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: The tools of the host
+        if: steps.kvm.outputs.present == 'true'
+        uses: ./harness/.github/actions/apt-install
+        with:
+          packages: qemu-system-x86 qemu-utils flex bison bc libelf-dev libssl-dev dwarves
+          update: "true"
+      # Node 26 runs the tool of this tier with no build and no install
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.kvm.outputs.present == 'true'
+        with:
+          node-version: 26
+      - name: The kernel from the cache
+        id: kernel
+        if: steps.kvm.outputs.present == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/vm/kernel
+          key: kernel-${{ env.LINUX_VERSION }}-hz${{ env.HZ }}-${{ hashFiles('harness/packages/harness/vm/kernel.config', 'harness/packages/harness/src/vm.ts') }}
+      - name: The pinned kernel
+        if: steps.kvm.outputs.present == 'true' && steps.kernel.outputs.cache-hit != 'true'
+        run: |
+          started="$(date +%s)"
+          node harness/packages/harness/src/vm.ts kernel "$VM/kernel" "$LINUX_VERSION" "$LINUX_SHA256" "$HZ"
+          echo "kernel build: $(($(date +%s) - started)) s" | tee -a "$VM/runner.txt"
+      - name: The disk of the guest
+        if: steps.kvm.outputs.present == 'true'
+        run: |
+          cp "$VM/kernel/bzImage" "$VM/kernel/config" "$VM/kernel/release" "$VM/"
+          started="$(date +%s)"
+          node harness/packages/harness/src/vm.ts root "$VM"
+          echo "disk build: $(($(date +%s) - started)) s" | tee -a "$VM/runner.txt"
+      - name: The run
+        if: steps.kvm.outputs.present == 'true'
+        run: |
+          started="$(date +%s)"
+          code=0
+          node harness/packages/harness/src/vm.ts run "$VM" "$RUN_FOLDER" "$LIMIT_SECONDS" "$VM/out" "$RUN_ARGV" || code=$?
+          echo "run: $(($(date +%s) - started)) s, status $code" | tee -a "$VM/runner.txt"
+          exit "$code"
+      - name: The record of the run
+        id: record
+        if: always() && steps.kvm.outputs.present == 'true'
+        run: |
+          record="$VM/out/run.json"
+          if [ ! -f "$record" ]; then
+            echo "::error::the guest gave no record of the run"
+            exit 1
+          fi
+          jq . "$record"
+          {
+            echo "ended=$(jq -r .ended "$record")"
+            echo "status=$(jq -r .status "$record")"
+          } >> "$GITHUB_OUTPUT"
+          kernel="$(jq -r .kernel "$record")"
+          if [ "$kernel" != "$(cat "$VM/release")" ]; then
+            echo "::error::the run operated on the kernel $kernel, not on the pinned kernel $(cat "$VM/release")"
+            exit 1
+          fi
+      - name: The test of the tier
+        if: github.repository == 'mark1russell7/systems' && inputs.argv == '' && steps.kvm.outputs.present == 'true'
+        run: |
+          pinned="$(cat "$VM/release")"
+          for file in release container-release; do
+            got="$(cat "$VM/out/$file" 2>/dev/null || echo missing)"
+            echo "$file: $got"
+            if [ "$got" != "$pinned" ]; then
+              echo "::error::/out/$file is $got, not the release $pinned of the pinned kernel"
+              exit 1
+            fi
+          done
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ inputs.artifact || 'vm-run' }}
+          path: |
+            ${{ runner.temp }}/vm/out/
+            ${{ runner.temp }}/vm/runner.txt
+            ${{ runner.temp }}/vm/console.log
+          if-no-files-found: warn
+          retention-days: 30
