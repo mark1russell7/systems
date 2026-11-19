@@ -250,8 +250,9 @@ describe("a schedule from end", () => {
     await r.fake.advance(10);
     expect(r.handle.wake()).toBe(true);
     await r.fake.advance(20);
-    // round 1 ends at 20, and round 2 starts at once
+    // round 1 ends at 20, and round 2 starts at once, in the settle of round 1, with no timer
     expect(r.starts()).toEqual([0, 20]);
+    expect(r.timers).toEqual([]);
     await r.fake.advance(10);
     // round 2 ends at 40, and the lane waits with no timer for its period with no bound
     expect(r.handle.states()).toEqual(["waiting"]);

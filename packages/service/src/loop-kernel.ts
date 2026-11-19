@@ -266,17 +266,22 @@ export const runLoop = (timing: Timing, round: Round, options: LoopOptions): Omi
     arm(lane, "period", next - now, next);
   };
 
-  /** From end: the timer of a lane after its round, at the settle. */
-  const rest = (lane: Lane, outcome: "pass" | "more" | "fail", now: number): void => {
+  /**
+   * From end: the timer of a lane after its round, at the settle. It gives true for a wake during the round. Then the
+   * next round starts at once after the settle, with no timer, as a wake of a waiting lane does. A "more" gets a timer
+   * of zero, thus the event loop can do other work between the rounds.
+   */
+  const rest = (lane: Lane, outcome: "pass" | "more" | "fail", now: number): boolean => {
     const woken = lane.woken;
     lane.woken = false;
     if (outcome === "more") arm(lane, "now", 0, now);
     else if (outcome === "fail" && backoff !== null) armBackoff(lane, now);
-    else if (woken) arm(lane, "now", 0, now);
+    else if (woken) return true;
     else {
       const delay = jittered();
       arm(lane, "period", delay, now + delay);
     }
+    return false;
   };
 
   /** A round is due on a lane, from its timer (`fired`) or from a wake. */
@@ -386,12 +391,14 @@ export const runLoop = (timing: Timing, round: Round, options: LoopOptions): Omi
       closeFailed = true;
       closeError = error;
     }
+    // from end: a wake came during the round, and the next round starts after the settle
+    let wakeNow = false;
     try {
       if (stopped) lane.flights.delete(flight);
       else if (flight.late) {
         act(lane, "late-answer", () => {
           lane.flights.delete(flight);
-          if (timing.from === "end") rest(lane, "fail", clock.now());
+          if (timing.from === "end") wakeNow = rest(lane, "fail", clock.now());
         });
       } else {
         const now = clock.now();
@@ -408,11 +415,13 @@ export const runLoop = (timing: Timing, round: Round, options: LoopOptions): Omi
           const before = proof ? 0 : lane.failures;
           lane.failures = outcome === "fail" ? before + 1 : 0;
           report({ kind: "end", loop: name, lane: lane.index, round: flight.round, planned: flight.planned, start: flight.start, end: now, outcome, timedOut: false, blocked: false, error });
-          if (timing.from === "end") rest(lane, outcome, now);
+          if (timing.from === "end") wakeNow = rest(lane, outcome, now);
           else if (outcome === "more") arm(lane, "now", 0, now);
           else if (outcome === "fail" && backoff !== null) armBackoff(lane, now);
         });
       }
+      // a reader of the settle can stop the loop: then no round starts
+      if (wakeNow && !stopped) due(lane, "wake", clock.now(), false);
     } finally {
       pending.delete(flight);
       if (pending.size === 0) {
