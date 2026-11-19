@@ -1,0 +1,57 @@
+# The gate of the VM tier of vm-run.yml (SYS-136): a pull request that changes the tier operates its test argv.
+#
+# Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+# work when the pull request changes no file of the tier (CI.md of the template, "A gate with paths").
+# A runner with no KVM gives a void run, which ends green, as in vm.yml (rule 8).
+name: VM run test
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+        with:
+          paths: |
+            .github/workflows/vm-run.yml
+            .github/workflows/vm-run-test.yml
+            packages/harness/src/vm.ts
+            packages/harness/vm/**
+
+  # In this repository, vm-run.yml takes the tier from the commit of the run, thus the test examines the code of the pull request.
+  test:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    uses: ./.github/workflows/vm-run.yml
+    with:
+      harness: ${{ github.sha }}
+      limit: 10
+
+  vm-run-ok:
+    name: VM run OK
+    if: ${{ !cancelled() }}
+    needs: [changes, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+        with:
+          needs: ${{ toJSON(needs) }}
+          allow-skip: test
