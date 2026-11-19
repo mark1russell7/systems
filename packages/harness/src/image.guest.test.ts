@@ -5,9 +5,10 @@ import { harnessImage } from "./image.ts";
 
 /**
  * The build of the harness image on the kernel of the host, opt-in: `HARNESS_IMAGE=1`. It needs Docker.
+ *
  * The test argv of the VM tier (vm-run.yml) operates it in the guest (SYS-146). The build operates the
- * tests of the native code of the image, thus a change of the guest kernel or of that code that breaks
- * the image fails the pull request. In a guest, the tag goes to the output of the run, and the workflow
+ * tests of the native code of the image. Thus a pull request fails when its change of the guest kernel
+ * or of that code breaks the image. In a guest, the tag goes to the output of the run, and the workflow
  * reads it there. Thus a skipped test does not pass the gate.
  */
 const RUN = process.env["HARNESS_IMAGE"] === "1";

@@ -400,9 +400,9 @@ const ERROR_LINE = /\berror\b/i;
 const PANIC_LINE = /\bpanicked at\b/;
 
 /**
- * This function gives the lines of the output of a failed build that its error holds. They are each
- * line that names an error, for example the diagnostic of a compiler, each panic of a test with its
- * message, then the last lines. The tail of BuildKit holds the summary of a failed test, not its panic (SYS-146).
+ * This function gives the lines of the output of a failed build that its error holds. It keeps each
+ * line that names an error, for example a compiler diagnostic, and each panic of a test with its
+ * message. Then it keeps the last lines. The tail of BuildKit holds the summary of a failed test, not its panic (SYS-146).
  */
 export const buildFailure = (output: string): string => {
   const lines = output.trim().split(/\r?\n/);
