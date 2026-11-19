@@ -8,7 +8,7 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
-1. **SYS-93** (P1): the night holds the ladder. The snapshot of rung 10 comes from CI (#609).
+1. **SYS-93** (P1): the night holds the ladder since #609 merged on 2026-11-18. The nightly records set the p95 and p99 budgets, then slice 4 adds the gates.
 2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 shipped on 2026-11-18 (#604): the type, the keys, the entry `/scope` and the laws 1 to 7, in service `0.10.1`. Part 2 (#606) merged on 2026-11-18: the five contexts are scopes, in the MINOR `0.11.0`, and its release waits in the queue. Part 3 is the procedure context of the client.
 3. **SYS-138** (P1): one loop core, with the schedule as data. Its design passed review on 2026-11-18 (#614). Part 1 (#620) has the core and the laws 1 to 7, for service `0.11.1`. Part 2 starts with the metrics of the loops (#622), and the five loops follow on the core.
 
@@ -19,7 +19,6 @@ SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#5
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-136:** a run of any command in the guest of the VM tier. A consumer asked for it on 2026-11-18, for its kernel world.
 - **SYS-137:** a lab of the kind tier with the interface of the harness, after SYS-92.
-- **SYS-140:** the product and the quotient of two amounts in quantity. A consumer asked for it on 2026-11-18, for its composition of laws. Its change (#621) waits for CI.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
 - **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
@@ -3734,7 +3733,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
 - **Shipped:**
-- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
+- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [#609](https://github.com/mark1russell7/systems/pull/609), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
 
 SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
@@ -3760,6 +3759,12 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction is in the table below.
 4. **The gates.** A scheduled workflow and a release check call `ladderVerdict`. A run under a chaos schedule measures the availability.
 
+**The night holds the rungs.** The nightly Cells run holds the 4 cells `LADDER` beside the WS cells, in the selection `night` of `SCHEDULED_CELLS`. Thus each night adds 11 runs of each rung. The p95 and p99 budgets come from 5 or more of these records: the worst value plus the spread of the runs. Until then, each rung holds its limit of failed arrivals, and the check of the night fails the workflow if a rung does not hold.
+
+Each run of a rung plans enough arrivals for a decision with 2 void runs. The schedules have fixed seeds, thus each run of a rung plans the same arrivals, and `durationOf` counts them. The rung of 10 tenants needed this: at 7 s, one void run left it with too few arrivals to decide.
+
+The flip test of the night also puts its fault into the open-loop cells. Each rung gets failed arrivals at 1.5 times its limit, and a cell with a band gets each latency at 1.5 times its top. The check must turn red under the fault, or the workflow fails.
+
 **A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.6.0` as a plain dependency. In this workspace the service is a workspace link, thus pnpm gives the peer its own copy from npm. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The general fix is in the client repository: the service becomes a peer dependency of each client package that passes values of the service (`CLI-117`). Until that release, an override at the root of this workspace sets the service to `workspace:*`. A comment on it names `CLI-117`, and an item of this roadmap removes it.
 
 **The prediction of the first dispatch, from the base rates.** The dispatch of the 4 cells `LADDER` comes from `base-rates.ts`. The systems role has no scored prediction yet. Thus each claim takes the rate of its family over the other roles.
@@ -3781,7 +3786,7 @@ The claims of the capacity, the gap of the open loop and the noise are of later 
 | 100 | 5,313 | 0 | 1.2 ms |
 | 1,000 | 55,561 | 0 | 1.4 ms |
 
-No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread, thus four more dispatches set them.
+No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread. Since #609 merged on 2026-11-18, the nightly Cells run gives these runs, with no dispatch.
 
 ### SYS-104 · Remove the override of the service when the client release ships
 
@@ -3976,12 +3981,12 @@ The test: each unit of the list parses, converts in its dimension and formats ag
 
 ### SYS-140 · The product and the quotient of two amounts
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** engines
-- **Depends on:** #621
-- **Started:**
-- **Shipped:**
-- **Links:** [#621](https://github.com/mark1russell7/systems/pull/621)
+- **Depends on:**
+- **Started:** 2026-11-18
+- **Shipped:** 2026-11-18
+- **Links:** [#621](https://github.com/mark1russell7/systems/pull/621), [the release run](https://github.com/mark1russell7/systems/actions/runs/44422507156), [quantity 0.4.3 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.3), [the consumer](https://github.com/mark1russell7/capacity/pull/11)
 
 A consumer that models the cost of one request multiplies a rate by a cost. For example, 900 `{request}/s` times 0.5 `{core}.ms/{request}` is 450 `{core}.ms/s`, and that converts to 0.45 `{core}`. Quantity `0.4.2` has no product of two amounts. Thus the consumer multiplies the values and writes the product unit by hand.
 
@@ -3989,9 +3994,44 @@ The consumer keeps no local copy, and it waits for this item at its composition 
 
 - **`multiply(a, b)` and `divide(a, b)`.** Each gives an amount in the product unit or the quotient unit of the two units. Equal atoms with equal annotations cancel. The value is exact when the two values are exact.
 - **The version of the two functions.** They are a feature, thus they ship in a PATCH by the rule before 1.0.
-- **A factor that is not finite.** `scale(amount, by)` gives an amount that is not finite, with no error, when `by` is not finite. A caller checks each result itself. A `UnitError` there removes that check. It changes the behavior of `scale`, thus it waits for the next MINOR of quantity.
+- **A factor that is not finite.** `scale(amount, by)` gives an amount that is not finite, with no error, when `by` is not finite. A caller checks each result itself. A `UnitError` there removes that check. It changes the behavior of `scale`, thus it waits for the next MINOR of quantity, as SYS-144.
 
 The test: the example above converts to 0.45 `{core}`. A property test holds that `divide(multiply(a, b), b)` converts to `a`, and that `multiply` is commutative after a conversion to one unit. A product of two units with no common atom keeps each atom.
+
+**The state on 2026-11-18.** #621 merged, and the release run published quantity `0.4.3` with its provenance. The consumer merged its composition of laws in capacity#11. It uses `multiplyUnits` and `divideUnits` in its production code, with one copy of quantity in its lockfile.
+
+### SYS-141 · A git tag and a GitHub release for each published version
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-18
+- **Shipped:**
+- **Links:** [#624](https://github.com/mark1russell7/systems/pull/624)
+
+The release owner holds this item. The release of this repository makes no git tag and no GitHub release. Approximately 111 published versions have no tag. #624 adds a job `tag` to `release.yml`. The job uses the plan of the tags that the build job writes, and it operates after the publish job.
+
+- **The owner.** The release owner writes and merges #624. This repository does not change `release.yml` or `scripts/release/`.
+- **The merge order.** The version pull requests of SYS-138 part 2 wait until #624 merges and its first release run ends.
+- **The text of the release.** `RELEASING.md` names `pack.ts` and `tags.ts` of the template, not files of this repository. After #624 merges, a docs change removes each old name that stays.
+
+The test: the first release run after the merge shows the job `tag`, with a tag for each version that the run published.
+
+### SYS-144 · `scale` refuses a factor that is not finite
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-107
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`scale(amount, by)` of `@mark1russell7/quantity` gives an amount that is not finite, with no error, when `by` is not finite. Each caller checks each result itself. A `UnitError` in `scale` removes that check. SYS-140 found this gap.
+
+- **The version.** The change breaks a caller that reads a value that is not finite, thus it is a MINOR before 1.0.
+- **The home.** After SYS-107, quantity lives in the math repository. The change goes there.
+
+The test: `scale` with `by` equal to `NaN`, `Infinity` or `-Infinity` throws a `UnitError`. A property test holds that a finite factor gives the same amount as before.
 
 ### SYS-133 · The calendar month of an instant in a time zone
 
@@ -4284,7 +4324,7 @@ The five loops on the core:
 | --- | --- | --- | --- | --- |
 | `poller` | `start` | `fail` | none | 1 |
 | `workerLoop` | `end` | no effect | `retry_base` to `retry_cap` | `concurrency` |
-| `heartbeat` | `start` | `skip`, or `allow` with `overlap: true` | none | 1 |
+| `heartbeat` | `start` | `allow`: `due()` operates at each tick, and the heartbeat keeps its own rule of one ping at a time | none | 1 |
 | `watchdog` | `start` | `skip` | none | 1 |
 | `ticker` | `start` | `skip` | none | 1 |
 
@@ -4299,30 +4339,36 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 5. **The stop.** After `stop()`, no round starts, and the test clock holds no timer of the loop. A second `stop()` does nothing.
 6. **The budget.** In each window, at most `rounds` rounds start.
 7. **The replay.** The records of each case replay on `LOOP_MACHINE` with no unknown transition.
-8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request.
+8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request. The heartbeat, the watchdog and the ticker held it in #625, and a fault check of 9 planted faults found each one. One change is on purpose: after a block of the event loop, the ticks of the core keep their grid. The old ticks moved by the block.
 9. **The spans.** `failSpan` and `recoverSpan` read the schedule. The fail time of a check on the test clock is in its span for each seed.
 10. **The hold.** A loop with `hold: false` keeps no timer that holds a process. A timeout that a caller awaits holds the process at each value (SYS-126).
 
 The parts:
 
 1. **The core.** The machine document, the entry `/loop`, the type `Schedule` with `stable`, the three settings and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0. A mutation check of the law tests found each of seven planted faults.
-2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request.
+2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request. The heartbeat, the watchdog and the ticker moved in service 0.11.3. The poller and the worker loop come next, with law 9.
 3. **The check of the conventions.** A pull request to the home of the conventions adds a rule for each package of the preset `service`. The rule refuses `setInterval`, a `setTimeout` whose callback starts its own function again, and a `for` or `while` loop that awaits a timer.
    - An exception carries a comment with its reason and its end (tenet 3).
    - In this repository, the hold timer of `process.ts` is the one exception. Its reason: it holds the process until the stop, and it does no work.
    - The rule starts after part 2, thus the service package passes it on its first day.
 4. **The 11 loops move.** Their owners move them after part 3: 3, 6 and 2 loops in three repositories. The README of the entry `/loop` gives the form for each case. A `setInterval(work, ms)` becomes a schedule from `start`. A `setTimeout` after an `await` becomes a schedule from `end`.
 
-The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema. Each metric comes from one kind of record of the core (part 2).
+The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. They follow the semantic conventions of OpenTelemetry. Each metric comes from one kind of record of the core (part 2).
+
+- Each metric has the attributes `loop.name`, the name of the loop, and `loop.lane`, the lane. `schedule.lanes` is fixed when the loop starts, thus `loop.lane` has a bound for each loop.
+- A duration is in seconds, with the bounds of its buckets in seconds.
+- `loop.failures`, and `loop.round.duration` of a failed round, also have `error.type`. A round past its timeout gives `timeout`. A round that is due while its lane is busy with the overlap `fail` gives `blocked`. A round with no proof gives `unproved`. Another failure gives the name of the class of the error, and a thrown value that is not an `Error` gives `_OTHER`.
+- A blocked round does not start. Thus it is in `loop.failures` only: not in `loop.rounds` and not in `loop.round.duration`.
+- A round past its timeout gives the timeout as its duration. Thus a law of the round duration takes out each point with `error.type` `timeout`, or counts it as censored.
 
 | Metric | Kind | Unit | Value | Record |
 | --- | --- | --- | --- | --- |
-| `loop.rounds` | counter | `{round}` | each round that starts | each `start` |
+| `loop.rounds` | counter | `{round}` | each round that starts, thus no blocked round | each `start` |
 | `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout | each `end` with the outcome `fail` |
 | `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops | the `count` of each `skip` |
 | `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget | each `defer` |
-| `loop.lateness` | histogram | `ms` | the real start minus the planned start | `start − planned` of each `start` |
-| `loop.round.duration` | histogram | `ms` | the end minus the real start | `end − start` of each `end` that is not `blocked` |
+| `loop.lateness` | histogram | `s` | the real start minus the planned start | `start − planned` of each `start` |
+| `loop.round.duration` | histogram | `s` | the end minus the real start | `end − start` of each `end` that is not `blocked` |
 | `loop.inflight` | up-down counter | `{round}` | the rounds in flight | not a record: +1 at each `start`, −1 at each close of the scope of a round, as `inFlight()` counts. A round past its timeout gives its `end` and stays in flight until it settles. |
 
 ### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service

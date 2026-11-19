@@ -1029,10 +1029,14 @@ writeDiscovery: build/host/discovery.d.ts#writeDiscovery
 
 type CallContext: build/call-context.d.ts#CallContext
 type IncomingHeaders: build/call-context.d.ts#IncomingHeaders
+LOOP_BOUNDS: build/loop-metrics.d.ts#LOOP_BOUNDS
+type LoopMetrics: build/loop-metrics.d.ts#LoopMetrics
 type TraceIds: build/logger.d.ts#TraceIds
 type TraceIdsSource: build/logger.d.ts#TraceIdsSource
 callContext: build/otel.d.ts#callContext
 currentScope: build/otel.d.ts#currentScope
+loopErrorType: build/loop-metrics.d.ts#loopErrorType
+loopMetrics: build/loop-metrics.d.ts#loopMetrics
 runScope: build/otel.d.ts#runScope
 scopeHeaders: build/otel.d.ts#scopeHeaders
 traceIds: build/otel.d.ts#traceIds
@@ -3792,6 +3796,24 @@ export declare const consoleLogger: (options?: ConsoleLoggerOptions) => Logger;
 
 ### build/logger.d.ts#logEvents
 export declare const logEvents: (logger: Logger, description?: ServiceDescription) => Recorder;
+
+### build/loop-metrics.d.ts#LOOP_BOUNDS
+export declare const LOOP_BOUNDS: {
+  readonly lateness: readonly number[];
+  readonly duration: readonly number[];
+};
+
+### build/loop-metrics.d.ts#LoopMetrics
+export interface LoopMetrics {
+  readonly record: (record: LoopRecord) => void;
+  readonly onTransition: (transition: Transition) => void;
+}
+
+### build/loop-metrics.d.ts#loopErrorType
+export declare const loopErrorType: (end: RoundEnd) => string;
+
+### build/loop-metrics.d.ts#loopMetrics
+export declare const loopMetrics: (meter?: Meter) => LoopMetrics;
 
 ### build/loop.d.ts#Budget
 export interface Budget {

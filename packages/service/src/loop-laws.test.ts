@@ -5,117 +5,17 @@
 import { replay } from "@mark1russell7/algebra/replay";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Backoff } from "./backoff.ts";
 import { backoffBand } from "./backoff.ts";
-import type { Call, Script } from "./loop-rig.ts";
-import { ms, rig } from "./loop-rig.ts";
+import type { Call, Case, Shape } from "./loop-rig.ts";
+import { caseOf, HORIZON, rig } from "./loop-rig.ts";
 import type { LoopRecord, RoundEnd, RoundStart, Schedule } from "./loop.ts";
 import { LOOP_MACHINE } from "./loop.ts";
 import { seeded } from "./testing.ts";
 
 /** The runs of each law. A deeper run sets LOOP_LAW_RUNS. */
 const RUNS = Number(process.env["LOOP_LAW_RUNS"] ?? 100);
-const HORIZON = 600;
 /** The fake clock is exact, but the jitter is a product of floats: each band comparison lets times differ by this much. */
 const EPSILON = 1e-6;
-
-interface Case {
-  readonly schedule: Schedule;
-  readonly scripts: readonly Script[];
-  readonly seed: number;
-  readonly stopAt: number;
-}
-
-const backoffOf: fc.Arbitrary<Backoff> = fc
-  .record({
-    base: fc.integer({ min: 5, max: 40 }),
-    grow: fc.integer({ min: 1, max: 16 }),
-    factor: fc.constantFrom(1, 1.5, 2, 3),
-    jitter: fc.oneof(
-      fc.constant({ kind: "none" as const }),
-      fc.double({ min: 0, max: 0.8, noNaN: true }).map((fraction) => ({ kind: "subtract" as const, fraction })),
-      fc.integer({ min: 0, max: 30 }).map((amount) => ({ kind: "add" as const, amount })),
-    ),
-  })
-  .map(({ base, grow, factor, jitter }) => ({ base, factor, cap: base * grow, jitter }));
-
-const scriptOf = (stable: boolean): fc.Arbitrary<Script> =>
-  fc
-    .record({
-      duration: fc.oneof(fc.integer({ min: 1, max: 40 }), fc.integer({ min: 1, max: 400 })),
-      outcome: fc.constantFrom<Script["outcome"]>("pass", "pass", "fail", "more"),
-      ignores: fc.boolean(),
-      proofAt: stable ? fc.option(fc.integer({ min: 0, max: 300 }), { nil: undefined }) : fc.constant(undefined),
-    })
-    // a round that gives more starts the next at once: a short one at each instant would hold the clock still
-    .map(({ proofAt, ...rest }): Script => {
-      const duration = rest.outcome === "more" ? Math.max(rest.duration, 5) : rest.duration;
-      return proofAt === undefined ? { ...rest, duration } : { ...rest, duration, proofAt };
-    });
-
-interface Shape {
-  readonly from?: Schedule["from"];
-  readonly backoff?: "none" | "some" | "any";
-  readonly budget?: boolean;
-  readonly more?: boolean;
-  readonly ignores?: boolean;
-  readonly stable?: boolean;
-  readonly timeout?: boolean;
-}
-
-/** This arbitrary gives a case: a schedule with no problems, a script for each round, a seed and the time of the stop. */
-const caseOf = (shape: Shape = {}): fc.Arbitrary<Case> =>
-  fc
-    .record({
-      from: shape.from === undefined ? fc.constantFrom<Schedule["from"]>("start", "end") : fc.constant(shape.from),
-      period: fc.integer({ min: 10, max: 200 }),
-      jitter: fc.oneof(fc.constant(0), fc.double({ min: 0, max: 0.5, noNaN: true })),
-      first: fc.integer({ min: 0, max: 100 }),
-      timeout:
-        shape.timeout === true
-          ? fc.integer({ min: 1, max: 300 })
-          : shape.timeout === false
-            ? fc.constant(undefined)
-            : fc.option(fc.integer({ min: 1, max: 300 }), { nil: undefined }),
-      backoff:
-        shape.backoff === "none" ? fc.constant(null) : shape.backoff === "some" ? backoffOf : fc.option(backoffOf, { nil: null }),
-      overlap: fc.constantFrom<Schedule["overlap"]>("fail", "skip", "allow"),
-      lanes: fc.integer({ min: 1, max: 3 }),
-      budget: shape.budget === true ? fc.record({ rounds: fc.integer({ min: 1, max: 4 }), per: fc.integer({ min: 20, max: 500 }) }) : fc.constant(null),
-      hold: fc.boolean(),
-      stable: shape.stable === true ? fc.integer({ min: 0, max: 200 }) : fc.constant(null),
-      scripts: fc.array(scriptOf(shape.stable === true), { minLength: 1, maxLength: 12 }),
-      seed: fc.integer(),
-      stopAt: fc.integer({ min: 0, max: HORIZON }),
-    })
-    .map((drawn): Case => {
-      const overlap = drawn.from === "start" && drawn.backoff !== null && drawn.overlap === "allow" ? "fail" : drawn.overlap;
-      const scripts = drawn.scripts.map(
-        (script): Script => ({
-          ...script,
-          outcome: shape.more === false && script.outcome === "more" ? "pass" : script.outcome,
-          ignores: shape.ignores === false ? false : script.ignores === true,
-        }),
-      );
-      return {
-        schedule: {
-          from: drawn.from,
-          period: ms(drawn.period),
-          jitter: drawn.jitter,
-          first: ms(drawn.first),
-          timeout: drawn.timeout === undefined ? { value: "infinite", unit: "s" } : ms(drawn.timeout),
-          backoff: drawn.backoff,
-          overlap,
-          lanes: drawn.lanes,
-          budget: drawn.budget === null ? null : { rounds: drawn.budget.rounds, per: ms(drawn.budget.per) },
-          hold: drawn.hold,
-          stable: drawn.stable === null ? null : ms(drawn.stable),
-        },
-        scripts,
-        seed: drawn.seed,
-        stopAt: drawn.stopAt,
-      };
-    });
 
 const valueOf = (amount: Schedule["period"]): number => (amount.value === "infinite" ? Number.POSITIVE_INFINITY : (amount.value as number));
 
