@@ -5161,13 +5161,13 @@ export declare const asDebounce: (timing: Timing, poll: Poll) => Timing;
 export declare const asWindow: (timing: Timing) => Timing;
 
 ### build/timing.d.ts#failSpan
-export declare const failSpan: (timing: Timing, poll: Poll, by?: FailsBy) => Span;
+export declare const failSpan: (timing: Timing, given: Poll | Schedule, by?: FailsBy) => Span;
 
 ### build/timing.d.ts#heartbeatDetection
 export declare const heartbeatDetection: (interval: Extent, timeout: Quantity, misses: number) => Extent;
 
 ### build/timing.d.ts#recoverSpan
-export declare const recoverSpan: (timing: Timing, poll: Poll) => Span;
+export declare const recoverSpan: (timing: Timing, given: Poll | Schedule, by?: FailsBy) => Span;
 
 ### build/units.d.ts#UnitRequest
 export interface UnitRequest<U> {

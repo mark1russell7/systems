@@ -341,7 +341,7 @@ describe("the edges", () => {
     expect(Object.values(each).map((script) => script.calls)).toEqual(calls);
   });
 
-  it("polls on a jittered fixed delay from the start of each poll", async () => {
+  it("polls on a jittered fixed delay from the planned start of each poll", async () => {
     const clock = fakeClock();
     const starts: number[] = [];
     const svc = service("loop")

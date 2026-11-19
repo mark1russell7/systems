@@ -1,10 +1,11 @@
-// The grid after a block (SYS-138 part 2). The heartbeat and the watchdog are loops of the loop core, from `start`.
-// After a block of the event loop, the late tick comes at once, and the next tick comes at its planned time. The old
-// timers of the two loops started again from the late tick, thus their ticks moved by the block.
+// The grid after a block (SYS-138 part 2). The heartbeat, the watchdog and the poller are loops of the loop core, from
+// `start`. After a block of the event loop, the late tick comes at once, and the next tick comes at its planned time.
+// The old timers of the three loops started again from the late tick, thus their ticks moved by the block.
 
 import { describe, expect, it } from "vitest";
 import { heartbeat } from "./heartbeat.ts";
 import { ms } from "./loop-rig.ts";
+import { poller } from "./poller.ts";
 import { fakeClock } from "./testing.ts";
 import { watchdog, type WatchdogSpec } from "./watchdog.ts";
 
@@ -49,5 +50,30 @@ describe("the grid after a block", () => {
     await clock.advance(200);
     beat.stop();
     expect(pings).toEqual([450, 500, 600]);
+  });
+
+  it("the poller polls on its grid after a late poll", async () => {
+    const clock = fakeClock();
+    const calls: number[] = [];
+    const polls = poller({
+      name: "grid",
+      poll: { interval: ms(100), jitter: 0, timeout: ms(50) },
+      run: () => {
+        calls.push(clock.now());
+        return "ok";
+      },
+      clock,
+      random: () => 0.5,
+      forced: () => false,
+      record: () => {},
+    });
+    polls.start(100);
+    await clock.advance(50);
+    // the poll due at 100 starts at 450. The old poller started its next interval there, thus at 550 and 650
+    clock.block(400);
+    await clock.advance(0);
+    await clock.advance(200);
+    polls.stop();
+    expect(calls).toEqual([450, 500, 600]);
   });
 });
