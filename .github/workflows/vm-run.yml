@@ -21,9 +21,10 @@
 #   record  /out/run.json tells why the run ended, its exit code and the kernel of the guest. The job
 #           fails if that kernel is not the pinned kernel.
 #
-# With no argv, the run operates the test argv of this tier: uname -r and one container. Each of the two
-# must give the release of the pinned kernel. vm-run-test.yml operates it on each pull request that
-# changes this tier.
+# With no argv, the run operates the test argv of this tier: uname -r, one container and the build of
+# the harness image. Each of the first two must give the release of the pinned kernel. The build operates
+# the tests of the native code of the image on the guest kernel, and it writes the tag of the image to
+# /out/harness-image (SYS-146). vm-run-test.yml operates it on each pull request that changes this tier.
 name: VM run
 
 on:
@@ -93,8 +94,9 @@ defaults:
     shell: bash
 
 env:
-  # The release of the guest kernel goes to /out twice: from the guest, and from a container in it.
-  TEST_ARGV: '["sh", "-c", "uname -r > /out/release && docker run --rm alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 uname -r > /out/container-release"]'
+  # The release of the guest kernel goes to /out twice: from the guest, and from a container in it. Then the
+  # guest builds the harness image, with the tests of its native code, and the test writes the tag of the image.
+  TEST_ARGV: '["sh", "-c", "uname -r > /out/release && docker run --rm alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 uname -r > /out/container-release && HARNESS_IMAGE=1 pnpm --filter @mark1russell7/harness exec vitest run src/image.guest.test.ts"]'
 
 jobs:
   run:
@@ -250,6 +252,13 @@ jobs:
               exit 1
             fi
           done
+          # a skipped test writes no tag, thus only a build that passed passes here
+          image="$(cat "$VM/out/harness-image" 2>/dev/null || echo missing)"
+          echo "harness image: $image"
+          if ! [[ "$image" =~ ^loom-harness:[0-9a-f]{12}$ ]]; then
+            echo "::error::/out/harness-image is $image, not the tag of a harness image that the guest built"
+            exit 1
+          fi
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

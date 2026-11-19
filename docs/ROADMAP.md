@@ -14,6 +14,7 @@ At most three items are in progress at one time. A score puts the items in order
 
 SYS-136 shipped on 2026-11-18: a consumer operates one command of its own in the guest of the VM tier, through `vm-run.yml` (#612). SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
+- **SYS-146** (P1): the harness image builds in the guest of the VM tier. The guest kernel gets transparent huge pages, and the test of the tier builds the image. The E4 job of a consumer waits on it.
 - **SYS-135** (P1): the service package in a browser. Its design passed review on 2026-11-18 (#610). It waits for the release of part 2 of SYS-134.
 - **SYS-77:** the first fabric. It comes first of the later items: the routed worlds of a consumer need the layer E3, from 2026-11-16. Its cells wait for free CI slots.
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
@@ -3672,6 +3673,23 @@ The kind tier holds the cells of connection timers in a cluster. Its lab has its
 - **The test.** One world operates on both tiers with the same code: a client, one router and a target. A black hole at the router gives the same verdict on both tiers.
 
 A new export is a feature, thus the release of kind is a PATCH before 1.0.
+
+### SYS-146 · The harness image builds in the guest of the VM tier
+
+- **Status:** active
+- **Area:** harness
+- **Depends on:** SYS-136
+- **Started:** 2026-11-19
+- **Shipped:**
+- **Links:**
+
+In the guest of the VM tier, the build of the harness image stopped at one test of the bin `memory`: `a_region_takes_a_touch_of_each_of_its_pages`. Each of the 40 rounds of the first E4 run of a consumer gave 3 passed and 1 failed. The same build passes on the runner. `Region::map` asks for `MADV_NOHUGEPAGE`, and Linux gives `EINVAL` for that advice when the kernel has no transparent huge pages. The guest kernel did not set `CONFIG_TRANSPARENT_HUGEPAGE`.
+
+- **The guest.** `vm/kernel.config` sets `CONFIG_TRANSPARENT_HUGEPAGE=y`, in the madvise mode of the kernel of the runner. The command `kernel` stops the build when an option is not in the final configuration.
+- **The code.** `Region::map` takes `EINVAL` of `MADV_NOHUGEPAGE` as a kernel with no huge pages to turn off. A unit test of the bin holds the rule. Thus the image also builds on a kernel with no huge pages.
+- **The record.** The error of a failed build held its error lines and its last 15 lines. The last lines of BuildKit hold the summary of a failed test, not its panic. `buildFailure` also keeps each panic with its message line, and a test holds the shape of the first E4 run.
+- **The gate.** The test argv of the tier builds the harness image in the guest, through `src/image.guest.test.ts`. The build operates the tests of the native code on the guest kernel. The test writes the tag of the image to `/out/harness-image`, and the workflow checks the tag. Thus a skipped test fails the gate.
+- **The paths.** `vm-run-test.yml` operates on each change of the image, of its native code and of `image.ts`, with a limit of 30 minutes.
 
 ### SYS-145 · `vm-run.yml` finds its own commit
 
