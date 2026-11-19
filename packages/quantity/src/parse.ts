@@ -37,3 +37,13 @@ export const convertExact: (
   to: string,
   on?: MeasuredOn,
 ) => Rational = UNITS.convertExact;
+
+/**
+ * This function gives the canonical spelling of the product of two units. The exponents of one
+ * factor add, and a factor with the exponent 0 cancels: `{request}/s` times `{core}·ms/{request}`
+ * is `{core}·ms/s`. A factor does not cancel a different atom: `ms/s` stays.
+ */
+export const multiplyUnits: (a: string, b: string) => string = UNITS.multiplyUnits;
+
+/** This function gives the canonical spelling of the quotient of two units: `a` divided by `b`, as `multiplyUnits` does. */
+export const divideUnits: (a: string, b: string) => string = UNITS.divideUnits;

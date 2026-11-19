@@ -3760,6 +3760,12 @@ The format of a ladder has budgets on a median, a quantile, a rate and a worst v
 3. **The ladder.** One cell for each rung, with the budgets of the table above. A `rate` budget counts the failed requests, and `quantile` budgets hold p95 and p99. The first dispatch sets the budgets, and its prediction comes from `base-rates.ts` before the dispatch. That prediction is in the table below.
 4. **The gates.** A scheduled workflow and a release check call `ladderVerdict`. A run under a chaos schedule measures the availability.
 
+**The night holds the rungs.** The nightly Cells run holds the 4 cells `LADDER` beside the WS cells, in the selection `night` of `SCHEDULED_CELLS`. Thus each night adds 11 runs of each rung. The p95 and p99 budgets come from 5 or more of these records: the worst value plus the spread of the runs. Until then, each rung holds its limit of failed arrivals, and the check of the night fails the workflow if a rung does not hold.
+
+Each run of a rung plans enough arrivals for a decision with 2 void runs. The schedules have fixed seeds, thus each run of a rung plans the same arrivals, and `durationOf` counts them. The rung of 10 tenants needed this: at 7 s, one void run left it with too few arrivals to decide.
+
+The flip test of the night also puts its fault into the open-loop cells. Each rung gets failed arrivals at 1.5 times its limit, and a cell with a band gets each latency at 1.5 times its top. The check must turn red under the fault, or the workflow fails.
+
 **A gap in a home.** `@procedures/peer` 0.49.1 depends on `@mark1russell7/service` `^0.6.0` as a plain dependency. In this workspace the service is a workspace link, thus pnpm gives the peer its own copy from npm. Then a process has two copies of the service, and the builder of one copy goes to the `run()` of the other. The general fix is in the client repository: the service becomes a peer dependency of each client package that passes values of the service (`CLI-117`). Until that release, an override at the root of this workspace sets the service to `workspace:*`. A comment on it names `CLI-117`, and an item of this roadmap removes it.
 
 **The prediction of the first dispatch, from the base rates.** The dispatch of the 4 cells `LADDER` comes from `base-rates.ts`. The systems role has no scored prediction yet. Thus each claim takes the rate of its family over the other roles.
