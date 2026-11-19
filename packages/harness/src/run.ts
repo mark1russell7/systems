@@ -14,6 +14,7 @@ import { LOAD_PATH, SCHEDULE_PATH, loadPlanOf } from "./load.ts";
 import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
+import type { ResourceReader, ResourceReading } from "./resources.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { kafkaOnce, kafkaPauseOnce, openKafkaLab } from "./kafka.ts";
 import { openStandby, pairOnce } from "./standby.ts";
@@ -409,7 +410,7 @@ const once = async (
     ...(plan === undefined ? [] : [{ content: JSON.stringify(plan), target: SCHEDULE_PATH }]),
     ...(load === undefined ? [] : [{ content: load.content, target: LOAD_PATH }]),
   ];
-  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files, cell.cgroup);
+  const probe = await lab.probe(probeArgs(cell, lab), files.length === 0 ? undefined : files, cell.cgroup, cell.clientLimits);
   const server = cell.observer === "server";
   const peer = server
     ? { freeze: () => probe.freeze(), thaw: () => probe.thaw() }
@@ -446,8 +447,16 @@ const once = async (
   // a target with a named process freezes by SIGSTOP, with stamps, and a hold thaws it at its instant
   const signalled = !server && cell.target.program !== undefined;
   let thawing: Promise<{ t0: number; t1: number }> | null = null;
+  // the readings of the target bracket the work of the run: the client is ready, and it sent nothing
+  let reader: ResourceReader | undefined;
+  let start: ResourceReading | undefined;
+  let end: ResourceReading | undefined;
   try {
     await probe.until(["ready"], 15_000);
+    if (cell.resources !== undefined) {
+      reader = await lab.resources(cell.resources);
+      start = await reader.read();
+    }
     if (dry) {
       if (cell.probe.mode !== "idle") await go();
       await sleep(500);
@@ -704,8 +713,10 @@ const once = async (
         await sleep(TAIL_MS);
       }
     }
+    if (reader !== undefined) end = await reader.read();
   } finally {
     await probe.stop();
+    await reader?.stop();
   }
   // the prober drains its ring each 20 ms. Its next clock line closes the records of the run
   const settled = await lab.settle();
@@ -726,6 +737,7 @@ const once = async (
     ...(lab.fabric === undefined || sessions === undefined
       ? {}
       : { fabric: { routes: lab.fabric.routes.slice(routesFrom), established: { before: sessions, after: await lab.fabric.sessions() } } }),
+    ...(reader === undefined || start === undefined || end === undefined ? {} : { resources: { start, end, series: [...reader.series] } }),
   };
 };
 

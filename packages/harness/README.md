@@ -246,6 +246,11 @@ console.log(used.cpu?.total, used.network?.tx.bytes, used.memory.peak, reader.se
   - Docker removes the cgroup of a client when its program ends. After that, a `read()` throws, and each reading of a series has null for the values of the cgroup.
   - The traffic of a client is the traffic of the namespace that the clients of the lab share.
 - **The parse is in TypeScript.** The reader writes the text of each file in one JSON line. `resourceReadingOf` reads that line with `cpuStatOf`, `memoryStatOf`, `cpuMaxOf`, `networkOf`, `cgroupNumber`, `cgroupLimit` and `cgroupKeyed`.
+- **The readings of a cell** (from 0.16.16). A cell can measure the cost of its target in each run, with `runCell`:
+  - `Cell.clientLimits` gives the limits of the client in each run, for example other CPUs than the target.
+  - `Cell.resources` starts a reader of the target in each run, with these options. The reader stops at the end of the run.
+  - Each run then keeps `Run.resources`. It has a reading when the client is ready and before it sends (`start`). It also has a reading after the run ended (`end`), and the series of the reader.
+  - `environmentProblems` names each problem of the limits of the target and of the client, before a lab opens.
 
 ## The subjects
 

@@ -197,7 +197,8 @@ describe("a cell's verdict", () => {
   });
 
   // only the fields these two functions read: the rest of a cell does not change them
-  const cellWith = (fields: Partial<Cell>): Cell => ({ name: "C1", environments: 2, ...fields }) as Cell;
+  const cellWith = (fields: Partial<Cell>): Cell =>
+    ({ name: "C1", environments: 2, target: { image: "redis", port: 6379, ready: "Ready" }, ...fields }) as Cell;
   const pair = { synchronous: true, writers: 1, interval: { value: 10, unit: "ms" }, cuts: "standby" } as const;
 
   it("gives a pair cell one environment for each run, because its run promotes the standby", () => {
@@ -215,5 +216,18 @@ describe("a cell's verdict", () => {
     expect(environmentProblems(cellWith({ hostSysctls: host }))).toEqual([]);
     expect(environmentProblems(cellWith({ hostSysctls: host, concurrency: 1 }))).toEqual([]);
     expect(environmentProblems(cellWith({ concurrency: 8 }))).toEqual([]);
+  });
+
+  it("refuses limits of the target or of the client that Docker does not take, before a lab opens", () => {
+    const target = { image: "redis", port: 6379, ready: "Ready" };
+    const limits = { cpus: 1, cpuset: "0", memory: { value: 512, unit: "MiB" } };
+    expect(environmentProblems(cellWith({ target: { ...target, limits }, clientLimits: { cpuset: "1-3" } }))).toEqual([]);
+    expect(environmentProblems(cellWith({ target: { ...target, limits: { cpus: 0 } }, clientLimits: { cpuset: "one" } }))).toEqual([
+      "C1: the target: cpus is 0: Docker takes 0.01 CPUs or more",
+      'C1: the client: cpuset is "one": write a list of CPUs, for example 0, 2-3 or 0,2',
+    ]);
+    expect(environmentProblems(cellWith({ clientLimits: { memory: { value: 1, unit: "MiB" } } }))).toEqual([
+      "C1: the client: memory is 1048576 B: Docker takes 6 MiB or more",
+    ]);
   });
 });
