@@ -208,6 +208,49 @@ A cell can put a qdisc at the root of the interface of its client, and judge the
 - **The law of a datagram** (`EgressPacketLaw`) is `sent` or `dropped`. A sent datagram has a time band after the first arrival of its burst. A drop is at the `limit` of the queue, or at the `size` of the burst of tbf. The judge (`measureEgress`) compares each datagram with its law.
 - **A void run.** A run is void when the client stops before its end or when the root qdisc is of another kind. A neighbour that is not permanent voids a run too. It is void too when a send fails with another error. A burst that spreads more than `spread`, or that starts more than `jitter` off its time, voids its run. The counts of the qdisc void a run when other traffic went through it. A step of the clock above 100 µs voids a run, and a read of less than the share `read` of the departures voids it too.
 
+## The resources of a container
+
+A lab reads the resources that a container used: its CPU time, its memory and the traffic of its devices. Each reading has its stamps on CLOCK_MONOTONIC, the clock of each line of a lab. Thus a load test puts the resources of its server next to the times of the `load` client.
+
+```ts
+import { quantity } from "@mark1russell7/quantity";
+import { constant } from "@mark1russell7/rigor-chaos";
+import { LOAD_PATH, loadPlanOf, openLab, resourceChange } from "@mark1russell7/harness";
+
+// the server has 1 CPU and 512 MiB on CPU 0. The client and the reader have the CPUs 2 and 3.
+const lab = await openLab({ ...target, limits: { cpus: 1, cpuset: "0", memory: quantity(512, "MiB") } }, "load");
+const reader = await lab.resources({ period: quantity(1, "s"), cpuset: "2-3" });
+const get = "GET / HTTP/1.1\r\nHost: target\r\n\r\n";
+const load = loadPlanOf([{ key: "get", plan: { profile: constant(200, 30_000), options: { arrivals: "uniform" } }, requests: [get] }]);
+const args = [lab.targetIp, String(lab.targetPort), "--plan", LOAD_PATH];
+const probe = await lab.probe(args, [{ content: load.content, target: LOAD_PATH }], undefined, { cpuset: "2-3" });
+await probe.until(["ready"], 15_000);
+const before = await reader.read();
+await probe.go();
+await probe.until(["done", "deadline", "fail"], 60_000);
+const used = resourceChange(before, await reader.read());
+console.log(used.cpu?.total, used.network?.tx.bytes, used.memory.peak, reader.series.length);
+```
+
+- **The limits of a container** (`ContainerLimits`). `Target.limits` gives the limits of the target of `openLab`. The fourth argument of `lab.probe` gives the limits of a client.
+  - `cpus` is the CPU quota, `cpuset` is the list of CPUs, and `memory` is the memory limit. The container gets no swap.
+  - `hostLimitsOf` gives the limits as Docker takes them: `NanoCpus`, `CpusetCpus`, `Memory` and `MemorySwap`. Limits with a problem (`limitsProblems`) stop the lab before the container starts.
+- **The reader** is `/opt/harness/resources` of the image `harness`, in a privileged sidecar (`resourceReader`). `lab.resources()` reads the target, and `probe.resources()` reads a client.
+  - The sidecar is in the network namespace of the container and in the cgroup namespace of the host. It is not in the cgroup of the container. Thus its own CPU time and memory are not in the readings.
+  - `ResourceOptions.cpuset` keeps the reader on the CPUs that it names, for example the CPUs of the client.
+- **A reading** (`ResourceReading`) has the counters of one moment, between its two stamps (`t0`, `t1`):
+  - `cpu.stat`: the CPU time (`usage`, `user`, `system`), the periods of the CPU limit, and the count and the time of its stops.
+  - `memory.current`, `memory.peak`, and `anon`, `file`, `kernel` and `sock` of `memory.stat`. The counts of `memory.events` include `oom_kill`: the tasks that the kernel stopped at the memory limit.
+  - `pids.current`, and the bytes and the packets of each device of `/proc/net/dev` without `lo`, with their sums.
+  - The limits as the kernel prints them: `cpu.max`, `memory.max` and `cpuset.cpus.effective`.
+- **The two uses of a reader.** `read()` gives one reading at a named moment, for example before and after a schedule. With `period`, the reader also writes a series (`series`), one reading each period, from its start to its stop.
+- **The change between two readings** (`resourceChange`) gives the CPU time (total, user and system) and the time that the CPU limit stopped the container. It also gives the bytes and the packets of each direction, the last memory and the peak.
+  - A counter that went down, as after a restart of the container, is in `resets`, and its part is null. The function does not give a negative amount.
+- **No read is not a zero.** A file that the reader cannot read gives null for its values. An example is `memory.peak` on a kernel before Linux 5.19.
+  - Docker removes the cgroup of a client when its program ends. After that, a `read()` throws, and each reading of a series has null for the values of the cgroup.
+  - The traffic of a client is the traffic of the namespace that the clients of the lab share.
+- **The parse is in TypeScript.** The reader writes the text of each file in one JSON line. `resourceReadingOf` reads that line with `cpuStatOf`, `memoryStatOf`, `cpuMaxOf`, `networkOf`, `cgroupNumber`, `cgroupLimit` and `cgroupKeyed`.
+
 ## The subjects
 
 A subject (`Subject`, `image.ts`) is the program under test, as data. The harness does not import the program. It starts the image of the program. Thus another repository can give its own subject, with its own release in it.
@@ -246,6 +289,7 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - `client`, the TCP client of a cell. Rust's `std::net` sets no socket option by itself, thus the measurement gets the timers of the namespace. The client also samples `TCP_INFO` each 2 ms, a second vantage on its socket. It waits in `poll()`, which does not lock the socket. A keepalive timer that finds its socket held tries again HZ/20 later.
   - In a stream, a reply of the `client` is whole at its CRLF, or after the length of a bulk string. The client then writes a `replied` line.
   - `load`, the open-loop driver of an HTTP/1.1 server (SYS-93). Its plan (`systems-load/1`) is a list of streams, each with a key, a schedule (`rigor-schedule/1`) and its requests. Each stream has its own connection, thus a slow reply delays only its own stream. A send does not wait for a reply. A response is whole after its `Content-Length` or its last chunk. The `sent` and `replied` lines name the stream (`k`) and the arrival (`i`), and a `replied` line names the status.
+  - `resources`, the reader of the resources of a container. `read` prints one JSON line with the text of each file of a cgroup and of `/proc/net/dev`, between two monotonic stamps. `watch` prints one line each period. Each line of a series has its place on the clock from the start of the series. Thus a slow reading does not move the later ones.
   - `inject`, which applies a fault in one `iptables-restore` commit, with monotonic stamps around the commit. Thus the start of a fault is known in the VM. A `docker exec` from Windows comes 190 ms late at the median. With `--via DEV`, the rules go in the FORWARD chain, on the device toward one side. `--protocol` and `--handshake pass` change the match of a rule, and `inject silence` drops each packet of its namespace.
   - `inject` also sends a signal to a process by its name (`signal`), and one command to a server of the Redis protocol (`resp`). Stamps bracket each.
 - **The Node client image** (`image/node`) is a driver client: ioredis 6.0.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-ioredis.mjs` prints the lines of the TCP client on the same clock, and it adds the status changes of ioredis as `status` lines. The same image holds the client of a group in Sentinel mode (`client-sentinel.mjs`) and the observer of its Sentinels (`observer.mjs`).
@@ -583,5 +627,16 @@ The cells themselves need Docker and privileged containers. CI does not start th
 In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once. The subject of that test is the procedures subject of a checkout of the client repository (`HARNESS_PROCEDURES`). Without the checkout, that test waits.
 
 The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member. They move the leadership of a quorum queue of a cluster of three nodes of RabbitMQ 4.3.6.
+
+The tests of `resources.ts` read recorded texts of the files of a cgroup and of `/proc/net/dev`. They test the change between two readings, a counter that went down, a file with no read, and the limits of a container.
+
+`HARNESS_RESOURCES=1` starts the proof of the readings on real containers, in the workflow `resources.yml`. A Node server has a quota of 0.5 CPUs on CPU 0 and a memory limit of 256 MiB. The client `load` and the readers have another CPU.
+
+- The server burns 2 s of CPU time by its own count. The CPU time of the readings is from 3 % less to 25 % more than that count. With the quota of 0.5 CPUs, the burn takes 3.8 s or more, and the limit stops the server in 20 periods or more.
+- The server holds 64 MiB, and the anonymous memory of the readings rises by that amount, from 10 % less to 100 % more.
+- The server sends 24 bodies of 1 MiB, and its devices sent those bytes, with 8 % more at most.
+- The series has a reading each second, within 25 %, and the server used 0.5 CPUs between two readings of the burn, within 0.1 CPUs.
+- The readings of the client are the control. Its CPU time is less than half of the burn, and its namespace sent less than 10 % of the bytes. Thus a reader of the wrong container fails the test.
+- After the end of the client, a reading of its series has null for each value of its cgroup, and a `read()` throws.
 
 `pnpm --filter @mark1russell7/harness build` writes the package for npm into `build/`.
