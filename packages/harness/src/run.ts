@@ -10,7 +10,7 @@ import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
-import { LOAD_PATH, SCHEDULE_PATH, loadPlanOf } from "./load.ts";
+import { LOAD_PATH, SCHEDULE_PATH, loadEnds, loadPlanOf } from "./load.ts";
 import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
@@ -665,9 +665,9 @@ const once = async (
           const moved = laterMove(fabricOf().routes.slice(routesFrom), fault?.t0 ?? 0);
           heal = moved === null ? null : { t0: moved, t1: moved };
         } else if (prediction.detects === null) {
-          // a distribution: the stream ends by itself, or the connection does
+          // a distribution: the client ends by itself, or its one connection does when it has no streams
           const window = valueIn(prediction.window, "s") * 1_000;
-          await probe.until(["done", "error", "eof", "deadline"], window).catch(() => undefined);
+          await probe.until(loadEnds(cell.probe.streams), window).catch(() => undefined);
         } else if (prediction.detects) {
           // a band whose reference can come late ends later: the run waits for its latest end
           const within = latestEndOf(prediction) * 2_000 + 10_000;

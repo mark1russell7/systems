@@ -2,8 +2,19 @@ import { quantity } from "@mark1russell7/quantity";
 import { constant, measureLoad, schedule } from "@mark1russell7/rigor-chaos";
 import type { Completion, LoadMeasure, Schedule } from "@mark1russell7/rigor-chaos";
 import { describe, expect, it } from "vitest";
-import type { LoadPrediction, ProbeEvent } from "./cell.ts";
-import { LOAD_FORMAT, estimateOf, estimateVerdict, loadOf, loadPlanOf, loadVerdict, streamsLoadOf } from "./load.ts";
+import type { LoadConnections, LoadPrediction, ProbeEvent } from "./cell.ts";
+import {
+  LOAD_FORMAT,
+  LOAD_POOL_LIMIT,
+  connectionsProblems,
+  estimateOf,
+  estimateVerdict,
+  loadEnds,
+  loadOf,
+  loadPlanOf,
+  loadVerdict,
+  streamsLoadOf,
+} from "./load.ts";
 
 /** This schedule is 100 arrivals each second for 5 s: 500 arrivals, 10 ms apart. */
 const PLAN: Schedule = schedule(constant(100, 5_000), { arrivals: "uniform" });
@@ -90,6 +101,54 @@ describe("the plan of the client load", () => {
     expect(() => loadPlanOf([{ key: "a", plan, requests: [request] }, { key: "a", plan, requests: [request] }])).toThrow(/two streams have the key a/);
     expect(() => loadPlanOf([{ key: "a", plan, requests: [] }])).toThrow(/the stream a has no request/);
   });
+
+  it("writes the connections of a stream that has them, and no field for a stream with none", () => {
+    const { content } = loadPlanOf([
+      { key: "a", plan, requests: [request] },
+      { key: "b", plan, requests: [request], connections: { mode: "pool", size: 8 } },
+      { key: "c", plan, requests: [request], connections: { mode: "fresh" } },
+      { key: "d", plan, requests: [request], connections: { mode: "pipeline" } },
+    ]);
+    const written = JSON.parse(content) as { streams: Array<Record<string, unknown>> };
+    expect(written.streams.map((stream) => stream["connections"])).toEqual([undefined, { mode: "pool", size: 8 }, { mode: "fresh" }, { mode: "pipeline" }]);
+    // a plan with no connections stays the text that an older driver reads
+    expect("connections" in written.streams[0]!).toBe(false);
+  });
+
+  it("throws for a bad value of the connections, before a lab opens", () => {
+    expect(() => loadPlanOf([{ key: "a", plan, requests: [request], connections: { mode: "pool", size: 0 } }])).toThrow(
+      "the stream a: the pool has the size 0: a whole number from 1 to 1024",
+    );
+  });
+});
+
+describe("the connections of a load stream", () => {
+  it("takes a pipeline, a fresh stream and a pool of 1 to 1024 connections", () => {
+    expect(connectionsProblems({ mode: "pipeline" })).toEqual([]);
+    expect(connectionsProblems({ mode: "fresh" })).toEqual([]);
+    expect(connectionsProblems({ mode: "pool", size: 1 })).toEqual([]);
+    expect(connectionsProblems({ mode: "pool", size: LOAD_POOL_LIMIT })).toEqual([]);
+  });
+
+  it("refuses a pool size that is not a whole number from 1 to 1024, and an unknown mode", () => {
+    for (const size of [0, -1, 1.5, LOAD_POOL_LIMIT + 1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(connectionsProblems({ mode: "pool", size }), String(size)).toEqual([`the pool has the size ${size}: a whole number from 1 to 1024`]);
+    }
+    // a plan from JSON can hold any value: the check reads it as data
+    expect(connectionsProblems({ mode: "pool", size: "8" } as unknown as LoadConnections)).toHaveLength(1);
+    expect(connectionsProblems({ mode: "keep" } as unknown as LoadConnections)).toEqual(["the connections have the mode keep: the mode is pipeline, pool or fresh"]);
+  });
+
+  it("ends the run of streams only at done, deadline or fail, because the end of one connection does not end the other streams", () => {
+    const plan = { profile: constant(100, 5_000), options: { arrivals: "uniform" as const } };
+    const stream = (connections?: LoadConnections) => ({ key: "a", plan, requests: ["GET / HTTP/1.1\r\n\r\n"], ...(connections === undefined ? {} : { connections }) });
+    const streams = ["done", "deadline", "fail"];
+    expect(loadEnds(undefined)).toEqual(["done", "error", "eof", "deadline"]);
+    // two pipelines: an eof of one leaves the other in its schedule
+    expect(loadEnds([stream(), stream({ mode: "pipeline" })])).toEqual(streams);
+    expect(loadEnds([stream(), stream({ mode: "pool", size: 4 })])).toEqual(streams);
+    expect(loadEnds([stream({ mode: "fresh" })])).toEqual(streams);
+  });
 });
 
 describe("the measure of the streams of the client load", () => {
@@ -144,6 +203,39 @@ describe("the measure of the streams of the client load", () => {
     // a reply with a failed status is a completion: its time stays in the latency
     expect(read?.streams["b"]).toMatchObject({ failed: 2, unfinished: 0, latency: [3, 2] });
     expect(read?.pool.failed).toBe(2);
+  });
+
+  it("reads the replies of a pool out of order, and takes the wait for a connection out of the lag only", () => {
+    const second = PLAN.times[1]!;
+    const third = PLAN.times[2]!;
+    const read = streamsLoadOf(
+      [
+        line("scheduled", 0, { streams: 1, arrivals: 500 }),
+        line("sent", first, { k: "a", i: 0, wait: 0 }),
+        line("sent", second, { k: "a", i: 1, wait: 0 }),
+        // the fast arrival 1 passes the slow arrival 0
+        line("replied", second + 3, { k: "a", i: 1, status: 200 }),
+        line("replied", first + 100, { k: "a", i: 0, status: 200 }),
+        // the arrival 2 waited 88 ms for the connection of the arrival 1 (a pool of 2), and went 1 ms after it was idle
+        line("sent", third + 89, { k: "a", i: 2, wait: 88_000_000 }),
+        line("replied", third + 95, { k: "a", i: 2, status: 200 }),
+      ],
+      [{ key: "a", schedule: PLAN }],
+    );
+    const a = read?.streams["a"];
+    expect(a).toMatchObject({ planned: 500, unsent: 497, unfinished: 0 });
+    // the latency counts from the planned time, the service from the send
+    expect(a?.latency).toEqual([100, 3, 95]);
+    expect(a?.service).toEqual([100, 3, 6]);
+    expect(a?.lag).toEqual([0, 0, 1]);
+  });
+
+  it("keeps the lag of a pipeline as the send behind the plan: a pipeline gives no wait", () => {
+    const read = streamsLoadOf(
+      [line("scheduled", 0), line("sent", first + 70, { k: "a", i: 0 }), line("replied", first + 75, { k: "a", i: 0, status: 200 })],
+      [{ key: "a", schedule: PLAN }],
+    );
+    expect(read?.streams["a"]?.lag).toEqual([70]);
   });
 });
 

@@ -122,6 +122,7 @@ LINGER_MS: build/index.d.ts#LINGER_MS
 LISTING: build/index.d.ts#LISTING
 LOAD_FORMAT: build/index.d.ts#LOAD_FORMAT
 LOAD_PATH: build/index.d.ts#LOAD_PATH
+LOAD_POOL_LIMIT: build/index.d.ts#LOAD_POOL_LIMIT
 LOCK_NAMES: build/index.d.ts#LOCK_NAMES
 LOSS_MARGIN: build/index.d.ts#LOSS_MARGIN
 type Lab: build/index.d.ts#Lab
@@ -133,6 +134,7 @@ type Limit: build/layers.d.ts#Limit
 type LineCount: build/cell.chunk.d.ts#LineCount
 type LineMatch: build/cell.chunk.d.ts#LineMatch
 type LoadBand: build/cell.chunk.d.ts#LoadBand
+type LoadConnections: build/cell.chunk.d.ts#LoadConnections
 type LoadJudgement: build/index.d.ts#LoadJudgement
 type LoadPlan: build/cell.chunk.d.ts#LoadPlan
 type LoadPrediction: build/cell.chunk.d.ts#LoadPrediction
@@ -301,6 +303,7 @@ clusterViewOf: build/index.d.ts#clusterViewOf
 commitProblems: build/index.d.ts#commitProblems
 commitVoid: build/index.d.ts#commitVoid
 comparable: build/index.d.ts#comparable
+connectionsProblems: build/index.d.ts#connectionsProblems
 controllerEnv: build/index.d.ts#controllerEnv
 cpuMaxOf: build/cell.chunk.d.ts#cpuMaxOf
 cpuStatOf: build/cell.chunk.d.ts#cpuStatOf
@@ -966,6 +969,16 @@ interface LoadBand {
   readonly high: Quantity;
 }
 
+### build/cell.chunk.d.ts#LoadConnections
+type LoadConnections = {
+  readonly mode: "pipeline";
+} | {
+  readonly mode: "pool";
+  readonly size: number;
+} | {
+  readonly mode: "fresh";
+};
+
 ### build/cell.chunk.d.ts#LoadPlan
 interface LoadPlan {
   readonly profile: Profile;
@@ -984,6 +997,7 @@ interface LoadStream {
   readonly key: string;
   readonly plan: LoadPlan;
   readonly requests: readonly string[];
+  readonly connections?: LoadConnections;
 }
 
 ### build/cell.chunk.d.ts#MemoryLimits
@@ -2246,6 +2260,9 @@ export declare const LOAD_FORMAT = "systems-load/1";
 ### build/index.d.ts#LOAD_PATH
 export declare const LOAD_PATH = "/tmp/load.json";
 
+### build/index.d.ts#LOAD_POOL_LIMIT
+export declare const LOAD_POOL_LIMIT = 1024;
+
 ### build/index.d.ts#LOCK_NAMES
 export declare const LOCK_NAMES: ReadonlySet<string>;
 
@@ -3070,6 +3087,9 @@ export declare const commitVoid: (commit: Quantity, times: readonly TimeFromFaul
 
 ### build/index.d.ts#comparable
 export declare const comparable: (a: Substrate, b: Substrate) => boolean;
+
+### build/index.d.ts#connectionsProblems
+export declare const connectionsProblems: (connections: LoadConnections) => string[];
 
 ### build/index.d.ts#controllerEnv
 export declare const controllerEnv: (kafka: Kafka) => Record<string, string>;
