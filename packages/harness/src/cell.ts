@@ -2,6 +2,7 @@ import type { KernelRecord } from "@mark1russell7/prober";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Profile, Schedule, ScheduleOptions } from "@mark1russell7/rigor-chaos";
+import { connectionsProblems } from "./load.ts";
 import type { ResourceOptions, ResourceReading } from "./resources.ts";
 import { limitsProblems } from "./resources.ts";
 
@@ -1200,9 +1201,24 @@ export interface LoadPlan {
 }
 
 /**
- * A load stream is one connection of the client `load`: its key, its schedule and its requests.
- * Arrival i sends request i modulo the count of requests. Each stream has its own connection, thus
- * a slow stream does not delay the arrivals of another stream.
+ * Load connections tell how the client `load` sends the arrivals of one stream to the server.
+ * - `pipeline` is the default. The stream has one connection, and each arrival goes at its time,
+ *   also when the replies before it are not in. The server can read the requests of a connection
+ *   one at a time, and one read can hold several requests.
+ * - `pool` keeps `size` connections, each with one request in flight at most. A due arrival with no
+ *   idle connection waits for one. That wait is not a lag of the client.
+ * - `fresh` opens a new connection for each arrival at its time, and closes it after the reply.
+ *   The time of the connect is not a lag of the client.
+ */
+export type LoadConnections =
+  | { readonly mode: "pipeline" }
+  | { readonly mode: "pool"; readonly size: number }
+  | { readonly mode: "fresh" };
+
+/**
+ * A load stream is one stream of arrivals of the client `load`: its key, its schedule and its
+ * requests. Arrival i sends request i modulo the count of requests. Each stream has its own
+ * connections, thus a slow stream does not delay the arrivals of another stream.
  */
 export interface LoadStream {
   /** This text names the stream in each line of the client (`k`). Two streams of a cell do not have the same key. */
@@ -1210,6 +1226,8 @@ export interface LoadStream {
   readonly plan: LoadPlan;
   /** These texts are whole HTTP/1.1 requests, each with its head and its body. */
   readonly requests: readonly string[];
+  /** These connections carry the arrivals of the stream. With no value, the stream is a pipeline on one connection. */
+  readonly connections?: LoadConnections;
 }
 
 /** A run stream is the schedule that one stream of the client `load` had in a run. */
@@ -1747,6 +1765,7 @@ export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
  * environments of the cell can operate. A value of the host is the same for each environment of the
  * host. Thus a cell with sysctls of the host operates one environment at a time. Otherwise, a lab
  * reads the value of a different lab as its value before, and the restore does not give back the host.
+ * A bad value of the connections of a load stream is also a problem, before a lab opens.
  */
 export const environmentProblems = (cell: Cell): string[] => [
   ...((cell.hostSysctls?.length ?? 0) > 0 && (cell.concurrency ?? 1) > 1
@@ -1754,6 +1773,9 @@ export const environmentProblems = (cell: Cell): string[] => [
     : []),
   ...(cell.target.limits === undefined ? [] : limitsProblems(cell.target.limits).map((problem) => `${cell.name}: the target: ${problem}`)),
   ...(cell.clientLimits === undefined ? [] : limitsProblems(cell.clientLimits).map((problem) => `${cell.name}: the client: ${problem}`)),
+  ...(cell.probe.streams ?? []).flatMap((stream) =>
+    stream.connections === undefined ? [] : connectionsProblems(stream.connections).map((problem) => `${cell.name}: the stream ${stream.key}: ${problem}`),
+  ),
 ];
 
 /**
