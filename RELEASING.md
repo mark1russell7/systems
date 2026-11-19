@@ -27,11 +27,11 @@ The owner (Mark) and one Claude session that the owner names are responsible for
 
 - Do not start `npm publish`, `pnpm publish`, `npm login`, `npm trust` or `npm access`.
 - Do not change the npm settings of a package.
-- Do not edit `release.yml` or the files in `scripts/release/`.
+- Do not edit `release.yml`. This repository has no release scripts: they are in `scripts/release/` of the template.
 - When a package that is not on npm blocks your work, use `workspace:*` in this repository. Use a `github:` specifier pinned to a commit for a package in a different repository.
 - Tell the owner the name, the version and the SemVer reason of each package that you want on npm.
 
-`scripts/release/pack.mjs` stops the release when a published package has a `github:`, `file:` or `link:` dependency. Change each one to an npm range before the release.
+The script `scripts/release/pack.ts` of the template stops the release when a published package has a `github:`, `file:` or `link:` dependency. Change each one to an npm range before the release.
 
 ## A release of a package that is on npm
 
@@ -44,7 +44,7 @@ The owner (Mark) and one Claude session that the owner names are responsible for
 
 A push to `main` that changes a `packages/*/package.json` starts `release.yml`. The workflow starts the CI gates, builds and packs each published package, and publishes each version that is not on npm. A version with a hyphen, for example `1.2.0-rc.1`, gets the dist-tag `next`. The other versions get `latest`.
 
-`scripts/release/pack.mjs` stops the release when a version is not SemVer. It also stops when a version is not greater than the `latest` version on npm. The registry does not accept a version two times, also after a removal. Thus a bad release gets a new PATCH, and `npm deprecate` marks the bad version.
+The script `scripts/release/pack.ts` of the template stops the release when a version is not SemVer. It also stops when a version is not greater than the `latest` version on npm. The registry does not accept a version two times, also after a removal. Thus a bad release gets a new PATCH, and `npm deprecate` marks the bad version.
 
 To publish again after a failure, start the workflow by hand: `gh workflow run release.yml --ref main`. It skips each version that is on npm.
 
@@ -69,11 +69,11 @@ A change to a workflow file between the merge of a version and its job `tag` sto
 
 ## A new package
 
-npm trusts a workflow only for a package that exists. A new trust expires when no publish uses it in 2 days. Thus the owner bootstraps each new package one time, on the day of its first release:
+npm trusts a workflow only for a package that exists. A new trust expires when no publish uses it in 2 days. Thus the owner bootstraps each new package one time, on the day of its first release. The script is `scripts/release/npm-bootstrap.ts` of the template. Start it in a checkout of the template, with the folder of this repository as its argument:
 
 ```sh
-node scripts/release/npm-bootstrap.mjs --dry-run
-node scripts/release/npm-bootstrap.mjs --dispatch
+node scripts/release/npm-bootstrap.ts <folder of this repository> --dry-run
+node scripts/release/npm-bootstrap.ts <folder of this repository> --dispatch
 ```
 
 The script reads the packages of `origin/main`. For each new package, it publishes a placeholder version `0.0.0-bootstrap.0` with the dist-tag `bootstrap`. Then it connects the package to `release.yml` (`npm trust github`) and sets "Require two-factor authentication and disallow tokens" (`npm access set mfa=publish`). With `--dispatch`, it starts `release.yml` on `main`, which publishes the real version.
@@ -105,9 +105,11 @@ The owner can also publish the first version of a new package by hand. Then the 
 
 ## The state of the packages
 
+The script is `scripts/release/npm-audit.ts` of the template. Start it in a checkout of the template:
+
 ```sh
-node scripts/release/npm-audit.mjs            # the packages of this repository
-node scripts/release/npm-audit.mjs --all      # each package of the npm user
+node scripts/release/npm-audit.ts <folder of this repository>   # the packages of this repository
+node scripts/release/npm-audit.ts --all                         # each package of the npm user
 ```
 
 The audit uses only public data. It shows the latest version of each package, if a trusted publisher published it, and if `main` has a version that is not on npm.
