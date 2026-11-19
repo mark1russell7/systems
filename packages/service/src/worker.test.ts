@@ -92,6 +92,32 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
     await loop.close();
   });
 
+  it("starts no iteration before the end of the startup, also when the startup takes time on the clock", async () => {
+    const clock = fakeClock();
+    const starts: number[] = [];
+    let ended = (): void => {};
+    const life: Lifecycle = {
+      ...detachedLifecycle(clock),
+      started: new Promise<void>((resolve) => {
+        ended = resolve;
+      }),
+    };
+    const loop = workerLoop(KNOBS, {
+      clock,
+      iteration: () => {
+        starts.push(clock.now());
+        return Promise.resolve();
+      },
+    });
+    await loop.start(signal(), life);
+    await clock.advance(5000);
+    expect(starts).toEqual([]);
+    ended();
+    await clock.advance(0);
+    expect(starts).toEqual([5000]);
+    await loop.close();
+  });
+
   it("starts the next iteration at once after an iteration that gives \"more\"", async () => {
     const clock = fakeClock();
     let calls = 0;
@@ -242,6 +268,41 @@ describe("workerLoop: the iterations on the clock (S6 A10)", () => {
     await clock.advance(0);
     expect(drained).toBe(true);
     expect(loop.inFlight()).toBe(0);
+    expect(errors).toEqual([]);
+    await loop.close();
+  });
+
+  it("stops each lane at a cut, also with the intake open: a cut comes only from the shutdown", async () => {
+    const clock = fakeClock();
+    const errors: unknown[] = [];
+    const starts: string[] = [];
+    const loop = workerLoop(
+      { ...KNOBS, worker_sleep: NONE, concurrency: count(2) },
+      {
+        clock,
+        onError: (error) => void errors.push(error),
+        iteration: async ({ signal: given, lane }) => {
+          starts.push(`lane ${lane} at ${clock.now()}`);
+          if (lane === 1) return;
+          await aborted(given);
+          throw new Error("the iteration stopped at its abort");
+        },
+      },
+    );
+    await loop.start(signal(), detachedLifecycle(clock));
+    await clock.advance(0);
+    expect(starts).toEqual(["lane 0 at 0", "lane 1 at 0"]);
+    // a drain with the intake open: the cooperative abort cuts the iteration of lane 0
+    const cooperative = new AbortController();
+    cooperative.abort(new Error("the cooperative abort"));
+    await loop.drain(clock.now() + 5000, cooperative.signal);
+    await clock.advance(0);
+    expect(loop.inFlight()).toBe(0);
+    // the wake comes before the stop of the intake, but no lane starts an iteration after the cut
+    expect(loop.wake()).toBe(true);
+    await clock.advance(20_000);
+    expect(starts).toEqual(["lane 0 at 0", "lane 1 at 0"]);
+    expect(clock.pending).toBe(0);
     expect(errors).toEqual([]);
     await loop.close();
   });

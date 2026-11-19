@@ -169,11 +169,11 @@ The requirements that the lifecycle follows are in [the requirements of S6](http
 
 `workerLoop(knobs, options)` makes a worker from a loop, and `queueDrain(knobs, options)` makes a consumer from a queue. Each one is a `TransportImpl`, with no defaults. Give `loop.knobs` to `svc.worker(name, knobs, impl)`, and `drain.knobs` to `svc.consumer(…)`. Thus the declaration and the law read the same knobs.
 
-- **The worker loop (S6 A10).** A worker has a setup, an iteration and a teardown. The start does the setup, and each iteration gets its state. Each lane does its iterations one at a time, thus two iterations of a lane do not overlap. `concurrency` is the number of lanes.
+- **The worker loop (S6 A10).** A worker has a setup, an iteration and a teardown. The start does the setup, and each iteration gets its state. Each lane does its iterations one at a time, thus two iterations of a lane do not overlap. `concurrency` is the number of lanes. The lanes are the lanes of a loop of [the loop core](#the-loop), with `workerSchedule(knobs)`.
 - **The sleep.** `worker_sleep` is the time from the end of one iteration to the start of the next. An iteration that gives `"more"` starts the next one after a zero sleep. A sleep without a bound waits for `wake()`.
 - **The first iteration.** The first iteration of each lane comes after the startup ends, because the service refuses a request before that end.
 - **The failures.** A throw is a failure, and the lane then waits its backoff. The first delay is `retry_base`, and each delay is two times longer, up to `retry_cap`, with a jitter up to the base. A success ends the sequence. `onError` gets each failure, and the loop does not end the process (A5).
-- **`wake()`.** It ends each sleep at once, also a sleep that comes after the iteration in flight. It does not end a backoff. After the stop of the intake, it gives false.
+- **`wake()`.** It ends each sleep at once, also a sleep that comes after the iteration in flight. Then the next iteration starts at the end of that iteration, with no timer. It does not end a backoff. After the stop of the intake, it gives false.
 - **The queue drain (S6 A11).** One taker takes a job from the source while a slot is free. `concurrency` is the number of slots, and a count without a bound takes each job that comes. The source is a function that takes the next job, or an async iterable.
 - **An empty source.** A take with no job waits `queue_poll_interval`, or until `wake()`. A failed take waits the backoff.
 - **The end of a source.** The end of an async iterable stops the takes. While the intake is open, `onError` gets that end, because the drain then takes no more jobs. An async generator that throws gives its throw and then its end.
@@ -187,6 +187,7 @@ The requirements that the lifecycle follows are in [the requirements of S6](http
 - **The work scope.** It aborts at the cooperative abort and at the close, and then it closes. `onError` gets each error of the close of a scope.
 - **The stop of the intake.** No new iteration starts, and the drain takes no new job. Each sleep and each backoff ends. The drain ends an async iterable through `return()`. A take that gives a job after the stop gives it back (`settle.requeue(job, "unstarted")`).
 - **The drain.** `drain(deadline, signal)` waits for each unit in flight until the deadline, and gives each one the cooperative abort. A throw after that abort is a cut, not a failure.
+- **A cut iteration.** A cut stops the worker loop: no lane starts an iteration after it. Each cut comes from the shutdown, and the lifecycle stops the intake before the shutdown.
 - **A cut job.** A cut job goes back (`"cut"`) only when its route can go again (A12). Each other cut job gets `settle.reject`.
 - **The close.** `close` aborts each unit, waits for its end, and then does the teardown or `options.close`, all in `close_bound`. The teardown occurs each time that the setup started, also after a failed setup. The close rejects a job that does not end in the bound.
 - **The request tracking.** With `request: { controller, route }`, each unit goes through `life.request`. The service then admits, counts, drains and cuts each unit as it does each request. A route function and `detail` can give each job a route of a pattern. The request is a `call` child of the scope of its unit, and the handler gets it in `scope.children()`.
@@ -422,10 +423,11 @@ const response = await retry(
 - **Where to use `reset()`.** Use `reset()` at a proof, for example the first useful message of a stream. Do not use it when a connection opens. Else a server that refuses each connection after the handshake gets a new connection with no backoff.
 - **A round.** A round gets its scope, its signal, its lane, its number, its planned start and the count of failures in sequence. It gives `"more"` for the next round at once, or nothing for a pass. A throw or a rejection is a failure.
 - **The records.** `record` gets one record for each start, end, skip and wait of the budget. `onTransition` gets each transition of each lane, with the instance `<name>#<lane>`. `replay` of `@mark1russell7/algebra/replay` checks them against `LOOP_MACHINE`.
+- **`wake()`.** It starts a round at once on each lane that waits for its period. A lane from `end` with a round in flight starts its next round at once after that round, in its settle, with no timer. A wake does not end a backoff.
 - **The stop.** `stop()` aborts and closes the scope of each round in flight. No round starts after it, and no timer of the schedule stays. A second stop gives the same promise.
 - **The scope.** The scope of a loop is a `process`, `service` or `phase` scope. An abort of it stops the loop. Without a scope, the loop makes a root scope of the kind `service` and closes it at the stop.
 - **The metrics.** `loopMetrics()` from `@mark1russell7/service/otel` gives a `record` and an `onTransition` for the options of `loop()`. They count the records as instruments of OpenTelemetry, with the names and units of the table below. Each metric has `loop.name` and `loop.lane`, and each failure has `error.type`: `timeout`, `blocked`, `unproved`, the class of the error, or `_OTHER`. `LOOP_BOUNDS` gives the bounds of the buckets in seconds.
-- **The loops on the core.** The heartbeat, the watchdog, the poller of the checks and the ticker of a channel are loops of this core, from `start`. Their ticks keep the grid. After a block of the event loop, the late tick comes at once, and the next tick comes at its planned time.
+- **The loops on the core.** The heartbeat, the watchdog, the poller of the checks and the ticker of a channel are loops of this core, from `start`. Their ticks keep the grid. After a block of the event loop, the late tick comes at once, and the next tick comes at its planned time. The worker loop is a loop of this core from `end`, with `workerSchedule(knobs)`.
 
 | Metric | Kind | Unit | Value |
 | --- | --- | --- | --- |
@@ -461,6 +463,41 @@ life.signal.addEventListener("abort", () => feed.stop().catch(() => undefined));
 import { loopMetrics } from "@mark1russell7/service/otel";
 const meters = loopMetrics();
 const counted = loop(schedule, round, { name: "feed", ...meters });
+```
+
+### Move a loop to the core
+
+A loop of a timer in a package of the preset `service` moves to `loop()`. Each case below gives the old form and its schedule. The stop of the loop replaces `clearInterval`, `clearTimeout` and the check of a flag.
+
+| Old form | Schedule |
+| --- | --- |
+| `setInterval(work, ms)` | from `start`, `period` and `first` equal to `ms` |
+| a `setTimeout` that starts its own function again after an `await` | from `end`, `period` equal to the delay |
+| a `for` or `while` loop that awaits a timer after each step | from `end`, `period` equal to the delay, and `backoff` for the wait after a failure |
+
+```ts
+import { doublingBackoff } from "@mark1russell7/service/backoff";
+import type { Schedule } from "@mark1russell7/service/loop";
+import { loop } from "@mark1russell7/service/loop";
+
+// old: const id = setInterval(() => void refresh(), 30_000); ... clearInterval(id);
+const grid: Schedule = {
+  from: "start", period: { value: 30, unit: "s" }, jitter: 0, first: { value: 30, unit: "s" },
+  timeout: { value: 10, unit: "s" }, backoff: null, overlap: "skip", lanes: 1, budget: null, hold: true, stable: null,
+};
+const refresher = loop(grid, ({ signal }) => refresh(signal), { name: "refresh" });
+
+// old: const tick = async () => { await sweep(); timer = setTimeout(tick, 5000); };
+// old: while (!stopped) { try { await sweep(); } catch { await sleep(backoff(k++)); continue; } await sleep(5000); }
+const afterEach: Schedule = {
+  from: "end", period: { value: 5, unit: "s" }, jitter: 0, first: { value: 0, unit: "s" },
+  timeout: { value: 1, unit: "min" }, backoff: doublingBackoff(1000, 60_000), overlap: "skip", lanes: 1, budget: null, hold: true, stable: null,
+};
+const sweeper = loop(afterEach, ({ signal }) => sweep(signal), { name: "sweep" });
+
+refresher.start();
+sweeper.start();
+await Promise.all([refresher.stop(), sweeper.stop()]); // at the drain: no round starts, and no timer stays
 ```
 
 ## The channels
@@ -1158,7 +1195,7 @@ for await (const event of stream) {
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
 - **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`. The host reaches only `quantity` and five `node:` modules, and it loads none of its fakes.
 - **The loop core (SYS-138).** Model tests on fast-check hold laws 1 to 7 and 10 of the loop on random schedules, with a seeded clock and scripted rounds. The laws are the spacing, one round for each lane, the bound, the reset, the stop, the budget, the replay on `LOOP_MACHINE` and the hold. Law 11 holds the metrics of `/otel`: each counter and histogram agrees with the records, and `loop.inflight` agrees with `inFlight()` until the stop. A mutation check plants faults in the core and in the metrics, and the laws catch each one.
-- **The loops on the core (SYS-138).** Law 8 compared the heartbeat, the watchdog, the ticker and the poller on the core with their old code. The old code and law 8 went in one pull request for each loop. Three tests hold the grid of the heartbeat, the watchdog and the poller after a block. Law 9 holds the spans on the schedule of a loop. A latch trips and recovers inside them for each seed, and a second test reaches each end of each span.
+- **The loops on the core (SYS-138).** Law 8 compared the heartbeat, the watchdog, the ticker, the poller and the worker loop on the core with their old code. The old code and law 8 went in one pull request for each loop. Three tests hold the grid of the heartbeat, the watchdog and the poller after a block. Law 9 holds the spans on the schedule of a loop. A latch trips and recovers inside them for each seed, and a second test reaches each end of each span.
 - **The scopes (SYS-134).** A model test on fast-check builds random trees of scopes, with aborts and steps of a test clock. It holds laws 1, 2, 4 and 5 against a plain model. It checks the reach and the reason of each abort, each deadline, the trace, the identity, and the count of the children and the timers.
 - **The resources and the keys of a scope.** A property test holds the close order and each error of each close (law 3). Another one holds the meet of each key (law 6). One more test holds the deadline across a hop, for each skew of the two clocks. After 100,000 requests, the service scope keeps no child, no timer and no listener.
 - **The active scope (law 7).** Inside `runScope`, `currentScope()` gives the scope, also after `await`. The active context has the span and the baggage of the trace of the scope. A property test holds this over random trees of scopes and random nests of `runScope`, with a span that starts in each step.
