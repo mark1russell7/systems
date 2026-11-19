@@ -127,14 +127,15 @@ export const ALL: readonly Cell[] = catalogs();
 
 /**
  * These are the selections of the scheduled runs of the workflow Cells, by name. The read of the
- * records takes a name and not a regular expression. The name `night` selects the nightly run. The
- * name `drills` selects the Sunday run. The names `refresh-0` to `refresh-3` select the rounds of the
- * refresh of the studies, each Wednesday (refresh.ts).
+ * records takes a name and not a regular expression. The name `night` selects the cells of each
+ * night: the WS cells and the rungs of the ladder (SYS-93). The nightly records of the rungs give the runs that
+ * set the budgets of their latency. The name `drills` selects the Sunday run. The names `refresh-0`
+ * to `refresh-3` select the rounds of the refresh of the studies, each Wednesday (refresh.ts).
  *
  * The Sunday run does not hold the drill of 8 GB (SYS-97) yet. First, a run of `^RD[.]` on one
  * shard measures the time of the job with it. The job has a limit of 340 minutes.
  */
-export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.](?!8000[.])/, ...REFRESH_CELLS };
+export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^(WS|LADDER[.])/, drills: /^RD[.](?!8000[.])/, ...REFRESH_CELLS };
 
 /**
  * This function gives the selection of a run: a scheduled selection by its name, or the regular
