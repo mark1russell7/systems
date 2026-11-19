@@ -139,10 +139,19 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
 describe("the timer entries: a client in a browser can import them", () => {
   it("load only the clock of the algebra, which loads nothing: no node: module, no zod, no quantity", () => {
     expect(reach("clock.ts")).toEqual({ files: ["clock.ts"], packages: ["@mark1russell7/algebra/clock"] });
-    expect(reach("heartbeat.ts")).toEqual({ files: ["clock.ts", "heartbeat.ts"], packages: ["@mark1russell7/algebra/clock"] });
+    // the heartbeat operates on the kernel of the loop core, which loads only the clock, the scope and the backoff
+    const kernel = ["backoff.ts", "clock.ts", "loop-kernel.ts", "scope.ts"];
+    expect(reach("loop-kernel.ts")).toEqual({ files: kernel, packages: ["@mark1russell7/algebra/clock"] });
+    expect(reach("heartbeat.ts")).toEqual({ files: [...kernel, "heartbeat.ts"].sort(), packages: ["@mark1russell7/algebra/clock"] });
     expect(reach("backoff.ts")).toEqual({ files: ["backoff.ts"], packages: [] });
     // the search follows the clock into the algebra, and it finds no package and no node: module there
-    for (const entry of ["clock.ts", "heartbeat.ts", "backoff.ts"]) expect(reachAll(entry), entry).toEqual([]);
+    for (const entry of ["clock.ts", "heartbeat.ts", "backoff.ts", "loop-kernel.ts"]) expect(reachAll(entry), entry).toEqual([]);
+  });
+
+  it("name the machine of the loop by its id, thus the kernel does not load the machine documents", async () => {
+    const { LOOP_MACHINE_ID } = await import("./loop-kernel.ts");
+    const { LOOP_MACHINE } = await import("./machines.ts");
+    expect(LOOP_MACHINE_ID).toBe(LOOP_MACHINE.id);
   });
 
   it("give the clock of the algebra itself, thus a clock of either entry is the same clock", async () => {
@@ -364,8 +373,12 @@ describe("the http-folder entry: the files of a folder for the edge, on node:fs,
 });
 
 describe("the channel entry: a client in a browser can import it (collections C26)", () => {
-  it("loads only the clock and collections: no node: module and no zod", () => {
-    expect(reach("channel.ts")).toEqual({ files: ["channel.ts", "clock.ts"], packages: ["@mark1russell7/algebra/clock", "@mark1russell7/collections"] });
+  it("loads only the clock, the kernel of the loop core and collections: no node: module and no zod", () => {
+    // the ticker operates on the kernel of the loop core
+    expect(reach("channel.ts")).toEqual({
+      files: ["backoff.ts", "channel.ts", "clock.ts", "loop-kernel.ts", "scope.ts"],
+      packages: ["@mark1russell7/algebra/clock", "@mark1russell7/collections"],
+    });
     expect(reachAll("channel.ts")).toEqual([]);
   });
 

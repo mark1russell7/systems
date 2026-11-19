@@ -4324,7 +4324,7 @@ The five loops on the core:
 | --- | --- | --- | --- | --- |
 | `poller` | `start` | `fail` | none | 1 |
 | `workerLoop` | `end` | no effect | `retry_base` to `retry_cap` | `concurrency` |
-| `heartbeat` | `start` | `skip`, or `allow` with `overlap: true` | none | 1 |
+| `heartbeat` | `start` | `allow`: `due()` operates at each tick, and the heartbeat keeps its own rule of one ping at a time | none | 1 |
 | `watchdog` | `start` | `skip` | none | 1 |
 | `ticker` | `start` | `skip` | none | 1 |
 
@@ -4339,14 +4339,14 @@ The laws and their gate. Model tests on fast-check from rigor-testkit hold them,
 5. **The stop.** After `stop()`, no round starts, and the test clock holds no timer of the loop. A second `stop()` does nothing.
 6. **The budget.** In each window, at most `rounds` rounds start.
 7. **The replay.** The records of each case replay on `LOOP_MACHINE` with no unknown transition.
-8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request.
+8. **The same traces.** On the same seed and the same scripted rounds, each of the five loops on the core gives the trace of its old code. This law stays until the old code goes, in the same pull request. The heartbeat, the watchdog and the ticker held it in #625, and a fault check of 9 planted faults found each one. One change is on purpose: after a block of the event loop, the ticks of the core keep their grid. The old ticks moved by the block.
 9. **The spans.** `failSpan` and `recoverSpan` read the schedule. The fail time of a check on the test clock is in its span for each seed.
 10. **The hold.** A loop with `hold: false` keeps no timer that holds a process. A timeout that a caller awaits holds the process at each value (SYS-126).
 
 The parts:
 
 1. **The core.** The machine document, the entry `/loop`, the type `Schedule` with `stable`, the three settings and laws 1 to 7 and 10. It is a new entry, thus the release is a PATCH before 1.0. A mutation check of the law tests found each of seven planted faults.
-2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request.
+2. **The five loops on the core.** Their interfaces stay, with laws 8 and 9. Thus the release is a PATCH. The old timer code goes in the same pull request. The heartbeat, the watchdog and the ticker moved in service 0.11.3. The poller and the worker loop come next, with law 9.
 3. **The check of the conventions.** A pull request to the home of the conventions adds a rule for each package of the preset `service`. The rule refuses `setInterval`, a `setTimeout` whose callback starts its own function again, and a `for` or `while` loop that awaits a timer.
    - An exception carries a comment with its reason and its end (tenet 3).
    - In this repository, the hold timer of `process.ts` is the one exception. Its reason: it holds the process until the stop, and it does no work.
