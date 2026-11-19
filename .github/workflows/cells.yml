@@ -22,8 +22,9 @@
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
-# A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
-# cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
+# A pull request that changes this file runs the probe only. Each night, the schedule runs the
+# selection night on 4 shards: the WS cells, the heartbeat and the reconnect of @procedures/client
+# under real faults, and the LADDER cells, the rungs of the reference service (SYS-93).
 # Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
 # The step of the locked rungs fails that run when a rung is not within its budgets. A drill that does
 # not hold fails the run too. The Sunday run does not hold the drill of 8 GB (SYS-97) until a run of
@@ -208,11 +209,12 @@ jobs:
           SHARDS: ${{ inputs.shards }}
           SELECTION: ${{ inputs.selection }}
         run: |
-          # a schedule has no inputs: the night runs the WS cells on 4 shards, and the Sunday runs the RD
-          # cells on 1. The Wednesday runs the round of this week: the count of whole weeks after the
+          # a schedule has no inputs: the night runs the selection night on 4 shards, and the Sunday runs
+          # the RD cells on 1. SCHEDULED_CELLS in packages/cells/src/all.ts names the cells of the night.
+          # The Wednesday runs the round of this week: the count of whole weeks after the
           # first day of round 0, modulo the 4 rounds (roundAt in packages/cells/src/refresh.ts).
           case "$SCHEDULE" in
-            "30 3 * * *") ONLY='^WS'; SHARDS=4; SELECTION='' ;;
+            "30 3 * * *") ONLY='.'; SHARDS=4; SELECTION=night ;;
             "30 9 * * 0") ONLY='^RD[.](?!8000[.])'; SHARDS=1; SELECTION='' ;;
             "30 12 * * 3")
               days=$(( ($(date -u +%s) - $(date -u -d "$REFRESH_EPOCH" +%s)) / 86400 ))
@@ -413,12 +415,13 @@ jobs:
       # that its cells hold: this step judges each record again, and it fails unless each cell of the shard
       # has a record and holds. In the same job, its flip test turns the check red with an injected fault
       # and with a record gone, and the clean copy stays green. A dispatch of the selection night is the night
-      # by hand, thus this step operates on it too.
+      # by hand, on any count of shards, thus this step operates on it too.
       - name: The cells of the night hold
-        if: ${{ github.event.schedule == '30 3 * * *' || ((inputs.only == '^WS' || inputs.selection == 'night') && inputs.shards == '4') }}
+        if: ${{ needs.plan.outputs.selection == 'night' }}
         env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
+          SHARDS: ${{ needs.plan.outputs.count }}
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/$SHARDS" "$RUNNER_TEMP/cells"
       # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
       # when a rung is not within its budgets, when a drill has no record, or when a record has no pin.
       # Its flip (SYS-99): a fault of 1.5 x the limit of each budget turns each rung beyond, and the copies

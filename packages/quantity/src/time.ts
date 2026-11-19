@@ -53,3 +53,9 @@ export const convertExact: (
   to: string,
   on?: MeasuredOn,
 ) => Rational = TIME_UNITS.convertExact;
+
+/** This function gives the canonical spelling of the product of two units of this table, as `multiplyUnits` of the root entry does. */
+export const multiplyUnits: (a: string, b: string) => string = TIME_UNITS.multiplyUnits;
+
+/** This function gives the canonical spelling of the quotient of two units of this table: `a` divided by `b`. */
+export const divideUnits: (a: string, b: string) => string = TIME_UNITS.divideUnits;
