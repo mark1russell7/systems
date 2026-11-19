@@ -161,6 +161,8 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           ...(verdict.reordering === undefined ? {} : { reordering: verdict.reordering }),
           ...(verdict.proxy === undefined ? {} : { proxy: verdict.proxy }),
           ...(verdict.requests === undefined ? {} : { requests: verdict.requests }),
+          // the spread of an open-loop cell: each night keeps its p95 and p99, and 5 nights give the quantile budgets (SYS-93)
+          ...(verdict.load === undefined ? {} : { load: verdict.load }),
           ...(verdict.reconnect === undefined ? {} : { reconnect: verdict.reconnect }),
           ...(verdict.calls === undefined ? {} : { calls: verdict.calls }),
           ...(verdict.left === undefined ? {} : { left: verdict.left }),

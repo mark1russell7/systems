@@ -2360,6 +2360,7 @@ interface LoadJudgement {
 ### build/index.d.ts#LoadSpread
 interface LoadSpread {
   readonly p50: Quantity;
+  readonly p95: Quantity;
   readonly p99: Quantity;
   readonly max: Quantity;
 }

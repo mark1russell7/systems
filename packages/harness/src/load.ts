@@ -203,9 +203,13 @@ export const estimateOf = (
   return { ...measureLoad(run.plan, run.completions, stop), hidden: run.hidden, driverGaps: run.driverGaps, driverGapTotal: run.driverGapTotal };
 };
 
-/** A load spread is a part of the distribution of one measure of an open-loop cell, over its counted runs. */
+/**
+ * A load spread is a part of the distribution of one measure of an open-loop cell, over its counted runs.
+ * Each quantile is the nearest rank. The p95 and the p99 of the nights give the limits of a quantile budget.
+ */
 export interface LoadSpread {
   readonly p50: Quantity;
+  readonly p95: Quantity;
   readonly p99: Quantity;
   readonly max: Quantity;
 }
@@ -236,6 +240,7 @@ const spreadOf = (values: readonly number[]): LoadSpread | null =>
     ? null
     : {
         p50: quantity(quantile(values, 0.5, "nearest-rank"), "ms"),
+        p95: quantity(quantile(values, 0.95, "nearest-rank"), "ms"),
         p99: quantity(quantile(values, 0.99, "nearest-rank"), "ms"),
         max: quantity(values.reduce((most, value) => Math.max(most, value), 0), "ms"),
       };

@@ -287,6 +287,15 @@ describe("the verdict of a schedule", () => {
     expect(judgement.load.service?.max).toEqual(quantity(1, "ms"));
   });
 
+  it("gives the nearest rank at p50, p95 and p99 of the pooled latencies", () => {
+    // each run has the latencies 1 to 100 ms five times, thus the pool of 4 runs has each value 20 times
+    const { latency } = judged(measured((index) => (index % 100) + 1)).load;
+    expect(latency?.p50.value).toBeCloseTo(50, 6);
+    expect(latency?.p95.value).toBeCloseTo(95, 6);
+    expect(latency?.p99.value).toBeCloseTo(99, 6);
+    expect(latency?.max.value).toBeCloseTo(100, 6);
+  });
+
   it("fails a run whose sends are past the limit, and names the run", () => {
     const judgement = judged(measured(() => 1, 60));
     expect(judgement.holds).toBe(false);

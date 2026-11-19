@@ -3811,6 +3811,10 @@ The claims of the capacity, the gap of the open loop and the noise are of later 
 
 No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread. Since #609 merged on 2026-11-18, the nightly Cells run gives these runs, with no dispatch.
 
+**The first night.** The nightly Cells run [44452493478](https://github.com/mark1russell7/systems/actions/runs/44452493478) held each rung with 11 counted runs, no void run and no failed arrival. The rungs had 638, 957, 5,313 and 55,561 planned arrivals. The summary line of a cell kept its decision but not its load verdict, thus the night gave no quantile of the latency.
+
+From this change, the line of an open-loop cell has the load verdict. Its latency has the p50, the p95, the p99 and the maximum of the arrivals of the counted runs, by the nearest rank. The budgets read 5 or more of these nights.
+
 ### SYS-104 · Remove the override of the service when the client release ships
 
 - **Status:** blocked
