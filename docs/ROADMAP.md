@@ -8,7 +8,7 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 At most three items are in progress at one time. A score puts the items in order: the priority, times one plus the count of items that each unblocks, over the size.
 
-1. **SYS-93** (P1): the night holds the ladder. The snapshot of rung 10 comes from CI (#609).
+1. **SYS-93** (P1): the night holds the ladder since #609 merged on 2026-11-18. The nightly records set the p95 and p99 budgets, then slice 4 adds the gates.
 2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 shipped on 2026-11-18 (#604): the type, the keys, the entry `/scope` and the laws 1 to 7, in service `0.10.1`. Part 2 (#606) merged on 2026-11-18: the five contexts are scopes, in the MINOR `0.11.0`, and its release waits in the queue. Part 3 is the procedure context of the client.
 3. **SYS-138** (P1): one loop core, with the schedule as data. Its design passed review on 2026-11-18 (#614). Part 1 (#620) has the core and the laws 1 to 7, for service `0.11.1`. Part 2 starts with the metrics of the loops (#622), and the five loops follow on the core.
 
@@ -19,7 +19,6 @@ SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#5
 - **SYS-92:** a topology as a graph, after the first read of SYS-77. A routed world gives its nodes and links as data, and a fault takes one link.
 - **SYS-136:** a run of any command in the guest of the VM tier. A consumer asked for it on 2026-11-18, for its kernel world.
 - **SYS-137:** a lab of the kind tier with the interface of the harness, after SYS-92.
-- **SYS-140:** the product and the quotient of two amounts in quantity. A consumer asked for it on 2026-11-18, for its composition of laws. Its change (#621) waits for CI.
 - **SYS-97:** the restore of 8 GB. Its drill waits for free CI slots.
 - **SYS-69:** the two cells `SB`. They wait for free CI slots.
 - **SYS-123:** parts 1 and 2 shipped. The first CI read of the five cells `MEM` waits for free CI slots, and the lens comes after it.
@@ -3734,7 +3733,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
 - **Shipped:**
-- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
+- **Links:** [#392](https://github.com/mark1russell7/systems/pull/392), [#396](https://github.com/mark1russell7/systems/pull/396), [#599](https://github.com/mark1russell7/systems/pull/599), [#609](https://github.com/mark1russell7/systems/pull/609), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
 
 SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
@@ -3787,7 +3786,7 @@ The claims of the capacity, the gap of the open loop and the noise are of later 
 | 100 | 5,313 | 0 | 1.2 ms |
 | 1,000 | 55,561 | 0 | 1.4 ms |
 
-No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread, thus four more dispatches set them.
+No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread. Since #609 merged on 2026-11-18, the nightly Cells run gives these runs, with no dispatch.
 
 ### SYS-104 · Remove the override of the service when the client release ships
 
@@ -3982,12 +3981,12 @@ The test: each unit of the list parses, converts in its dimension and formats ag
 
 ### SYS-140 · The product and the quotient of two amounts
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** engines
-- **Depends on:** #621
-- **Started:**
-- **Shipped:**
-- **Links:** [#621](https://github.com/mark1russell7/systems/pull/621)
+- **Depends on:**
+- **Started:** 2026-11-18
+- **Shipped:** 2026-11-18
+- **Links:** [#621](https://github.com/mark1russell7/systems/pull/621), [the release run](https://github.com/mark1russell7/systems/actions/runs/44422507156), [quantity 0.4.3 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.3), [the consumer](https://github.com/mark1russell7/capacity/pull/11)
 
 A consumer that models the cost of one request multiplies a rate by a cost. For example, 900 `{request}/s` times 0.5 `{core}.ms/{request}` is 450 `{core}.ms/s`, and that converts to 0.45 `{core}`. Quantity `0.4.2` has no product of two amounts. Thus the consumer multiplies the values and writes the product unit by hand.
 
@@ -3995,9 +3994,44 @@ The consumer keeps no local copy, and it waits for this item at its composition 
 
 - **`multiply(a, b)` and `divide(a, b)`.** Each gives an amount in the product unit or the quotient unit of the two units. Equal atoms with equal annotations cancel. The value is exact when the two values are exact.
 - **The version of the two functions.** They are a feature, thus they ship in a PATCH by the rule before 1.0.
-- **A factor that is not finite.** `scale(amount, by)` gives an amount that is not finite, with no error, when `by` is not finite. A caller checks each result itself. A `UnitError` there removes that check. It changes the behavior of `scale`, thus it waits for the next MINOR of quantity.
+- **A factor that is not finite.** `scale(amount, by)` gives an amount that is not finite, with no error, when `by` is not finite. A caller checks each result itself. A `UnitError` there removes that check. It changes the behavior of `scale`, thus it waits for the next MINOR of quantity, as SYS-144.
 
 The test: the example above converts to 0.45 `{core}`. A property test holds that `divide(multiply(a, b), b)` converts to `a`, and that `multiply` is commutative after a conversion to one unit. A product of two units with no common atom keeps each atom.
+
+**The state on 2026-11-18.** #621 merged, and the release run published quantity `0.4.3` with its provenance. The consumer merged its composition of laws in capacity#11. It uses `multiplyUnits` and `divideUnits` in its production code, with one copy of quantity in its lockfile.
+
+### SYS-141 · A git tag and a GitHub release for each published version
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-18
+- **Shipped:**
+- **Links:** [#624](https://github.com/mark1russell7/systems/pull/624)
+
+The release owner holds this item. The release of this repository makes no git tag and no GitHub release. Approximately 111 published versions have no tag. #624 adds a job `tag` to `release.yml`. The job uses the plan of the tags that the build job writes, and it operates after the publish job.
+
+- **The owner.** The release owner writes and merges #624. This repository does not change `release.yml` or `scripts/release/`.
+- **The merge order.** The version pull requests of SYS-138 part 2 wait until #624 merges and its first release run ends.
+- **The text of the release.** `RELEASING.md` names `pack.ts` and `tags.ts` of the template, not files of this repository. After #624 merges, a docs change removes each old name that stays.
+
+The test: the first release run after the merge shows the job `tag`, with a tag for each version that the run published.
+
+### SYS-144 · `scale` refuses a factor that is not finite
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-107
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`scale(amount, by)` of `@mark1russell7/quantity` gives an amount that is not finite, with no error, when `by` is not finite. Each caller checks each result itself. A `UnitError` in `scale` removes that check. SYS-140 found this gap.
+
+- **The version.** The change breaks a caller that reads a value that is not finite, thus it is a MINOR before 1.0.
+- **The home.** After SYS-107, quantity lives in the math repository. The change goes there.
+
+The test: `scale` with `by` equal to `NaN`, `Infinity` or `-Infinity` throws a `UnitError`. A property test holds that a finite factor gives the same amount as before.
 
 ### SYS-133 · The calendar month of an instant in a time zone
 
