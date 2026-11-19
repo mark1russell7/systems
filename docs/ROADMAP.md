@@ -4353,16 +4353,22 @@ The parts:
    - The rule starts after part 2, thus the service package passes it on its first day.
 4. **The 11 loops move.** Their owners move them after part 3: 3, 6 and 2 loops in three repositories. The README of the entry `/loop` gives the form for each case. A `setInterval(work, ms)` becomes a schedule from `start`. A `setTimeout` after an `await` becomes a schedule from `end`.
 
-The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. Their only attributes are `loop`, the name of the loop, and `lane`. Thus the dashboards and the capacity models read one schema. Each metric comes from one kind of record of the core (part 2).
+The cost of the loops is a model of the capacity work: a rate of rounds times the cost of one round. Thus the records of the rounds also go out as metrics through the entry `/otel`, with fixed names and units. They follow the semantic conventions of OpenTelemetry. Each metric comes from one kind of record of the core (part 2).
+
+- Each metric has the attributes `loop.name`, the name of the loop, and `loop.lane`, the lane. `schedule.lanes` is fixed when the loop starts, thus `loop.lane` has a bound for each loop.
+- A duration is in seconds, with the bounds of its buckets in seconds.
+- `loop.failures`, and `loop.round.duration` of a failed round, also have `error.type`. A round past its timeout gives `timeout`. A round that is due while its lane is busy with the overlap `fail` gives `blocked`. A round with no proof gives `unproved`. Another failure gives the name of the class of the error, and a thrown value that is not an `Error` gives `_OTHER`.
+- A blocked round does not start. Thus it is in `loop.failures` only: not in `loop.rounds` and not in `loop.round.duration`.
+- A round past its timeout gives the timeout as its duration. Thus a law of the round duration takes out each point with `error.type` `timeout`, or counts it as censored.
 
 | Metric | Kind | Unit | Value | Record |
 | --- | --- | --- | --- | --- |
-| `loop.rounds` | counter | `{round}` | each round that starts | each `start` |
+| `loop.rounds` | counter | `{round}` | each round that starts, thus no blocked round | each `start` |
 | `loop.failures` | counter | `{round}` | each round that fails, with each round past its timeout | each `end` with the outcome `fail` |
 | `loop.skipped` | counter | `{round}` | each round that a late loop skips, and each round that `skip` drops | the `count` of each `skip` |
 | `loop.deferred` | counter | `{round}` | each round that waits for the window of the budget | each `defer` |
-| `loop.lateness` | histogram | `ms` | the real start minus the planned start | `start − planned` of each `start` |
-| `loop.round.duration` | histogram | `ms` | the end minus the real start | `end − start` of each `end` that is not `blocked` |
+| `loop.lateness` | histogram | `s` | the real start minus the planned start | `start − planned` of each `start` |
+| `loop.round.duration` | histogram | `s` | the end minus the real start | `end − start` of each `end` that is not `blocked` |
 | `loop.inflight` | up-down counter | `{round}` | the rounds in flight | not a record: +1 at each `start`, −1 at each close of the scope of a round, as `inFlight()` counts. A round past its timeout gives its `end` and stays in flight until it settles. |
 
 ### SYS-139 · A diagnosis port: the cause of a failure and its action, for the recovery of each service
