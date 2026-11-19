@@ -45,6 +45,8 @@ compare: build/quantity.d.ts#compare
 convert: build/quantity.d.ts#convert
 convertExact: build/parse.d.ts#convertExact
 convertible: build/parse.d.ts#convertible
+divide: build/quantity.d.ts#divide
+divideUnits: build/parse.d.ts#divideUnits
 format: build/format.d.ts#format
 formatDuration: build/format.d.ts#formatDuration
 formatOnScale: build/format.d.ts#formatOnScale
@@ -58,6 +60,8 @@ lookupAtom: build/units.d.ts#lookupAtom
 max: build/quantity.d.ts#max
 mean: build/quantity.d.ts#mean
 min: build/quantity.d.ts#min
+multiply: build/quantity.d.ts#multiply
+multiplyUnits: build/parse.d.ts#multiplyUnits
 parseUnit: build/parse.d.ts#parseUnit
 quantity: build/quantity.d.ts#quantity
 rationals: @mark1russell7/rational#* (external)
@@ -105,8 +109,10 @@ type Vector: build/dimensions.d.ts#Vector
 canonicalUnit: build/time.d.ts#canonicalUnit
 convertExact: build/time.d.ts#convertExact
 convertible: build/time.d.ts#convertible
+divideUnits: build/time.d.ts#divideUnits
 isCanonicalUnit: build/time.d.ts#isCanonicalUnit
 kindOf: build/time.d.ts#kindOf
+multiplyUnits: build/time.d.ts#multiplyUnits
 parseUnit: build/time.d.ts#parseUnit
 rationals: @mark1russell7/rational#* (external)
 sameVector: build/system.d.ts#sameVector
@@ -207,11 +213,17 @@ export declare const convertExact: (value: Rational, from: string, to: string, o
 ### build/parse.d.ts#convertible
 export declare const convertible: (from: string, to: string) => boolean;
 
+### build/parse.d.ts#divideUnits
+export declare const divideUnits: (a: string, b: string) => string;
+
 ### build/parse.d.ts#isCanonicalUnit
 export declare const isCanonicalUnit: (spelling: string) => boolean;
 
 ### build/parse.d.ts#kindOf
 export declare const kindOf: (spelling: string) => Kind | "derived";
+
+### build/parse.d.ts#multiplyUnits
+export declare const multiplyUnits: (a: string, b: string) => string;
 
 ### build/parse.d.ts#parseUnit
 export declare const parseUnit: (spelling: string) => Unit;
@@ -258,6 +270,9 @@ export declare const compare: (a: Extent, b: Extent) => number;
 ### build/quantity.d.ts#convert
 export declare const convert: (amount: Quantity, to: string, on?: MeasuredOn) => Quantity;
 
+### build/quantity.d.ts#divide
+export declare const divide: (a: Quantity, b: Quantity) => Quantity;
+
 ### build/quantity.d.ts#isQuantity
 export declare const isQuantity: (value: unknown) => value is Quantity;
 
@@ -275,6 +290,9 @@ export declare const mean: (amounts: readonly Quantity[], unit?: string) => Quan
 
 ### build/quantity.d.ts#min
 export declare const min: <T extends Extent>(a: T, b: T) => T;
+
+### build/quantity.d.ts#multiply
+export declare const multiply: (a: Quantity, b: Quantity) => Quantity;
 
 ### build/quantity.d.ts#quantity
 export declare const quantity: (value: number, unit: string) => Quantity;
@@ -371,6 +389,8 @@ export interface UnitSystem {
   readonly whyNotConvertible: (from: string, to: string) => string | undefined;
   readonly convertible: (from: string, to: string) => boolean;
   readonly convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+  readonly multiplyUnits: (a: string, b: string) => string;
+  readonly divideUnits: (a: string, b: string) => string;
 }
 
 ### build/system.d.ts#sameVector
@@ -403,11 +423,17 @@ export declare const convertExact: (value: Rational$1, from: string, to: string,
 ### build/time.d.ts#convertible
 export declare const convertible: (from: string, to: string) => boolean;
 
+### build/time.d.ts#divideUnits
+export declare const divideUnits: (a: string, b: string) => string;
+
 ### build/time.d.ts#isCanonicalUnit
 export declare const isCanonicalUnit: (spelling: string) => boolean;
 
 ### build/time.d.ts#kindOf
 export declare const kindOf: (spelling: string) => Kind | "derived";
+
+### build/time.d.ts#multiplyUnits
+export declare const multiplyUnits: (a: string, b: string) => string;
 
 ### build/time.d.ts#parseUnit
 export declare const parseUnit: (spelling: string) => Unit;

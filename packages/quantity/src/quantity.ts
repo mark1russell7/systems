@@ -1,4 +1,12 @@
-import { UnitError, convertExact, isCanonicalUnit, parseUnit, whyNotConvertible } from "./parse.ts";
+import {
+  UnitError,
+  convertExact,
+  divideUnits,
+  isCanonicalUnit,
+  multiplyUnits,
+  parseUnit,
+  whyNotConvertible,
+} from "./parse.ts";
 import type { Rational } from "@mark1russell7/rational";
 import * as q from "@mark1russell7/rational";
 import type { MeasuredOn } from "./system.ts";
@@ -146,6 +154,34 @@ export const scale = (amount: Quantity, by: number): Quantity => ({
   value: q.toNumber(q.mul(q.fromNumber(amount.value), q.fromNumber(by))),
   unit: amount.unit,
 });
+
+/**
+ * This function gives the product of two amounts, in the product of their units (`multiplyUnits`).
+ * Thus a rate of 50 `{request}/s` times 4 `{core}·ms/{request}` is 200 `{core}·ms/s`. Convert that
+ * amount to `{core}` to get 0.2 `{core}`. The value is exact for decimal inputs.
+ */
+export const multiply = (a: Quantity, b: Quantity): Quantity => {
+  refuseLevel(a.unit, "a product");
+  refuseLevel(b.unit, "a product");
+  return {
+    value: q.toNumber(q.mul(q.fromNumber(a.value), q.fromNumber(b.value))),
+    unit: multiplyUnits(a.unit, b.unit),
+  };
+};
+
+/**
+ * This function gives the quotient of two amounts, in the quotient of their units (`divideUnits`).
+ * It throws a `RangeError` for a divisor of 0.
+ */
+export const divide = (a: Quantity, b: Quantity): Quantity => {
+  refuseLevel(a.unit, "a quotient");
+  refuseLevel(b.unit, "a quotient");
+  if (b.value === 0) throw new RangeError(`a quotient by 0 ${b.unit}`);
+  return {
+    value: q.toNumber(q.div(q.fromNumber(a.value), q.fromNumber(b.value))),
+    unit: divideUnits(a.unit, b.unit),
+  };
+};
 
 /**
  * This function rounds a value to `places` decimal places, exactly, with a half going up, as `Math.round` does.
