@@ -2,7 +2,22 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { cellsEnv, fragmentOf, hzOf, kernelUrl, missingOptions, pipeTo, qemuArgs, sshArgs } from "./vm.ts";
+import {
+  argvOf,
+  cellsEnv,
+  endOf,
+  fragmentOf,
+  hzOf,
+  installArgs,
+  kernelUrl,
+  LIMIT_STATUS,
+  limitOf,
+  missingOptions,
+  pipeTo,
+  qemuArgs,
+  sshArgs,
+  startErrorOf,
+} from "./vm.ts";
 
 describe("the kernel of a guest", () => {
   it("takes the source from the folder of its major version", () => {
@@ -60,6 +75,41 @@ describe("the command of the cells", () => {
       CELLS_OUT: "/out/a",
       CELLS_HZ: "1000",
     });
+  });
+});
+
+describe("a run of one command in the guest", () => {
+  it("reads its argv from a JSON list, thus no shell splits the words", () => {
+    expect(argvOf('["node", "main.ts", "--out", "/out/a b"]')).toEqual(["node", "main.ts", "--out", "/out/a b"]);
+  });
+
+  it("refuses an argv that is empty, not a list, or not of strings", () => {
+    expect(() => argvOf("[]")).toThrow("one string or more");
+    expect(() => argvOf('"uname -r"')).toThrow("one string or more");
+    expect(() => argvOf('["sleep", 1]')).toThrow("one string or more");
+  });
+
+  it("reads its time limit in seconds", () => {
+    expect(limitOf("90")).toBe(90_000);
+    expect(() => limitOf("0")).toThrow("count of seconds");
+    expect(() => limitOf("1.5")).toThrow("count of seconds");
+    expect(() => limitOf("")).toThrow("count of seconds");
+  });
+
+  it("installs the folder from its lockfile, or not at all", () => {
+    expect(installArgs(["package.json", "pnpm-lock.yaml"])).toEqual(["pnpm", "install", "--frozen-lockfile"]);
+    expect(installArgs(["package.json", "package-lock.json"])).toEqual(["npm", "ci"]);
+    expect(installArgs(["README.md"])).toBeNull();
+  });
+
+  it("gives the exit code of the argv, and the codes of a shell for a signal, a limit and a start error", () => {
+    expect(endOf(0, null, false)).toEqual({ ended: "exit", status: 0 });
+    expect(endOf(3, null, false)).toEqual({ ended: "exit", status: 3 });
+    expect(endOf(null, "SIGTERM", false)).toEqual({ ended: "signal", status: 143 });
+    expect(endOf(null, "SIGKILL", true)).toEqual({ ended: "limit", status: LIMIT_STATUS });
+    expect(endOf(null, "SIGTERM", true)).toEqual({ ended: "limit", status: LIMIT_STATUS });
+    expect(startErrorOf(Object.assign(new Error("spawn x ENOENT"), { code: "ENOENT" }))).toEqual({ ended: "error", status: 127 });
+    expect(startErrorOf(Object.assign(new Error("spawn x EACCES"), { code: "EACCES" }))).toEqual({ ended: "error", status: 126 });
   });
 });
 
