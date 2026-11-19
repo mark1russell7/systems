@@ -46,7 +46,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+        uses: mark1russell7/template/.github/actions/changes@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
         with:
           paths: |
             .github/workflows/http.yml
@@ -101,6 +101,6 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@2030c7dec9485afebb504772f79f41f23bdb2df7 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
         with:
           needs: ${{ toJSON(needs) }}
