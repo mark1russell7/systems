@@ -1904,6 +1904,9 @@ export interface Run {
   /**
    * These are the CPU shares of the CPUs of the target and of the client in the run, from `/proc/stat`
    * (`cpuShares`). A run of a plain cell writes the shares of each container with a `cpuset`.
+   *
+   * - The window starts before the client starts, and it ends after the client stops.
+   * - `RunResources.cpus` has the shares in the window of the readings of the resources.
    */
   readonly cpus?: RunCpus;
   /** These are the addresses and the namespaces of a topology, which the measurement of a run reads. */
@@ -1938,6 +1941,11 @@ export interface RunResources {
   readonly end: ResourceReading;
   /** These are the readings of the series of the reader, from its start to its stop. A reader with no period has none. */
   readonly series: readonly ResourceReading[];
+  /**
+   * These are the CPU shares of the CPUs of the target and of the client between the readings `start`
+   * and `end`. They come from `/proc/stat` (`runCpusOf`). A cell with a `cpuset` writes them.
+   */
+  readonly cpus?: RunCpus;
 }
 
 /** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */

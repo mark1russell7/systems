@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Host } from "./substrate.ts";
-import { CPU_STATES, cloudOf, comparable, cpuShares, readCpu, readCpus, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+import { CPU_STATES, cloudOf, comparable, cpuShares, readCpu, readCpus, readHost, runCpusOf, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 import type { CpuStates } from "./substrate.ts";
 
 const AZURE: Host = { kernel: "7.0.0-1017-azure", hz: 1000, vendor: "Microsoft Corporation", kvm: true, image: "ubuntu24 20261101.360.1" };
@@ -118,6 +118,32 @@ describe("the CPU that a host takes", () => {
     expect(shares?.busy).toBeCloseTo(1.1, 12);
     expect(CPU_STATES.reduce((sum, state) => sum + shares![state], 0)).toBeCloseTo(1, 12);
     expect(cpuShares(before, after, [0], "0")?.busy).toBeCloseTo(1, 12);
+  });
+
+  it("gives the shares of the CPU lists of the target and of the client of a run", () => {
+    const before = new Map([0, 1, 2, 3].map((cpu) => [cpu, states(0, 0, 0, 0, 0, 0, 0, 0)] as const));
+    // CPU 0 is busy. CPUs 1 to 3 are idle for half of the time.
+    const after = new Map([
+      [0, states(60, 0, 10, 0, 0, 0, 30, 0)],
+      [1, states(50, 0, 0, 50, 0, 0, 0, 0)],
+      [2, states(50, 0, 0, 50, 0, 0, 0, 0)],
+      [3, states(50, 0, 0, 50, 0, 0, 0, 0)],
+    ]);
+    const cpus = runCpusOf({ target: "0", client: "1-3" }, before, after);
+    expect(cpus?.target).toMatchObject({ cpus: "0", count: 1, busy: 1, softirq: 0.3 });
+    expect(cpus?.client?.count).toBe(3);
+    expect(cpus?.client?.busy).toBeCloseTo(1.5, 12);
+    expect(runCpusOf({ client: "1-3" }, before, after)).toEqual({ client: cpus?.client });
+  });
+
+  it("gives null for the CPU lists of a run with no list, with no reading, or with a list that is not a list", () => {
+    const one = new Map([[0, states(1, 0, 0, 1, 0, 0, 0, 0)]]);
+    const two = new Map([[0, states(2, 0, 0, 1, 0, 0, 0, 0)]]);
+    expect(runCpusOf({}, one, two)).toBeNull();
+    expect(runCpusOf({ target: "0" }, null, two)).toBeNull();
+    expect(runCpusOf({ target: "0" }, one, null)).toBeNull();
+    expect(runCpusOf({ target: "x" }, one, two)).toBeNull();
+    expect(runCpusOf({ target: "x", client: "0" }, one, two)).toEqual({ client: cpuShares(one, two, [0], "0") });
   });
 
   it("gives null for a CPU of the set that is not in both readings, for no CPU, and if no tick passed", () => {

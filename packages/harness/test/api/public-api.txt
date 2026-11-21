@@ -34,6 +34,7 @@ type ConntrackReading: build/index.d.ts#ConntrackReading
 type ContainerLimits: build/cell.chunk.d.ts#ContainerLimits
 type ContextFile: build/index.d.ts#ContextFile
 type CountBand: build/cell.chunk.d.ts#CountBand
+type CpuLists: build/index.d.ts#CpuLists
 type CpuShares: build/cell.chunk.d.ts#CpuShares
 type CpuState: build/index.d.ts#CpuState
 type CpuStates: build/index.d.ts#CpuStates
@@ -470,6 +471,7 @@ routeLine: build/index.d.ts#routeLine
 routerImage: build/index.d.ts#routerImage
 routesOf: build/index.d.ts#routesOf
 runCell: build/index.d.ts#runCell
+runCpusOf: build/index.d.ts#runCpusOf
 runDiskFault: build/index.d.ts#runDiskFault
 seedScript: build/index.d.ts#seedScript
 sentinelConfig: build/index.d.ts#sentinelConfig
@@ -1562,6 +1564,7 @@ interface RunResources {
   readonly start: ResourceReading;
   readonly end: ResourceReading;
   readonly series: readonly ResourceReading[];
+  readonly cpus?: RunCpus;
 }
 
 ### build/cell.chunk.d.ts#RunRoute
@@ -1855,6 +1858,12 @@ interface ConntrackReading {
 interface ContextFile {
   readonly at: string;
   readonly content: Buffer | string;
+}
+
+### build/index.d.ts#CpuLists
+interface CpuLists {
+  readonly target?: string;
+  readonly client?: string;
 }
 
 ### build/index.d.ts#CpuState
@@ -3613,6 +3622,9 @@ export declare const routesOf: (hops: readonly Pick<Hop, "kind">[]) => Array<{
 
 ### build/index.d.ts#runCell
 export declare const runCell: (cell: Cell, say?: (line: string) => void) => Promise<CellResult>;
+
+### build/index.d.ts#runCpusOf
+export declare const runCpusOf: (lists: CpuLists, before: ReadonlyMap<number, CpuStates> | null, after: ReadonlyMap<number, CpuStates> | null) => RunCpus | null;
 
 ### build/index.d.ts#runDiskFault
 export declare const runDiskFault: (lab: DiskLab, fault: DiskFault) => Promise<DiskRecord>;

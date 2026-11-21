@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { release } from "node:os";
 import { join } from "node:path";
-import type { CpuShares } from "./cell.ts";
+import type { CpuShares, RunCpus } from "./cell.ts";
 import type { Layer } from "./layers.ts";
+import { cpusOfList } from "./resources.ts";
 
 /** A cloud is where the runner operates. GitHub can schedule a standard Linux job on Azure or on AWS. */
 export const CLOUDS = ["azure", "aws", "unknown"] as const;
@@ -165,6 +166,32 @@ export const cpuShares = (
   if (cpus.length === 0 || total <= 0) return null;
   const shares = Object.fromEntries(CPU_STATES.map((state) => [state, sums[state] / total])) as Record<CpuState, number>;
   return { cpus: list, count: cpus.length, ...shares, busy: cpus.length * (1 - shares.idle - shares.iowait) };
+};
+
+/** The CPU lists of a run are the `cpuset` lists of the target and of the client. Each one is there if its cell gives it. */
+export interface CpuLists {
+  readonly target?: string;
+  readonly client?: string;
+}
+
+/**
+ * This function gives the CPU shares of the CPU lists of a run between two readings of `readCpus`. A
+ * list that `cpusOfList` refuses gives no shares, and so does a missing reading. With no shares, it gives null.
+ */
+export const runCpusOf = (
+  lists: CpuLists,
+  before: ReadonlyMap<number, CpuStates> | null,
+  after: ReadonlyMap<number, CpuStates> | null,
+): RunCpus | null => {
+  if (before === null || after === null) return null;
+  const cpus: { target?: CpuShares; client?: CpuShares } = {};
+  for (const part of ["target", "client"] as const) {
+    const list = lists[part];
+    const numbers = list === undefined ? null : cpusOfList(list);
+    const shares = list === undefined || numbers === null ? null : cpuShares(before, after, numbers, list);
+    if (shares !== null) cpus[part] = shares;
+  }
+  return cpus.target === undefined && cpus.client === undefined ? null : cpus;
 };
 
 /** A part of a record that can hold a substrate: a manifest of the harness, or the fields of a kind manifest. */
