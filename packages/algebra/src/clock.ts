@@ -761,3 +761,167 @@ export function windowProblems(window: TimeWindow): string[] {
   if (window.days !== undefined && window.days.length === 0) problems.push("The window has no day, thus it does not open.");
   return problems;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Calendar dates and recurrence rules. A calendar date has no time and no zone: it is a date on a
+// calendar, for example a due date or the day of a check. `dateOf` gives the date of an instant in a
+// zone. The arithmetic counts whole days from 1970-01-01, thus a change of the clock has no effect on it.
+
+/** A calendar date in the form `YYYY-MM-DD`, from `0001-01-01` to `9999-12-31`. */
+export type CivilDate = string;
+
+const CIVIL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const pad = (value: number, width: number): string => String(value).padStart(width, "0");
+
+/** This function gives the date of a day number from 1970-01-01. A day that is not whole, or not in the years 1 to 9999, gives `undefined`. */
+export function dateOfDay(day: number): CivilDate | undefined {
+  if (!Number.isInteger(day)) return undefined;
+  const wall = new Date(day * DAY_MS);
+  const year = wall.getUTCFullYear();
+  if (!(year >= 1 && year <= 9999)) return undefined;
+  return `${pad(year, 4)}-${pad(wall.getUTCMonth() + 1, 2)}-${pad(wall.getUTCDate(), 2)}`;
+}
+
+/** This function gives the count of days from 1970-01-01 to `date`. A text that is not a real date gives `undefined`. */
+export function dayNumber(date: CivilDate): number | undefined {
+  const match = typeof date === "string" ? CIVIL_DATE.exec(date) : null;
+  if (match === null) return undefined;
+  const day = wallOf(Number(match[1]), Number(match[2]), Number(match[3]), 0, 0, 0) / DAY_MS;
+  return dateOfDay(day) === date ? day : undefined;
+}
+
+/** This function adds whole days to a date. A negative count goes back. A bad date or count gives `undefined`. */
+export function addDays(date: CivilDate, days: number): CivilDate | undefined {
+  const day = dayNumber(date);
+  return day === undefined || !Number.isInteger(days) ? undefined : dateOfDay(day + days);
+}
+
+/**
+ * This function adds whole months to a date. A day past the end of the new month goes to its last day. Thus
+ * `2027-01-31` plus 1 month is `2027-02-28`. A bad date or count gives `undefined`.
+ */
+export function addMonths(date: CivilDate, months: number): CivilDate | undefined {
+  const match = dayNumber(date) === undefined || !Number.isInteger(months) ? null : CIVIL_DATE.exec(date);
+  if (match === null) return undefined;
+  const index = Number(match[1]) * 12 + Number(match[2]) - 1 + months;
+  const year = Math.floor(index / 12);
+  const month = index - year * 12 + 1;
+  const last = new Date(wallOf(year, month + 1, 1, 0, 0, 0) - DAY_MS).getUTCDate();
+  return dateOfDay(wallOf(year, month, Math.min(Number(match[3]), last), 0, 0, 0) / DAY_MS);
+}
+
+/** This function gives the days from `from` to `to`. The count is negative when `to` is before `from`. A bad date gives `undefined`. */
+export function daysBetween(from: CivilDate, to: CivilDate): number | undefined {
+  const a = dayNumber(from);
+  const b = dayNumber(to);
+  return a === undefined || b === undefined ? undefined : b - a;
+}
+
+/** This function gives the day of the week of a date, from 0 (Sunday) to 6. A bad date gives `undefined`. */
+export function weekdayOfDate(date: CivilDate): number | undefined {
+  const day = dayNumber(date);
+  // 1970-01-01 was a Thursday
+  return day === undefined ? undefined : (((day + 4) % 7) + 7) % 7;
+}
+
+/** This function gives the calendar date of `instant` on the wall clock of `zone`. A bad zone or instant gives `undefined`. */
+export function dateOf(instant: number, zone: string): CivilDate | undefined {
+  const local = localTime(instant, zone);
+  return local === undefined ? undefined : `${pad(local.year, 4)}-${pad(local.month, 2)}-${pad(local.day, 2)}`;
+}
+
+/**
+ * A rule that repeats on calendar dates, as data: each `every` days, weeks, months or years from `start`.
+ *
+ * - Each date comes from `start`, not from the date before it. Thus a monthly rule from the 31st gives the 28th
+ *   in February, and the 31st again in March.
+ * - `until` is the last date that the rule can give. `count` is the maximum count of dates.
+ */
+export interface Recurrence {
+  readonly start: CivilDate;
+  /** The step, a whole number of 1 or more. */
+  readonly every: number;
+  readonly unit: "day" | "week" | "month" | "year";
+  readonly until?: CivilDate | undefined;
+  readonly count?: number | undefined;
+}
+
+const UNITS: ReadonlySet<string> = new Set(["day", "week", "month", "year"]);
+
+/** This function gives the problems of a rule. With a problem, each function of the rule gives `undefined` or no date. */
+export function recurrenceProblems(rule: Recurrence): string[] {
+  const problems: string[] = [];
+  if (dayNumber(rule.start) === undefined) problems.push(`The start "${rule.start}" is not a date YYYY-MM-DD.`);
+  if (!(Number.isInteger(rule.every) && rule.every >= 1)) problems.push(`The step ${rule.every} is not a whole number of 1 or more.`);
+  if (!UNITS.has(rule.unit)) problems.push(`The unit "${rule.unit}" is not day, week, month or year.`);
+  if (rule.until !== undefined && dayNumber(rule.until) === undefined) problems.push(`The end "${rule.until}" is not a date YYYY-MM-DD.`);
+  if (rule.count !== undefined && !(Number.isInteger(rule.count) && rule.count >= 0)) problems.push(`The count ${rule.count} is not a whole number of 0 or more.`);
+  return problems;
+}
+
+/** The date of occurrence `n` (from 0) of a good rule. This function does not examine `until` and `count`. */
+const rawOccurrence = (rule: Recurrence, n: number): CivilDate | undefined => {
+  switch (rule.unit) {
+    case "day":
+      return addDays(rule.start, n * rule.every);
+    case "week":
+      return addDays(rule.start, n * rule.every * 7);
+    case "month":
+      return addMonths(rule.start, n * rule.every);
+    case "year":
+      return addMonths(rule.start, n * rule.every * 12);
+  }
+};
+
+const inRule = (rule: Recurrence, n: number, date: CivilDate | undefined): date is CivilDate =>
+  date !== undefined &&
+  (rule.count === undefined || n < rule.count) &&
+  (rule.until === undefined || (dayNumber(date) ?? Infinity) <= (dayNumber(rule.until) ?? -Infinity));
+
+/** This function gives the date of occurrence `n` of the rule, from 0. Past `until` or `count`, and for a bad rule, it gives `undefined`. */
+export function occurrence(rule: Recurrence, n: number): CivilDate | undefined {
+  if (!Number.isInteger(n) || n < 0 || recurrenceProblems(rule).length > 0) return undefined;
+  const date = rawOccurrence(rule, n);
+  return inRule(rule, n, date) ? date : undefined;
+}
+
+/** The mean days of one step of each unit, for the first estimate of an index. */
+const MEAN_DAYS: Readonly<Record<Recurrence["unit"], number>> = { day: 1, week: 7, month: 30.436875, year: 365.2425 };
+
+/** The index of the first occurrence on or after the day, for a good rule. The dates of a rule only go up. */
+const firstIndexFrom = (rule: Recurrence, day: number): number => {
+  const start = dayNumber(rule.start) ?? 0;
+  if (day <= start) return 0;
+  const at = (n: number): number | undefined => dayNumber(rawOccurrence(rule, n) ?? "");
+  // The estimate is near the index. The loops move it down, then up, to the first date on or after the day.
+  let n = Math.max(0, Math.floor((day - start) / (rule.every * MEAN_DAYS[rule.unit])));
+  while (n > 0 && (at(n - 1) ?? Infinity) >= day) n -= 1;
+  while ((at(n) ?? Infinity) < day) n += 1;
+  return n;
+};
+
+/** This function gives the first date of the rule on or after `date`. It gives `undefined` when the rule has no such date. */
+export function nextOccurrence(rule: Recurrence, date: CivilDate): CivilDate | undefined {
+  const day = dayNumber(date);
+  if (day === undefined || recurrenceProblems(rule).length > 0) return undefined;
+  const n = firstIndexFrom(rule, day);
+  const found = rawOccurrence(rule, n);
+  return inRule(rule, n, found) ? found : undefined;
+}
+
+/**
+ * This function gives the dates of the rule from `from` to `to`, with the two ends, in order. It gives at most
+ * `limit` dates (1,000 when it is absent). A bad rule or date gives no date.
+ */
+export function occurrencesBetween(rule: Recurrence, from: CivilDate, to: CivilDate, limit = 1000): CivilDate[] {
+  const a = dayNumber(from);
+  const b = dayNumber(to);
+  if (a === undefined || b === undefined || recurrenceProblems(rule).length > 0) return [];
+  const out: CivilDate[] = [];
+  for (let n = firstIndexFrom(rule, a); out.length < limit; n += 1) {
+    const date = rawOccurrence(rule, n);
+    if (!inRule(rule, n, date) || (dayNumber(date) ?? Infinity) > b) break;
+    out.push(date);
+  }
+  return out;
+}
