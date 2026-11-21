@@ -4109,12 +4109,12 @@ The test:
 
 ### SYS-147 · Calendar dates and recurrence rules in the clock entry
 
-- **Status:** active
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-21
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-21
+- **Links:** [#636](https://github.com/mark1russell7/systems/pull/636), [the release run](https://github.com/mark1russell7/systems/actions/runs/44940752291), [algebra 0.9.10 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.9.10)
 
 A consumer that keeps stock with due dates needs dates with no time and no zone, and tasks that repeat on dates. The clock entry gives the time of an instant in a zone, and the month of an instant. It gives no date arithmetic and no recurrence rule, thus the consumer keeps a copy of its own.
 
@@ -4124,7 +4124,7 @@ The change adds these functions to `@mark1russell7/algebra/clock`:
 - `Recurrence`, a rule as data: each `every` days, weeks, months or years from `start`, with `until` and `count`. Each date comes from `start`, thus a monthly rule from the 31st comes back to the 31st.
 - `occurrence`, `nextOccurrence`, `occurrencesBetween` and `recurrenceProblems`. A bad input gives `undefined` or no date, and no function throws.
 
-The release is a PATCH of the state-machine package before 1.0: new exports. SYS-108 moves it to `@mark1russell7/automata` with the rest of the package.
+The release is a PATCH of the state-machine package before 1.0: new exports. It shipped in `@mark1russell7/algebra` 0.9.10. SYS-108 moves it to `@mark1russell7/automata` with the rest of the package.
 
 The test:
 
