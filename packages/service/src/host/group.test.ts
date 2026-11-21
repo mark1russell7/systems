@@ -242,6 +242,63 @@ describe("superviseGroup starts a program again after it stops", () => {
     });
   });
 
+  /** This function moves the clock in steps of 100 ms until the host has `count` signals, or 100 s go by. */
+  const untilSignals = async (host: FakeHost, count: number): Promise<void> => {
+    for (let steps = 0; steps < 1000 && host.signals.length < count; steps += 1) await step(host, 100);
+  };
+  const slowReady = { probe: { kind: "tcp", port: 9000 }, interval: ms(100), timeout: ms(50), within: ms(300) } as const;
+  const missedIn = (window: number): string => `it was not ready in ${window} ms (no TCP connection to 127.0.0.1:9000 in 50 ms), then it exited with the code 0`;
+
+  it("makes the ready window longer after each start that is not ready in it, to its cap, and a ready start sets it back", async () => {
+    const host = fakeHost();
+    host.polite = true;
+    const group = superviseGroup(
+      one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, grow: { factor: 2, cap: ms(1000) } }, restart: quick }),
+      host.ports,
+    );
+    group.start();
+    await host.settle();
+    const details: Array<string | null> = [];
+    for (let stops = 1; stops <= 4; stops += 1) {
+      await untilSignals(host, stops);
+      details.push(group.states()[0]!.detail);
+    }
+    expect(details).toEqual([missedIn(300), missedIn(600), missedIn(1000), missedIn(1000)]);
+    host.tcp.add("127.0.0.1:9000");
+    for (let steps = 0; steps < 1000 && phases(group)["slow"] !== "ready"; steps += 1) await step(host, 100);
+    expect(phases(group)).toEqual({ slow: "ready" });
+    host.tcp.delete("127.0.0.1:9000");
+    host.children.at(-1)?.exit(1);
+    await host.settle();
+    await untilSignals(host, 5);
+    expect(group.states()[0]!.detail).toBe(missedIn(300));
+  });
+
+  it("keeps the ready window of each start without a growth", async () => {
+    const host = fakeHost();
+    host.polite = true;
+    const group = superviseGroup(one({ name: "slow", program: "/bin/slow", ready: slowReady, restart: quick }), host.ports);
+    group.start();
+    await host.settle();
+    await untilSignals(host, 1);
+    expect(group.states()[0]!.detail).toBe(missedIn(300));
+    await untilSignals(host, 2);
+    expect(group.states()[0]!.detail).toBe(missedIn(300));
+  });
+
+  it("refuses a ready growth with a factor of 1 or less, or a cap that is not a time of `within` or more", () => {
+    const of = 'the program "slow"';
+    expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, grow: { factor: 1, cap: ms(200) } } }))).toEqual([
+      `${of}: the factor of the ready growth is not a finite number above 1`,
+      `${of}: the cap of the ready growth is shorter than the within of the probe`,
+    ]);
+    expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, grow: { factor: Number.NaN, cap: { value: 1, unit: "MB" } } } }))).toEqual([
+      `${of}: the factor of the ready growth is not a finite number above 1`,
+      `${of}: the cap of the ready growth is not a time above zero`,
+    ]);
+    expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, grow: { factor: 1.5, cap: ms(300) } } }))).toEqual([]);
+  });
+
   it("does not start a program again without a restart, and frees its lock", async () => {
     const host = fakeHost();
     const group = superviseGroup(one({ name: "once", program: "/bin/once", restart: null }), host.ports);
