@@ -32,7 +32,7 @@ jobs:
     # (queue.yml, SYS-118), its job pull finds the pull request of the branch. Then check:conventions
     # examines the change of the pull request against the newest main (template#350). The release
     # build keeps the pin of release.yml.
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
     permissions:
       contents: read
     with:
@@ -53,7 +53,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
     permissions:
       contents: read
     with:
@@ -155,7 +155,7 @@ jobs:
   # The site of .github/site.json: the build, the site check and the probe, with no deploy (CI.md of the
   # template, "The site config"). The Pages workflow deploys the same site from main.
   site-check:
-    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
     permissions:
       contents: read
 
@@ -169,7 +169,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
         with:
           needs: ${{ toJSON(needs) }}
           # The jobs that their own if can skip. Each other job must pass.
