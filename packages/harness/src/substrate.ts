@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { release } from "node:os";
 import { join } from "node:path";
+import type { CpuShares } from "./cell.ts";
 import type { Layer } from "./layers.ts";
 
 /** A cloud is where the runner operates. GitHub can schedule a standard Linux job on Azure or on AWS. */
@@ -111,6 +112,59 @@ export const readCpu = (root = "/"): CpuTime | null => {
 export const stealShare = (before: CpuTime, after: CpuTime): number | null => {
   const total = after.total - before.total;
   return total <= 0 ? null : (after.steal - before.steal) / total;
+};
+
+/** The names of the eight states of a CPU in `/proc/stat`, in the order of the file. */
+export const CPU_STATES = ["user", "nice", "system", "idle", "iowait", "irq", "softirq", "steal"] as const;
+
+/** A CPU state is one of the eight states of a CPU in `/proc/stat`. */
+export type CpuState = (typeof CPU_STATES)[number];
+
+/** The CPU states of one CPU are its eight counters of `/proc/stat`, in ticks of the clock. */
+export type CpuStates = Readonly<Record<CpuState, number>>;
+
+/**
+ * This function reads the eight states of each CPU of this machine from `/proc/stat`, by the number of
+ * the CPU. It gives null without the file, or with no line of a CPU. `root` is for tests.
+ *
+ * - The guest counters that follow the eight states are also in `user` and `nice`. Thus the function does not read them.
+ * - A line with a counter that is not a number makes the reading null.
+ */
+export const readCpus = (root = "/"): ReadonlyMap<number, CpuStates> | null => {
+  const text = textOf(join(root, "proc", "stat"));
+  if (text === null) return null;
+  const cpus = new Map<number, CpuStates>();
+  for (const line of text.split("\n")) {
+    const match = /^cpu(\d+)\s+(.*)$/.exec(line);
+    if (match === null) continue;
+    const ticks = match[2]!.trim().split(/\s+/).slice(0, CPU_STATES.length).map(Number);
+    if (ticks.length < CPU_STATES.length || ticks.some(Number.isNaN)) return null;
+    cpus.set(Number(match[1]), Object.fromEntries(CPU_STATES.map((state, index) => [state, ticks[index]!])) as CpuStates);
+  }
+  return cpus.size === 0 ? null : cpus;
+};
+
+/**
+ * This function gives the CPU shares of a set of CPUs between two readings of `readCpus`. It gives
+ * null if a CPU of the set is not in both readings, or if no tick passed.
+ */
+export const cpuShares = (
+  before: ReadonlyMap<number, CpuStates>,
+  after: ReadonlyMap<number, CpuStates>,
+  cpus: readonly number[],
+  list: string,
+): CpuShares | null => {
+  const sums = Object.fromEntries(CPU_STATES.map((state) => [state, 0])) as Record<CpuState, number>;
+  for (const cpu of cpus) {
+    const first = before.get(cpu);
+    const last = after.get(cpu);
+    if (first === undefined || last === undefined) return null;
+    for (const state of CPU_STATES) sums[state] += last[state] - first[state];
+  }
+  const total = CPU_STATES.reduce((sum, state) => sum + sums[state], 0);
+  if (cpus.length === 0 || total <= 0) return null;
+  const shares = Object.fromEntries(CPU_STATES.map((state) => [state, sums[state] / total])) as Record<CpuState, number>;
+  return { cpus: list, count: cpus.length, ...shares, busy: cpus.length * (1 - shares.idle - shares.iowait) };
 };
 
 /** A part of a record that can hold a substrate: a manifest of the harness, or the fields of a kind manifest. */

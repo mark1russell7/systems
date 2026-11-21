@@ -185,13 +185,23 @@ const bytesOf = (memory: Quantity): number | null => {
   }
 };
 
+/**
+ * This function gives the numbers of the CPUs of a list, as `cpuset.cpus` takes it: `0`, `2-3` or `0,2`.
+ * The numbers are in order, each one time. A text that is not a list gives null.
+ */
+export const cpusOfList = (text: string): readonly number[] | null => {
+  if (!/^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(text)) return null;
+  const cpus = new Set<number>();
+  for (const range of text.split(",")) {
+    const [first, last = first] = range.split("-").map(Number);
+    if (first! > last!) return null;
+    for (let cpu = first!; cpu <= last!; cpu += 1) cpus.add(cpu);
+  }
+  return [...cpus].sort((a, b) => a - b);
+};
+
 /** This function tells that a text is a list of CPUs, as `cpuset.cpus` takes it: `0`, `2-3` or `0,2`. */
-const isCpuList = (text: string): boolean =>
-  /^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(text) &&
-  text.split(",").every((range) => {
-    const [first, last] = range.split("-").map(Number);
-    return last === undefined || first! <= last;
-  });
+const isCpuList = (text: string): boolean => cpusOfList(text) !== null;
 
 /** This function gives the problems of the limits of a container, each as a sentence. Limits with no problem give an empty list. */
 export const limitsProblems = (limits: ContainerLimits): string[] => {

@@ -1,7 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
-import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
+import type { Cell, CpuShares, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run, RunCpus } from "./cell.ts";
 import { environmentProblems, isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { streamEnded, streamOf } from "./delivery.ts";
 import { drillOnce } from "./drill.ts";
@@ -15,10 +15,11 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import type { ResourceReader, ResourceReading } from "./resources.ts";
+import { cpusOfList } from "./resources.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { kafkaOnce, kafkaPauseOnce, openKafkaLab } from "./kafka.ts";
 import { openStandby, pairOnce } from "./standby.ts";
-import { readCpu, stealShare } from "./substrate.ts";
+import { cpuShares, readCpu, readCpus, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
 
@@ -769,13 +770,36 @@ const line = (cell: Cell, run: Run, read: Measured): string =>
   `${read.elapsed === null ? "" : ` ${read.elapsed.value} s`}` +
   `${read.void === null ? "" : ` (void: ${read.void})`}`;
 
-/** This function adds to a run the share of the CPU that the host took while the run operated. */
-const withSteal = async (work: () => Promise<Run>): Promise<Run> => {
+/** This function gives the CPU sets of the target and of the client of a cell, each with its list of CPUs. */
+const cpuSetsOf = (cell: Cell): readonly (readonly [keyof RunCpus, string, readonly number[]])[] =>
+  (
+    [
+      ["target", cell.target.limits?.cpuset],
+      ["client", cell.clientLimits?.cpuset],
+    ] as const
+  ).flatMap(([part, list]) => {
+    const cpus = list === undefined ? null : cpusOfList(list);
+    return list === undefined || cpus === null ? [] : [[part, list, cpus] as const];
+  });
+
+/**
+ * This function adds to a run the share of the CPU that the host took while the run operated. It also
+ * adds the CPU shares of the CPU sets of the target and of the client (`RunCpus`).
+ */
+const withCpu = async (cell: Cell, work: () => Promise<Run>): Promise<Run> => {
+  const sets = cpuSetsOf(cell);
   const before = readCpu();
+  const first = sets.length === 0 ? null : readCpus();
   const run = await work();
   const after = readCpu();
+  const last = first === null ? null : readCpus();
   const steal = before === null || after === null ? null : stealShare(before, after);
-  return steal === null ? run : { ...run, steal };
+  const cpus: Partial<Record<keyof RunCpus, CpuShares>> = {};
+  for (const [part, list, numbers] of sets) {
+    const shares = first === null || last === null ? null : cpuShares(first, last, numbers, list);
+    if (shares !== null) cpus[part] = shares;
+  }
+  return { ...run, ...(steal === null ? {} : { steal }), ...(Object.keys(cpus).length === 0 ? {} : { cpus }) };
 };
 
 /**
@@ -824,12 +848,12 @@ const inEnvironment = async (
       );
     // each run records the jitter of its program, which sets the window of its pairings
     const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run), ...(missing === undefined ? {} : { missing }) });
-    const warmed = timed(await withSteal(() => once(lab, cell, environment, -1, endsEnvironment(cell))));
+    const warmed = timed(await withCpu(cell, () => once(lab, cell, environment, -1, endsEnvironment(cell))));
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = timed(await withSteal(() => once(lab, cell, environment, index)));
+      const run = timed(await withCpu(cell, () => once(lab, cell, environment, index)));
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

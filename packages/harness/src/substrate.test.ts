@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Host } from "./substrate.ts";
-import { cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+import { CPU_STATES, cloudOf, comparable, cpuShares, readCpu, readCpus, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+import type { CpuStates } from "./substrate.ts";
 
 const AZURE: Host = { kernel: "7.0.0-1017-azure", hz: 1000, vendor: "Microsoft Corporation", kvm: true, image: "ubuntu24 20261101.360.1" };
 const AWS: Host = { ...AZURE, vendor: "Amazon EC2" };
@@ -76,6 +77,54 @@ describe("the CPU that a host takes", () => {
 
   it("gives null if no tick passed", () => {
     expect(stealShare({ steal: 10, total: 1000 }, { steal: 10, total: 1000 })).toBeNull();
+  });
+
+  /** This function gives the states of one CPU from its eight counters, in the order of the file. */
+  const states = (...ticks: number[]): CpuStates => Object.fromEntries(CPU_STATES.map((state, index) => [state, ticks[index]!])) as CpuStates;
+
+  it("reads the eight states of each CPU, and not the guest counters", () => {
+    const text = "cpu  200 4 60 1600 20 2 4 110 80 0\ncpu0 100 2 30 800 10 1 2 55 40 0\ncpu1 100 2 30 800 10 1 2 55 40 0\nintr 1 2 3\nctxt 9\n";
+    const cpus = withStat(text, readCpus);
+    expect([...(cpus ?? new Map()).keys()]).toEqual([0, 1]);
+    expect(cpus?.get(1)).toEqual(states(100, 2, 30, 800, 10, 1, 2, 55));
+  });
+
+  it("gives null with no file, with no line of a CPU, or with a counter that is not a number", () => {
+    const root = mkdtempSync(join(tmpdir(), "substrate-"));
+    try {
+      expect(readCpus(root)).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+    expect(withStat("cpu  1 2 3 4 5 6 7 8\nintr 1\n", readCpus)).toBeNull();
+    expect(withStat("cpu0 1 2 3 4 5 6 x 8\n", readCpus)).toBeNull();
+    expect(withStat("cpu0 1 2 3 4\n", readCpus)).toBeNull();
+  });
+
+  it("gives the shares of each state of a set of CPUs, and its busy cores", () => {
+    const before = new Map([
+      [0, states(0, 0, 0, 0, 0, 0, 0, 0)],
+      [1, states(0, 0, 0, 0, 0, 0, 0, 0)],
+      [2, states(0, 0, 0, 0, 0, 0, 0, 0)],
+    ]);
+    // CPU 0: 50 user, 20 system, 30 softirq. CPU 1: 10 user, 80 idle, 10 iowait. CPU 2 is not in the set.
+    const after = new Map([
+      [0, states(50, 0, 20, 0, 0, 0, 30, 0)],
+      [1, states(10, 0, 0, 80, 10, 0, 0, 0)],
+      [2, states(0, 0, 0, 100, 0, 0, 0, 0)],
+    ]);
+    const shares = cpuShares(before, after, [0, 1], "0-1");
+    expect(shares).toMatchObject({ cpus: "0-1", count: 2, user: 0.3, system: 0.1, idle: 0.4, iowait: 0.05, softirq: 0.15, steal: 0 });
+    expect(shares?.busy).toBeCloseTo(1.1, 12);
+    expect(CPU_STATES.reduce((sum, state) => sum + shares![state], 0)).toBeCloseTo(1, 12);
+    expect(cpuShares(before, after, [0], "0")?.busy).toBeCloseTo(1, 12);
+  });
+
+  it("gives null for a CPU of the set that is not in both readings, for no CPU, and if no tick passed", () => {
+    const one = new Map([[0, states(1, 0, 0, 1, 0, 0, 0, 0)]]);
+    expect(cpuShares(one, one, [0], "0")).toBeNull();
+    expect(cpuShares(one, new Map([[0, states(2, 0, 0, 1, 0, 0, 0, 0)]]), [3], "3")).toBeNull();
+    expect(cpuShares(one, new Map([[0, states(2, 0, 0, 1, 0, 0, 0, 0)]]), [], "")).toBeNull();
   });
 });
 

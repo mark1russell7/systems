@@ -56,6 +56,7 @@ export type {
   Prediction,
   ConntrackPrediction,
   ContainerLimits,
+  CpuShares,
   HostSysctl,
   LoadBand,
   LoadConnections,
@@ -93,6 +94,7 @@ export type {
   RunBackup,
   RunDrill,
   DrillRoom,
+  RunCpus,
   RunGroup,
   RunPart,
   RunFabric,
@@ -165,6 +167,7 @@ export {
   cgroupNumber,
   cpuMaxOf,
   cpuStatOf,
+  cpusOfList,
   hostLimitsOf,
   limitsProblems,
   memoryStatOf,
@@ -234,7 +237,8 @@ export {
 export type { Layer, LayerFacts, LayerState, Limit } from "./layers.ts";
 export { LAYERS, LAYER_FACTS, LIMITS, layerOf, limitsOf } from "./layers.ts";
 export type { Cloud, Host, Substrate, SubstrateSource } from "./substrate.ts";
-export { AWS_FROM, CLOUDS, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export { AWS_FROM, CLOUDS, CPU_STATES, cloudOf, comparable, cpuShares, readCpu, readCpus, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export type { CpuState, CpuStates } from "./substrate.ts";
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmDrift, npmVersions, versionsOf } from "./locks.ts";
