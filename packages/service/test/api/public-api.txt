@@ -966,6 +966,7 @@ type ProgramRestart: build/host/group.d.ts#ProgramRestart
 type ProgramSpec: build/host/group.d.ts#ProgramSpec
 type ProgramState: build/host/group.d.ts#ProgramState
 type ReadDiscoveryOptions: build/host/discovery.d.ts#ReadDiscoveryOptions
+type ReadyGrowth: build/host/group.d.ts#ReadyGrowth
 type ReadyProbe: build/host/probes.d.ts#ReadyProbe
 type ReadySpec: build/host/group.d.ts#ReadySpec
 type RestartPolicy: build/host/render.d.ts#RestartPolicy
@@ -2153,12 +2154,19 @@ export interface ProgramState {
   readonly detail: string | null;
 }
 
+### build/host/group.d.ts#ReadyGrowth
+export interface ReadyGrowth {
+  readonly factor: number;
+  readonly cap: Quantity;
+}
+
 ### build/host/group.d.ts#ReadySpec
 export interface ReadySpec {
   readonly probe: ReadyProbe;
   readonly interval: Quantity;
   readonly timeout: Quantity;
   readonly within: Quantity;
+  readonly grow?: ReadyGrowth | undefined;
 }
 
 ### build/host/group.d.ts#StopSpec

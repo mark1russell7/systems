@@ -30,6 +30,23 @@ export interface ReadySpec {
   readonly timeout: Quantity;
   /** This time is the most that the program can take to be ready. After it, the supervisor stops the program and starts it again. */
   readonly within: Quantity;
+  /**
+   * This growth makes the window longer after each start that is not ready in its window. Without it, each start
+   * has the window `within`. A slow host can need more time than `within`. Then each start stops at the same time, and
+   * the program does not get ready.
+   */
+  readonly grow?: ReadyGrowth | undefined;
+}
+
+/**
+ * A ready growth tells how the window of a start grows. The window of a start is `within` times `factor` to the power of
+ * the count of starts in sequence that were not ready in their window, and not more than `cap`. A ready start sets the count to 0.
+ */
+export interface ReadyGrowth {
+  /** This number multiplies the window after each start that is not ready in it: a finite number above 1. */
+  readonly factor: number;
+  /** This time is the longest window. It is not shorter than `within`. */
+  readonly cap: Quantity;
 }
 
 /**
@@ -180,6 +197,13 @@ export const startOrder = (spec: GroupSpec): string[][] => {
 const isTimeAtLeast = (value: unknown, floor: number, strict: boolean): boolean =>
   isTime(value) && (strict ? ms(value) > floor : ms(value) >= floor);
 
+/** This function gives the window of a start in milliseconds, after `missed` starts in sequence that were not ready in their window. */
+const readyWindowMs = (ready: ReadySpec, missed: number): number => {
+  const within = ms(ready.within);
+  if (ready.grow === undefined || missed === 0) return within;
+  return Math.min(ms(ready.grow.cap), Math.round(within * ready.grow.factor ** missed));
+};
+
 /** This function gives the problems of a group spec: each value that the supervisor cannot use. */
 export const groupProblems = (spec: GroupSpec): string[] => {
   const problems: string[] = [];
@@ -203,6 +227,12 @@ export const groupProblems = (spec: GroupSpec): string[] => {
       problems.push(...probeProblems(program.ready.probe).map((problem) => `${of}: ${problem}`));
       for (const field of ["interval", "timeout", "within"] as const)
         if (!isTimeAtLeast(program.ready[field], 0, true)) problems.push(`${of}: the ${field} of the probe is not a time above zero`);
+      const grow = program.ready.grow;
+      if (grow !== undefined) {
+        if (!(Number.isFinite(grow.factor) && grow.factor > 1)) problems.push(`${of}: the factor of the ready growth is not a finite number above 1`);
+        if (!isTimeAtLeast(grow.cap, 0, true)) problems.push(`${of}: the cap of the ready growth is not a time above zero`);
+        else if (isTime(program.ready.within) && ms(grow.cap) < ms(program.ready.within)) problems.push(`${of}: the cap of the ready growth is shorter than the within of the probe`);
+      }
     }
     if (program.alive !== undefined) {
       problems.push(...probeProblems(program.alive.probe).map((problem) => `${of}: the liveness probe: ${problem}`));
@@ -251,6 +281,8 @@ interface Unit {
   /** This cancel stops the next use of the liveness probe. It is one timer, thus a long life adds no timers. */
   watch: Cancel | null;
   restarts: number;
+  /** This count tells the starts in sequence that were not ready in their window. A ready start sets it to 0. */
+  missed: number;
   detail: string | null;
   /** This text tells why the supervisor stopped the child, or it is null. */
   reason: string | null;
@@ -305,6 +337,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
       timers: [],
       watch: null,
       restarts: 0,
+      missed: 0,
       detail: null,
       reason: null,
       waiters: [],
@@ -369,6 +402,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
     if (unit.child !== child || stopping) return;
     unit.phase = "ready";
     unit.detail = null;
+    unit.missed = 0;
     say("info", `${unit.spec.name} is ready`, { program: unit.spec.name, pid: child.pid });
     const restart = unit.spec.restart === undefined ? DEFAULT_RESTART : unit.spec.restart;
     if (unit.retry !== null && restart !== null) {
@@ -422,7 +456,8 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
   };
 
   const probe = (unit: Unit, child: ChildHandle, ready: ReadySpec): void => {
-    const deadline = ports.clock.now() + ms(ready.within);
+    const windowMs = readyWindowMs(ready, unit.missed);
+    const deadline = ports.clock.now() + windowMs;
     const attempt = async (): Promise<void> => {
       if (unit.child !== child || stopping) return;
       const result = await probeOnce(ready.probe, ms(ready.timeout), ports);
@@ -433,9 +468,17 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
       }
       unit.detail = result.why;
       if (ports.clock.now() >= deadline) {
-        unit.reason = `it was not ready in ${ms(ready.within)} ms (${result.why})`;
+        unit.missed += 1;
+        const next = readyWindowMs(ready, unit.missed);
+        unit.reason = `it was not ready in ${windowMs} ms (${result.why})`;
         unit.detail = unit.reason;
-        say("warn", `${unit.spec.name} is not ready in its time, thus it stops`, { program: unit.spec.name, pid: child.pid, why: result.why });
+        say("warn", `${unit.spec.name} is not ready in its time, thus it stops`, {
+          program: unit.spec.name,
+          pid: child.pid,
+          why: result.why,
+          window: { value: windowMs, unit: "ms" },
+          next: { value: next, unit: "ms" },
+        });
         void stagedStop(unit, child);
         return;
       }
