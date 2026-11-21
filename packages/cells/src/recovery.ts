@@ -51,6 +51,8 @@ export interface RecoveryRung {
 /** These are the rungs of the ladder of recovery. */
 export const RECOVERY_RUNGS: readonly RecoveryRung[] = [
   { name: "1", tenants: 1, rpo: s(86_400), rto: s(14_400), schedule: s(82_800), drill: "RD.1", kept: "RD.control" },
+  // SYS-98: one process with a backup each 55 minutes, the law of RD.1 at 10 MB
+  { name: "10", tenants: 10, rpo: s(3_600), rto: s(3_600), schedule: s(3_300), drill: "RD.10.restore", kept: "RD.10.control" },
   { name: "100", tenants: 100, rpo: s(300), rto: s(1_800), schedule: s(240), drill: "RD.100.restore", kept: "RD.100.failover" },
   { name: "1000", tenants: 1_000, rpo: s(60), rto: s(900), schedule: s(45), drill: "RD.1000.restore", kept: "RD.1000.failover" },
 ];
@@ -128,6 +130,26 @@ export const RECOVERY_CELLS: readonly Cell[] = [
     failover: false,
     lost: { low: 1, high: writesIn(AGE_OF_A_DUMP) },
     band: restoreBand(rungNamed("1")),
+    what: WHOLE_RESTORE,
+  }),
+  drillCell({
+    name: "RD.10.control one node, 10 MB, disk lost after the dump with no later write: no write goes",
+    members: ONE_MEMBER,
+    drill: { tenants: 10, perTenant: TENANT, slices: 0, sliceEvery: s(0), age: AT_REST, recovery: "restore", quiet: true },
+    lands: "same",
+    failover: false,
+    lost: { low: 0, high: 0 },
+    band: restoreBand(rungNamed("10")),
+    what: WHOLE_RESTORE,
+  }),
+  drillCell({
+    name: "RD.10.restore one node, 10 MB, disk lost, a dump with its oplog: each write after the dump goes, and no other",
+    members: ONE_MEMBER,
+    drill: { tenants: 10, perTenant: TENANT, slices: 0, sliceEvery: s(0), age: AGE_OF_A_DUMP, recovery: "restore" },
+    lands: "same",
+    failover: false,
+    lost: { low: 1, high: writesIn(AGE_OF_A_DUMP) },
+    band: restoreBand(rungNamed("10")),
     what: WHOLE_RESTORE,
   }),
   drillCell({
