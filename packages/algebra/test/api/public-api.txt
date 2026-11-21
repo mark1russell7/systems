@@ -110,6 +110,7 @@ sendChance: build/availability.d.ts#sendChance
 ## ./clock (build/clock.d.ts): names
 
 Cancel: build/clock.chunk.d.ts#Cancel
+CivilDate: build/clock.chunk.d.ts#CivilDate
 Clock: build/clock.chunk.d.ts#Clock
 FRAME_DRIFT_LIMIT: build/clock.chunk.d.ts#FRAME_DRIFT_LIMIT
 FakeClock: build/clock.chunk.d.ts#FakeClock
@@ -119,10 +120,17 @@ FrameClockOptions: build/clock.chunk.d.ts#FrameClockOptions
 LocalMonth: build/clock.chunk.d.ts#LocalMonth
 LocalTime: build/clock.chunk.d.ts#LocalTime
 PlatformClockOptions: build/clock.chunk.d.ts#PlatformClockOptions
+Recurrence: build/clock.chunk.d.ts#Recurrence
 SyncFakeClock: build/clock.chunk.d.ts#SyncFakeClock
 TimeWindow: build/clock.chunk.d.ts#TimeWindow
 WallClock: build/clock.chunk.d.ts#WallClock
 WindowBoundary: build/clock.chunk.d.ts#WindowBoundary
+addDays: build/clock.chunk.d.ts#addDays
+addMonths: build/clock.chunk.d.ts#addMonths
+dateOf: build/clock.chunk.d.ts#dateOf
+dateOfDay: build/clock.chunk.d.ts#dateOfDay
+dayNumber: build/clock.chunk.d.ts#dayNumber
+daysBetween: build/clock.chunk.d.ts#daysBetween
 delay: build/clock.chunk.d.ts#delay
 fakeClock: build/clock.chunk.d.ts#fakeClock
 fakeWallClock: build/clock.chunk.d.ts#fakeWallClock
@@ -134,11 +142,16 @@ isFrameClock: build/clock.chunk.d.ts#isFrameClock
 localTime: build/clock.chunk.d.ts#localTime
 monthOf: build/clock.chunk.d.ts#monthOf
 nextBoundary: build/clock.chunk.d.ts#nextBoundary
+nextOccurrence: build/clock.chunk.d.ts#nextOccurrence
+occurrence: build/clock.chunk.d.ts#occurrence
+occurrencesBetween: build/clock.chunk.d.ts#occurrencesBetween
 offsetChanges: build/clock.chunk.d.ts#offsetChanges
 platformClock: build/clock.chunk.d.ts#platformClock
 realClock: build/clock.chunk.d.ts#realClock
+recurrenceProblems: build/clock.chunk.d.ts#recurrenceProblems
 unrefClock: build/clock.chunk.d.ts#unrefClock
 wallClock: build/clock.chunk.d.ts#wallClock
+weekdayOfDate: build/clock.chunk.d.ts#weekdayOfDate
 windowProblems: build/clock.chunk.d.ts#windowProblems
 
 ## ./replay (build/replay.d.ts): names
@@ -224,6 +237,9 @@ type Cancel = (() => void) & {
   readonly unref?: (() => void) | undefined;
 };
 
+### build/clock.chunk.d.ts#CivilDate
+type CivilDate = string;
+
 ### build/clock.chunk.d.ts#Clock
 interface Clock {
   readonly time?: "monotonic" | undefined;
@@ -285,6 +301,15 @@ interface PlatformClockOptions {
   readonly start?: number | undefined;
 }
 
+### build/clock.chunk.d.ts#Recurrence
+interface Recurrence {
+  readonly start: CivilDate;
+  readonly every: number;
+  readonly unit: "day" | "week" | "month" | "year";
+  readonly until?: CivilDate | undefined;
+  readonly count?: number | undefined;
+}
+
 ### build/clock.chunk.d.ts#SyncFakeClock
 interface SyncFakeClock extends FakeClock {
   tick(ms: number): void;
@@ -310,6 +335,24 @@ interface WindowBoundary {
   readonly at: number;
   readonly opens: boolean;
 }
+
+### build/clock.chunk.d.ts#addDays
+declare function addDays(date: CivilDate, days: number): CivilDate | undefined;
+
+### build/clock.chunk.d.ts#addMonths
+declare function addMonths(date: CivilDate, months: number): CivilDate | undefined;
+
+### build/clock.chunk.d.ts#dateOf
+declare function dateOf(instant: number, zone: string): CivilDate | undefined;
+
+### build/clock.chunk.d.ts#dateOfDay
+declare function dateOfDay(day: number): CivilDate | undefined;
+
+### build/clock.chunk.d.ts#dayNumber
+declare function dayNumber(date: CivilDate): number | undefined;
+
+### build/clock.chunk.d.ts#daysBetween
+declare function daysBetween(from: CivilDate, to: CivilDate): number | undefined;
 
 ### build/clock.chunk.d.ts#delay
 declare const delay: (clock: Pick<Clock, "after">, ms: number, signal?: AbortSignal) => Promise<void>;
@@ -344,6 +387,15 @@ declare function monthOf(at: number, zone: string): LocalMonth | undefined;
 ### build/clock.chunk.d.ts#nextBoundary
 declare function nextBoundary(instant: number, window: TimeWindow): WindowBoundary | undefined;
 
+### build/clock.chunk.d.ts#nextOccurrence
+declare function nextOccurrence(rule: Recurrence, date: CivilDate): CivilDate | undefined;
+
+### build/clock.chunk.d.ts#occurrence
+declare function occurrence(rule: Recurrence, n: number): CivilDate | undefined;
+
+### build/clock.chunk.d.ts#occurrencesBetween
+declare function occurrencesBetween(rule: Recurrence, from: CivilDate, to: CivilDate, limit?: number): CivilDate[];
+
 ### build/clock.chunk.d.ts#offsetChanges
 declare function offsetChanges(from: number, to: number, zone: string): number[] | undefined;
 
@@ -353,12 +405,18 @@ declare const platformClock: (options?: PlatformClockOptions) => Clock;
 ### build/clock.chunk.d.ts#realClock
 declare const realClock: Clock;
 
+### build/clock.chunk.d.ts#recurrenceProblems
+declare function recurrenceProblems(rule: Recurrence): string[];
+
 ### build/clock.chunk.d.ts#unrefClock
 declare function unrefClock(clock: Clock): Clock;
 declare function unrefClock(clock: WallClock): WallClock;
 
 ### build/clock.chunk.d.ts#wallClock
 declare const wallClock: (options?: PlatformClockOptions) => WallClock;
+
+### build/clock.chunk.d.ts#weekdayOfDate
+declare function weekdayOfDate(date: CivilDate): number | undefined;
 
 ### build/clock.chunk.d.ts#windowProblems
 declare function windowProblems(window: TimeWindow): string[];

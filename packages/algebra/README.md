@@ -233,6 +233,35 @@ const next = nextBoundary(Date.now(), night); // { at, opens }: the next change 
 if (next !== undefined) realClock.after(next.at - Date.now(), () => console.log(next.opens ? "quiet" : "loud"));
 ```
 
+### Calendar dates and recurrence rules
+
+A calendar date is a text `YYYY-MM-DD` with no time and no zone, for example a due date. The arithmetic counts whole days from 1970-01-01. Thus a change of the clock has no effect on it.
+
+| Name | What it does |
+| --- | --- |
+| `CivilDate` | A calendar date `YYYY-MM-DD`, from `0001-01-01` to `9999-12-31`. |
+| `dayNumber(date)`, `dateOfDay(day)` | The count of days from 1970-01-01, and its inverse. A text that is not a real date gives `undefined`. |
+| `addDays(date, days)`, `daysBetween(from, to)` | They add whole days to a date, and give the days from one date to another. |
+| `addMonths(date, months)` | It adds whole months. A day past the end of the new month goes to its last day: `2027-01-31` plus 1 month is `2027-02-28`. |
+| `weekdayOfDate(date)` | The day of the week, from 0 (Sunday) to 6. |
+| `dateOf(instant, zone)` | The calendar date of an instant on the clock of a zone. |
+| `Recurrence` | A rule as data: `{ start, every, unit, until?, count? }`, with the unit `day`, `week`, `month` or `year`. |
+| `occurrence(rule, n)` | The date of occurrence `n`, from 0. Each date comes from `start`, thus a monthly rule from the 31st comes back to the 31st. |
+| `nextOccurrence(rule, date)` | The first date of the rule on or after the date. |
+| `occurrencesBetween(rule, from, to, limit?)` | The dates of the rule from `from` to `to`, with the two ends. |
+| `recurrenceProblems(rule)` | The problems of a rule. A bad rule gives no date. |
+
+A bad date, count or rule gives `undefined` or no date. No function throws.
+
+```ts
+import { addDays, dateOf, nextOccurrence } from "@mark1russell7/algebra/clock";
+
+const today = dateOf(Date.now(), "America/New_York") ?? "2026-12-01";
+const check = { start: "2026-12-01", every: 6, unit: "month" } as const; // a check two times each year
+nextOccurrence(check, today); // "2026-12-01", then "2027-06-01" after that day
+addDays("2026-12-01", 15); // "2026-12-16"
+```
+
 ## The availability of copies
 
 The entry `@mark1russell7/algebra/availability` gives the chance that copies of a service send in time, when the copies share causes of failure. Examples of causes are a provider, a region, a power feed, a network and a channel of delivery.

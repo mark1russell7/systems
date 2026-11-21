@@ -4107,6 +4107,32 @@ The test:
 - The step from December to January, and a name that is not a zone.
 - For each month, its `end` is the `start` of the next month.
 
+### SYS-147 · Calendar dates and recurrence rules in the clock entry
+
+- **Status:** active
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-21
+- **Shipped:**
+- **Links:**
+
+A consumer that keeps stock with due dates needs dates with no time and no zone, and tasks that repeat on dates. The clock entry gives the time of an instant in a zone, and the month of an instant. It gives no date arithmetic and no recurrence rule, thus the consumer keeps a copy of its own.
+
+The change adds these functions to `@mark1russell7/algebra/clock`:
+
+- `CivilDate`, a text `YYYY-MM-DD`, and `dayNumber`, `dateOfDay`, `addDays`, `addMonths`, `daysBetween`, `weekdayOfDate` and `dateOf`.
+- `Recurrence`, a rule as data: each `every` days, weeks, months or years from `start`, with `until` and `count`. Each date comes from `start`, thus a monthly rule from the 31st comes back to the 31st.
+- `occurrence`, `nextOccurrence`, `occurrencesBetween` and `recurrenceProblems`. A bad input gives `undefined` or no date, and no function throws.
+
+The release is a PATCH of the state-machine package before 1.0: new exports. SYS-108 moves it to `@mark1russell7/automata` with the rest of the package.
+
+The test:
+
+- The days of each month over 400 years make 146,097 days.
+- Short months, leap days, years 0 to 99, and the limits 0001 and 9999.
+- For 48 rules, `nextOccurrence` agrees with a scan of `occurrence` near each date.
+- `until`, `count`, the limit of the dates and each problem of a bad rule.
+
 ### SYS-134 · One scope for each request, job and loop round
 
 - **Status:** in progress
