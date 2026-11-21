@@ -1,7 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { valueIn } from "@mark1russell7/quantity";
 import { schedule } from "@mark1russell7/rigor-chaos";
-import type { Cell, CpuShares, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run, RunCpus } from "./cell.ts";
+import type { Cell, FaultPlace, KernelRecord, LineCount, ProbeEvent, Run } from "./cell.ts";
 import { environmentProblems, isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { streamEnded, streamOf } from "./delivery.ts";
 import { drillOnce } from "./drill.ts";
@@ -15,11 +15,11 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import type { ResourceReader, ResourceReading } from "./resources.ts";
-import { cpusOfList } from "./resources.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { kafkaOnce, kafkaPauseOnce, openKafkaLab } from "./kafka.ts";
 import { openStandby, pairOnce } from "./standby.ts";
-import { cpuShares, readCpu, readCpus, stealShare } from "./substrate.ts";
+import { readCpu, readCpus, runCpusOf, stealShare } from "./substrate.ts";
+import type { CpuLists, CpuStates } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
 
@@ -452,11 +452,16 @@ const once = async (
   let reader: ResourceReader | undefined;
   let start: ResourceReading | undefined;
   let end: ResourceReading | undefined;
+  // the states of the CPUs at the two readings give the CPU shares in the window of the readings
+  const lists = cpuListsOf(cell);
+  let cpusAtStart: ReadonlyMap<number, CpuStates> | null = null;
+  let cpusAtEnd: ReadonlyMap<number, CpuStates> | null = null;
   try {
     await probe.until(["ready"], 15_000);
     if (cell.resources !== undefined) {
       reader = await lab.resources(cell.resources);
       start = await reader.read();
+      cpusAtStart = readCpusFor(lists);
     }
     if (dry) {
       if (cell.probe.mode !== "idle") await go();
@@ -714,7 +719,10 @@ const once = async (
         await sleep(TAIL_MS);
       }
     }
-    if (reader !== undefined) end = await reader.read();
+    if (reader !== undefined) {
+      end = await reader.read();
+      cpusAtEnd = readCpusFor(lists);
+    }
   } finally {
     await probe.stop();
     await reader?.stop();
@@ -722,6 +730,7 @@ const once = async (
   // the prober drains its ring each 20 ms. Its next clock line closes the records of the run
   const settled = await lab.settle();
   const lost = settled === null ? null : settled - lostBefore;
+  const cpus = runCpusOf(lists, cpusAtStart, cpusAtEnd);
   return {
     environment,
     index,
@@ -738,7 +747,9 @@ const once = async (
     ...(lab.fabric === undefined || sessions === undefined
       ? {}
       : { fabric: { routes: lab.fabric.routes.slice(routesFrom), established: { before: sessions, after: await lab.fabric.sessions() } } }),
-    ...(reader === undefined || start === undefined || end === undefined ? {} : { resources: { start, end, series: [...reader.series] } }),
+    ...(reader === undefined || start === undefined || end === undefined
+      ? {}
+      : { resources: { start, end, series: [...reader.series], ...(cpus === null ? {} : { cpus }) } }),
   };
 };
 
@@ -770,36 +781,30 @@ const line = (cell: Cell, run: Run, read: Measured): string =>
   `${read.elapsed === null ? "" : ` ${read.elapsed.value} s`}` +
   `${read.void === null ? "" : ` (void: ${read.void})`}`;
 
-/** This function gives the CPU sets of the target and of the client of a cell, each with its list of CPUs. */
-const cpuSetsOf = (cell: Cell): readonly (readonly [keyof RunCpus, string, readonly number[]])[] =>
-  (
-    [
-      ["target", cell.target.limits?.cpuset],
-      ["client", cell.clientLimits?.cpuset],
-    ] as const
-  ).flatMap(([part, list]) => {
-    const cpus = list === undefined ? null : cpusOfList(list);
-    return list === undefined || cpus === null ? [] : [[part, list, cpus] as const];
-  });
+/** This function gives the `cpuset` lists of the target and of the client of a cell. */
+const cpuListsOf = (cell: Cell): CpuLists => ({
+  ...(cell.target.limits?.cpuset === undefined ? {} : { target: cell.target.limits.cpuset }),
+  ...(cell.clientLimits?.cpuset === undefined ? {} : { client: cell.clientLimits.cpuset }),
+});
+
+/** This function reads the states of each CPU, only for a cell with a `cpuset` list. */
+const readCpusFor = (lists: CpuLists): ReadonlyMap<number, CpuStates> | null =>
+  lists.target === undefined && lists.client === undefined ? null : readCpus();
 
 /**
  * This function adds to a run the share of the CPU that the host took while the run operated. It also
  * adds the CPU shares of the CPU sets of the target and of the client (`RunCpus`).
  */
 const withCpu = async (cell: Cell, work: () => Promise<Run>): Promise<Run> => {
-  const sets = cpuSetsOf(cell);
+  const lists = cpuListsOf(cell);
   const before = readCpu();
-  const first = sets.length === 0 ? null : readCpus();
+  const first = readCpusFor(lists);
   const run = await work();
   const after = readCpu();
-  const last = first === null ? null : readCpus();
+  const last = readCpusFor(lists);
   const steal = before === null || after === null ? null : stealShare(before, after);
-  const cpus: Partial<Record<keyof RunCpus, CpuShares>> = {};
-  for (const [part, list, numbers] of sets) {
-    const shares = first === null || last === null ? null : cpuShares(first, last, numbers, list);
-    if (shares !== null) cpus[part] = shares;
-  }
-  return { ...run, ...(steal === null ? {} : { steal }), ...(Object.keys(cpus).length === 0 ? {} : { cpus }) };
+  const cpus = runCpusOf(lists, first, last);
+  return { ...run, ...(steal === null ? {} : { steal }), ...(cpus === null ? {} : { cpus }) };
 };
 
 /**
