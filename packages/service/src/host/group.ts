@@ -39,8 +39,9 @@ export interface ReadySpec {
 }
 
 /**
- * A ready growth tells how the window of a start grows. The window of a start is `within` times `factor` to the power of
- * the count of starts in sequence that were not ready in their window, and not more than `cap`. A ready start sets the count to 0.
+ * A ready growth tells how the window of a start grows. The count `missed` is the count of starts in sequence that were not
+ * ready in their window. The window of a start is `within` times `factor` to the power of `missed`, and not more than `cap`.
+ * A ready start sets the count to 0.
  */
 export interface ReadyGrowth {
   /** This number multiplies the window after each start that is not ready in it: a finite number above 1. */

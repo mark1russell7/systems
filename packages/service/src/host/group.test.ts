@@ -265,7 +265,7 @@ describe("superviseGroup starts a program again after it stops", () => {
     }
     expect(details).toEqual([missedIn(300), missedIn(600), missedIn(1000), missedIn(1000)]);
     host.tcp.add("127.0.0.1:9000");
-    for (let steps = 0; steps < 1000 && phases(group).slow !== "ready"; steps += 1) await step(host, 100);
+    for (let steps = 0; steps < 1000 && phases(group)["slow"] !== "ready"; steps += 1) await step(host, 100);
     expect(phases(group)).toEqual({ slow: "ready" });
     host.tcp.delete("127.0.0.1:9000");
     host.children.at(-1)?.exit(1);
