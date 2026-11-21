@@ -1310,6 +1310,46 @@ export interface Target {
 }
 
 /**
+ * The CPU shares of a set of CPUs are the shares of each state of its CPU time between two readings of
+ * `/proc/stat` (`cpuShares`). Each share goes from 0 to 1, and the sum of the eight states is 1.
+ */
+export interface CpuShares {
+  /** This list is the CPUs of the set, as `cpuset.cpus` takes it, for example `0` or `1-3`. */
+  readonly cpus: string;
+  /** This count is the number of CPUs in the set. */
+  readonly count: number;
+  /** This count is the busy cores of the set: the count times the share of the states that are not `idle` or `iowait`. */
+  readonly busy: number;
+  /** This share is the time of processes in user mode, with the time of guests. */
+  readonly user: number;
+  /** This share is the time of processes with a low priority in user mode. */
+  readonly nice: number;
+  /** This share is the time of processes in kernel mode. */
+  readonly system: number;
+  /** This share is the time with no work. */
+  readonly idle: number;
+  /** This share is the time with no work while a read or a write of a disk waited. */
+  readonly iowait: number;
+  /** This share is the time of hardware interrupts. */
+  readonly irq: number;
+  /** This share is the time of software interrupts, for example the packets of the network. */
+  readonly softirq: number;
+  /** This share is the time that the host gave to another guest while this one had work. */
+  readonly steal: number;
+}
+
+/**
+ * The run CPUs are the CPU shares of the CPU set of the target and of the client in one run. The time of
+ * a CPU outside the cgroup of its container is in them too, for example `softirq` and other processes.
+ */
+export interface RunCpus {
+  /** These are the shares of the CPUs of `Target.limits.cpuset`. */
+  readonly target?: CpuShares;
+  /** These are the shares of the CPUs of `Cell.clientLimits.cpuset`. */
+  readonly client?: CpuShares;
+}
+
+/**
  * These are the limits of one container of a lab, as Docker writes them into the cgroup of the
  * container. A measurement of the cost of a server gives the server a CPU limit and a memory
  * limit. It keeps the client on other CPUs.
@@ -1861,6 +1901,11 @@ export interface Run {
    * writes it with its first cell on layer E4.
    */
   readonly steal?: number;
+  /**
+   * These are the CPU shares of the CPUs of the target and of the client in the run, from `/proc/stat`
+   * (`cpuShares`). A run of a plain cell writes the shares of each container with a `cpuset`.
+   */
+  readonly cpus?: RunCpus;
   /** These are the addresses and the namespaces of a topology, which the measurement of a run reads. */
   readonly topology?: RunTopology;
   /** These are the lines of the routers of a topology from the start to the end of the run. */

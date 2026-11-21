@@ -16,6 +16,7 @@ CLOSED_TOLERANCE: build/index.d.ts#CLOSED_TOLERANCE
 CLOUDS: build/index.d.ts#CLOUDS
 CLUSTER_STAGES: build/index.d.ts#CLUSTER_STAGES
 CONVERGE_MS: build/index.d.ts#CONVERGE_MS
+CPU_STATES: build/index.d.ts#CPU_STATES
 type CallReading: build/index.d.ts#CallReading
 type Cell: build/cell.chunk.d.ts#Cell
 type CellResult: build/index.d.ts#CellResult
@@ -33,6 +34,9 @@ type ConntrackReading: build/index.d.ts#ConntrackReading
 type ContainerLimits: build/cell.chunk.d.ts#ContainerLimits
 type ContextFile: build/index.d.ts#ContextFile
 type CountBand: build/cell.chunk.d.ts#CountBand
+type CpuShares: build/cell.chunk.d.ts#CpuShares
+type CpuState: build/index.d.ts#CpuState
+type CpuStates: build/index.d.ts#CpuStates
 type Crossings: build/index.d.ts#Crossings
 type Cut: build/index.d.ts#Cut
 DAEMONS: build/index.d.ts#DAEMONS
@@ -232,6 +236,7 @@ type RouterHop: build/cell.chunk.d.ts#RouterHop
 type RttRange: build/cell.chunk.d.ts#RttRange
 type Run: build/cell.chunk.d.ts#Run
 type RunBackup: build/cell.chunk.d.ts#RunBackup
+type RunCpus: build/cell.chunk.d.ts#RunCpus
 type RunDrill: build/cell.chunk.d.ts#RunDrill
 type RunEstimate: build/index.d.ts#RunEstimate
 type RunFabric: build/cell.chunk.d.ts#RunFabric
@@ -306,7 +311,9 @@ comparable: build/index.d.ts#comparable
 connectionsProblems: build/index.d.ts#connectionsProblems
 controllerEnv: build/index.d.ts#controllerEnv
 cpuMaxOf: build/cell.chunk.d.ts#cpuMaxOf
+cpuShares: build/index.d.ts#cpuShares
 cpuStatOf: build/cell.chunk.d.ts#cpuStatOf
+cpusOfList: build/cell.chunk.d.ts#cpusOfList
 crossingsOf: build/index.d.ts#crossingsOf
 cutOf: build/index.d.ts#cutOf
 deadlineOf: build/index.d.ts#deadlineOf
@@ -436,6 +443,7 @@ programLines: build/index.d.ts#programLines
 programOf: build/index.d.ts#programOf
 quantileOf: build/index.d.ts#quantileOf
 readCpu: build/index.d.ts#readCpu
+readCpus: build/index.d.ts#readCpus
 readHost: build/index.d.ts#readHost
 readOplog: build/index.d.ts#readOplog
 reconnectFinding: build/index.d.ts#reconnectFinding
@@ -693,6 +701,21 @@ interface ContainerLimits {
 interface CountBand {
   readonly low: number;
   readonly high: number;
+}
+
+### build/cell.chunk.d.ts#CpuShares
+interface CpuShares {
+  readonly cpus: string;
+  readonly count: number;
+  readonly busy: number;
+  readonly user: number;
+  readonly nice: number;
+  readonly system: number;
+  readonly idle: number;
+  readonly iowait: number;
+  readonly irq: number;
+  readonly softirq: number;
+  readonly steal: number;
 }
 
 ### build/cell.chunk.d.ts#DeliveryPrediction
@@ -1453,6 +1476,7 @@ interface Run {
   readonly hz?: number;
   readonly jitter?: Jitter;
   readonly steal?: number;
+  readonly cpus?: RunCpus;
   readonly topology?: RunTopology;
   readonly middlebox?: readonly MiddleboxEvent[];
   readonly group?: RunGroup;
@@ -1475,6 +1499,12 @@ interface RunBackup {
     readonly t: number;
   } | null;
   readonly size: Quantity;
+}
+
+### build/cell.chunk.d.ts#RunCpus
+interface RunCpus {
+  readonly target?: CpuShares;
+  readonly client?: CpuShares;
 }
 
 ### build/cell.chunk.d.ts#RunDrill
@@ -1673,6 +1703,9 @@ declare const cpuMaxOf: (text: string) => ResourceLimits["cpu"];
 ### build/cell.chunk.d.ts#cpuStatOf
 declare const cpuStatOf: (text: string) => ResourceCpu | null;
 
+### build/cell.chunk.d.ts#cpusOfList
+declare const cpusOfList: (text: string) => readonly number[] | null;
+
 ### build/cell.chunk.d.ts#environmentProblems
 declare const environmentProblems: (cell: Cell) => string[];
 
@@ -1742,6 +1775,9 @@ export declare const CLUSTER_STAGES: readonly ClusterStage[];
 
 ### build/index.d.ts#CONVERGE_MS
 export declare const CONVERGE_MS = 24e4;
+
+### build/index.d.ts#CPU_STATES
+export declare const CPU_STATES: readonly ["user", "nice", "system", "idle", "iowait", "irq", "softirq", "steal"];
 
 ### build/index.d.ts#CallReading
 interface CallReading {
@@ -1820,6 +1856,12 @@ interface ContextFile {
   readonly at: string;
   readonly content: Buffer | string;
 }
+
+### build/index.d.ts#CpuState
+type CpuState = (typeof CPU_STATES)[number];
+
+### build/index.d.ts#CpuStates
+type CpuStates = Readonly<Record<CpuState, number>>;
 
 ### build/index.d.ts#Crossings
 interface Crossings {
@@ -3095,6 +3137,9 @@ export declare const connectionsProblems: (connections: LoadConnections) => stri
 ### build/index.d.ts#controllerEnv
 export declare const controllerEnv: (kafka: Kafka) => Record<string, string>;
 
+### build/index.d.ts#cpuShares
+export declare const cpuShares: (before: ReadonlyMap<number, CpuStates>, after: ReadonlyMap<number, CpuStates>, cpus: readonly number[], list: string) => CpuShares | null;
+
 ### build/index.d.ts#crossingsOf
 export declare const crossingsOf: (run: Run, hop: string, toClient: SocketPlace | undefined, toTarget: SocketPlace | undefined) => Crossings;
 
@@ -3490,6 +3535,9 @@ export declare const quantileOf: (sorted: readonly number[], p: number) => numbe
 
 ### build/index.d.ts#readCpu
 export declare const readCpu: (root?: string) => CpuTime | null;
+
+### build/index.d.ts#readCpus
+export declare const readCpus: (root?: string) => ReadonlyMap<number, CpuStates> | null;
 
 ### build/index.d.ts#readHost
 export declare const readHost: (root?: string, env?: Readonly<Record<string, string | undefined>>, kernel?: string) => Host;

@@ -17,6 +17,7 @@ import {
   cgroupNumber,
   cpuMaxOf,
   cpuStatOf,
+  cpusOfList,
   hostLimitsOf,
   limitsProblems,
   memoryStatOf,
@@ -355,6 +356,10 @@ describe("the limits of a container", () => {
     expect(limitsProblems({ cpus: Number.NaN, cpuset: "3-2", memory: { value: 1, unit: "s" } })).toHaveLength(3);
     for (const cpuset of ["", "a", "0,", "1-", "0-1-2", " 0"]) expect(limitsProblems({ cpuset }), cpuset).toHaveLength(1);
     expect(limitsProblems({ memory: { value: 1, unit: "MiB" } })).toEqual(["memory is 1048576 B: Docker takes 6 MiB or more"]);
+    expect(cpusOfList("0")).toEqual([0]);
+    expect(cpusOfList("1-3")).toEqual([1, 2, 3]);
+    expect(cpusOfList("4,0-1,1")).toEqual([0, 1, 4]);
+    for (const list of ["", "a", "0,", "3-2", " 0"]) expect(cpusOfList(list), list).toBeNull();
     expect(() => hostLimitsOf({ cpus: -1 })).toThrow(RangeError);
     expect(() => hostLimitsOf({ cpuset: "x" })).toThrow(/write a list of CPUs/);
   });
