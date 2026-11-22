@@ -12,7 +12,7 @@ At most three items are in progress at one time. A score puts the items in order
 2. **SYS-134** (P1): one scope for each request, job and loop round. Part 1 shipped on 2026-11-18 (#604): the type, the keys, the entry `/scope` and the laws 1 to 7, in service `0.10.1`. Part 2 (#606) merged on 2026-11-18: the five contexts are scopes, in the MINOR `0.11.0`, and its release waits in the queue. Part 3 is the procedure context of the client.
 3. **SYS-138** (P1): one loop core, with the schedule as data. Its design passed review on 2026-11-18 (#614). Part 1 (#620) has the core and the laws 1 to 7, for service `0.11.1`. Part 2 starts with the metrics of the loops (#622), and the five loops follow on the core.
 
-SYS-136 shipped on 2026-11-18: a consumer operates one command of its own in the guest of the VM tier, through `vm-run.yml` (#612). SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
+SYS-142 shipped on 2026-11-22: a measured ready window for each program of a group, in service `0.11.8` (#650). SYS-136 shipped on 2026-11-18: a consumer operates one command of its own in the guest of the VM tier, through `vm-run.yml` (#612). SYS-121 shipped on 2026-11-17: a read of 40 runs measures the loss of `PR.7` (#593). SYS-120 shipped on 2026-11-16: the page of the accept queue shows the measured values of the ten cells. SYS-99 shipped on 2026-11-16: each drill of the Sunday gets the read of the night (#383). SYS-130 shipped on 2026-11-17: the layers of S7 are data, with the faults and the limits of each layer (#586). The other open items are `later`, in the order of the score:
 
 - **SYS-146** (P1): the harness image builds in the guest of the VM tier. The guest kernel gets transparent huge pages, and the test of the tier builds the image. The E4 job of a consumer waits on it.
 - **SYS-135** (P1): the service package in a browser. Its design passed review on 2026-11-18 (#610). It waits for the release of part 2 of SYS-134.
@@ -4844,12 +4844,12 @@ A study needs records that pin their programs, because a refresh must operate th
 
 ### SYS-142 · A measured ready window for each program of a group
 
-- **Status:** active
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-11-22
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-22
+- **Links:** [#650](https://github.com/mark1russell7/systems/pull/650)
 
 A user of the group supervisor asked for it on 2026-11-18. The `ready.within` of a program is a fixed time. On a host with 1 GB of memory and a slow disk, each start took 24 s to 50 s. A fixed window of 35 s stopped most starts, and the supervisor started each program again in a loop. The user measures each start outside the package, and reads the window only at the start of the supervisor.
 
@@ -4857,7 +4857,7 @@ The change:
 
 - The ready spec gets the optional field `measured`: `{ after, keep, floor, cap }`. Its `within` is the first window. Thus the type of `within` does not change, and a reader of `within` still gets a time. The field takes no function, because `groupProblems` checks each field of the spec, and the spec prints.
 - A ready spec has `grow` or `measured`, not the two.
-- The time of a start goes from the start of the process to the first pass of its ready probe. The clock of the ports gives it.
+- The time of a start goes from the spawn of the child to the first pass of its ready probe. The clock of the ports gives it.
 - The window is `within` until `after` starts have a time. Then it is the worst of the last `keep` times plus the worst minus the best, between `floor` and `cap`.
 - The supervisor reads the window at each start of a program.
 - The times live in `<stateDir>/<name>.ready.json` through the file port, thus they survive a restart of the supervisor. A missing or bad file gives no times and one line at warn.
