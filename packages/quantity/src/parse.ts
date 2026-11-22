@@ -22,6 +22,11 @@ export const isCanonicalUnit: (spelling: string) => boolean = UNITS.isCanonicalU
 /** This function gives the canonical spelling of a unit, for data from another system: "hr" is "h". */
 export const canonicalUnit: (spelling: string) => string = UNITS.canonicalUnit;
 
+/**
+ * This function gives the kind of a unit from its dimensions only. It ignores what a factor counts:
+ * "g/{each}" is mass and "{set}/wk" is frequency. Two units of one kind can still not convert,
+ * because their counts differ: ask convertible.
+ */
 export const kindOf: (spelling: string) => Kind | "derived" = UNITS.kindOf;
 
 /** This function gives the reason that `from` cannot become `to`, or undefined when it can. */

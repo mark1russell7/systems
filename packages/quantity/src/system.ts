@@ -233,7 +233,9 @@ export const unitSystem = (
   const parseUnit = (spelling: string): Unit => {
     const hit = cache.get(spelling);
     if (hit !== undefined) return hit;
-    const whole = spellings[spelling.trim()] ?? spelling.trim();
+    const trimmed = spelling.trim();
+    // an own key only: "toString" names no spelling, though a plain object has it
+    const whole = Object.hasOwn(spellings, trimmed) ? (spellings[trimmed] as string) : trimmed;
     if (whole === "") throw new UnitError("an empty unit");
     const parts = whole.split("/");
     if (parts.length > 2) throw new UnitError(`unit ${spelling}: at most one /`);
