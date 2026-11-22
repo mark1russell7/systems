@@ -3674,7 +3674,7 @@ The kind tier holds the cells of connection timers in a cluster. Its lab has its
 
 A new export is a feature, thus the release of kind is a PATCH before 1.0.
 
-### SYS-147 · The first election of a restored replica set is not a failover
+### SYS-148 · The first election of a restored replica set is not a failover
 
 - **Status:** active
 - **Area:** harness
