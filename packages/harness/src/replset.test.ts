@@ -229,6 +229,23 @@ describe("a run of a replica set cell, measured", () => {
     expect(read.group?.stages["first-write"]).toEqual(s(35.31));
   });
 
+  it("reads the first election of a new set as no failover, as after a restore of each disk", () => {
+    const base = setRun();
+    const termed = (term: number): Run => ({
+      ...base,
+      group: { ...base.group!, timeline: base.group!.timeline.map((line) => (line["id"] === 21450 ? { ...line, attr: { term } } : line)) },
+    });
+    // the record of the weekly run of 2026-11-22: a new set at term 0, and m2 won its first election
+    expect(replicaSetStagesOf(termed(1), at(0), at(0.0002), "new")["elected"]).toBeUndefined();
+    expect(replicaSetStagesOf(termed(2), at(0), at(0.0002), "new")["elected"]).toEqual(s(10.9));
+    const still: Cell = {
+      ...CELL,
+      prediction: { ...CELL.prediction, group: { lands: "new", failover: false, stages: [], quiet: [] } } as Cell["prediction"],
+    };
+    expect(measure(still, termed(1)).finding ?? "").not.toContain("failed over");
+    expect(measure(still, termed(2)).finding).toBe("the group failed over 10.9 s after the fault, where it should not");
+  });
+
   it("gives the client the address of each member and the write concern of the cell", () => {
     const args = replicaSetArgs({ ...CELL, writeConcern: 1, driverOptions: { heartbeatFrequencyMS: 2000 } }, MEMBERS);
     expect(args.slice(0, 8)).toEqual(["10.0.0.2", "27017", "--mode", "stream", "--hosts", "10.0.0.2:27017,10.0.0.3:27017,10.0.0.4:27017", "--set", "rs0"]);

@@ -146,6 +146,9 @@ const marks = (line: SentinelEvent, stage: keyof typeof MEMBER_MARKS, old: strin
   const attr = (line["attr"] ?? {}) as Record<string, unknown>;
   // the DOWN state counts for the old primary only, as another member sees it
   if (stage === "member-down" && !JSON.stringify(attr).includes(oldAddress)) return false;
+  // the first election of a set (term 1) starts a new set, as after a restore of each disk: any member can win it,
+  // and it is no failover. A failover follows a primary of the same set, so its term is 2 or more.
+  if (stage === "elected" && attr["term"] === 1) return false;
   // the generic state change of the old primary: PRIMARY to another state
   if (stage === "old-primary-steps-down" && Number(line["id"]) === 21358 && attr["oldState"] === "PRIMARY") return true;
   return mark.ids.includes(Number(line["id"])) || mark.message.test(String(line["msg"] ?? ""));
