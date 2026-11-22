@@ -62,7 +62,7 @@ export const formatUnit = (unit: string, many = true): string => {
 
 const unitText = (unit: string, many: boolean): string => {
   const parsed = parseUnit(unit);
-  const said = SAID[parsed.symbol];
+  const said = Object.hasOwn(SAID, parsed.symbol) ? SAID[parsed.symbol] : undefined;
   if (said !== undefined) return said;
   const top = parsed.components.filter((c) => c.exponent > 0);
   const bottom = parsed.components.filter((c) => c.exponent < 0);
@@ -117,7 +117,10 @@ export const format = (amount: Extent | Unknown, options: FormatOptions = {}): s
   const shown = number(magnitude, options.digits ?? 2, false);
   // a bare count is just its number: 15 retries is "15", what it counts is the field's to say
   if (parsed.symbol === "count") return `${sign}${shown}`;
-  const spoken = parsed.components.length === 1 ? SPOKEN[parsed.symbol] : undefined;
+  const spoken =
+    parsed.components.length === 1 && Object.hasOwn(SPOKEN, parsed.symbol)
+      ? SPOKEN[parsed.symbol]
+      : undefined;
   if (spoken !== undefined) return `${sign}${shown} ${magnitude === 1 ? spoken : `${spoken}s`}`;
   // a percentage and a temperature scale sit against the number: 34.5%, 72°F. Other ratios do not: 410 ppm.
   const tight =
@@ -181,7 +184,7 @@ const checkUnits = (amount: Quantity, units: readonly string[]): void => {
 
 /** The text of a whole number of a unit of a compound: "2 h", "1 day", "3 days". */
 const wholeText = (whole: number, unit: string): string => {
-  const word = SPOKEN[unit];
+  const word = Object.hasOwn(SPOKEN, unit) ? SPOKEN[unit] : undefined;
   return `${whole} ${word === undefined ? formatUnit(unit, whole !== 1) : whole === 1 ? word : `${word}s`}`;
 };
 
