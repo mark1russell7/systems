@@ -4868,21 +4868,22 @@ The user writes the pull request, and this repository reviews it. It is a new op
 
 ### SYS-143 · Service moves to otel-ts 0.8, on OpenTelemetry JS 3
 
-- **Status:** later
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-138 part 2
-- **Started:**
-- **Shipped:**
-- **Links:** [otel-ts 0.8.2 on npm](https://www.npmjs.com/package/@mark1russell7/otel-ts/v/0.8.2), [rigor-testkit 0.2.0 on npm](https://www.npmjs.com/package/@mark1russell7/rigor-testkit/v/0.2.0), [the model pull request](https://github.com/mark1russell7/lag/pull/176)
+- **Started:** 2026-11-22
+- **Shipped:** 2026-11-22
+- **Links:** [otel-ts 0.8.4 on npm](https://www.npmjs.com/package/@mark1russell7/otel-ts/v/0.8.4), [rigor-testkit 0.2.0 on npm](https://www.npmjs.com/package/@mark1russell7/rigor-testkit/v/0.2.0), [the model pull request](https://github.com/mark1russell7/lag/pull/176)
 
-otel-ts 0.8.2 is on the SDK 3 of OpenTelemetry JS. Service takes otel-ts `^0.7.6` as an optional peer and a dev dependency. The range `^0.7.6` does not take 0.8, thus nothing breaks before the move.
+otel-ts 0.8 is on the SDK 3 of OpenTelemetry JS. Service took otel-ts `^0.7.6` as an optional peer. The range `^0.7.6` did not take 0.8, thus a program with otel-ts 0.8 got a peer conflict.
 
-- The peer range and the dev range of otel-ts go to `^0.8.2`.
-- The tests of service use the entries `/otel` and `/propagation` of rigor-testkit, thus its dev range goes to `^0.2.0` in the same pull request.
-- A new peer range is a break of service, thus service gets a MINOR before 1.0.
-- The package `kind` depends on service, and its packed `package.json` changes. Its API does not change, thus `kind` gets a PATCH.
+- The peer range of otel-ts is `^0.7.6 || ^0.8.4`. The source of service imports only `incomingContext` of the entry `/context`, and 0.8.4 keeps it.
+- The dev range of otel-ts is `^0.8.4`. Thus the tests of the entry `/otel` and the gate of the propagation use the SDK 3.
+- The dev range of rigor-testkit is `^0.2.0`. Its peer rigor-generators gets the dev range `^0.1.19`.
+- The dev dependencies of OpenTelemetry JS go to 3.1.1, and `sdk-node` goes to 0.301.2. `sdk-trace` replaces `sdk-trace-base`.
+- The wider range keeps 0.7, thus it is not a break. Service gets a PATCH, 0.11.9.
 
-It starts after the pull requests of SYS-138 part 2 merge, because they change the version of service. The test: the tests of the entry `/otel` and the gate of the propagation pass on the SDK 3. The API report shows only the new range.
+The test: the tests of the entry `/otel` and the gate of the propagation pass on the SDK 3. The API report does not change.
 
 ### SYS-149 · A time on each line of the console logger
 
