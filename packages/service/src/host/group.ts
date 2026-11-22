@@ -19,6 +19,8 @@ import { joinPath } from "./ports.ts";
 import type { ReadyProbe } from "./probes.ts";
 import { probeOnce, probeProblems } from "./probes.ts";
 import { stopTree } from "./processes.ts";
+import type { ReadyTime, WindowRule } from "./ready-times.ts";
+import { addReadyTime, measuredWindowMs, parseReadyTimes, readyTimesText } from "./ready-times.ts";
 import { isTime } from "./render.ts";
 
 /** A ready spec tells how the supervisor finds that a program is ready. */
@@ -28,7 +30,10 @@ export interface ReadySpec {
   readonly interval: Quantity;
   /** This time is the most that one use of the probe can take. */
   readonly timeout: Quantity;
-  /** This time is the most that the program can take to be ready. After it, the supervisor stops the program and starts it again. */
+  /**
+   * This time is the most that the program can take to be ready. After it, the supervisor stops the program and starts it again.
+   * With `measured`, it is the window of the starts before the program has measured ready times.
+   */
   readonly within: Quantity;
   /**
    * This growth makes the window longer after each start that is not ready in its window. Without it, each start
@@ -36,6 +41,31 @@ export interface ReadySpec {
    * the program does not get ready.
    */
   readonly grow?: ReadyGrowth | undefined;
+  /**
+   * This measure gives the window of each start from the ready times of the starts before it, on this host. A ready spec
+   * has `grow` or `measured`, not the two.
+   */
+  readonly measured?: ReadyMeasure | undefined;
+}
+
+/**
+ * A ready measure tells how the supervisor makes the window of a start from measured ready times. A ready time goes from
+ * the spawn of the child to the first pass of its probe, on the clock of the ports. The supervisor keeps the times in the
+ * file `<stateDir>/<name>.ready.json`, thus a new supervisor keeps them.
+ * - Before `after` ready times, the window is `within`.
+ * - Then the window is the worst of the last `keep` ready times, plus the worst minus the best.
+ * - A start that is not ready in its window makes the next window at least two times longer.
+ * - The window is not shorter than `floor` and not longer than `cap`.
+ */
+export interface ReadyMeasure {
+  /** This count of ready times gives the first measured window: a whole number of 1 or more. */
+  readonly after: number;
+  /** This count is the most ready times that the window uses: a whole number of `after` or more. */
+  readonly keep: number;
+  /** This time is the shortest window. */
+  readonly floor: Quantity;
+  /** This time is the longest window. It is not shorter than `floor` or `within`. */
+  readonly cap: Quantity;
 }
 
 /**
@@ -205,6 +235,59 @@ const readyWindowMs = (ready: ReadySpec, missed: number): number => {
   return Math.min(ms(ready.grow.cap), Math.round(within * ready.grow.factor ** missed));
 };
 
+/** This function gives the problems of the measure of a ready spec. */
+const measureProblems = (ready: ReadySpec): string[] => {
+  const measure = ready.measured;
+  if (measure === undefined) return [];
+  const problems: string[] = [];
+  if (ready.grow !== undefined) problems.push("the ready spec has a growth and a measure, but it can have only one of them");
+  if (!(Number.isInteger(measure.after) && measure.after >= 1)) problems.push("the after of the ready measure is not a whole number of 1 or more");
+  if (!(Number.isInteger(measure.keep) && measure.keep >= 1)) problems.push("the keep of the ready measure is not a whole number of 1 or more");
+  else if (Number.isInteger(measure.after) && measure.keep < measure.after) problems.push("the keep of the ready measure is less than its after");
+  for (const field of ["floor", "cap"] as const)
+    if (!isTimeAtLeast(measure[field], 0, true)) problems.push(`the ${field} of the ready measure is not a time above zero`);
+  if (isTime(measure.cap)) {
+    if (isTime(measure.floor) && ms(measure.cap) < ms(measure.floor)) problems.push("the cap of the ready measure is shorter than its floor");
+    if (isTime(ready.within) && ms(measure.cap) < ms(ready.within)) problems.push("the cap of the ready measure is shorter than the within of the probe");
+  }
+  return problems;
+};
+
+/** This function gives the window rule of a ready measure in milliseconds. */
+const windowRule = (ready: ReadySpec, measure: ReadyMeasure): WindowRule => ({
+  firstMs: ms(ready.within),
+  after: measure.after,
+  keep: measure.keep,
+  floorMs: ms(measure.floor),
+  capMs: ms(measure.cap),
+});
+
+/** A ready window is the window of the next start of a program, with the times that gave it. */
+export interface ReadyWindow {
+  /** This number is the window in milliseconds. */
+  readonly ms: number;
+  /** This count is the ready times that the window uses. It is 0 without a measure. */
+  readonly measured: number;
+  /** This count is the missed starts after the last ready start. It is 0 without a measure. */
+  readonly missed: number;
+  /** This text tells why the supervisor cannot use the file of the ready times, or it is null. */
+  readonly problem: string | null;
+}
+
+/** This function gives the path of the file of the ready times of a program: `<stateDir>/<name>.ready.json`. */
+export const readyTimesPath = (platform: string, stateDir: string, name: string): string => joinPath(platform, stateDir, `${name}.ready.json`);
+
+/**
+ * This function gives the window of the next start of a program. It gets the ready spec and the text of the file of the
+ * ready times, or null when the file does not exist. A spec without a measure gives `within`. An app can use it to tell how
+ * long the next start can take.
+ */
+export const nextReadyWindow = (ready: ReadySpec, text: string | null): ReadyWindow => {
+  if (ready.measured === undefined) return { ms: ms(ready.within), measured: 0, missed: 0, problem: null };
+  const read = parseReadyTimes(text);
+  return { ...measuredWindowMs(read.times, windowRule(ready, ready.measured)), problem: read.problem };
+};
+
 /** This function gives the problems of a group spec: each value that the supervisor cannot use. */
 export const groupProblems = (spec: GroupSpec): string[] => {
   const problems: string[] = [];
@@ -234,6 +317,7 @@ export const groupProblems = (spec: GroupSpec): string[] => {
         if (!isTimeAtLeast(grow.cap, 0, true)) problems.push(`${of}: the cap of the ready growth is not a time above zero`);
         else if (isTime(program.ready.within) && ms(grow.cap) < ms(program.ready.within)) problems.push(`${of}: the cap of the ready growth is shorter than the within of the probe`);
       }
+      problems.push(...measureProblems(program.ready).map((problem) => `${of}: ${problem}`));
     }
     if (program.alive !== undefined) {
       problems.push(...probeProblems(program.alive.probe).map((problem) => `${of}: the liveness probe: ${problem}`));
@@ -273,6 +357,8 @@ interface Unit {
   readonly spec: ProgramSpec;
   readonly lockPath: string;
   readonly discoveryPath: string;
+  /** This file keeps the measured ready times of the program. */
+  readonly readyPath: string;
   readonly log: RotatingLog | null;
   readonly retry: Retrier | null;
   phase: ProgramPhase;
@@ -327,6 +413,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
       spec: program,
       lockPath: joinPath(ports.platform, spec.stateDir, `${program.name}.lock`),
       discoveryPath: joinPath(ports.platform, spec.stateDir, `${program.name}.json`),
+      readyPath: readyTimesPath(ports.platform, spec.stateDir, program.name),
       log: logSpec === null ? null : rotatingLog(logSpec, ports.files),
       retry:
         restart === null
@@ -456,21 +543,70 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
     next();
   };
 
-  const probe = (unit: Unit, child: ChildHandle, ready: ReadySpec): void => {
-    const windowMs = readyWindowMs(ready, unit.missed);
+  /**
+   * This function reads the measured ready times of a program. A file that does not exist gives no times. A file that the
+   * supervisor cannot read or use gives no times and one warning.
+   */
+  const readyTimes = async (unit: Unit): Promise<readonly ReadyTime[]> => {
+    const name = unit.spec.name;
+    let text: string | null = null;
+    try {
+      text = await ports.files.read(unit.readyPath);
+    } catch (error) {
+      say("warn", `the read of the ready times of ${name} failed, thus the window uses no times`, { program: name, file: unit.readyPath, error });
+      return [];
+    }
+    const read = parseReadyTimes(text);
+    if (read.problem !== null) say("warn", `the ready times of ${name} are not used: ${read.problem}`, { program: name, file: unit.readyPath });
+    return read.times;
+  };
+
+  /** This function adds one ready time to the file of a program. A failed write gives a warning, and the program continues. */
+  const recordTime = async (unit: Unit, times: readonly ReadyTime[], time: ReadyTime, keep: number): Promise<void> => {
+    try {
+      await ports.files.write(unit.readyPath, readyTimesText(addReadyTime(times, time, keep)));
+    } catch (error) {
+      say("warn", `the ready time of ${unit.spec.name} was not written`, { program: unit.spec.name, file: unit.readyPath, error });
+    }
+  };
+
+  const probe = async (unit: Unit, child: ChildHandle, ready: ReadySpec, spawnedAt: number): Promise<void> => {
+    const measure = ready.measured;
+    const rule = measure === undefined ? null : windowRule(ready, measure);
+    const times = rule === null ? [] : await readyTimes(unit);
+    if (unit.child !== child || stopping) return;
+    let windowMs = readyWindowMs(ready, unit.missed);
+    if (rule !== null) {
+      const window = measuredWindowMs(times, rule);
+      windowMs = window.ms;
+      say("info", `${unit.spec.name} has a ready window of ${windowMs} ms, from ${window.measured} ready times and ${window.missed} missed starts`, {
+        program: unit.spec.name,
+        pid: child.pid,
+        window: { value: windowMs, unit: "ms" },
+        measured: window.measured,
+        missed: window.missed,
+      });
+    }
     const deadline = ports.clock.now() + windowMs;
     const attempt = async (): Promise<void> => {
       if (unit.child !== child || stopping) return;
       const result = await probeOnce(ready.probe, ms(ready.timeout), ports);
       if (unit.child !== child || stopping) return;
       if (result.ok) {
+        if (rule !== null) void recordTime(unit, times, { at: new Date(ports.wall()).toISOString(), ms: ports.clock.now() - spawnedAt }, rule.keep);
         markReady(unit, child);
         return;
       }
       unit.detail = result.why;
       if (ports.clock.now() >= deadline) {
         unit.missed += 1;
-        const next = readyWindowMs(ready, unit.missed);
+        let next = readyWindowMs(ready, unit.missed);
+        if (rule !== null) {
+          // the start needed more time than its window, thus its time is its window or more
+          const missed: ReadyTime = { at: new Date(ports.wall()).toISOString(), ms: Math.max(windowMs, ports.clock.now() - spawnedAt), missed: true };
+          next = measuredWindowMs(addReadyTime(times, missed, rule.keep), rule).ms;
+          void recordTime(unit, times, missed, rule.keep);
+        }
         unit.reason = `it was not ready in ${windowMs} ms (${result.why})`;
         unit.detail = unit.reason;
         say("warn", `${unit.spec.name} is not ready in its time, thus it stops`, {
@@ -535,6 +671,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
       return;
     }
     const child = ports.processes.spawn({ program: unit.spec.program, args: unit.spec.args ?? [], cwd: unit.spec.cwd, env, ipc: unit.spec.ipc ?? false });
+    const spawnedAt = ports.clock.now();
     const startedAt = ports.wall();
     unit.child = child;
     child.onOutput((_stream, chunk) => unit.log?.write(chunk));
@@ -557,7 +694,7 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
     if (unit.child !== child) await removeDiscovery(unit.discoveryPath, ports, pid);
     if (unit.child !== child || stopping) return;
     if (unit.spec.ready === undefined) markReady(unit, child);
-    else probe(unit, child, unit.spec.ready);
+    else await probe(unit, child, unit.spec.ready, spawnedAt);
   };
 
   /** This function waits for the end of a child, for at most `wait` milliseconds. It tells if the child ended. */
