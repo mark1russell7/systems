@@ -3758,6 +3758,7 @@ export interface ConsoleLoggerOptions {
   readonly console?: ConsoleTarget | undefined;
   readonly format?: LogFormat | undefined;
   readonly traceIds?: TraceIdsSource | undefined;
+  readonly wall?: Pick<WallClock, "time" | "now"> | undefined;
 }
 
 ### build/logger.d.ts#ConsoleTarget

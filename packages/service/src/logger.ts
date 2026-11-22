@@ -1,3 +1,4 @@
+import type { WallClock } from "@mark1russell7/algebra/clock";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { ServiceDescription } from "./description.ts";
@@ -36,6 +37,8 @@ export type ConsoleTarget = Readonly<Record<LogLevel, (...data: unknown[]) => vo
  * A log format tells how the console logger writes an entry.
  * - `text`: the message, and then the fields as an object, when the entry has fields.
  * - `json`: one line of JSON for each entry, with the level, the message and each field.
+ *
+ * With a wall clock, each line starts with the time of the entry: in `text` before the message, and in `json` as the field `time`.
  */
 export type LogFormat = "text" | "json";
 
@@ -65,6 +68,12 @@ export interface ConsoleLoggerOptions {
    * entry does not change.
    */
   readonly traceIds?: TraceIdsSource | undefined;
+  /**
+   * This wall clock gives the time of each entry (SYS-149). The logger writes the instant in ISO 8601 form, with the
+   * milliseconds and the zone `Z`. In `text`, the time comes before the message. In `json`, it is the field `time`, and a
+   * field of the entry named `time` does not replace it. With no clock, a line has no time, as before.
+   */
+  readonly wall?: Pick<WallClock, "time" | "now"> | undefined;
 }
 
 /** This function gives the fields with the trace ids of the source added. A field of the entry stays. */
@@ -85,33 +94,40 @@ const jsonValue = (_key: string, value: unknown): unknown => {
  * This function gives one line of JSON for an entry. A field named `level` or `message` does not
  * replace the level or the message. A field that JSON cannot write, for example a cycle, gives its failure as text.
  */
-const jsonLine = (level: LogLevel, message: string, fields: LogFields): string => {
+const jsonLine = (level: LogLevel, message: string, fields: LogFields, time?: string): string => {
   const { level: _level, message: _message, ...rest } = fields;
+  const head = time === undefined ? { level, message } : { time, level, message };
+  // With a clock, a field named `time` does not replace the time of the entry. With no clock, the line is as before.
+  const { time: _time, ...other } = rest;
+  const entry = time === undefined ? { level, message, ...rest } : { ...head, ...other };
   try {
-    return JSON.stringify({ level, message, ...rest }, jsonValue);
+    return JSON.stringify(entry, jsonValue);
   } catch (error) {
-    return JSON.stringify({ level, message, unwritten: error instanceof Error ? error.message : String(error) });
+    return JSON.stringify({ ...head, unwritten: error instanceof Error ? error.message : String(error) });
   }
 };
 
 /**
  * This function makes the console logger. It writes each entry at its level or more severe to the
  * method of that level. In the format `text`, it writes the message first and then the fields. In
- * the format `json`, it writes one line of JSON.
+ * the format `json`, it writes one line of JSON. With a wall clock, each line starts with its time.
  */
 export const consoleLogger = (options: ConsoleLoggerOptions = {}): Logger => {
   const least = options.level ?? "info";
   const format = options.format ?? "text";
   const source = options.traceIds;
+  const wall = options.wall;
   if (format !== "text" && format !== "json") throw new Error(`the log format ${JSON.stringify(format)} is not "text" or "json"`);
   return {
     log(level, message, entryFields) {
       if (!atLeast(level, least)) return;
       const fields = source === undefined ? entryFields : withTraceIds(entryFields, source);
       const target = options.console ?? globalThis.console;
-      if (format === "json") target[level](jsonLine(level, message, fields));
-      else if (Object.keys(fields).length === 0) target[level](message);
-      else target[level](message, fields);
+      const time = wall === undefined ? undefined : new Date(wall.now()).toISOString();
+      const line = time === undefined ? message : `${time} ${message}`;
+      if (format === "json") target[level](jsonLine(level, message, fields, time));
+      else if (Object.keys(fields).length === 0) target[level](line);
+      else target[level](line, fields);
     },
   };
 };
