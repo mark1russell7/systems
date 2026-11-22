@@ -4844,10 +4844,10 @@ A study needs records that pin their programs, because a refresh must operate th
 
 ### SYS-142 · A measured ready window for each program of a group
 
-- **Status:** later
+- **Status:** active
 - **Area:** engines
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-22
 - **Shipped:**
 - **Links:**
 
@@ -4855,9 +4855,10 @@ A user of the group supervisor asked for it on 2026-11-18. The `ready.within` of
 
 The change:
 
-- `within` also takes a measured window as data: `{ measured: { first, after, keep, floor, cap } }`. It takes no function, because `groupProblems` checks each field of the spec, and the spec prints.
+- The ready spec gets the optional field `measured`: `{ after, keep, floor, cap }`. Its `within` is the first window. Thus the type of `within` does not change, and a reader of `within` still gets a time. The field takes no function, because `groupProblems` checks each field of the spec, and the spec prints.
+- A ready spec has `grow` or `measured`, not the two.
 - The time of a start goes from the start of the process to the first pass of its ready probe. The clock of the ports gives it.
-- The window is `first` until `after` starts have a time. Then it is the worst of the last `keep` times plus the worst minus the best, between `floor` and `cap`.
+- The window is `within` until `after` starts have a time. Then it is the worst of the last `keep` times plus the worst minus the best, between `floor` and `cap`.
 - The supervisor reads the window at each start of a program.
 - The times live in `<stateDir>/<name>.ready.json` through the file port, thus they survive a restart of the supervisor. A missing or bad file gives no times and one line at warn.
 - A stopped start has a time of at least its window. The next window is at least two times that window, up to `cap`. Thus a sequence of stopped starts does not keep one window.
