@@ -967,8 +967,10 @@ type ProgramSpec: build/host/group.d.ts#ProgramSpec
 type ProgramState: build/host/group.d.ts#ProgramState
 type ReadDiscoveryOptions: build/host/discovery.d.ts#ReadDiscoveryOptions
 type ReadyGrowth: build/host/group.d.ts#ReadyGrowth
+type ReadyMeasure: build/host/group.d.ts#ReadyMeasure
 type ReadyProbe: build/host/probes.d.ts#ReadyProbe
 type ReadySpec: build/host/group.d.ts#ReadySpec
+type ReadyWindow: build/host/group.d.ts#ReadyWindow
 type RestartPolicy: build/host/render.d.ts#RestartPolicy
 type RotatingLog: build/host/logs.d.ts#RotatingLog
 START_MARGIN_MS: build/host/processes.d.ts#START_MARGIN_MS
@@ -997,6 +999,7 @@ inspectInstanceLock: build/host/lock.d.ts#inspectInstanceLock
 installService: build/host/install.d.ts#installService
 joinPath: build/host/ports.d.ts#joinPath
 lockText: build/host/lock.d.ts#lockText
+nextReadyWindow: build/host/group.d.ts#nextReadyWindow
 nodeHostPorts: build/host/node.d.ts#nodeHostPorts
 parseDiscovery: build/host/discovery.d.ts#parseDiscovery
 parseEnvFile: build/host/env.d.ts#parseEnvFile
@@ -1004,6 +1007,7 @@ parseLockOwner: build/host/lock.d.ts#parseLockOwner
 probeOnce: build/host/probes.d.ts#probeOnce
 probeProblems: build/host/probes.d.ts#probeProblems
 readDiscovery: build/host/discovery.d.ts#readDiscovery
+readyTimesPath: build/host/group.d.ts#readyTimesPath
 removeDiscovery: build/host/discovery.d.ts#removeDiscovery
 renderSystemdTimer: build/host/render.d.ts#renderSystemdTimer
 renderSystemdUnit: build/host/render.d.ts#renderSystemdUnit
@@ -2160,6 +2164,14 @@ export interface ReadyGrowth {
   readonly cap: Quantity;
 }
 
+### build/host/group.d.ts#ReadyMeasure
+export interface ReadyMeasure {
+  readonly after: number;
+  readonly keep: number;
+  readonly floor: Quantity;
+  readonly cap: Quantity;
+}
+
 ### build/host/group.d.ts#ReadySpec
 export interface ReadySpec {
   readonly probe: ReadyProbe;
@@ -2167,6 +2179,15 @@ export interface ReadySpec {
   readonly timeout: Quantity;
   readonly within: Quantity;
   readonly grow?: ReadyGrowth | undefined;
+  readonly measured?: ReadyMeasure | undefined;
+}
+
+### build/host/group.d.ts#ReadyWindow
+export interface ReadyWindow {
+  readonly ms: number;
+  readonly measured: number;
+  readonly missed: number;
+  readonly problem: string | null;
 }
 
 ### build/host/group.d.ts#StopSpec
@@ -2178,6 +2199,12 @@ export interface StopSpec {
 
 ### build/host/group.d.ts#groupProblems
 export declare const groupProblems: (spec: GroupSpec) => string[];
+
+### build/host/group.d.ts#nextReadyWindow
+export declare const nextReadyWindow: (ready: ReadySpec, text: string | null) => ReadyWindow;
+
+### build/host/group.d.ts#readyTimesPath
+export declare const readyTimesPath: (platform: string, stateDir: string, name: string) => string;
 
 ### build/host/group.d.ts#startOrder
 export declare const startOrder: (spec: GroupSpec) => string[][];

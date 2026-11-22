@@ -4,7 +4,7 @@ import { testLogger } from "../testing.ts";
 import type { FakeHost } from "./fakes.ts";
 import { fakeHost } from "./fakes.ts";
 import type { GroupSpec, GroupSupervisor, ProgramRestart, ProgramSpec } from "./group.ts";
-import { groupProblems, startOrder, superviseGroup } from "./group.ts";
+import { groupProblems, nextReadyWindow, readyTimesPath, startOrder, superviseGroup } from "./group.ts";
 import { lockText, parseLockOwner } from "./lock.ts";
 import type { HostPorts } from "./ports.ts";
 
@@ -297,6 +297,159 @@ describe("superviseGroup starts a program again after it stops", () => {
       `${of}: the cap of the ready growth is not a time above zero`,
     ]);
     expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, grow: { factor: 1.5, cap: ms(300) } } }))).toEqual([]);
+  });
+
+  const READY_FILE = "/state/slow.ready.json";
+  const ADDRESS = "127.0.0.1:9000";
+  const s = (value: number): Quantity => ({ value, unit: "s" });
+  const timesOf = (host: FakeHost): Array<{ ms: number; missed?: true }> => (JSON.parse(host.text(READY_FILE) ?? "null") as { times: Array<{ ms: number; missed?: true }> }).times;
+  const windowLines = (logger: ReturnType<typeof testLogger>): string[] => logger.messages("info").filter((message) => message.includes("ready window"));
+
+  /**
+   * This function runs one start on a slow host: the program is ready `need` ms after its spawn. It moves the clock until
+   * the program is ready, and it gives the count of the stops before it.
+   */
+  const startReadyAfter = async (host: FakeHost, group: GroupSupervisor, need: number): Promise<number> => {
+    const signals = host.signals.length;
+    let count = host.children.length;
+    let spawned = host.clock.now();
+    for (let steps = 0; steps < 2000 && phases(group)["slow"] !== "ready"; steps += 1) {
+      if (host.children.length !== count) {
+        count = host.children.length;
+        spawned = host.clock.now();
+      }
+      if (host.clock.now() - spawned >= need) host.tcp.add(ADDRESS);
+      else host.tcp.delete(ADDRESS);
+      await step(host, 250);
+    }
+    return host.signals.length - signals;
+  };
+  /** This function keeps the program ready past its resetAfter, then ends it, thus the next start comes after the first backoff. */
+  const endReadyStart = async (host: FakeHost): Promise<void> => {
+    await step(host, 6000);
+    host.tcp.delete(ADDRESS);
+    host.children.at(-1)?.exit(1);
+    await host.settle();
+  };
+
+  it("measures the ready time of each start, thus starts of 24 to 50 s get ready with no restart loop, also under a new supervisor", async () => {
+    const logger = testLogger();
+    const host = fakeHost({ logger });
+    host.polite = true;
+    const spec = one({
+      name: "slow",
+      program: "/bin/slow",
+      ready: { probe: { kind: "tcp", port: 9000 }, interval: ms(250), timeout: ms(50), within: s(30), measured: { after: 3, keep: 5, floor: s(10), cap: s(300) } },
+      restart: quick,
+    });
+    const group = superviseGroup(spec, host.ports);
+    group.start();
+    await host.settle();
+    const stops: number[] = [];
+    for (const need of [24_000, 50_000, 31_000, 45_000, 28_000, 50_000, 40_000, 26_000]) {
+      stops.push(await startReadyAfter(host, group, need));
+      expect(phases(group)).toEqual({ slow: "ready" });
+      await endReadyStart(host);
+    }
+    // the second start misses the first window, and the next window is two times longer: 50 s fits in it.
+    // The third start misses the first window too, because 2 ready times are fewer than `after`. Then the window is measured.
+    expect(stops).toEqual([0, 1, 1, 0, 0, 0, 0, 0]);
+    expect(windowLines(logger)[0]).toBe("slow has a ready window of 30000 ms, from 0 ready times and 0 missed starts");
+    const times = timesOf(host);
+    expect(times).toHaveLength(5);
+    expect(times.every((time) => time.missed === undefined)).toBe(true);
+    await group.stop();
+
+    // a new supervisor of the same state folder starts with the measured window
+    logger.clear();
+    const again = superviseGroup(spec, host.ports);
+    again.start();
+    await host.settle();
+    expect(windowLines(logger)[0]).toMatch(/^slow has a ready window of \d+ ms, from 5 ready times and 0 missed starts$/);
+    expect(await startReadyAfter(host, again, 50_000)).toBe(0);
+    await again.stop();
+  });
+
+  it("makes the window two times longer after a missed start, to the cap, and a ready start gives the measured window", async () => {
+    const host = fakeHost();
+    host.polite = true;
+    const measured = { after: 1, keep: 5, floor: ms(100), cap: ms(1000) };
+    const ready = { ...slowReady, measured };
+    const group = superviseGroup(one({ name: "slow", program: "/bin/slow", ready, restart: quick }), host.ports);
+    group.start();
+    await host.settle();
+    const details: Array<string | null> = [];
+    for (let stops = 1; stops <= 4; stops += 1) {
+      await untilSignals(host, stops);
+      details.push(group.states()[0]!.detail);
+    }
+    expect(details).toEqual([missedIn(300), missedIn(600), missedIn(1000), missedIn(1000)]);
+    expect(timesOf(host).map((time) => [time.ms, time.missed])).toEqual([
+      [300, true],
+      [600, true],
+      [1000, true],
+      [1000, true],
+    ]);
+    // an app reads the same window from the file
+    expect(nextReadyWindow(ready, host.text(READY_FILE))).toEqual({ ms: 1000, measured: 0, missed: 4, problem: null });
+    // the next start is ready at its spawn: its time is 0 ms, thus the next window is the floor
+    host.tcp.add(ADDRESS);
+    for (let steps = 0; steps < 1000 && phases(group)["slow"] !== "ready"; steps += 1) await step(host, 100);
+    expect(timesOf(host)).toEqual([{ at: expect.any(String) as string, ms: 0 }]);
+    host.tcp.delete(ADDRESS);
+    host.children.at(-1)?.exit(1);
+    await host.settle();
+    await untilSignals(host, 5);
+    expect(group.states()[0]!.detail).toBe(missedIn(100));
+  });
+
+  it("uses no times from a bad file, with one warning, and continues when it cannot write the file", async () => {
+    const logger = testLogger();
+    const host = fakeHost({ logger, files: { [READY_FILE]: "{" } });
+    host.polite = true;
+    const measured = { after: 1, keep: 5, floor: ms(100), cap: ms(1000) };
+    const group = superviseGroup(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, measured }, restart: quick }), host.ports);
+    group.start();
+    await host.settle();
+    await untilSignals(host, 1);
+    expect(group.states()[0]!.detail).toBe(missedIn(300));
+    expect(logger.messages("warn").filter((message) => message.includes("ready times"))).toEqual(["the ready times of slow are not used: the file is not JSON"]);
+    // the write replaces the bad file with a good file
+    expect(timesOf(host)).toEqual([{ at: expect.any(String) as string, ms: 300, missed: true }]);
+
+    host.failFiles = (operation, path) => path === READY_FILE && operation !== "read";
+    host.tcp.add(ADDRESS);
+    for (let steps = 0; steps < 1000 && phases(group)["slow"] !== "ready"; steps += 1) await step(host, 100);
+    expect(phases(group)).toEqual({ slow: "ready" });
+    expect(logger.messages("warn")).toContain("the ready time of slow was not written");
+    expect(timesOf(host)).toHaveLength(1);
+  });
+
+  it("gives the window of the next start to an app, from the text of the file of the ready times", () => {
+    const ready = { ...slowReady, measured: { after: 1, keep: 5, floor: ms(100), cap: ms(1000) } };
+    expect(readyTimesPath("linux", "/state", "slow")).toBe(READY_FILE);
+    expect(nextReadyWindow(slowReady, "{")).toEqual({ ms: 300, measured: 0, missed: 0, problem: null });
+    expect(nextReadyWindow(ready, null)).toEqual({ ms: 300, measured: 0, missed: 0, problem: null });
+    expect(nextReadyWindow(ready, "{")).toEqual({ ms: 300, measured: 0, missed: 0, problem: "the file is not JSON" });
+  });
+
+  it("names each bad value of a ready measure", () => {
+    const of = 'the program "slow"';
+    const bad = { after: 0.5, keep: 0, floor: { value: 1, unit: "MB" }, cap: ms(0) };
+    expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, measured: bad } }))).toEqual([
+      `${of}: the after of the ready measure is not a whole number of 1 or more`,
+      `${of}: the keep of the ready measure is not a whole number of 1 or more`,
+      `${of}: the floor of the ready measure is not a time above zero`,
+      `${of}: the cap of the ready measure is not a time above zero`,
+      `${of}: the cap of the ready measure is shorter than the within of the probe`,
+    ]);
+    const short = { after: 3, keep: 2, floor: ms(500), cap: ms(400) };
+    expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, grow: { factor: 2, cap: ms(600) }, measured: short } }))).toEqual([
+      `${of}: the ready spec has a growth and a measure, but it can have only one of them`,
+      `${of}: the keep of the ready measure is less than its after`,
+      `${of}: the cap of the ready measure is shorter than its floor`,
+    ]);
+    expect(groupProblems(one({ name: "slow", program: "/bin/slow", ready: { ...slowReady, measured: { after: 3, keep: 3, floor: ms(100), cap: ms(300) } } }))).toEqual([]);
   });
 
   it("does not start a program again without a restart, and frees its lock", async () => {
