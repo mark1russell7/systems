@@ -1075,7 +1075,7 @@ pnpm add @mark1russell7/service
 
 For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`.
 
-For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids, the call context and the scope functions of `/otel`, it installs `@opentelemetry/api@1` and `@mark1russell7/otel-ts@0.7` (`0.7.6` or later). The entry loads only the context of otel-ts, not its SDKs.
+For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package. For the trace ids, the call context and the scope functions of `/otel`, it installs `@opentelemetry/api@1` and `@mark1russell7/otel-ts` 0.7 (`0.7.6` or later) or 0.8 (`0.8.4` or later). The entry loads only the context of otel-ts, not its SDKs.
 
 ### One copy of service
 
