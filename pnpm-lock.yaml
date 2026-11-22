@@ -175,7 +175,7 @@ importers:
         version: 0.5.18
       '@mark1russell7/conventions':
         specifier: ^0.50.0
-        version: 0.50.4
+        version: 0.50.6
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
@@ -656,7 +656,7 @@ importers:
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
       '@mark1russell7/site-pages':
         specifier: ^0.8.0
-        version: 0.8.1
+        version: 0.8.2
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.6
@@ -1517,8 +1517,8 @@ packages:
     resolution: {integrity: sha512-s2DyC8i8JhP0Ue6oG+dLUHrjwvUjz+UQrrSIViLkDdU0t+LhLChLrkRpcwr/eof62ffOSPXifLVYuzM7alEEPw==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/conventions@0.50.4':
-    resolution: {integrity: sha512-RjRBOrWE0x87qSv8rqU0NiL+PTHTJPlyh87iONsPxHde1+ECutguWvho+p+6AnqOBF8Oai1roHwF9ELm3j3pkw==}
+  '@mark1russell7/conventions@0.50.6':
+    resolution: {integrity: sha512-mi0fJw+UzX7CvOrJPZlHG3vC5EpQF2OG9FJxrM+ens7fwPCsGPbMB0TZbEIPCfjYRGiCxsz0rC03CtxCeVuANw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1677,8 +1677,8 @@ packages:
       fast-check:
         optional: true
 
-  '@mark1russell7/site-pages@0.8.1':
-    resolution: {integrity: sha512-R8lPPyDNAbemR2YBrivAIYkXNfQgJDUhggKiUGWHNEZTKwUpLtVGvl/lqD/bkhoSh9IluAhnz5c/5R/A/uFeVA==}
+  '@mark1russell7/site-pages@0.8.2':
+    resolution: {integrity: sha512-WMErq1NBREuaBOn28Vg+7LMJSTou8+O27qNRoaRt11h+r3j9muf4jFmuwGazDOSS+Cf32gxDT1/IpXbAz2h/Vg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -5245,7 +5245,7 @@ snapshots:
 
   '@mark1russell7/api-report@0.5.18':
     dependencies:
-      '@mark1russell7/conventions': 0.50.4
+      '@mark1russell7/conventions': 0.50.6
 
   '@mark1russell7/coeval@0.29.0(zod@4.6.7)':
     dependencies:
@@ -5270,7 +5270,7 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  '@mark1russell7/conventions@0.50.4':
+  '@mark1russell7/conventions@0.50.6':
     dependencies:
       '@mark1russell7/text': 0.0.17
       yaml: 2.9.1
@@ -5386,7 +5386,7 @@ snapshots:
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
       fast-check: 4.10.2
 
-  '@mark1russell7/site-pages@0.8.1':
+  '@mark1russell7/site-pages@0.8.2':
     dependencies:
       '@mark1russell7/rigor-statistics': 0.2.11
 
