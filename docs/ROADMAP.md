@@ -4869,6 +4869,23 @@ otel-ts 0.8.2 is on the SDK 3 of OpenTelemetry JS. Service takes otel-ts `^0.7.6
 
 It starts after the pull requests of SYS-138 part 2 merge, because they change the version of service. The test: the tests of the entry `/otel` and the gate of the propagation pass on the SDK 3. The API report shows only the new range.
 
+### SYS-149 · A time on each line of the console logger
+
+- **Status:** active
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-11-22
+- **Shipped:**
+- **Links:**
+
+A program on a small machine wrote its lines with no time. The journal of the system gave the only time of a line, and a copy of the output lost it. The cause of a stop was then hard to put in order.
+
+- `consoleLogger` gets the optional option `wall`, a wall clock of `@mark1russell7/algebra/clock`. The type keeps the mark `"wall"`, thus a monotonic clock does not fit.
+- In `text`, a line starts with the instant in ISO 8601 form, then the message. In `json`, the line has the field `time` first. A field of the entry named `time` does not replace it.
+- With no clock, each line stays as before, thus the users of today see no change.
+
+A new optional option is a feature, thus the release of service is a PATCH before 1.0: 0.11.7. The test: a fake wall clock gives the time of each line in the two formats, and a step of the clock moves it. A logger with no clock writes the old lines.
+
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
