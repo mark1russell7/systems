@@ -3686,7 +3686,7 @@ A new export is a feature, thus the release of kind is a PATCH before 1.0.
 The weekly Cells run of 2026-11-22 failed on `RD.100.restore`: 3 of 4 runs held, and the run "env 1 run 0" had the finding "the group failed over 14.794275 s after the fault, where it should not". The cause is in the measure, not in the runner or the commit. After a restore of each disk, the set starts again at term 0. Its first election (term 1, 14.4 to 14.8 s after the fault) can go to any member: m1, the old primary, won in "env 0 run 0", and m2 won in "env 1 run 0". The stage `elected` counted each election that a member other than the old primary wins.
 
 - **The rule.** A failover follows a primary of the same set, so its term is 2 or more. The stage `elected` skips the line "Election succeeded" with term 1, so the failover finding does not read the start of a new set.
-- **The test.** A unit test of `replset.test.ts` gives the line the term 1 and the term 2: term 1 gives no stage and no failover, and term 2 gives the stage and the finding.
+- **The test.** A unit test of `replset.test.ts` gives the election line the term 1 and then the term 2. With term 1, there is no stage and no failover. With term 2, there are the stage and the finding.
 
 ### SYS-146 · The harness image builds in the guest of the VM tier
 
