@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Extent } from "./index.ts";
 import {
+  atomAbove,
   ATOMS,
   add,
   canonicalUnit,
@@ -11,6 +12,7 @@ import {
   isCanonicalUnit,
   kindOf,
   mean,
+  parseUnit,
   min,
   quantity,
   round,
@@ -248,5 +250,21 @@ describe("schemas", () => {
 
   it("reads a value in the unit a reader computes in", () => {
     expect(valueIn(quantity(2, "h"), "min")).toBe(120);
+  });
+});
+
+describe("atomAbove", () => {
+  it("gives the one atom above the slash when its dimension is the base alone", () => {
+    for (const [unit, symbol] of [["USD/wk", "USD"], ["USD/{each}", "USD"], ["USD", "USD"], ["EUR/kg", "EUR"], ["USD/(lb·wk)", "USD"]] as const) {
+      expect(atomAbove(unit, "money"), unit).toBe(symbol);
+    }
+    expect(atomAbove("kg/d", "mass")).toBe("kg");
+    expect(atomAbove(parseUnit("GBP/mo"), "money")).toBe("GBP");
+  });
+
+  it("gives undefined for a power, two factors above, a count on the atom, a different base, and a spelling that does not parse", () => {
+    for (const unit of ["USD^2", "USD·kg/lb", "{each}/USD", "/wk", "kg/wk", "L/d", "foo", ""]) expect(atomAbove(unit, "money"), unit).toBeUndefined();
+    expect(atomAbove("L", "length")).toBeUndefined();
+    expect(atomAbove("USD{tip}/wk", "money")).toBeUndefined();
   });
 });

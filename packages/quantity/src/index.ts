@@ -30,6 +30,7 @@ export { unitSystem } from "./system.ts";
 export type { Component, Unit } from "./parse.ts";
 export {
   UnitError,
+  atomAbove,
   canonicalUnit,
   convertExact,
   convertible,
