@@ -1,6 +1,7 @@
 import type { Rational } from "@mark1russell7/rational";
 import type { Base, Kind } from "./dimensions.ts";
 import type { MeasuredOn, Unit } from "./system.ts";
+import { sameVector } from "./system.ts";
 import { UNITS } from "./units.ts";
 
 export type { Component, Unit } from "./system.ts";
@@ -68,6 +69,5 @@ export function atomAbove(unit: Unit | string, base: Base): string | undefined {
   const above = parsed.components.filter((component) => component.exponent > 0);
   const [only] = above;
   if (above.length !== 1 || only === undefined || only.exponent !== 1 || only.annotation !== undefined || only.atom === undefined) return undefined;
-  const dimensions = Object.entries(only.atom.vector).filter(([, power]) => power !== 0);
-  return dimensions.length === 1 && dimensions[0]![0] === base && dimensions[0]![1] === 1 ? only.atom.symbol : undefined;
+  return sameVector(only.atom.vector, { [base]: 1 }) ? only.atom.symbol : undefined;
 }
