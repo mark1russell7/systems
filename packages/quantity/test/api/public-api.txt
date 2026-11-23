@@ -39,6 +39,7 @@ type UnitSystem: build/system.d.ts#UnitSystem
 type Unknown: build/quantity.d.ts#Unknown
 type Vector: build/dimensions.d.ts#Vector
 add: build/quantity.d.ts#add$1
+atomAbove: build/parse.d.ts#atomAbove
 atomBySymbol: build/units.d.ts#atomBySymbol
 canonicalUnit: build/parse.d.ts#canonicalUnit
 compare: build/quantity.d.ts#compare
@@ -203,6 +204,9 @@ export declare const formatOnScale: (amount: Quantity, scale: Scale) => string;
 
 ### build/format.d.ts#formatUnit
 export declare const formatUnit: (unit: string, many?: boolean) => string;
+
+### build/parse.d.ts#atomAbove
+export declare function atomAbove(unit: Unit | string, base: Base): string | undefined;
 
 ### build/parse.d.ts#canonicalUnit
 export declare const canonicalUnit: (spelling: string) => string;
