@@ -1,5 +1,5 @@
 import type { Rational } from "@mark1russell7/rational";
-import type { Kind } from "./dimensions.ts";
+import type { Base, Kind } from "./dimensions.ts";
 import type { MeasuredOn, Unit } from "./system.ts";
 import { UNITS } from "./units.ts";
 
@@ -52,3 +52,22 @@ export const multiplyUnits: (a: string, b: string) => string = UNITS.multiplyUni
 
 /** This function gives the canonical spelling of the quotient of two units: `a` divided by `b`, as `multiplyUnits` does. */
 export const divideUnits: (a: string, b: string) => string = UNITS.divideUnits;
+
+/**
+ * This function gives the symbol of the one atom above the slash of a unit, when that atom has the dimension `base`
+ * alone. For example, it gives `USD` for `USD/wk` and for `USD/{each}` with the base `money`. It gives undefined when
+ * the unit has a different factor above, a power other than 1, or a count in braces on the atom. It also gives
+ * undefined for a spelling that does not parse.
+ *
+ * @param unit - A unit of any unit system, or a spelling of the default system
+ * @param base - The base dimension of the atom, for example `money`
+ */
+export function atomAbove(unit: Unit | string, base: Base): string | undefined {
+  const parsed = typeof unit === "string" ? UNITS.tryParseUnit(unit) : unit;
+  if (parsed === undefined) return undefined;
+  const above = parsed.components.filter((component) => component.exponent > 0);
+  const [only] = above;
+  if (above.length !== 1 || only === undefined || only.exponent !== 1 || only.annotation !== undefined || only.atom === undefined) return undefined;
+  const dimensions = Object.entries(only.atom.vector).filter(([, power]) => power !== 0);
+  return dimensions.length === 1 && dimensions[0]![0] === base && dimensions[0]![1] === 1 ? only.atom.symbol : undefined;
+}
