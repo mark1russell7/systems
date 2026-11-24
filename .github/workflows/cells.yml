@@ -214,9 +214,9 @@ jobs:
           # The Wednesday runs the round of this week: the count of whole weeks after the
           # first day of round 0, modulo the 4 rounds (roundAt in packages/cells/src/refresh.ts).
           case "$SCHEDULE" in
-            "30 3 * * *") ONLY='.'; SHARDS=4; SELECTION=night ;;
-            "30 9 * * 0") ONLY='^RD[.](?!8000[.])'; SHARDS=1; SELECTION='' ;;
-            "30 12 * * 3")
+            "6 3 * * *") ONLY='.'; SHARDS=4; SELECTION=night ;;
+            "6 9 * * 0") ONLY='^RD[.](?!8000[.])'; SHARDS=1; SELECTION='' ;;
+            "6 12 * * 3")
               days=$(( ($(date -u +%s) - $(date -u -d "$REFRESH_EPOCH" +%s)) / 86400 ))
               if [ "$days" -lt 0 ]; then echo "::error::no round operates before $REFRESH_EPOCH"; exit 1; fi
               ONLY='.'; SHARDS="$REFRESH_SHARDS"; SELECTION="refresh-$(( days / 7 % 4 ))" ;;
@@ -428,14 +428,14 @@ jobs:
       # with a record gone, a tag with no digest or a checkout with changes each exit with 1. A dispatch of the
       # selection drills is the Sunday run by hand, thus this step operates on it too.
       - name: The locked rungs of recovery
-        if: ${{ github.event.schedule == '30 9 * * 0' || ((inputs.only == '^RD[.]' || inputs.selection == 'drills') && inputs.shards == '1') }}
+        if: ${{ github.event.schedule == '6 9 * * 0' || ((inputs.only == '^RD[.]' || inputs.selection == 'drills') && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # The Sunday claims that its drills hold, as the night claims for its cells. This step judges each
       # record again, with the same flip test, and it fails on a record that does not pin its programs.
       # A run of '^RD[.]' also starts the drill of 8 GB, which the selection drills does not hold. Thus
       # a manual run of this step takes the selection drills on one shard.
       - name: The drills of the Sunday hold
-        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.selection == 'drills' && inputs.shards == '1') }}
+        if: ${{ github.event.schedule == '6 9 * * 0' || (inputs.selection == 'drills' && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells drills --shard 0/1 "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
