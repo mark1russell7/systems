@@ -43,7 +43,7 @@ export const REFRESH_EPOCH = "2026-11-11";
 
 /**
  * The schedule of the rounds in the workflow Cells: each Wednesday at 12 UTC. The rule runner-budget of conventions gives the minute
- * from the repository and the file (scheduleMinute), and the test of the workflow checks the minute against that rule.
+ * from the repository and the file (scheduleMinute). The test of the workflow checks the minute against that rule.
  */
 export const REFRESH_CRON = "6 12 * * 3";
 
