@@ -10,7 +10,7 @@
 #
 # These tests start real processes, thus they run only here.
 # A pull request that changes the service package or this file runs them.
-# Start it with: gh workflow run process.yml -R mark1russell7/systems
+# Start it with: gh workflow run process.yml -R metrograph-labs/systems
 name: Process
 
 on:

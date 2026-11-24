@@ -13,7 +13,7 @@
 #           dump is the artifact cilium-capture. It starts on a pull request, on a dispatch with no
 #           only, and on a dispatch with capture=true.
 #
-# Start it with `gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10`.
+# Start it with `gh workflow run kind.yml -R metrograph-labs/systems --ref <branch> -f only='^T07' -f shards=10`.
 # The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
 # A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
 # A dispatch with no only is the gate of a pull request: the same smoke on one shard, and the capture.

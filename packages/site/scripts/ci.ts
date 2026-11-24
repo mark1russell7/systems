@@ -25,7 +25,7 @@ import type { CellRunInput, Ledger, RecordInput, RunInput, ShardInput, WorkflowO
 import { eventsOf, merged } from "../src/lib/ci.ts";
 import { stringify } from "./records.ts";
 
-const REPO = "mark1russell7/systems";
+const REPO = "metrograph-labs/systems";
 
 /** The workflows of cells, by the name that GitHub gives: the file of the ledger, the workflow file, and the options. */
 const WORKFLOWS: Readonly<Record<string, { readonly name: string; readonly file: string; readonly options: WorkflowOptions }>> = {

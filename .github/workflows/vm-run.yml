@@ -3,7 +3,7 @@
 # A consumer adds one job:
 #
 #   e4:
-#     uses: mark1russell7/systems/.github/workflows/vm-run.yml@<commit>
+#     uses: metrograph-labs/systems/.github/workflows/vm-run.yml@<commit>
 #     with:
 #       harness: <the same commit>
 #       argv: '["node", "src/main.ts", "--out", "/out/lab"]'
@@ -51,7 +51,7 @@ on:
         type: string
         default: vm-run
       harness:
-        description: The commit of mark1russell7/systems that gives the VM tier, the commit of the uses line.
+        description: The commit of metrograph-labs/systems that gives the VM tier, the commit of the uses line.
         type: string
         required: true
     outputs:
@@ -117,8 +117,8 @@ jobs:
       - name: The VM tier
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: mark1russell7/systems
-          ref: ${{ github.repository == 'mark1russell7/systems' && github.sha || inputs.harness }}
+          repository: metrograph-labs/systems
+          ref: ${{ github.repository == 'metrograph-labs/systems' && github.sha || inputs.harness }}
           path: harness
           persist-credentials: false
       - name: The inputs
@@ -241,7 +241,7 @@ jobs:
             exit 1
           fi
       - name: The test of the tier
-        if: github.repository == 'mark1russell7/systems' && inputs.argv == '' && steps.kvm.outputs.present == 'true'
+        if: github.repository == 'metrograph-labs/systems' && inputs.argv == '' && steps.kvm.outputs.present == 'true'
         run: |
           pinned="$(cat "$VM/release")"
           for file in release container-release; do

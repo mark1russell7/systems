@@ -6,7 +6,7 @@
 # (harness-disk/1) as the artifact disk-records. Each case holds its expected result as data, and the test compares it.
 #
 # A pull request that changes the disk tier or this file starts it. Start it by hand with:
-#   gh workflow run disk.yml -R mark1russell7/systems --ref <branch>
+#   gh workflow run disk.yml -R metrograph-labs/systems --ref <branch>
 name: Disk
 
 on:

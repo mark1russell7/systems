@@ -1,6 +1,6 @@
 // The move of the pages to the copies of one round of the refresh (SYS-101).
 //
-//   gh run download <run> -R mark1russell7/systems -n refresh -D <copies folder>
+//   gh run download <run> -R metrograph-labs/systems -n refresh -D <copies folder>
 //   pnpm exec tsx packages/site/scripts/adopt.ts <copies folder> [<report file>]
 //
 // The job export of the workflow Cells uploads the copies of a round as the artifact refresh. A token of a workflow

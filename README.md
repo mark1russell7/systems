@@ -2,7 +2,7 @@
 
 This repository is the home of the systems program. The program asks one question first: when a client holds a connection and its peer goes silent, when does the client know?
 
-The site is at [mark1russell7.github.io/systems](https://mark1russell7.github.io/systems/). It has the thesis, a lab that computes the first detector for your settings, and the results of the harness.
+The site is at [metrograph-labs.github.io/systems](https://metrograph-labs.github.io/systems/). It has the thesis, a lab that computes the first detector for your settings, and the results of the harness.
 
 ## Where the code lives
 

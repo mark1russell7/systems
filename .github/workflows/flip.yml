@@ -5,13 +5,13 @@
 #
 # The check itself stays in redis.yml, http.yml and process.yml. This workflow is not a required check.
 # A pull request that changes a fault site or a test of a bound starts it, and a weekly run shows a rot.
-# Start it with: gh workflow run flip.yml -R mark1russell7/systems
+# Start it with: gh workflow run flip.yml -R metrograph-labs/systems
 name: Flip
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "43 6 * * 1"
+    - cron: "51 6 * * 1"
   pull_request:
 
 permissions:

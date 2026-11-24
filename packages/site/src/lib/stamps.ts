@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { DATA_STAMP_SCHEMA, renderDataStamp } from "@mark1russell7/site-pages";
 import type { DataLimit, DataRun, DataStamps, NoAgeLimit, PageStamp } from "@mark1russell7/site-pages";
 
-const DATA_URL = "https://github.com/mark1russell7/systems/blob/main/packages/site/src/data";
+const DATA_URL = "https://github.com/metrograph-labs/systems/blob/main/packages/site/src/data";
 
 /** The records of the lab name no kernel. The pages of these records name Linux 6.6, on one machine with no CI run. */
 const LAB_KERNEL = "6.6";
@@ -30,7 +30,7 @@ const lab = (name: string, target?: string): Source => ({
 });
 
 /** The public ruling of the age limit of 30 days (SYS-101). A limit over 14 days needs it. */
-export const LIMIT_RULING = "https://github.com/mark1russell7/systems/issues/368";
+export const LIMIT_RULING = "https://github.com/metrograph-labs/systems/issues/368";
 
 /**
  * The age rule and the commit rule of each limit start on this day, the last start that the package accepts. The

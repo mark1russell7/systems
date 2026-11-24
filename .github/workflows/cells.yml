@@ -20,8 +20,8 @@
 #           the PairedTime records of rigor-bench.
 #           A shard with a cell on a fabric (E3) installs the pinned containerlab for its routers.
 #
-# Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
-# A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
+# Start it with: gh workflow run cells.yml -R metrograph-labs/systems -f only='^T12' -f shards=4
+# A pair: gh workflow run cells.yml -R metrograph-labs/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the
 # selection night on 4 shards: the WS cells, the heartbeat and the reconnect of @procedures/client
 # under real faults, and the LADDER cells, the rungs of the reference service (SYS-93).
@@ -29,13 +29,13 @@
 # The step of the locked rungs fails that run when a rung is not within its budgets. A drill that does
 # not hold fails the run too. The Sunday run does not hold the drill of 8 GB (SYS-97) until a run of
 # '^RD[.]' on one shard measures its time. Start the run of the Sunday by hand with this command.
-#   gh workflow run cells.yml -R mark1russell7/systems -f selection=drills -f shards=1
+#   gh workflow run cells.yml -R metrograph-labs/systems -f selection=drills -f shards=1
 # Each Wednesday, the schedule runs one round of the refresh of the studies of the site (SYS-101).
 # There are 4 rounds, thus each study operates again each 28 days, inside its age limit of 30 days.
 # The file packages/cells/src/refresh.ts gives the studies of each round. Then the job export writes
 # the new copy of each study of the round, and it uploads the copies as the artifact refresh.
 # Start a round by hand with this command.
-#   gh workflow run cells.yml -R mark1russell7/systems -f selection=refresh-2 -f shards=8
+#   gh workflow run cells.yml -R metrograph-labs/systems -f selection=refresh-2 -f shards=8
 # A dispatch that names no cells (no only, selection, pair or file) is the gate of a pull request: the
 # probe only. The queue starts this dispatch on each pull request that is behind main (SYS-118).
 # To run each cell of the catalogs, give -f only=. by name.
@@ -67,9 +67,9 @@ on:
         description: A count of runs for each selected cell, from 1 to 100, for the rate of a rare outcome (empty for the count of each cell)
         default: ""
   schedule:
-    - cron: "30 3 * * *"
-    - cron: "30 9 * * 0"
-    - cron: "30 12 * * 3"
+    - cron: "6 3 * * *"
+    - cron: "6 9 * * 0"
+    - cron: "6 12 * * 3"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:

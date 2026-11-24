@@ -6,7 +6,7 @@
 #        injector of @mark1russell7/harness makes the network faults.
 #
 # A pull request that changes the Redis client, the core of the clients, the timers of the service
-# or this file runs both. Start it with: gh workflow run redis.yml -R mark1russell7/systems
+# or this file runs both. Start it with: gh workflow run redis.yml -R metrograph-labs/systems
 name: Redis
 
 on:

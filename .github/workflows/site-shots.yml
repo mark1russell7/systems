@@ -3,7 +3,7 @@
 # elements that make it wider, and each error of a page. The visual checks of the site run here and not
 # on a local machine, because the shared machine has little free memory.
 #
-# Start it with: gh workflow run site-shots.yml -R mark1russell7/systems --ref <branch>
+# Start it with: gh workflow run site-shots.yml -R metrograph-labs/systems --ref <branch>
 name: Site shots
 
 on:
