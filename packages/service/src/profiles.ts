@@ -98,6 +98,7 @@ const KUBERNETES_SHARES: ReadonlyArray<readonly [string, number]> = [
   ["stop the poller", 1],
   ["tear down dependencies", 2],
   ["close the health server", 1],
+  ["flush the output", 1],
 ];
 /** This part of the budget is the cooperative window, in thirtieths. */
 const KUBERNETES_WINDOW = 5;
@@ -114,13 +115,14 @@ export interface PodTiming {
  * This function gives the profile of a pod in Kubernetes. The budget is the grace less the preStop
  * sleep: the time from SIGTERM to SIGKILL. Each stage gets a part of the budget, rounded down to
  * the millisecond.
- * - The parts in thirtieths are 2, 5, 15, 2, 1, 2 and 1, in the sequence of the stages. Thus 2
- *   thirtieths of the budget stay as a margin before SIGKILL.
+ * - The parts in thirtieths are 2, 5, 15, 2, 1, 2, 1 and 1, in the sequence of the stages. Thus 1
+ *   thirtieth of the budget stays as a margin before SIGKILL. The last stage flushes the output and
+ *   ends the trace context.
  * - The cooperative window is 5 thirtieths of the budget.
  * - The kubelet sends SIGTERM one time, thus a repeat signal has no effect.
  *
  * At the defaults of Kubernetes (a grace of 30 s and no preStop hook), the caps are 2, 5, 15, 2, 1,
- * 2 and 1 s. Thus the sum of the caps and the preStop sleep fits in the grace (O10). The window is
+ * 2, 1 and 1 s. Thus the sum of the caps and the preStop sleep fits in the grace (O10). The window is
  * shorter than the drain, which is shorter than the budget (O16).
  */
 export const kubernetes = (pod: PodTiming): Profile => {

@@ -244,6 +244,7 @@ describe("profiles as data (SYS-10)", () => {
     ["stop the poller", 1],
     ["tear down dependencies", 2],
     ["close the health server", 1],
+    ["flush the output", 1],
   ] as const;
   const policies = (svc: ServiceBuilder): ServiceBuilder =>
     svc
@@ -277,8 +278,8 @@ describe("profiles as data (SYS-10)", () => {
       const profile = kubernetes({ grace: s(grace), preStop: s(preStop) });
       const sum = profile.phases!.reduce((total, phase) => total + valueIn(phase.cap, "ms"), 0);
       const budget = (grace - preStop) * 1000;
-      expect(sum, `grace ${grace} s, preStop ${preStop} s`).toBeLessThanOrEqual((budget * 28) / 30);
-      expect(sum, `grace ${grace} s, preStop ${preStop} s`).toBeGreaterThan((budget * 28) / 30 - 7);
+      expect(sum, `grace ${grace} s, preStop ${preStop} s`).toBeLessThanOrEqual((budget * 29) / 30);
+      expect(sum, `grace ${grace} s, preStop ${preStop} s`).toBeGreaterThan((budget * 29) / 30 - 8);
       const svc = policies(service("pod")).profile(profile);
       const findings = lint(svc.describe(), podScenario(grace, preStop), [O10, O16]);
       expect(findings.map((finding) => finding.verdict), `grace ${grace} s, preStop ${preStop} s`).toEqual(["holds", "holds"]);

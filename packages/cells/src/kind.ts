@@ -33,7 +33,7 @@ export const kubeDefaults = (replicas: number): PodSettings => ({
   startup: null,
 });
 
-/** These are the caps of the stages of the shutdown in the design: 28 s in sum, inside the grace of 30 s. */
+/** These are the caps of the stages of the shutdown in the design: 29 s in sum, inside the grace of 30 s. */
 export const DESIGN_PHASES: Declaration["phases"] = [
   ["fail readiness", s(2)],
   ["stop intake", s(5)],
@@ -42,6 +42,7 @@ export const DESIGN_PHASES: Declaration["phases"] = [
   ["stop the poller", s(1)],
   ["tear down dependencies", s(2)],
   ["close the health server", s(1)],
+  ["flush the output", s(1)],
 ];
 
 /** This function gives the phases of the design with another hold of `fail readiness`, and the drain shorter by the same time. */
