@@ -163,7 +163,7 @@ svc
 const life = await svc.run(); // only the entry calls run(), and the process exits after the shutdown
 ```
 
-The requirements that the lifecycle follows are in [the requirements of S6](https://github.com/mark1russell7/systems/blob/main/docs/S6.md).
+The requirements that the lifecycle follows are in [the requirements of S6](https://github.com/metrograph-labs/systems/blob/main/docs/S6.md).
 
 ## Workers and queues
 

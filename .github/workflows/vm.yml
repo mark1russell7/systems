@@ -8,7 +8,7 @@
 #   arms    Operates each arm of the input in turn, in one job: rule 3, the bridge. The VM is off in an
 #           arm of the runner, thus the host is quiet. The pair e4 e4 gives the noise of the layer.
 #
-# Start it with: gh workflow run vm.yml -R mark1russell7/systems --ref <branch>
+# Start it with: gh workflow run vm.yml -R metrograph-labs/systems --ref <branch>
 # It uploads each record, runner.txt with the boot times and the serial console of the guest.
 name: VM
 

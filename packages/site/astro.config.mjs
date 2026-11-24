@@ -25,7 +25,7 @@ const stamps = {
 };
 
 export default defineConfig({
-  site: "https://mark1russell7.github.io",
+  site: "https://metrograph-labs.github.io",
   base,
   trailingSlash: "ignore",
   integrations: [
@@ -36,8 +36,8 @@ export default defineConfig({
       description: "How long until a client knows that its peer is gone, computed and then measured.",
       logo: { src: "./src/assets/mark.svg", replacesTitle: false },
       favicon: "/favicon.svg",
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/mark1russell7/systems" }],
-      editLink: { baseUrl: "https://github.com/mark1russell7/systems/edit/main/packages/site/" },
+      social: [{ icon: "github", label: "GitHub", href: "https://github.com/metrograph-labs/systems" }],
+      editLink: { baseUrl: "https://github.com/metrograph-labs/systems/edit/main/packages/site/" },
       // IBM Plex Sans and IBM Plex Mono: the files of Google Fonts, from Fontsource, served by the site itself
       customCss: [
         "@fontsource-variable/ibm-plex-sans",
@@ -86,8 +86,8 @@ export default defineConfig({
         {
           label: "Project",
           items: [
-            { label: "Releases", link: "https://mark1russell7.github.io/systems/releases/" },
-            { label: "Status", link: "https://mark1russell7.github.io/systems/status/" },
+            { label: "Releases", link: "https://metrograph-labs.github.io/systems/releases/" },
+            { label: "Status", link: "https://metrograph-labs.github.io/systems/status/" },
           ],
         },
       ],

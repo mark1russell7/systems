@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/algebra",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "description": "State machines as data, and the timer algebra over them: closed forms for a machine's timers in exact rationals, detection as the first live timer, recovery after a stall, and the replay of a trace.",
   "keywords": [
     "state-machine",
@@ -13,14 +13,14 @@
     "timeouts",
     "rational"
   ],
-  "homepage": "https://mark1russell7.github.io/systems/",
+  "homepage": "https://metrograph-labs.github.io/systems/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mark1russell7/systems.git",
+    "url": "git+https://github.com/metrograph-labs/systems.git",
     "directory": "packages/algebra"
   },
   "bugs": {
-    "url": "https://github.com/mark1russell7/systems/issues"
+    "url": "https://github.com/metrograph-labs/systems/issues"
   },
   "license": "MIT",
   "author": "Mark Russell (https://github.com/mark1russell7)",

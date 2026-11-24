@@ -9,7 +9,7 @@
 # summary, the lines of the client and the lines of the server) as the artifact load-records.
 #
 # A pull request that changes the client load, its plan, the lab or this file starts it. Start it by hand with:
-#   gh workflow run load.yml -R mark1russell7/systems --ref <branch>
+#   gh workflow run load.yml -R metrograph-labs/systems --ref <branch>
 name: Load
 
 on:

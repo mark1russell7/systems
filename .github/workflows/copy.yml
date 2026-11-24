@@ -2,7 +2,7 @@
 # artifact copy. A pull request then moves the page to its new copy. The export of a study can need much
 # memory, thus it operates here and not on the shared machine.
 #
-# Start it with: gh workflow run copy.yml -R mark1russell7/systems -f exporter=port-range -f runs="<id> <id>"
+# Start it with: gh workflow run copy.yml -R metrograph-labs/systems -f exporter=port-range -f runs="<id> <id>"
 name: Copy
 
 on:

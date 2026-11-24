@@ -1,4 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { repositoryOfRemote, scheduleMinute } from "@mark1russell7/conventions";
 import { describe, expect, it } from "vitest";
 import { catalogs, SCHEDULED_CELLS, selectedOf } from "./all.ts";
 import { REFRESH_CELLS, REFRESH_CRON, REFRESH_EPOCH, REFRESH_SHARDS, REFRESHES, ROUNDS, refreshOf, roundAt, UNSCHEDULED } from "./refresh.ts";
@@ -88,9 +91,27 @@ describe("the round of a day", () => {
 });
 
 describe("the workflow Cells", () => {
+  // The rule runner-budget of conventions gives the minute of each schedule from the repository and the file (scheduleMinute).
+  const root = new URL("../../../", import.meta.url);
+  const remote = spawnSync("git", ["-C", fileURLToPath(root), "remote", "get-url", "origin"], { encoding: "utf8" }).stdout.trim();
+  const repository = process.env["GITHUB_REPOSITORY"] ?? repositoryOfRemote(remote);
+  const minute = repository === undefined ? undefined : scheduleMinute(repository, ".github/workflows/cells.yml");
+  /** The cron of the plan, at the minute of the rule. */
+  const onMinute = (cron: string): string => [String(minute), ...cron.split(" ").slice(1)].join(" ");
+  const crons = [...workflow.matchAll(/- cron: "([^"]+)"/g)].map((m) => m[1]!);
+
+  it("has each schedule at the minute of the rule runner-budget, and a case of the plan for each schedule", () => {
+    expect(minute).toBeDefined();
+    expect(crons.length).toBeGreaterThan(0);
+    for (const cron of crons) {
+      expect(cron.split(" ")[0]).toBe(String(minute));
+      expect(workflow).toContain(`"${cron}")`);
+    }
+  });
+
   it("has the schedule, the first day, the shards and the count of the rounds of the plan", () => {
-    expect(workflow).toContain(`- cron: "${REFRESH_CRON}"`);
-    expect(workflow).toContain(`"${REFRESH_CRON}")`);
+    expect(workflow).toContain(`- cron: "${onMinute(REFRESH_CRON)}"`);
+    expect(workflow).toContain(`"${onMinute(REFRESH_CRON)}")`);
     expect(workflow).toContain(`REFRESH_EPOCH: ${REFRESH_EPOCH}`);
     expect(workflow).toContain(`REFRESH_SHARDS: ${REFRESH_SHARDS}`);
     expect(workflow).toContain(`SELECTION="refresh-$(( days / 7 % ${ROUNDS} ))"`);
@@ -104,7 +125,9 @@ describe("the workflow Cells", () => {
 
   it("checks a dispatch of the selection night or drills as it checks the schedule of that selection", () => {
     // a dispatch of a scheduled selection is that schedule by hand: a green run with no check proves nothing
-    expect(workflow).toContain(`"30 3 * * *") ONLY='.'; SHARDS=4; SELECTION=night ;;`);
+    expect(workflow).toContain(`"${onMinute("0 3 * * *")}") ONLY='.'; SHARDS=4; SELECTION=night ;;`);
+    expect(workflow).toContain(`- cron: "${onMinute("0 9 * * 0")}"`);
+    expect(workflow.split(`github.event.schedule == '${onMinute("0 9 * * 0")}'`).length - 1).toBe(2);
     expect(workflow).toContain("if: ${{ needs.plan.outputs.selection == 'night' }}");
     expect(workflow).toContain('--cells night --shard "$SHARD/$SHARDS"');
     expect(workflow).toContain("|| ((inputs.only == '^RD[.]' || inputs.selection == 'drills') && inputs.shards == '1') }}");

@@ -64,4 +64,4 @@ The plan of T15 over gRPC has 22 cells. This page has 14 of them, and the two ca
 
 Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its clusters. It also has each run with the lines of the clients, of the watcher and of the agent of each node.
 
-The script `packages/site/scripts/kind.ts` judges each record with the cell of the same id in the catalog. A later run of a cell replaces its first run, also when the cell has a new name. The script stops when a verdict disagrees with the summary of the run. The cells and their predictions are in the [catalog of T15](https://github.com/mark1russell7/systems/tree/main/packages/cells/src/grpc).
+The script `packages/site/scripts/kind.ts` judges each record with the cell of the same id in the catalog. A later run of a cell replaces its first run, also when the cell has a new name. The script stops when a verdict disagrees with the summary of the run. The cells and their predictions are in the [catalog of T15](https://github.com/metrograph-labs/systems/tree/main/packages/cells/src/grpc).

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/kind",
-  "version": "0.14.15",
+  "version": "0.14.16",
   "description": "Kubernetes in Docker as a lab for connection timers: a kind cluster from a scenario, faults in the namespaces of its pods, observations on the one monotonic clock of the VM, and predictions from the ordering law. Its judge entry reads and judges a raw record without Docker.",
   "keywords": [
     "kubernetes",
@@ -15,14 +15,14 @@
     "chaos-engineering",
     "testcontainers"
   ],
-  "homepage": "https://mark1russell7.github.io/systems/",
+  "homepage": "https://metrograph-labs.github.io/systems/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mark1russell7/systems.git",
+    "url": "git+https://github.com/metrograph-labs/systems.git",
     "directory": "packages/kind"
   },
   "bugs": {
-    "url": "https://github.com/mark1russell7/systems/issues"
+    "url": "https://github.com/metrograph-labs/systems/issues"
   },
   "license": "MIT",
   "author": "Mark Russell (https://github.com/mark1russell7)",

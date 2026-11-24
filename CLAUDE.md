@@ -2,7 +2,7 @@
 
 ## What this repository is
 
-This repository is the home of the systems program. It holds the site, at `mark1russell7.github.io/systems`. It also holds the packages that the program publishes to npm, under the scope `@mark1russell7`. The other code of the program is in a private repository, and it moves here one package at a time.
+This repository is the home of the systems program. It holds the site, at `metrograph-labs.github.io/systems`. It also holds the packages that the program publishes to npm, under the scope `@mark1russell7`. The other code of the program is in a private repository, and it moves here one package at a time.
 
 - The site copies a part of the private repository only to show it. Each copy has tests that hold it to the figures of that repository.
 - A package moves here with its code unchanged. Only its comments change, to STE. Its tests in the private repository then use the npm release.
