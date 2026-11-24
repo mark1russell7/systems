@@ -35,6 +35,7 @@ export {
   convertExact,
   convertible,
   divideUnits,
+  factorOf,
   isCanonicalUnit,
   kindOf,
   multiplyUnits,
