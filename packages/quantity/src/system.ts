@@ -123,6 +123,22 @@ const resolveKind = (
   return NAMED.find(([, named]) => sameVector(named, vector))?.[0] ?? "derived";
 };
 
+/**
+ * This function makes a cache of the values of pairs of spellings. The cache gives the row of the first spelling, a
+ * map from the second spelling to the value. A row for each spelling costs no new string at each call, as a joined key does.
+ */
+const pairCache = <V>(): ((first: string) => Map<string, V>) => {
+  const rows = new Map<string, Map<string, V>>();
+  return (first) => {
+    let row = rows.get(first);
+    if (row === undefined) {
+      row = new Map();
+      rows.set(first, row);
+    }
+    return row;
+  };
+};
+
 const factorOn = (unit: Unit, on: MeasuredOn | undefined): Rational => {
   if (unit.param !== "hz") return unit.factor;
   const hz = on?.hz;
@@ -327,12 +343,12 @@ export const unitSystem = (
   };
 
   // The reason of each pair of spellings. A pair can have no reason, thus the cache uses `has`.
-  const reasons = new Map<string, string | undefined>();
+  const reasons = pairCache<string | undefined>();
   const whyNotConvertible = (from: string, to: string): string | undefined => {
-    const key = `${from}\n${to}`;
-    if (reasons.has(key)) return reasons.get(key);
+    const row = reasons(from);
+    if (row.has(to)) return row.get(to);
     const why = reasonOf(from, to);
-    reasons.set(key, why);
+    row.set(to, why);
     return why;
   };
 
@@ -408,10 +424,10 @@ export const unitSystem = (
     return parseUnit(spelling).symbol;
   };
 
-  const factors = new Map<string, number>();
+  const factors = pairCache<number>();
   const factorOf = (from: string, to: string): number => {
-    const key = `${from}\n${to}`;
-    const known = factors.get(key);
+    const row = factors(from);
+    const known = row.get(to);
     if (known !== undefined) return known;
     const why = whyNotConvertible(from, to);
     if (why !== undefined) throw new UnitError(`cannot convert ${from} to ${to}: ${why}`);
@@ -422,18 +438,18 @@ export const unitSystem = (
       if (unit.param === "hz") throw new UnitError(`${unit.symbol} depends on the kernel's HZ, and it has no factor: use convert with { hz }`);
     }
     const factor = a.symbol === b.symbol ? 1 : toNumber(div(a.factor, b.factor));
-    factors.set(key, factor);
+    row.set(to, factor);
     return factor;
   };
 
   // The product and the quotient of each pair of spellings.
-  const products = new Map<string, string>();
+  const products = { [1]: pairCache<string>(), [-1]: pairCache<string>() };
   const productKept = (from: string, by: string, sign: 1 | -1): string => {
-    const key = `${from}\n${by}\n${sign}`;
-    const known = products.get(key);
+    const row = products[sign](from);
+    const known = row.get(by);
     if (known !== undefined) return known;
     const made = productOf(from, by, sign);
-    products.set(key, made);
+    row.set(by, made);
     return made;
   };
 
