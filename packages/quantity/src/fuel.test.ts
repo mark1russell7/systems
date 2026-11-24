@@ -13,7 +13,7 @@ import {
   whyNotConvertible,
 } from "./index.ts";
 
-/** The international (IT) British thermal unit is 1055.05585262 J exactly (ISO 31-4, NIST SP 811, B.8). */
+/** The international (IT) British thermal unit is 1055.05585262 J exactly (ISO 31-4, NIST SP 811, footnote 9 of Appendix B). */
 const BTU_IN_J = q.div(q.fromDecimal("105505585262"), q.fromDecimal("100000000"));
 
 /** Stove makers give fuel rates in BTU per hour, and fuel energy in MJ per kilogram. */
@@ -23,6 +23,11 @@ describe("the units of fuel", () => {
     expect(convertExact(q.ONE, "BTU", "J")).toEqual(q.fromDecimal("1055.05585262"));
     expect(convert(quantity(1, "BTU"), "J").value).toBe(1055.05585262);
     expect(factorOf("BTU", "kJ")).toBeCloseTo(1.05505585262, 14);
+  });
+
+  it("gives one BTU for each pound as 2.326 kJ/kg, exactly, through the atom lb", () => {
+    // NIST SP 811 marks this factor as exact. It derives the BTU from the pound, so it does not repeat the digits of the atom.
+    expect(convertExact(q.ONE, "BTU/lb", "kJ/kg")).toEqual(q.fromDecimal("2.326"));
   });
 
   it("converts 15000 BTU/h to W and kW, exactly", () => {

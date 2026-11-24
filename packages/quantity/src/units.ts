@@ -105,8 +105,8 @@ export const ATOMS: readonly Atom[] = [
   atom("kcal", "kilocalorie", E, mul(JOULE, r("4184")), {
     aliases: ["Cal", "kilocalorie", "kilocalories"],
   }),
-  // the international (IT) British thermal unit is 1055.05585262 J exactly (ISO 31-4, NIST SP 811)
-  atom("BTU", "British thermal unit", E, mul(JOULE, r("1055.05585262")), { aliases: ["Btu"] }),
+  // the international (IT) British thermal unit is 1055.05585262 J exactly (ISO 31-4, NIST SP 811, footnote 9 of Appendix B)
+  atom("BTU", "British thermal unit (IT)", E, mul(JOULE, r("1055.05585262")), { aliases: ["Btu"] }),
   atom("Wh", "watt-hour", E, mul(JOULE, r("3600"))),
   atom("kWh", "kilowatt-hour", E, mul(JOULE, r("3600000"))),
   atom("MWh", "megawatt-hour", E, mul(JOULE, r("3.6e9"))),
