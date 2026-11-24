@@ -109,7 +109,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@b00e6c77be906feac2a505888bab26be99d5c4c5 # main
+        uses: mark1russell7/template/.github/actions/changes@02fda5f29cc4edb08cd7e3c493be8fea055ffb22 # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -499,7 +499,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@b00e6c77be906feac2a505888bab26be99d5c4c5 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@02fda5f29cc4edb08cd7e3c493be8fea055ffb22 # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells export
