@@ -9,7 +9,7 @@
 # the series and the lines of the client) as the artifact resources-records.
 #
 # A pull request that changes the reader, the lab, the native programs or this file starts it. Start it by hand with:
-#   gh workflow run resources.yml -R mark1russell7/systems --ref <branch>
+#   gh workflow run resources.yml -R metrograph-labs/systems --ref <branch>
 name: Resources
 
 on:

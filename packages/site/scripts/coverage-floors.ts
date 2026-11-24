@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import type { CoverageRun, Shares } from "../src/lib/coverage.ts";
 import { floorsOf, sharesOf } from "../src/lib/coverage.ts";
 
-const REPO = "mark1russell7/systems";
+const REPO = "metrograph-labs/systems";
 
 const gh = (args: readonly string[]): string => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] });
 

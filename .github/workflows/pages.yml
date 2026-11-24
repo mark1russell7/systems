@@ -1,4 +1,4 @@
-# Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/systems/, with the
+# Builds packages/site and publishes it to GitHub Pages at https://metrograph-labs.github.io/systems/, with the
 # shared Pages workflow of mark1russell7 (reusable-pages.yml of mark1russell7/template, its CI.md).
 # The Pages source of the repository is "GitHub Actions" (Settings > Pages).
 name: Pages
@@ -13,7 +13,7 @@ on:
     branches: [main]
   # Every 3 hours, so that the Status page shows the open pull requests and issues of the day
   schedule:
-    - cron: "28 */3 * * *"
+    - cron: "35 */3 * * *"
   workflow_dispatch:
 
 permissions: {}

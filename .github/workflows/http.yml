@@ -12,7 +12,7 @@
 #
 # These tests measure time, thus they run only here, on a runner with no other load.
 # A pull request that changes the service package or this file runs them.
-# Start it with: gh workflow run http.yml -R mark1russell7/systems
+# Start it with: gh workflow run http.yml -R metrograph-labs/systems
 name: HTTP
 
 on:

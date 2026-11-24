@@ -21,7 +21,7 @@ if (exporter === undefined || out === undefined || runs.length === 0) {
 const strange = runs.filter((run) => !/^\d+$/.test(run));
 if (strange.length > 0) throw new Error(`${strange.join(", ")}: a run id is a number`);
 
-const repository = process.env["GITHUB_REPOSITORY"] ?? "mark1russell7/systems";
+const repository = process.env["GITHUB_REPOSITORY"] ?? "metrograph-labs/systems";
 const records = mkdtempSync(join(tmpdir(), "copy-"));
 const folders = runs.flatMap((run, at) => {
   // the number before the id keeps the sequence of the runs in the names of the folders
