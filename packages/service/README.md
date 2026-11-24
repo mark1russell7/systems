@@ -261,8 +261,8 @@ A profile is a part of a declaration as data: the phases, the cooperative window
 | `kubernetes({ grace, preStop })` | A pod | Caps from the grace less the preStop sleep, and no effect for a repeat signal |
 | `ephemeral` | A command that runs one time, or a stdio child | No gating checks, an abort at the start of the drain, a flush of the output, and the exit codes 130, 143 and 131 |
 
-- **Kubernetes.** The budget is the grace less the preStop sleep: the time from SIGTERM to SIGKILL. The stages get 2, 5, 15, 2, 1, 2 and 1 thirtieths of the budget, rounded down to the millisecond. The cooperative window is 5 thirtieths. Thus 2 thirtieths stay as a margin, and O10 and O16 hold.
-- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2 and 1 s, with a window of 5 s. These are the caps of the kind lab.
+- **Kubernetes.** The budget is the grace less the preStop sleep: the time from SIGTERM to SIGKILL. The stages get 2, 5, 15, 2, 1, 2, 1 and 1 thirtieths of the budget, rounded down to the millisecond. The last stage flushes the output. The cooperative window is 5 thirtieths. Thus 1 thirtieth stays as a margin, and O10 and O16 hold.
+- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2, 1 and 1 s. The window is 5 s. These are the caps of the kind lab.
 - **Local development.** No load balancer routes to a computer of a developer, thus the profile has no readiness hold. A second Ctrl-C exits at once.
 - **A background host.** A supervisor or a command stops the host with a signal. A repeat signal has no effect, thus the host ends its drain. The host has no parent on stdin, thus the profile declares no process trigger.
 - **The repeat signal.** Each profile declares `onRepeatSignal`: `"exit"` for `localDev` and `ephemeral`, and `"ignore"` for `daemon` and `kubernetes`.

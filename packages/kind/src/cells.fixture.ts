@@ -22,6 +22,7 @@ export const DESIGN: Declaration = {
     ["stop the poller", s(1)],
     ["tear down dependencies", s(2)],
     ["close the health server", s(1)],
+    ["flush the output", s(1)],
   ],
   cooperativeWindow: s(5),
   couplings: [{ from: "liveness", to: "readiness", effect: "fails" }],
