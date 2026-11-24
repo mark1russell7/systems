@@ -36,6 +36,12 @@ export const whyNotConvertible: (from: string, to: string) => string | undefined
 
 export const convertible: (from: string, to: string) => boolean = UNITS.convertible;
 
+/**
+ * This function gives the number that one `from` is in `to`, as a double: `factorOf("MiB", "B")` is 1048576. It keeps
+ * the factor of each pair, thus a loop over many amounts converts each pair one time. Use `convertExact` for an exact sum.
+ */
+export const factorOf: (from: string, to: string) => number = UNITS.factorOf;
+
 /** This function converts a value in one unit, exactly, into another unit. */
 export const convertExact: (
   value: Rational,

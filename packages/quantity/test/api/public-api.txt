@@ -48,6 +48,7 @@ convertExact: build/parse.d.ts#convertExact
 convertible: build/parse.d.ts#convertible
 divide: build/quantity.d.ts#divide
 divideUnits: build/parse.d.ts#divideUnits
+factorOf: build/parse.d.ts#factorOf
 format: build/format.d.ts#format
 formatDuration: build/format.d.ts#formatDuration
 formatOnScale: build/format.d.ts#formatOnScale
@@ -219,6 +220,9 @@ export declare const convertible: (from: string, to: string) => boolean;
 
 ### build/parse.d.ts#divideUnits
 export declare const divideUnits: (a: string, b: string) => string;
+
+### build/parse.d.ts#factorOf
+export declare const factorOf: (from: string, to: string) => number;
 
 ### build/parse.d.ts#isCanonicalUnit
 export declare const isCanonicalUnit: (spelling: string) => boolean;
@@ -393,6 +397,7 @@ export interface UnitSystem {
   readonly whyNotConvertible: (from: string, to: string) => string | undefined;
   readonly convertible: (from: string, to: string) => boolean;
   readonly convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+  readonly factorOf: (from: string, to: string) => number;
   readonly multiplyUnits: (a: string, b: string) => string;
   readonly divideUnits: (a: string, b: string) => string;
 }

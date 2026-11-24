@@ -1,5 +1,5 @@
 import type { Rational } from "@mark1russell7/rational";
-import { ONE, ZERO, add, div, mul, pow, rational, sub } from "@mark1russell7/rational";
+import { ONE, ZERO, add, div, mul, pow, rational, sub, toNumber } from "@mark1russell7/rational";
 import type { Atom, Base, Kind, Vector } from "./dimensions.ts";
 import { BASES, KINDS } from "./dimensions.ts";
 
@@ -73,6 +73,12 @@ export interface UnitSystem {
   readonly convertible: (from: string, to: string) => boolean;
   /** This function converts a value in one unit, exactly, into another unit. */
   readonly convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
+  /**
+   * This function gives the number that one `from` is in `to`, as a double: `factorOf("MiB", "B")` is 1048576. The system
+   * keeps the factor of each pair, thus a loop over many amounts converts each pair one time. These give a `UnitError`: a
+   * pair that does not convert, an absolute temperature and a unit that depends on the HZ of the kernel.
+   */
+  readonly factorOf: (from: string, to: string) => number;
   /**
    * This function gives the canonical spelling of the product of two units. The exponents of one
    * factor add, and a factor with the exponent 0 cancels: `{request}/s` times `{core}·ms/{request}`
@@ -320,7 +326,17 @@ export const unitSystem = (
     }
   };
 
+  // The reason of each pair of spellings. A pair can have no reason, thus the cache uses `has`.
+  const reasons = new Map<string, string | undefined>();
   const whyNotConvertible = (from: string, to: string): string | undefined => {
+    const key = `${from}\n${to}`;
+    if (reasons.has(key)) return reasons.get(key);
+    const why = reasonOf(from, to);
+    reasons.set(key, why);
+    return why;
+  };
+
+  const reasonOf = (from: string, to: string): string | undefined => {
     const a = parseUnit(from);
     const b = parseUnit(to);
     if (!sameVector(a.vector, b.vector)) {
@@ -392,6 +408,35 @@ export const unitSystem = (
     return parseUnit(spelling).symbol;
   };
 
+  const factors = new Map<string, number>();
+  const factorOf = (from: string, to: string): number => {
+    const key = `${from}\n${to}`;
+    const known = factors.get(key);
+    if (known !== undefined) return known;
+    const why = whyNotConvertible(from, to);
+    if (why !== undefined) throw new UnitError(`cannot convert ${from} to ${to}: ${why}`);
+    const a = parseUnit(from);
+    const b = parseUnit(to);
+    for (const unit of [a, b]) {
+      if (unit.offset !== undefined) throw new UnitError(`${unit.symbol} is an absolute temperature, and it has no factor: use convert`);
+      if (unit.param === "hz") throw new UnitError(`${unit.symbol} depends on the kernel's HZ, and it has no factor: use convert with { hz }`);
+    }
+    const factor = a.symbol === b.symbol ? 1 : toNumber(div(a.factor, b.factor));
+    factors.set(key, factor);
+    return factor;
+  };
+
+  // The product and the quotient of each pair of spellings.
+  const products = new Map<string, string>();
+  const productKept = (from: string, by: string, sign: 1 | -1): string => {
+    const key = `${from}\n${by}\n${sign}`;
+    const known = products.get(key);
+    if (known !== undefined) return known;
+    const made = productOf(from, by, sign);
+    products.set(key, made);
+    return made;
+  };
+
   return {
     atoms,
     atomBySymbol,
@@ -403,8 +448,9 @@ export const unitSystem = (
     kindOf: (spelling) => parseUnit(spelling).kind,
     whyNotConvertible,
     convertible: (from, to) => whyNotConvertible(from, to) === undefined,
-    multiplyUnits: (a, b) => productOf(a, b, 1),
-    divideUnits: (a, b) => productOf(a, b, -1),
+    multiplyUnits: (a, b) => productKept(a, b, 1),
+    divideUnits: (a, b) => productKept(a, b, -1),
     convertExact,
+    factorOf,
   };
 };
