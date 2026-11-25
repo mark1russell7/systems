@@ -30,10 +30,14 @@ export const canonicalUnit: (spelling: string) => string = UNITS.canonicalUnit;
  */
 export const kindOf: (spelling: string) => Kind | "derived" = UNITS.kindOf;
 
-/** This function gives the reason that `from` cannot become `to`, or undefined when it can. */
+/**
+ * This function gives the reason that `from` cannot become `to`, or undefined when it can. A spelling that names no unit
+ * gives a reason, not an error: `whyNotConvertible("can", "kg")` is "can names no unit".
+ */
 export const whyNotConvertible: (from: string, to: string) => string | undefined =
   UNITS.whyNotConvertible;
 
+/** This function tells if `from` can become `to`. A spelling that names no unit gives false, not an error. */
 export const convertible: (from: string, to: string) => boolean = UNITS.convertible;
 
 /**

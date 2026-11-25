@@ -68,8 +68,12 @@ export interface UnitSystem {
   /** This function gives the canonical spelling of a unit, for data from another system: "hr" is "h". */
   readonly canonicalUnit: (spelling: string) => string;
   readonly kindOf: (spelling: string) => Kind | "derived";
-  /** This function gives the reason that `from` cannot become `to`, or undefined when it can. */
+  /**
+   * This function gives the reason that `from` cannot become `to`, or undefined when it can. A spelling that names no unit
+   * gives a reason, not an error.
+   */
   readonly whyNotConvertible: (from: string, to: string) => string | undefined;
+  /** This function tells if `from` can become `to`. A spelling that names no unit gives false, not an error. */
   readonly convertible: (from: string, to: string) => boolean;
   /** This function converts a value in one unit, exactly, into another unit. */
   readonly convertExact: (value: Rational, from: string, to: string, on?: MeasuredOn) => Rational;
@@ -353,8 +357,10 @@ export const unitSystem = (
   };
 
   const reasonOf = (from: string, to: string): string | undefined => {
-    const a = parseUnit(from);
-    const b = parseUnit(to);
+    const a = tryParseUnit(from);
+    if (a === undefined) return `${from} names no unit`;
+    const b = tryParseUnit(to);
+    if (b === undefined) return `${to} names no unit`;
     if (!sameVector(a.vector, b.vector)) {
       return `${a.symbol} is a ${a.kind} and ${b.symbol} is a ${b.kind}`;
     }
