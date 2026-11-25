@@ -17,7 +17,7 @@ These are the results of the cells of the port range, from 2026-11-17. Each cell
 
 The predictions come from `portSearchSpan` and `portSearchShares` of `@mark1russell7/algebra`, and from the timers of `LINUX_TCP` of `@mark1russell7/machines`. The low port of each range is 40000.
 
-CI started the cells at main in the run [44177444372](https://github.com/mark1russell7/systems/actions/runs/44177444372), in 4 shards on the hosted runners of GitHub. The kernel is Linux 7.0, with HZ 1000. Each cell has 4 runs in 2 fresh environments, with one warm-up run in each environment.
+CI started the cells at main in the run [44177444372](https://github.com/metrograph-labs/systems/actions/runs/44177444372), in 4 shards on the hosted runners of GitHub. The kernel is Linux 7.0, with HZ 1000. Each cell has 4 runs in 2 fresh environments, with one warm-up run in each environment.
 
 Each of the 8 cells holds against the prediction of the algebra. The cells have 32 counted runs, and no run is void.
 
@@ -43,7 +43,7 @@ Each of the 8 cells holds against the prediction of the algebra. The cells have 
 
 ## The rate of PR.7
 
-PR.7 held in this read, but it does not hold in each read. A read of 40 runs at main, the run [44163293814](https://github.com/mark1russell7/systems/actions/runs/44163293814), failed in 7 of 40 runs with no fault in its plan. The rate is 0.175, and its Wilson interval of 95 % is 0.087 to 0.319.
+PR.7 held in this read, but it does not hold in each read. A read of 40 runs at main, the run [44163293814](https://github.com/metrograph-labs/systems/actions/runs/44163293814), failed in 7 of 40 runs with no fault in its plan. The rate is 0.175, and its Wilson interval of 95 % is 0.087 to 0.319.
 
 Each failed run has one retransmission, and no run that held has one. That retransmission is a tail loss probe of a FIN with no data, from a client socket in `LAST_ACK`. In six runs it came during the rounds, thus the client held that port longer, and a later round got 3 ports, not 4. In one run it came 201 ms after the last round, thus each round got 4 ports. No counter of a drop moved at either end.
 

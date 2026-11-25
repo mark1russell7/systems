@@ -14,7 +14,7 @@ These are the results of the T15 cells over gRPC, from 2026-10-25. Each cell ope
 
 The mesh has two flavors. In the sidecar flavor, each pod has an Envoy sidecar. In the ambient flavor, the ztunnel of each node carries the calls over HBONE: HTTP/2 tunnels between the nodes.
 
-CI started the cells in three kind runs, on hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The run [40181243549](https://github.com/mark1russell7/systems/actions/runs/40181243549) started each of the 15 cells, on 7 shards. The run [40202010754](https://github.com/mark1russell7/systems/actions/runs/40202010754) started 3 cells again, after two fixes. The run [40220699919](https://github.com/mark1russell7/systems/actions/runs/40220699919) started T15.border-off.92, on 1 shard.
+CI started the cells in three kind runs, on hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The run [40181243549](https://github.com/metrograph-labs/systems/actions/runs/40181243549) started each of the 15 cells, on 7 shards. The run [40202010754](https://github.com/metrograph-labs/systems/actions/runs/40202010754) started 3 cells again, after two fixes. The run [40220699919](https://github.com/metrograph-labs/systems/actions/runs/40220699919) started T15.border-off.92, on 1 shard.
 
 Of the 16 cells, 14 hold against the prediction, and 2 are the calibrations of the propagation. No run of the 176 is void. The script judges each record again with the catalog, and each verdict agrees with the summary of its run.
 
