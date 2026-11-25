@@ -12,7 +12,7 @@ import { Summary } from "../../../components/Ledger.tsx";
 
 These are the results of the T01 cells, from 2026-10-17. T01 is the direct pair: the TCP client of the harness and a stock Redis 7.4 container. The harness injected each network failure that it can make. The cells put the failures at four positions: an idle client, a request in flight, an idle server and a reply in flight. Each cell has 11 runs in fresh environments.
 
-CI started the cells on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The full run of the catalogs at main, [39074841434](https://github.com/mark1russell7/systems/actions/runs/39074841434), did the 47 cells with each other catalog, in 12 shards.
+CI started the cells on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The full run of the catalogs at main, [39074841434](https://github.com/metrograph-labs/systems/actions/runs/39074841434), did the 47 cells with each other catalog, in 12 shards.
 
 Of the 47 cells, 39 hold against the prediction of the algebra, and no cell fails. The other 8 cells are measurements only, because their outcome is a distribution. No run of the 517 is void.
 

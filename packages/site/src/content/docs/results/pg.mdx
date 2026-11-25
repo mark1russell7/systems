@@ -27,7 +27,7 @@ T01 is the direct pair. In T03, a router in the form of a cloud preset is betwee
 
 The machine documents give each band: `node-postgres`, `hikaricp-pgjdbc` and `postgres-session`, and the documents of the poolers. These are `pgbouncer-client`, `pgbouncer-server`, `pgpool-session`, `supavisor-client` and `supavisor-server`. The algebra composes each pool over Linux TCP.
 
-CI started the cells at main in the run [39182922975](https://github.com/mark1russell7/systems/actions/runs/39182922975), in 20 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the server, thus each of its runs has its own environment. Some T10 cells change the state of the pooler, and each of their runs has its own environment too.
+CI started the cells at main in the run [39182922975](https://github.com/metrograph-labs/systems/actions/runs/39182922975), in 20 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the server, thus each of its runs has its own environment. Some T10 cells change the state of the pooler, and each of their runs has its own environment too.
 
 Each of the 75 cells holds against the prediction of the algebra. The cells have 825 counted runs, and no run is void.
 
