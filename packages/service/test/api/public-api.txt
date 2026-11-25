@@ -929,6 +929,7 @@ type Rule: build/law.d.ts#Rule
 ## ./host (build/host.d.ts): names
 
 type AliveSpec: build/host/group.d.ts#AliveSpec
+type AliveStall: build/host/group.d.ts#AliveStall
 type ChildHandle: build/host/ports.d.ts#ChildHandle
 type CommandOptions: build/host/ports.d.ts#CommandOptions
 type CommandPort: build/host/ports.d.ts#CommandPort
@@ -2095,6 +2096,13 @@ export interface AliveSpec {
   readonly interval: Quantity;
   readonly timeout: Quantity;
   readonly failures: number;
+  readonly stall?: AliveStall | undefined;
+}
+
+### build/host/group.d.ts#AliveStall
+export interface AliveStall {
+  readonly share: number;
+  readonly most: number;
 }
 
 ### build/host/group.d.ts#DEFAULT_RESTART
