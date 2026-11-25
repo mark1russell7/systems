@@ -7,6 +7,7 @@ import {
   canonicalUnit,
   compare,
   convert,
+  convertible,
   format,
   formatDuration,
   isCanonicalUnit,
@@ -19,6 +20,7 @@ import {
   sum,
   toNanoseconds,
   unbounded,
+  UnitError,
   valueIn,
   whyNotConvertible,
 } from "./index.ts";
@@ -107,6 +109,16 @@ describe("units", () => {
     expect(whyNotConvertible("{rep}", "count")).toMatch(/counts rep/);
     expect(whyNotConvertible("%{1RM}", "%")).toMatch(/of 1RM/);
     expect(whyNotConvertible("kg", "s")).toBe("kg is a mass and s is a time");
+  });
+
+  it("gives a reason, not an error, for a spelling that names no unit", () => {
+    expect(whyNotConvertible("can", "kg")).toBe("can names no unit");
+    expect(whyNotConvertible("kg", "can")).toBe("can names no unit");
+    expect(convertible("can", "lb")).toBe(false);
+    expect(convertible("lb", "can")).toBe(false);
+    expect(convertible("lb", "kg")).toBe(true);
+    // A conversion with a spelling that names no unit still gives a UnitError.
+    expect(() => convert(quantity(1, "can"), "kg")).toThrow(UnitError);
     expect(convert(quantity(3, "{set}/wk"), "{set}/d").value).toBeCloseTo(3 / 7, 12);
   });
 
