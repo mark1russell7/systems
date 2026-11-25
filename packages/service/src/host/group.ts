@@ -18,6 +18,8 @@ import type { ChildHandle, HostPorts } from "./ports.ts";
 import { joinPath } from "./ports.ts";
 import type { ReadyProbe } from "./probes.ts";
 import { probeOnce, probeProblems } from "./probes.ts";
+import type { StallMark } from "./pressure.ts";
+import { readStallMark, stalledShare } from "./pressure.ts";
 import { stopTree } from "./processes.ts";
 import type { ReadyTime, WindowRule } from "./ready-times.ts";
 import { addReadyTime, measuredWindowMs, parseReadyTimes, readyTimesText } from "./ready-times.ts";
@@ -93,6 +95,20 @@ export interface AliveSpec {
   readonly timeout: Quantity;
   /** This count of failures in sequence stops the program: a whole number of 1 or more. A pass sets the count to 0. */
   readonly failures: number;
+  /** This excuse lets a failure in a full stall of the host not count. Without it, each failure counts. */
+  readonly stall?: AliveStall | undefined;
+}
+
+/**
+ * A stall excuse tells when a failure of the liveness probe does not count. In a full stall of memory or IO, each task of
+ * the host waits. A program in such a stall does not answer, but it does not hang. The supervisor reads the full stall times of
+ * a Linux host (`/proc/pressure`) at each use of the probe. On other hosts, each failure counts.
+ */
+export interface AliveStall {
+  /** This share of the span of a failure in a full stall excuses the failure: a number above 0 and not above 1. */
+  readonly share: number;
+  /** This count is the most excused failures in sequence: a whole number of 1 or more. A pass sets the count to 0. */
+  readonly most: number;
 }
 
 /** A program restart tells how the supervisor starts a program again after it stops. */
@@ -325,6 +341,12 @@ export const groupProblems = (spec: GroupSpec): string[] => {
         if (!isTimeAtLeast(program.alive[field], 0, true)) problems.push(`${of}: the ${field} of the liveness probe is not a time above zero`);
       if (!(Number.isInteger(program.alive.failures) && program.alive.failures >= 1))
         problems.push(`${of}: the failures of the liveness probe is not a whole number of 1 or more`);
+      const stall = program.alive.stall;
+      if (stall !== undefined) {
+        if (!(typeof stall.share === "number" && stall.share > 0 && stall.share <= 1))
+          problems.push(`${of}: the share of the stall excuse is not a number above 0 and not above 1`);
+        if (!(Number.isInteger(stall.most) && stall.most >= 1)) problems.push(`${of}: the most of the stall excuse is not a whole number of 1 or more`);
+      }
     }
     if (program.restart !== undefined && program.restart !== null) {
       problems.push(...backoffProblems(program.restart.backoff).map((problem) => `${of}: ${problem}`));
@@ -508,6 +530,9 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
   /** This function uses the liveness probe of a ready program each interval, and stops the program after `failures` failures in sequence. */
   const watch = (unit: Unit, child: ChildHandle, alive: AliveSpec): void => {
     let failures = 0;
+    let excused = 0;
+    let mark: StallMark | null = null;
+    const markNow = async (): Promise<StallMark | null> => (alive.stall === undefined ? null : readStallMark(ports));
     const current = (): boolean => unit.child === child && unit.phase === "ready" && !stopping;
     const next = (): void => {
       unit.watch = ports.clock.after(ms(alive.interval), () => {
@@ -520,11 +545,23 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
     const check = async (): Promise<void> => {
       if (!current()) return;
       const result = await probeOnce(alive.probe, ms(alive.timeout), ports);
+      const before = mark;
+      mark = await markNow();
       if (!current()) return;
       if (result.ok) {
-        if (failures > 0) say("info", `${unit.spec.name} is alive again`, { program: unit.spec.name, pid: child.pid, failures });
+        if (failures > 0 || excused > 0) say("info", `${unit.spec.name} is alive again`, { program: unit.spec.name, pid: child.pid, failures, excused });
         failures = 0;
+        excused = 0;
         unit.detail = null;
+        next();
+        return;
+      }
+      const share = alive.stall === undefined || before === null || mark === null ? null : stalledShare(before, mark);
+      if (alive.stall !== undefined && share !== null && share >= alive.stall.share && excused < alive.stall.most) {
+        excused += 1;
+        const percent = Math.round(share * 100);
+        unit.detail = `the liveness probe failed in a full stall of the host for ${percent}% of its span, thus the failure does not count (${excused} of ${alive.stall.most} excused, ${result.why})`;
+        say("warn", `${unit.spec.name}: ${unit.detail}`, { program: unit.spec.name, pid: child.pid, why: result.why, stalledShare: share });
         next();
         return;
       }
@@ -540,7 +577,12 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
       say("warn", `${unit.spec.name} is not alive, thus it stops`, { program: unit.spec.name, pid: child.pid, why: result.why });
       void stagedStop(unit, child);
     };
-    next();
+    if (alive.stall === undefined) next();
+    else
+      void markNow().then((first) => {
+        mark = first;
+        if (current()) next();
+      });
   };
 
   /**

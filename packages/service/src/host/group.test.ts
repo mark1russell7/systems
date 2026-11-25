@@ -479,6 +479,100 @@ describe("superviseGroup starts a program again after it stops", () => {
   });
 });
 
+describe("superviseGroup does not count a liveness failure in a full stall of the host", () => {
+  const ALIVE = "http://127.0.0.1:8080/liveness";
+  const MEMORY = "/proc/pressure/memory";
+  const IO = "/proc/pressure/io";
+  const psi = (full: number): string => `some avg10=0.00 avg60=0.00 avg300=0.00 total=${full}\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=${full}\n`;
+  const stalled = (failures = 3): GroupSpec =>
+    one({
+      name: "api",
+      program: "/bin/api",
+      alive: { probe: { kind: "http", url: ALIVE }, interval: ms(1000), timeout: ms(100), failures, stall: { share: 0.5, most: 2 } },
+      stop: { grace: ms(500) },
+      restart: quick,
+    });
+
+  it("names each bad value of the stall excuse", () => {
+    const program = stalled().programs[0]!;
+    const spec = one({ ...program, alive: { ...program.alive!, stall: { share: 0, most: 0.5 } } });
+    expect(groupProblems(spec)).toEqual([
+      'the program "api": the share of the stall excuse is not a number above 0 and not above 1',
+      'the program "api": the most of the stall excuse is not a whole number of 1 or more',
+    ]);
+  });
+
+  it("excuses at most the count most of failures in a stall, then each failure counts", async () => {
+    const host = fakeHost({ files: { [MEMORY]: psi(0), [IO]: psi(0) } });
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(stalled(), host.ports);
+    group.start();
+    await host.settle();
+    expect(phases(group)).toEqual({ api: "ready" });
+    host.http.delete(ALIVE);
+    let total = 0;
+    const stallStep = async (): Promise<void> => {
+      total += 2_000_000;
+      host.files.set(IO, psi(total));
+      await step(host, 1000);
+    };
+    await stallStep();
+    await stallStep();
+    expect(group.states()[0]!.detail).toMatch(/^the liveness probe failed in a full stall of the host for 100% of its span, thus the failure does not count \(2 of 2 excused, /);
+    await stallStep();
+    await stallStep();
+    expect(host.signals).toEqual([]);
+    await stallStep();
+    expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
+  });
+
+  it("counts each failure when the host is not in a stall", async () => {
+    const host = fakeHost({ files: { [MEMORY]: psi(0), [IO]: psi(0) } });
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(stalled(), host.ports);
+    group.start();
+    await host.settle();
+    host.http.delete(ALIVE);
+    await step(host, 1000);
+    await step(host, 1000);
+    expect(host.signals).toEqual([]);
+    await step(host, 1000);
+    expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
+  });
+
+  it("counts each failure on a host with no pressure files", async () => {
+    const host = fakeHost();
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(stalled(1), host.ports);
+    group.start();
+    await host.settle();
+    host.http.delete(ALIVE);
+    await step(host, 1000);
+    expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
+  });
+
+  it("sets the count of excused failures to 0 after a pass", async () => {
+    const host = fakeHost({ files: { [MEMORY]: psi(0), [IO]: psi(0) } });
+    host.http.set(ALIVE, 200);
+    const group = superviseGroup(stalled(1), host.ports);
+    group.start();
+    await host.settle();
+    let total = 0;
+    for (let round = 0; round < 3; round += 1) {
+      host.http.delete(ALIVE);
+      for (let excuse = 0; excuse < 2; excuse += 1) {
+        total += 2_000_000;
+        host.files.set(MEMORY, psi(total));
+        await step(host, 1000);
+      }
+      host.http.set(ALIVE, 200);
+      await step(host, 1000);
+      expect(group.states()[0]).toMatchObject({ phase: "ready", detail: null });
+    }
+    expect(host.signals).toEqual([]);
+  });
+});
+
 describe("superviseGroup stops a ready program that does not pass its liveness probe", () => {
   const ALIVE = "http://127.0.0.1:8080/liveness";
   const watched = (): GroupSpec =>
