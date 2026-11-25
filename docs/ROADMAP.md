@@ -207,27 +207,27 @@ The design of health and routing is decided. The kind cells scored the candidate
 
 [PR #194](https://github.com/metrograph-labs/systems/pull/194) starts the scores of health and routing (`scoreCallers` of the cells, and the table "How callers learn" of the kind page). Each candidate of each mode gets a score on each criterion, with its run, its cell and its prediction. Kind run 40358038728 gives the failed requests, and it bounds the time until callers know. The other criteria and the other six incidents are not measured, each with its reason. B and C each beat A in each mode, and neither one wins in each mode. Thus the service keeps one rule with A as an opt-in: while it is not ready, it closes each connection in band ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #196](https://github.com/metrograph-labs/systems/pull/196) scores a second incident: a partitioned pod. A black hole comes between the clients and the target for 22 s, and the readiness of the target stays. Kind run [40380943331](https://github.com/mark1russell7/systems/actions/runs/40380943331) held each of the 9 cells in 3 of 3 runs, and the prediction of commit 401f702 held. A and B learned in 1.4 s at the most, and C learned only after the heal, 26.14 s to 26.63 s after the fault. The scorecard measures the time until callers know of a partition, from the start of the last failed request of each run. The rule of the service stays, and the client of HTTP/2 needs its own check of the session.
+[PR #196](https://github.com/metrograph-labs/systems/pull/196) scores a second incident: a partitioned pod. A black hole comes between the clients and the target for 22 s, and the readiness of the target stays. Kind run [40380943331](https://github.com/metrograph-labs/systems/actions/runs/40380943331) held each of the 9 cells in 3 of 3 runs, and the prediction of commit 401f702 held. A and B learned in 1.4 s at the most, and C learned only after the heal, 26.14 s to 26.63 s after the fault. The scorecard measures the time until callers know of a partition, from the start of the last failed request of each run. The rule of the service stays, and the client of HTTP/2 needs its own check of the session.
 
-[PR #199](https://github.com/metrograph-labs/systems/pull/199) adds that check: `sessionCheck` of `./http-client`, an opt-in with the heartbeat of the service. Candidate D is C with the check. Kind run [40394320219](https://github.com/mark1russell7/systems/actions/runs/40394320219) held each of the 6 cells of D in 3 of 3 runs, and the prediction of commit f066a10 held. For a pod that cannot serve, the check closed no session, and D and C had one band. In a partition, D learned in 1.07 s to 1.46 s by the median run, and C needed approximately 26 s. Thus the session check is part of the default rule of the client of HTTP/2, with `keepalive_time` 0.5 s and `keepalive_timeout` 0.5 s.
+[PR #199](https://github.com/metrograph-labs/systems/pull/199) adds that check: `sessionCheck` of `./http-client`, an opt-in with the heartbeat of the service. Candidate D is C with the check. Kind run [40394320219](https://github.com/metrograph-labs/systems/actions/runs/40394320219) held each of the 6 cells of D in 3 of 3 runs, and the prediction of commit f066a10 held. For a pod that cannot serve, the check closed no session, and D and C had one band. In a partition, D learned in 1.07 s to 1.46 s by the median run, and C needed approximately 26 s. Thus the session check is part of the default rule of the client of HTTP/2, with `keepalive_time` 0.5 s and `keepalive_timeout` 0.5 s.
 
-[PR #202](https://github.com/metrograph-labs/systems/pull/202) scores a third incident: a stalled pod, a gray failure. The event loop of the target stops for 12 s, and its readiness probe removes it 5 s to 7.3 s after the fault. Kind run [40406199754](https://github.com/mark1russell7/systems/actions/runs/40406199754) held each of the 12 cells in 3 of 3 runs, and the prediction of commit bd3697f held each count. A and B learned in 1.15 s at the most, D in 1.28 s to 3.3 s by the median run, and C only at the resume. The last failure of C was up to 72 ms after its band, in the noise of the judge, thus its time score shows a failure. The decision of S6 does not change.
+[PR #202](https://github.com/metrograph-labs/systems/pull/202) scores a third incident: a stalled pod, a gray failure. The event loop of the target stops for 12 s, and its readiness probe removes it 5 s to 7.3 s after the fault. Kind run [40406199754](https://github.com/metrograph-labs/systems/actions/runs/40406199754) held each of the 12 cells in 3 of 3 runs, and the prediction of commit bd3697f held each count. A and B learned in 1.15 s at the most, D in 1.28 s to 3.3 s by the median run, and C only at the resume. The last failure of C was up to 72 ms after its band, in the noise of the judge, thus its time score shows a failure. The decision of S6 does not change.
 
-[PR #206](https://github.com/metrograph-labs/systems/pull/206) scores a fourth incident: a failed prober. The readiness check of the target fails for 30 s while its route serves, thus each removal is false. Kind run [40419289511](https://github.com/mark1russell7/systems/actions/runs/40419289511) held each of the 12 cells in 3 of 3 runs, and each removal was in the band of commit 5b871cb. A failed 1,529 to 1,690 requests by the median run, and B, C and D failed 3 to 25. One run of C in nftables had 12 failed requests, over its band of 0 to 9, thus its count score shows a failure. The decision of S6 does not change, and the other four incidents need a dependency or zones that T07 does not have.
+[PR #206](https://github.com/metrograph-labs/systems/pull/206) scores a fourth incident: a failed prober. The readiness check of the target fails for 30 s while its route serves, thus each removal is false. Kind run [40419289511](https://github.com/metrograph-labs/systems/actions/runs/40419289511) held each of the 12 cells in 3 of 3 runs, and each removal was in the band of commit 5b871cb. A failed 1,529 to 1,690 requests by the median run, and B, C and D failed 3 to 25. One run of C in nftables had 12 failed requests, over its band of 0 to 9, thus its count score shows a failure. The decision of S6 does not change, and the other four incidents need a dependency or zones that T07 does not have.
 
-[PR #211](https://github.com/metrograph-labs/systems/pull/211) scores a fifth incident: a black-holed shared dependency. Redis gates the readiness of both replicas, and it is black-holed for 27 s. Kind run [40430856093](https://github.com/mark1russell7/systems/actions/runs/40430856093) held 11 of the 12 cells in 3 of 3 runs, against the prediction of commit bbe898e. B had the fewest failed requests in each mode and recovered first. B, C and D failed slowly on the empty Service until the heal, thus their time until callers know misses its band. Readiness follows the dependency, and the defaults do not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
+[PR #211](https://github.com/metrograph-labs/systems/pull/211) scores a fifth incident: a black-holed shared dependency. Redis gates the readiness of both replicas, and it is black-holed for 27 s. Kind run [40430856093](https://github.com/metrograph-labs/systems/actions/runs/40430856093) held 11 of the 12 cells in 3 of 3 runs, against the prediction of commit bbe898e. B had the fewest failed requests in each mode and recovered first. B, C and D failed slowly on the empty Service until the heal, thus their time until callers know misses its band. Readiness follows the dependency, and the defaults do not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #214](https://github.com/metrograph-labs/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no known caller uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
+[PR #214](https://github.com/metrograph-labs/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/metrograph-labs/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no known caller uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
 
-[PR #235](https://github.com/metrograph-labs/systems/pull/235) scores a sixth incident: a flapping dependency. The black hole of PR #211 comes three times in one run, for 27 s each, with a rest of 15 s after each heal. Kind run [40464814086](https://github.com/mark1russell7/systems/actions/runs/40464814086) held each of the 12 cells in 3 of 3 runs. The prediction of commit c8bca00 held each count, each removal, each recovery, each time until callers know and each count of PINGs. The first failure of a fault came up to 39 ms after the fault, after its band of 20 ms but in the noise of the judge. Each fault was the same as the first one, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
+[PR #235](https://github.com/metrograph-labs/systems/pull/235) scores a sixth incident: a flapping dependency. The black hole of PR #211 comes three times in one run, for 27 s each, with a rest of 15 s after each heal. Kind run [40464814086](https://github.com/metrograph-labs/systems/actions/runs/40464814086) held each of the 12 cells in 3 of 3 runs. The prediction of commit c8bca00 held each count, each removal, each recovery, each time until callers know and each count of PINGs. The first failure of a fault came up to 39 ms after the fault, after its band of 20 ms but in the noise of the judge. Each fault was the same as the first one, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #238](https://github.com/metrograph-labs/systems/pull/238) scores a seventh incident: a lost zone. The only node of the zone of the target is frozen for 70 s, thus the node lifecycle controller removes the target. Kind run [40494462562](https://github.com/mark1russell7/systems/actions/runs/40494462562) held 11 of the 12 cells, because one run started before the controller saw the node Ready. After commit 4ddc04d, kind run [40500297695](https://github.com/mark1russell7/systems/actions/runs/40500297695) held each of the 12 cells in 3 of 3 runs, in the bands of commit 9f53fbc. C failed until the 9th retransmission, up to 10,487 requests in a run, and D failed 285 at the most. Thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
+[PR #238](https://github.com/metrograph-labs/systems/pull/238) scores a seventh incident: a lost zone. The only node of the zone of the target is frozen for 70 s, thus the node lifecycle controller removes the target. Kind run [40494462562](https://github.com/metrograph-labs/systems/actions/runs/40494462562) held 11 of the 12 cells, because one run started before the controller saw the node Ready. After commit 4ddc04d, kind run [40500297695](https://github.com/metrograph-labs/systems/actions/runs/40500297695) held each of the 12 cells in 3 of 3 runs, in the bands of commit 9f53fbc. C failed until the 9th retransmission, up to 10,487 requests in a run, and D failed 285 at the most. Thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #240](https://github.com/metrograph-labs/systems/pull/240) scores the eighth and last incident: a slow dependency. Each packet that Redis sends waits 300 ms for 27 s, and each check of Redis still passes. Kind run [40521784305](https://github.com/mark1russell7/systems/actions/runs/40521784305) held each of the 12 cells in 3 of 3 runs, and no replica left the Service.
+[PR #240](https://github.com/metrograph-labs/systems/pull/240) scores the eighth and last incident: a slow dependency. Each packet that Redis sends waits 300 ms for 27 s, and each check of Redis still passes. Kind run [40521784305](https://github.com/metrograph-labs/systems/actions/runs/40521784305) held each of the 12 cells in 3 of 3 runs, and no replica left the Service.
 
 A and B failed 3,481 to 3,490 requests in each run, each one a timeout, because a connection of HTTP/1.1 queues its requests. C and D failed none. The last failure of A and B started up to 38 ms after its band of commit 93a58b6, in the noise of the judge. The rule gives no signal while the service stays ready, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
-[PR #242](https://github.com/metrograph-labs/systems/pull/242) measures the shared gate (E), a candidate that keeps the endpoints in a shared failure. The readiness probe of the kubelet leaves out each check of the shared Redis, and the controller still refuses each request with a 503. Kind run [40533209929](https://github.com/mark1russell7/systems/actions/runs/40533209929) held each of the 9 cells in 3 of 3 runs, in the bands of commit 221b5bc. E failed 4,325 to 4,729 requests by the median run in the shared dependency, and B 4,126 to 4,452. The rule of that commit needed a cut of 50 % in each mode, thus the gate stays in the kind lab, off by default ([S6.md](S6.md#the-shared-gate-e)).
+[PR #242](https://github.com/metrograph-labs/systems/pull/242) measures the shared gate (E), a candidate that keeps the endpoints in a shared failure. The readiness probe of the kubelet leaves out each check of the shared Redis, and the controller still refuses each request with a 503. Kind run [40533209929](https://github.com/metrograph-labs/systems/actions/runs/40533209929) held each of the 9 cells in 3 of 3 runs, in the bands of commit 221b5bc. E failed 4,325 to 4,729 requests by the median run in the shared dependency, and B 4,126 to 4,452. The rule of that commit needed a cut of 50 % in each mode, thus the gate stays in the kind lab, off by default ([S6.md](S6.md#the-shared-gate-e)).
 
 ### S7 · Simulated environments
 
@@ -505,7 +505,7 @@ Windows cannot give a child a SIGTERM that the child can catch, thus a service e
 - **Depends on:** SYS-1, SYS-2, SYS-3
 - **Started:** 2026-10-18
 - **Shipped:** 2026-10-18
-- **Links:** [#58](https://github.com/metrograph-labs/systems/pull/58), [The kind run](https://github.com/mark1russell7/systems/actions/runs/39092100083), [#49](https://github.com/metrograph-labs/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#58](https://github.com/metrograph-labs/systems/pull/58), [The kind run](https://github.com/metrograph-labs/systems/actions/runs/39092100083), [#49](https://github.com/metrograph-labs/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The image of the kind lab replaces its own transport, probe server and outcome map with `./http`: `httpTransport`, `probeServer` and `handle()`. A failure of the route keeps its 503 through the hook `failed`, thus the T07 and T18 cells count the same outcomes. The kind cells run only in CI.
 
@@ -538,7 +538,7 @@ This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger 
 - **Depends on:** S6
 - **Started:** 2026-10-18
 - **Shipped:** 2026-10-24
-- **Links:** [#65](https://github.com/metrograph-labs/systems/pull/65), [The WS, WST and PG run](https://github.com/mark1russell7/systems/actions/runs/39101123561), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#65](https://github.com/metrograph-labs/systems/pull/65), [The WS, WST and PG run](https://github.com/metrograph-labs/systems/actions/runs/39101123561), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `@mark1russell7/harness` accepts the image of a subject as data (D16). Thus another repository can give its own subject, with its own release in it.
 
@@ -551,7 +551,7 @@ The source of an image is an image pinned by digest, a build context, or an imag
 - **Depends on:** SYS-17
 - **Started:** 2026-10-20
 - **Shipped:** 2026-10-24
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb), [The WS run on the client subject](https://github.com/mark1russell7/systems/actions/runs/39390678218)
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb), [The WS run on the client subject](https://github.com/metrograph-labs/systems/actions/runs/39390678218)
 
 After CLI-33, the client owns the image of its procedures subject. Then the harness removes `image/procedures`, and the README of the harness no longer describes that image.
 
@@ -580,7 +580,7 @@ A check of the kind `progress` fires when no loop marks progress in its stall ti
 - **Depends on:**
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:** [#224](https://github.com/metrograph-labs/systems/pull/224), [The WS run](https://github.com/mark1russell7/systems/actions/runs/40453803841)
+- **Links:** [#224](https://github.com/metrograph-labs/systems/pull/224), [The WS run](https://github.com/metrograph-labs/systems/actions/runs/40453803841)
 
 A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. Thus the harness measures that jitter in each run and records it (`Run.jitter`). The pairing window of the run is the larger of δ_abs and the measured bound (`pairingOf`).
 
@@ -898,7 +898,7 @@ The review of SYS-22 found that a server transport and a dependency with one nam
 - **Depends on:** S2, KIND
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:** [#246](https://github.com/metrograph-labs/systems/pull/246), [The Cilium run](https://github.com/mark1russell7/systems/actions/runs/40558968382), [#249](https://github.com/metrograph-labs/systems/pull/249), [The backlog run](https://github.com/mark1russell7/systems/actions/runs/40575359112)
+- **Links:** [#246](https://github.com/metrograph-labs/systems/pull/246), [The Cilium run](https://github.com/metrograph-labs/systems/actions/runs/40558968382), [#249](https://github.com/metrograph-labs/systems/pull/249), [The backlog run](https://github.com/metrograph-labs/systems/actions/runs/40575359112)
 
 The Cilium cells of #246 found a term that the bands do not have. In each of 3 runs, C of the stall had failed requests after the band end of 10 s. After the resume, the target drains a backlog from each of its sessions. Thus the backlog grows with the sessions on the target. The kube-proxy cells of C overshot the same band by up to 72 ms, thus the term is not specific to Cilium.
 
@@ -927,7 +927,7 @@ The failed requests were below the bands in 16 of 20 runs, and in each run with 
 - **Depends on:** SYS-40
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:** [#251](https://github.com/metrograph-labs/systems/pull/251), [The kind run](https://github.com/mark1russell7/systems/actions/runs/40585371947)
+- **Links:** [#251](https://github.com/metrograph-labs/systems/pull/251), [The kind run](https://github.com/metrograph-labs/systems/actions/runs/40585371947)
 
 SYS-40 found that the timer of the client is late. The client sent a request each 10.10 ms to 10.22 ms, not each 10 ms. That figure came from an analysis after the run. With this item, each run records the measured period of the client as a fact. Thus a later band can use it.
 
@@ -946,7 +946,7 @@ A record from before this item does not have the fact, and it stays valid. The f
 - **Depends on:** SYS-40, SYS-41
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:** [#253](https://github.com/metrograph-labs/systems/pull/253), [The band run](https://github.com/mark1russell7/systems/actions/runs/40591832542), [The run with 6 sessions](https://github.com/mark1russell7/systems/actions/runs/40601022555), [#254](https://github.com/metrograph-labs/systems/pull/254)
+- **Links:** [#253](https://github.com/metrograph-labs/systems/pull/253), [The band run](https://github.com/metrograph-labs/systems/actions/runs/40591832542), [The run with 6 sessions](https://github.com/metrograph-labs/systems/actions/runs/40601022555), [#254](https://github.com/metrograph-labs/systems/pull/254)
 
 SYS-40 found two biases of the first backlog band. The value d of 40 ms to 70 ms was too large, and the count of failed requests came from the setting of the period. This item gives a new band version for the stall of each candidate that keeps its sessions through the stall. Of the candidates of S2, only C does. D does not keep its sessions.
 
@@ -973,7 +973,7 @@ The missing term is the drain of each session. A session fails a request each c 
 - **Depends on:** SYS-42
 - **Started:** 2026-10-28
 - **Shipped:** 2026-10-28
-- **Links:** [#255](https://github.com/metrograph-labs/systems/pull/255), [The drain run](https://github.com/mark1russell7/systems/actions/runs/40608863500), [#256](https://github.com/metrograph-labs/systems/pull/256)
+- **Links:** [#255](https://github.com/metrograph-labs/systems/pull/255), [The drain run](https://github.com/metrograph-labs/systems/actions/runs/40608863500), [#256](https://github.com/metrograph-labs/systems/pull/256)
 
 SYS-42 found one bias of the count band. The count was high in 9 of 20 runs, and in each run with 6 sessions. The window band held in 19 of 20 runs. This item gives a new band version with the missing term. The values d and r stay as in SYS-42.
 
@@ -1004,7 +1004,7 @@ That wait had no bound. With this item, the wait stops after 5 min, and the run 
 - **Depends on:** SYS-43
 - **Started:** 2026-10-28
 - **Shipped:** 2026-10-28
-- **Links:** [#255](https://github.com/metrograph-labs/systems/pull/255), [#258](https://github.com/metrograph-labs/systems/pull/258), [The hung run](https://github.com/mark1russell7/systems/actions/runs/40591832542), [The void run](https://github.com/mark1russell7/systems/actions/runs/40608863500), [The CI ledger](https://metrograph-labs.github.io/systems/results/ci/)
+- **Links:** [#255](https://github.com/metrograph-labs/systems/pull/255), [#258](https://github.com/metrograph-labs/systems/pull/258), [The hung run](https://github.com/metrograph-labs/systems/actions/runs/40591832542), [The void run](https://github.com/metrograph-labs/systems/actions/runs/40608863500), [The CI ledger](https://metrograph-labs.github.io/systems/results/ci/)
 
 The repo has no ledger of the CI runs that did not give a clean result. Thus the hang of SYS-42 is only a fact in the record of SYS-43. This item gives one ledger for each workflow of cells, with one entry for each event. An event is a void run, a hung or cancelled shard, or a step that hit its timeout. A job that failed for a cause outside the cell is also an event.
 
@@ -1029,7 +1029,7 @@ The hang: the shard of 6 sessions waited for a quiet VM for approximately 78 of 
 - **Depends on:** SYS-43
 - **Started:** 2026-10-28
 - **Shipped:** 2026-10-28
-- **Links:** [#261](https://github.com/metrograph-labs/systems/pull/261), [The terms run](https://github.com/mark1russell7/systems/actions/runs/40622388164), [SYS-43](#sys-43--the-count-band-carries-the-drain-failures-of-the-backlog)
+- **Links:** [#261](https://github.com/metrograph-labs/systems/pull/261), [The terms run](https://github.com/metrograph-labs/systems/actions/runs/40622388164), [SYS-43](#sys-43--the-count-band-carries-the-drain-failures-of-the-backlog)
 
 SYS-43 left two candidate terms of the window band. In SYS-42 and SYS-43, the window band missed 4 of 39 runs, each with 1 session. One run was below n × d.lo (9 ms). Three runs were above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus these misses are not a bias. This item tests the two terms with a new band version.
 
@@ -1106,7 +1106,7 @@ In the first CI check, each test passed on the two runners. Thus the test found 
 - **Depends on:** SYS-45
 - **Started:** 2026-10-28
 - **Shipped:** 2026-10-28
-- **Links:** [#269](https://github.com/metrograph-labs/systems/pull/269), [The stall band run](https://github.com/mark1russell7/systems/actions/runs/40643221421), [SYS-45](#sys-45--two-terms-of-the-window-band-the-slow-session-and-the-early-start), [The Cilium run](https://github.com/mark1russell7/systems/actions/runs/40558968382)
+- **Links:** [#269](https://github.com/metrograph-labs/systems/pull/269), [The stall band run](https://github.com/metrograph-labs/systems/actions/runs/40643221421), [SYS-45](#sys-45--two-terms-of-the-window-band-the-slow-session-and-the-early-start), [The Cilium run](https://github.com/metrograph-labs/systems/actions/runs/40558968382)
 
 In kind run 40558968382, C in the stall of Cilium failed 1507 requests in one run. The band was 0 to 1503. The last failure came 166 ms after the band end of 10 s, with 3 sessions on the target. This miss is the backlog of the target after the resume. SYS-42 to SYS-45 measured that backlog in their own cells.
 
@@ -1175,7 +1175,7 @@ rigor-bench 0.1.0 is on npm. That new measurement can write PairedTime records. 
 - **Depends on:** S2
 - **Started:** 2026-11-02
 - **Shipped:** 2026-11-03
-- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41559060726](https://github.com/mark1russell7/systems/actions/runs/41559060726)
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41559060726](https://github.com/metrograph-labs/systems/actions/runs/41559060726)
 
 CoreDNS is the next intermediary of S2. In this item, a client resolves the name of the Service for each new connection. Then no answer of DNS gets to it for a hold. The question: when do its failures start and end, and which timer sets the end?
 
@@ -1238,7 +1238,7 @@ The last failure is approximately the low edge of the phase plus one act: 0.5 + 
 - **Depends on:** S2
 - **Started:** 2026-11-02
 - **Shipped:** 2026-11-03
-- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41568679669](https://github.com/mark1russell7/systems/actions/runs/41568679669)
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41568679669](https://github.com/metrograph-labs/systems/actions/runs/41568679669)
 
 kube-vip is the next intermediary of S2. A node holds a virtual address (the VIP) on its link, and it announces the VIP with a gratuitous ARP. A Lease elects that node. The question: when do callers outside the cluster learn that the holder is gone, and which timer sets that time?
 
@@ -1288,7 +1288,7 @@ The record does not show why the old holder stops its ARP during the fault. A la
 - **Depends on:** SYS-28, SYS-49
 - **Started:** 2026-11-02
 - **Shipped:** 2026-11-03
-- **Links:** [#299](https://github.com/metrograph-labs/systems/pull/299), [cells run 41572390043](https://github.com/mark1russell7/systems/actions/runs/41572390043), [rigor#28](https://github.com/mark1russell7/rigor/pull/28), [@mark1russell7/rigor-bench](https://www.npmjs.com/package/@mark1russell7/rigor-bench)
+- **Links:** [#299](https://github.com/metrograph-labs/systems/pull/299), [cells run 41572390043](https://github.com/metrograph-labs/systems/actions/runs/41572390043), [rigor#28](https://github.com/mark1russell7/rigor/pull/28), [@mark1russell7/rigor-bench](https://www.npmjs.com/package/@mark1russell7/rigor-bench)
 
 The first limiter pair of SYS-28 did not fit the A/A verdict of rigor-bench (SYS-49). Its order did not turn, and no A/A pair measured the noise. This item measures the pair of service 0.5.6 and 0.6.0 again, so that `timeVerdict` decides.
 
@@ -1335,7 +1335,7 @@ This item has no release, because the cells and the site are private packages.
 - **Depends on:** SYS-51
 - **Started:** 2026-11-02
 - **Shipped:** 2026-11-03
-- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone), [kind run 41654669260](https://github.com/mark1russell7/systems/actions/runs/41654669260), [kind run 41696343708](https://github.com/mark1russell7/systems/actions/runs/41696343708)
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone), [kind run 41654669260](https://github.com/metrograph-labs/systems/actions/runs/41654669260), [kind run 41696343708](https://github.com/metrograph-labs/systems/actions/runs/41696343708)
 
 MetalLB is the intermediary after kube-vip. In L2 mode, a speaker on each node answers ARP for the VIP of a Service, if its node owns the VIP. The speakers find each other with memberlist. The question: when do callers outside the cluster see the new announcer, and which timer sets that time?
 
@@ -1447,7 +1447,7 @@ The `conventions` field keeps one exception for the types. `src/content.config.t
 - **Depends on:** SYS-53
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-04
-- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone), [kind run 41748374742](https://github.com/mark1russell7/systems/actions/runs/41748374742), [kind run 41870080724](https://github.com/mark1russell7/systems/actions/runs/41870080724)
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone), [kind run 41748374742](https://github.com/metrograph-labs/systems/actions/runs/41748374742), [kind run 41870080724](https://github.com/metrograph-labs/systems/actions/runs/41870080724)
 
 Pulsar is the intermediary after MetalLB. One broker owns the bundle of a topic through its session in ZooKeeper. A producer finds the owner by a lookup, and it tries again on a backoff after a loss. The question: when does each producer send again after a crash of the owner, and which terms set that time?
 
@@ -1536,7 +1536,7 @@ One term stays open. The bundle moves before 30 s in 3 of 6 runs, but the law of
 | Each failed send is `late` or `timeout` | 0.9 |
 | The cell holds in each of its 4 counted runs | 0.8 |
 
-**The second run.** [Kind run 41870080724](https://github.com/mark1russell7/systems/actions/runs/41870080724) holds the cell, in 4 of 4 counted runs and with no void run. The median is 54.79 s. The control fails no request in approximately 1,304 lines of each run, and each failed send is `late` or `timeout`.
+**The second run.** [Kind run 41870080724](https://github.com/metrograph-labs/systems/actions/runs/41870080724) holds the cell, in 4 of 4 counted runs and with no void run. The median is 54.79 s. The control fails no request in approximately 1,304 lines of each run, and each failed send is `late` or `timeout`.
 
 | Run | First try to take the bundle | Stop try | Return | New owner |
 | --- | --- | --- | --- | --- |
@@ -1594,7 +1594,7 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 
 **The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
 
-**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate. Under its new gate, that cell gives 4 more counted runs, with 4, 3, 4 and 4 false deaths of 5 pauses. These runs hold the law, and the table above stays as it is.
+**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/metrograph-labs/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/metrograph-labs/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate. Under its new gate, that cell gives 4 more counted runs, with 4, 3, 4 and 4 false deaths of 5 pauses. These runs hold the law, and the table above stays as it is.
 
 | Setting | T0 | Median failure time | Zone-loss runs in the band | False deaths in each run | Median failed requests outside |
 | --- | --- | --- | --- | --- | --- |
@@ -1648,7 +1648,7 @@ This item changes a gate, thus the maintainer reviews the plan. The result of SY
 - The records of SYS-57 give the margin and the floor.
 - A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
 
-**The result.** Cells run [42384148667](https://github.com/mark1russell7/systems/actions/runs/42384148667) dispatched the pauses of 500 ms × 2 with the load pair, under the new gate.
+**The result.** Cells run [42384148667](https://github.com/metrograph-labs/systems/actions/runs/42384148667) dispatched the pauses of 500 ms × 2 with the load pair, under the new gate.
 
 | Cell | Counted | Void | Reading |
 | --- | --- | --- | --- |
@@ -1719,7 +1719,7 @@ T01, T03 and T11 put the Node driver against a replica set of three. The documen
 - **Depends on:** S1
 - **Started:** 2026-10-16
 - **Shipped:** 2026-10-17
-- **Links:** [#29](https://github.com/metrograph-labs/systems/pull/29), [The run of the drop bound](https://github.com/mark1russell7/systems/actions/runs/40123441278)
+- **Links:** [#29](https://github.com/metrograph-labs/systems/pull/29), [The run of the drop bound](https://github.com/metrograph-labs/systems/actions/runs/40123441278)
 
 The client of `@procedures/client` drops a silent connection on its own heartbeat. The harness times the drop and the reconnect, behind routers and HAProxy too.
 
@@ -1738,7 +1738,7 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - **Depends on:** WS
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/metrograph-labs/systems/pull/44)
+- **Links:** [The run](https://github.com/metrograph-labs/systems/actions/runs/39073727730), [#44](https://github.com/metrograph-labs/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
 
@@ -1762,7 +1762,7 @@ Each toxic gets a prediction from the source of Toxiproxy. A `reset_peer` toxic 
 - **Depends on:** S1
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39057994070), [#41](https://github.com/metrograph-labs/systems/pull/41), [The next run](https://github.com/mark1russell7/systems/actions/runs/39074841434)
+- **Links:** [The run](https://github.com/metrograph-labs/systems/actions/runs/39057994070), [#41](https://github.com/metrograph-labs/systems/pull/41), [The next run](https://github.com/metrograph-labs/systems/actions/runs/39074841434)
 
 The router of T03 lists the conntrack table each 50 ms. A listing walks each bucket of the table with the softirqs off, and a runner has 262144 buckets. One reply of 13,306 waited 6.8 ms in a listing, and one netem cell failed on it. The workflows give the table 16384 buckets. In the next full run, each of the 234 cells holds or measures, and the longest time of a segment through the router was 0.315 ms.
 
@@ -1773,7 +1773,7 @@ The router of T03 lists the conntrack table each 50 ms. A listing walks each buc
 - **Depends on:** SITE-REFRESH
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39074841434), [#54](https://github.com/metrograph-labs/systems/pull/54)
+- **Links:** [The run](https://github.com/metrograph-labs/systems/actions/runs/39074841434), [#54](https://github.com/metrograph-labs/systems/pull/54)
 
 Each stage band of T12 includes the error of the stamps of the observer: 0.705 ms, the maximum of the first calibration. The calibration of the full run read 402 stamps, with a maximum of 1.003 ms, and each stage held. The catalog takes 1.003 ms, the 99.9th percentile of the 799 stamps of the two calibrations.
 
@@ -1851,7 +1851,7 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - HikariCP of the earlier epoch has no keepalive, thus nothing finds the black hole in 60 s.
   - The two documents of PgBouncer decide that no timer of PgBouncer ends a query first: its earliest is query_wait_timeout, 120 s.
   - The other T10 cells at the defaults wait. Some need Pgpool-II or Supavisor, and some need several clients, SIGHUP or a console command at a hop, or a fault timed to a reply.
-- The PostgreSQL page of the site shows the 44 cells of the catalogs from one run at main ([39127973566](https://github.com/mark1russell7/systems/actions/runs/39127973566)). Each holds, with 484 counted runs and no void run (#85).
+- The PostgreSQL page of the site shows the 44 cells of the catalogs from one run at main ([39127973566](https://github.com/metrograph-labs/systems/actions/runs/39127973566)). Each holds, with 484 counted runs and no void run (#85).
 - The first borders of T10 hold through PgBouncer, with 11 runs each (#86):
   - query_timeout of PgBouncer against a query of 5 s. At 6 s, the reply comes at 5.004 s. At 4 s, a pass of the janitor ends the query, and PgBouncer closes the client with FATAL 08P01 at 4.127 s.
   - A frozen server whose kernel acknowledges the query, against a read timeout of 10 s. A hold of 9 s gives the reply at 9.010 s, and a hold of 11 s ends at the read timeout, 10.011 s.
@@ -1912,7 +1912,7 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
 - **Depends on:** PG
 - **Started:** 2026-10-19
 - **Shipped:** 2026-10-19
-- **Links:** [The results](https://metrograph-labs.github.io/systems/results/rabbitmq/), [#100](https://github.com/metrograph-labs/systems/pull/100), [#102](https://github.com/metrograph-labs/systems/pull/102), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39234193377)
+- **Links:** [The results](https://metrograph-labs.github.io/systems/results/rabbitmq/), [#100](https://github.com/metrograph-labs/systems/pull/100), [#102](https://github.com/metrograph-labs/systems/pull/102), [The run at main](https://github.com/metrograph-labs/systems/actions/runs/39234193377)
 
 The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib 2.2 and RabbitMQ 4.3. 17 are in T01: 13 at the defaults, and the borders of O03 and O17. 13 are in the array stage of T01, and 24 are in T11. Each cell of the plan has a cell, an alias or a reason to wait. The 21 cells hold in one run at main.
 
@@ -1945,7 +1945,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - These profiles name the defaults of RabbitMQ, PostgreSQL, gRPC or a managed Redis. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads.
   - Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
   - DP44 gives the client a connect timeout of 5 s. The client clears that timeout when the connection opens, thus it does not change a fault with an operation in flight.
-- The page of the RabbitMQ results gives the 12 cells of T01 from run [39216875830](https://github.com/mark1russell7/systems/actions/runs/39216875830) at main (#101). Each holds, with 132 counted runs and no void run.
+- The page of the RabbitMQ results gives the 12 cells of T01 from run [39216875830](https://github.com/metrograph-labs/systems/actions/runs/39216875830) at main (#101). Each holds, with 132 counted runs and no void run.
 - T11 is a cluster of three nodes of RabbitMQ 4.3.6 with one quorum queue (#102). The client of amqplib publishes a stream of sequence numbers with confirms through one node.
   - Two machine documents come from the release tarball of RabbitMQ 4.3.6 (machines 0.3.15). `aten` is the failure detector between the nodes, aten 0.6.0. RabbitMQ sets its poll to 5 s, thus a silent node is down 150 ms to 5.2 s after its last heartbeat. `ra-member` is one member of the queue, ra 3.1.10. A follower elects 5 s to 6 s after aten reports the node of its leader down.
   - A leader of Ra ignores aten. Thus in a minority it stays the leader, and it commits nothing.
@@ -1956,7 +1956,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - A step-down gives the first confirm 28.7 ms after the NOTICE of the old leader, and a drain 35 ms after the first monitor-down. A cut of one follower, in two directions or in one, gives no new leader, and the confirms go on.
   - With the client on the node of the leader, only the heartbeat of amqplib ends its connection. The client then connects to the next node, and its first confirm comes at 180.012 s after a freeze and at 180.039 s after a black hole.
   - 5 cells at the defaults wait, each with its reason. The 12 cells of the array stage are 7 aliases and 5 cells that wait. Linux sends no keepalive probe while data is in flight, thus the keepalive of DP42 can end only some runs.
-- The page of the RabbitMQ results gives the 21 cells of T01 and T11 from run [39234193377](https://github.com/mark1russell7/systems/actions/runs/39234193377) at main (#103). Each holds, with 231 counted runs and no void run. The border of O03 is a heartbeat of 60 s, because the broker sends a frame each half heartbeat.
+- The page of the RabbitMQ results gives the 21 cells of T01 and T11 from run [39234193377](https://github.com/metrograph-labs/systems/actions/runs/39234193377) at main (#103). Each holds, with 231 counted runs and no void run. The border of O03 is a heartbeat of 60 s, because the broker sends a frame each half heartbeat.
 
 ### H2 · HTTP/2 and gRPC
 
@@ -1965,7 +1965,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
 - **Depends on:** HTTP
 - **Started:** 2026-10-19
 - **Shipped:** 2026-10-25
-- **Links:** [The results](https://metrograph-labs.github.io/systems/results/grpc/), [The results of T15](https://metrograph-labs.github.io/systems/results/mesh/), [#105](https://github.com/metrograph-labs/systems/pull/105), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39288251967)
+- **Links:** [The results](https://metrograph-labs.github.io/systems/results/grpc/), [The results of T15](https://metrograph-labs.github.io/systems/results/mesh/), [#105](https://github.com/metrograph-labs/systems/pull/105), [The run at main](https://github.com/metrograph-labs/systems/actions/runs/39288251967)
 
 The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a gRPC server. R3 puts 148 cells on grpc-js 1.14 and on a server of grpc-go. 66 are in T01: 27 at the defaults, 12 borders of O03, O17, O25 and O26, and 27 in the array stage. The other cells are 22 in T02 (proxies), 22 in T03 (the routers of the clouds), 16 in T07 (kind) and 22 in T15 (Istio).
 
@@ -2212,7 +2212,7 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
 - **Depends on:** S2
 - **Started:** 2026-10-15
 - **Shipped:** 2026-10-18
-- **Links:** [The results](https://metrograph-labs.github.io/systems/results/kind/), [#34](https://github.com/metrograph-labs/systems/pull/34), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39090689204), [#59](https://github.com/metrograph-labs/systems/pull/59)
+- **Links:** [The results](https://metrograph-labs.github.io/systems/results/kind/), [#34](https://github.com/metrograph-labs/systems/pull/34), [The run at main](https://github.com/metrograph-labs/systems/actions/runs/39090689204), [#59](https://github.com/metrograph-labs/systems/pull/59)
 
 T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose readiness needs Redis. In the run at main of 2026-10-18, 26 of the 31 cells hold, 3 are calibrations and 2 are measurements, and no cell fails. KIND-LONE gave the cause of each lone failure of 2026-10-17.
 
@@ -2229,7 +2229,7 @@ In iptables and nftables, stale SYN_SENT entries failed requests of the paused n
 - **Depends on:** KIND
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-18
-- **Links:** [#35](https://github.com/metrograph-labs/systems/pull/35), [#56](https://github.com/metrograph-labs/systems/pull/56), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39090689204), [#59](https://github.com/metrograph-labs/systems/pull/59)
+- **Links:** [#35](https://github.com/metrograph-labs/systems/pull/35), [#56](https://github.com/metrograph-labs/systems/pull/56), [The run at main](https://github.com/metrograph-labs/systems/actions/runs/39090689204), [#59](https://github.com/metrograph-labs/systems/pull/59)
 
 One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old.
 
@@ -2300,7 +2300,7 @@ A consumer runs a pipeline under `superviseGroup` of `@mark1russell7/service/hos
 - **Depends on:** SYS-111
 - **Started:** 2026-11-14
 - **Shipped:** 2026-11-14
-- **Links:** [#510](https://github.com/metrograph-labs/systems/pull/510), [service 0.8.11 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.11), [the release run](https://github.com/mark1russell7/systems/actions/runs/43655214184)
+- **Links:** [#510](https://github.com/metrograph-labs/systems/pull/510), [service 0.8.11 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.11), [the release run](https://github.com/metrograph-labs/systems/actions/runs/43655214184)
 
 A heartbeat from a program tells only that the program sends. A consumer needs a second watcher on a second computer. It must find a program that answers while its work stopped, and a failure of the provider of the heartbeat.
 
@@ -2317,7 +2317,7 @@ A heartbeat from a program tells only that the program sends. A consumer needs a
 - **Depends on:**
 - **Started:** 2026-11-15
 - **Shipped:** 2026-11-15
-- **Links:** [#527](https://github.com/metrograph-labs/systems/pull/527), [#530](https://github.com/metrograph-labs/systems/pull/530), [service 0.8.17 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.17), [algebra 0.8.9 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.8.9), [the release run of 0.8.17](https://github.com/mark1russell7/systems/actions/runs/43720488187)
+- **Links:** [#527](https://github.com/metrograph-labs/systems/pull/527), [#530](https://github.com/metrograph-labs/systems/pull/530), [service 0.8.17 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.17), [algebra 0.8.9 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.8.9), [the release run of 0.8.17](https://github.com/metrograph-labs/systems/actions/runs/43720488187)
 
 An API provider gives a quota: a limit in each day or month of a time zone, or in each rolling span. Before this item, polite-crawler counted these windows in its own code. The count of a window is a limiter, thus its home is `@mark1russell7/service/limiter`. Its civil time comes from `@mark1russell7/algebra/clock`.
 
@@ -2341,7 +2341,7 @@ The page [the quota lab](https://metrograph-labs.github.io/systems/lab/quota/) o
 - **Depends on:** SYS-115
 - **Started:** 2026-11-15
 - **Shipped:** 2026-11-15
-- **Links:** [#528](https://github.com/metrograph-labs/systems/pull/528), [service 0.8.16 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.16), [the release run](https://github.com/mark1russell7/systems/actions/runs/43718969667)
+- **Links:** [#528](https://github.com/metrograph-labs/systems/pull/528), [service 0.8.16 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.8.16), [the release run](https://github.com/metrograph-labs/systems/actions/runs/43718969667)
 
 A sender of alerts gives each send a time limit. The `timeout` channel of service is a time limit for `select`, but its timer stays after the work ends. The new function `within(work, ms, clock)` of `@mark1russell7/service/channel` gives a result and does not reject.
 
@@ -2358,7 +2358,7 @@ A sender of alerts gives each send a time limit. The `timeout` channel of servic
 - **Depends on:**
 - **Started:** 2026-11-15
 - **Shipped:** 2026-11-15
-- **Links:** [#537](https://github.com/metrograph-labs/systems/pull/537), [algebra 0.8.10 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.8.10), [the release run](https://github.com/mark1russell7/systems/actions/runs/43734543847)
+- **Links:** [#537](https://github.com/metrograph-labs/systems/pull/537), [algebra 0.8.10 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.8.10), [the release run](https://github.com/metrograph-labs/systems/actions/runs/43734543847)
 
 A test of a source of alerts puts 80 minutes of the source into 80 s of real time. A fake clock cannot drive a server, a proxy or a socket, because these wait on real time. The consumer had a local copy of a fast clock. The options `speed` and `start` of `platformClock` and `wallClock` of `@mark1russell7/algebra/clock` give a scaled clock.
 
@@ -2375,7 +2375,7 @@ A test of a source of alerts puts 80 minutes of the source into 80 s of real tim
 - **Depends on:** SYS-115
 - **Started:** 2026-11-15
 - **Shipped:** 2026-11-15
-- **Links:** [#543](https://github.com/metrograph-labs/systems/pull/543), [the release run](https://github.com/mark1russell7/systems/actions/runs/43746178529)
+- **Links:** [#543](https://github.com/metrograph-labs/systems/pull/543), [the release run](https://github.com/metrograph-labs/systems/actions/runs/43746178529)
 
 The entry `polite-crawler/api` is for a browser, and its quotas come from `keyedQuota`, `takeQuotas` and `quotaProblems` of `@mark1russell7/service/limiter`. In service `0.8.19`, these three imports were 11155 B after gzip. The limiter converts only times and counts, but its bundle had the full table of units and all of the rational arithmetic.
 
@@ -2462,7 +2462,7 @@ The kind page shows the run of 2026-10-17, with each lone failure and its time. 
 - **Depends on:** DELACK, LISTING
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39074841434), [#42](https://github.com/metrograph-labs/systems/pull/42), [#53](https://github.com/metrograph-labs/systems/pull/53)
+- **Links:** [The run](https://github.com/metrograph-labs/systems/actions/runs/39074841434), [#42](https://github.com/metrograph-labs/systems/pull/42), [#53](https://github.com/metrograph-labs/systems/pull/53)
 
 The full run of the catalogs at main gives five pages their copies: the network failures, the topologies, HTTP, MongoDB and Valkey under Sentinel. Each export takes its own cells, at the HZ of the runner. Of the 203 cells of these pages, 183 hold and 20 measure, and no cell fails. The topologies page has no T01 slice, because the page of the network failures gives each T01 cell from the same lab.
 
@@ -2473,7 +2473,7 @@ The full run of the catalogs at main gives five pages their copies: the network 
 - **Depends on:** PG
 - **Started:** 2026-10-18
 - **Shipped:** 2026-10-18
-- **Links:** [The page](https://metrograph-labs.github.io/systems/results/pg/), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39182922975), [#74](https://github.com/metrograph-labs/systems/pull/74), [#95](https://github.com/metrograph-labs/systems/pull/95)
+- **Links:** [The page](https://metrograph-labs.github.io/systems/results/pg/), [The run at main](https://github.com/metrograph-labs/systems/actions/runs/39182922975), [#74](https://github.com/metrograph-labs/systems/pull/74), [#95](https://github.com/metrograph-labs/systems/pull/95)
 
 The page gives the 75 PostgreSQL cells of one run at main. They are T01 for each client, T03 through a router and through a router and Supavisor, and T10 through PgBouncer, Pgpool-II and Supavisor. Each cell holds, with 825 counted runs and no void run. The export `scripts/pg.ts` reads each raw record again with the judge of the harness, and it stops when a prediction disagrees with the catalog. The map of the cells has a row for each pooler, and the ledger and the home page add the page.
 
@@ -2484,7 +2484,7 @@ The page gives the 75 PostgreSQL cells of one run at main. They are T01 for each
 - **Depends on:** REDIS
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39045508827), [The page](https://metrograph-labs.github.io/systems/results/r3/), [#38](https://github.com/metrograph-labs/systems/pull/38)
+- **Links:** [The run](https://github.com/metrograph-labs/systems/actions/runs/39045508827), [The page](https://metrograph-labs.github.io/systems/results/r3/), [#38](https://github.com/metrograph-labs/systems/pull/38)
 
 Five cells put the idle close of Redis against the keepalive of the kernel, both at 600 s. Each of the 55 runs ended 600.09 s to 600.97 s after the last segment, at the idle close of Redis.
 
@@ -2588,7 +2588,7 @@ The contract shipped on 2026-11-15 in #549. `Lens` in `packages/site/src/model/l
 - **Depends on:** SYS-119
 - **Started:** 2026-11-15
 - **Shipped:** 2026-11-16
-- **Links:** [#553, the law](https://github.com/metrograph-labs/systems/pull/553), [#567, the lens and its page](https://github.com/metrograph-labs/systems/pull/567), [#581, the measured values](https://github.com/metrograph-labs/systems/pull/581), [the run of the ten cells](https://github.com/mark1russell7/systems/actions/runs/43954861254)
+- **Links:** [#553, the law](https://github.com/metrograph-labs/systems/pull/553), [#567, the lens and its page](https://github.com/metrograph-labs/systems/pull/567), [#581, the measured values](https://github.com/metrograph-labs/systems/pull/581), [the run of the ten cells](https://github.com/metrograph-labs/systems/actions/runs/43954861254)
 
 A listener that does not accept fills its queue. The page shows each step of a new connection at a full queue. The kernel drops the SYN, and the client sends it again on its ladder. The target drops the final ACK and sends the SYN-ACK again on its own ladder. After the expiry at 63 s, a segment of the client gets a reset.
 
@@ -2618,7 +2618,7 @@ The copy comes from one Cells run of the ten cells at main `43219db`, on Linux 7
 - **Depends on:** SYS-119
 - **Started:** 2026-11-16
 - **Shipped:** 2026-11-17
-- **Links:** [#593](https://github.com/metrograph-labs/systems/pull/593), [the port range cells](https://metrograph-labs.github.io/systems/results/port-range/), [the read of PR.7 with 40 runs](https://github.com/mark1russell7/systems/actions/runs/44163293814)
+- **Links:** [#593](https://github.com/metrograph-labs/systems/pull/593), [the port range cells](https://metrograph-labs.github.io/systems/results/port-range/), [the read of PR.7 with 40 runs](https://github.com/metrograph-labs/systems/actions/runs/44163293814)
 
 A client that opens many connections to one destination uses up its local ports. The page shows the search of a free port, the ports in `TIME_WAIT` and the connect that fails with `EADDRNOTAVAIL`.
 
@@ -2641,13 +2641,13 @@ Part 3 is the copy of the cells at one commit, for the measured values of the pa
 - That port stayed in use for the next three rounds, 50 ms apart. Thus the count of connects in rounds 7 to 9 was outside the prediction of the cell.
 - The prober records the writes of a program, and each segment that an established socket receives. An ACK that the target sends, and a segment that reaches a socket in `LAST_ACK`, are not in the record. Thus the record cannot show the side that lost the ACK.
 
-The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](https://github.com/mark1russell7/systems/actions/runs/43967294195)). Over the two reads, 1 of 8 runs lost the ACK. With the first read of SYS-64, 2 of 12 runs lost it. Thus the loss is a gap in the law, not noise:
+The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](https://github.com/metrograph-labs/systems/actions/runs/43967294195)). Over the two reads, 1 of 8 runs lost the ACK. With the first read of SYS-64, 2 of 12 runs lost it. Thus the loss is a gap in the law, not noise:
 
 - A gate of 4 runs passes with a chance of 0.95 only for a loss of 0.0127 or less in each run. The lower Wilson bound of 2 of 12 is 0.047.
 - Each run of a port cell gives the counters of the network stack of each end, before its first round and after its last round. A finding of a retransmission names each counter of a drop, a skip or a reset that moved. Thus the next lost ACK tells its side and its cause.
 - The input `runs` of the workflow of the cells gives each selected cell from 1 to 100 runs. A read of `PR.7` with 40 runs measures the rate of the loss. The record of the gate keeps that rate next to its decision, and [SYS-102](#sys-102--the-port-that-last_ack-holds) takes the cause into the law.
 
-**The record of the gate of `PR.7` (2026-11-17).** The read with 40 runs ([run 44163293814](https://github.com/mark1russell7/systems/actions/runs/44163293814)) counted 40 runs and voided 0. The law failed in 7 runs of 40. That rate is 0.175, and its Wilson interval at 95 % is 0.087 to 0.319. The limit of the prediction was 4 failed runs, thus it missed.
+**The record of the gate of `PR.7` (2026-11-17).** The read with 40 runs ([run 44163293814](https://github.com/metrograph-labs/systems/actions/runs/44163293814)) counted 40 runs and voided 0. The law failed in 7 runs of 40. That rate is 0.175, and its Wilson interval at 95 % is 0.087 to 0.319. The limit of the prediction was 4 failed runs, thus it missed.
 
 - Each failed run is the case of `LAST_ACK`. The prober records one retransmission in each of the 7 runs, and none in a run that holds.
 - That retransmission is a loss probe of a FIN with no data, from a socket of the client in `LAST_ACK`.
@@ -2658,7 +2658,7 @@ The second read of `PR.7` on 2026-11-16 held 4 of 4 runs ([run 43967294195](http
 
 A gate of 4 runs holds `PR.7` with a chance of 0.46 at the rate of 0.175. Thus the page of part 3 shows the decision of `PR.7` in its read of 4 runs, and this rate next to it. `PR.7` can gate only when the term of SYS-102 explains the lost ACK.
 
-Part 3 is the page [the port range cells](https://metrograph-labs.github.io/systems/results/port-range/). The copy `port-range-2026-11-17.json` comes from the cells at main `9398ddb` ([run 44177444372](https://github.com/mark1russell7/systems/actions/runs/44177444372)), on Linux 7.0 at HZ 1000. Each of the eight cells holds, with 4 counted runs and no void run.
+Part 3 is the page [the port range cells](https://metrograph-labs.github.io/systems/results/port-range/). The copy `port-range-2026-11-17.json` comes from the cells at main `9398ddb` ([run 44177444372](https://github.com/metrograph-labs/systems/actions/runs/44177444372)), on Linux 7.0 at HZ 1000. Each of the eight cells holds, with 4 counted runs and no void run.
 
 - Each cell has a frame with its settings, its prediction, its verdict and its runs. A cell of a held port also has a strip of the first free port of each run against its band.
 - The lenses of the lab page read the copy. Each orange dot links to the frame of its cell.
@@ -2751,7 +2751,7 @@ Part 3 is the page [the egress queue](https://metrograph-labs.github.io/systems/
 - **Depends on:** SENTINEL
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-03
-- **Links:** [The law](S3.md#the-first-cell-sys-58), [cells run 41748466040](https://github.com/mark1russell7/systems/actions/runs/41748466040), [#324](https://github.com/metrograph-labs/systems/pull/324)
+- **Links:** [The law](S3.md#the-first-cell-sys-58), [cells run 41748466040](https://github.com/metrograph-labs/systems/actions/runs/41748466040), [#324](https://github.com/metrograph-labs/systems/pull/324)
 
 The results of T12 report lost writes, and no law judges that count. With `min-replicas-to-write 1`, the old primary refuses writes 8.8 s to 12.1 s after a partition. Thus the group loses 140 to 244 writes for each hold, against 1,041 with no setting. A freeze of 40 s loses 0 to 2, against 199. The three cells use the lab of T12, and the harness judges a band of lost writes.
 
@@ -2776,7 +2776,7 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42139463631), [#331](https://github.com/metrograph-labs/systems/pull/331)
+- **Links:** [the run](https://github.com/metrograph-labs/systems/actions/runs/42139463631), [#331](https://github.com/metrograph-labs/systems/pull/331)
 
 `w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the step-down. [S3](S3.md#the-second-cell-sys-59) has each term, with its file and line in MongoDB r9.0.4.
 
@@ -2810,7 +2810,7 @@ A finding that is not a claim: at `w: "majority"`, the old primary rolls back 1 
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [run 42147415024](https://github.com/mark1russell7/systems/actions/runs/42147415024), [#336](https://github.com/metrograph-labs/systems/pull/336)
+- **Links:** [run 42147415024](https://github.com/metrograph-labs/systems/actions/runs/42147415024), [#336](https://github.com/metrograph-labs/systems/pull/336)
 
 A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The source of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 keeps those sentences and gives a tighter law:
 
@@ -2858,7 +2858,7 @@ The chosen constants have no source: a heartbeat of 2 s, a cut of 10 s and 4 wri
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61), [the run](https://github.com/mark1russell7/systems/actions/runs/42139841145), [#337](https://github.com/metrograph-labs/systems/pull/337)
+- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61), [the run](https://github.com/metrograph-labs/systems/actions/runs/42139841145), [#337](https://github.com/metrograph-labs/systems/pull/337)
 
 The client cannot know the outcome of a COMMIT with no reply (DV-38). The source of PostgreSQL 17.11 changes the plan in two ways. Two final reads split those commits into three sets: kept, stranded and absent. A synchronous standby bounds the lost set until a cancel: the cancel gives a WARNING, and then a reply with success (`src/backend/replication/syncrep.c:317`).
 
@@ -2891,7 +2891,7 @@ The result (run 42139841145, 2026-11-06): each of the five cells holds. Each cel
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), [#332](https://github.com/metrograph-labs/systems/pull/332), [the real-fault test, #376](https://github.com/metrograph-labs/systems/pull/376)
+- **Links:** [run 42146842759](https://github.com/metrograph-labs/systems/actions/runs/42146842759), [#332](https://github.com/metrograph-labs/systems/pull/332), [the real-fault test, #376](https://github.com/metrograph-labs/systems/pull/376)
 
 A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
 
@@ -2915,7 +2915,7 @@ The decision rule: a run counts if the harness does not void it, and each cell n
 
 The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s.
 
-**The result.** [Run 42146842759](https://github.com/mark1russell7/systems/actions/runs/42146842759), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `T12.resend.1` makes 1 extra copy and `T12.resend.2` makes 4, the writes in flight at the close. The other three cells make 0. `socketTimeout` rejects no running command. With the resend off, 4 writes time out that the server kept. The prediction hit 12 of 14 claims, Brier 0.0983. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-62) has each run.
+**The result.** [Run 42146842759](https://github.com/metrograph-labs/systems/actions/runs/42146842759), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `T12.resend.1` makes 1 extra copy and `T12.resend.2` makes 4, the writes in flight at the close. The other three cells make 0. `socketTimeout` rejects no running command. With the resend off, 4 writes time out that the server kept. The prediction hit 12 of 14 claims, Brier 0.0983. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-62) has each run.
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
@@ -2924,7 +2924,7 @@ The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `command
 - **Depends on:** S1
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue), [run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), [#326](https://github.com/metrograph-labs/systems/pull/326)
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue), [run 42146602190](https://github.com/metrograph-labs/systems/actions/runs/42146602190), [#326](https://github.com/metrograph-labs/systems/pull/326)
 
 The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
 
@@ -2943,7 +2943,7 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 **The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
 
-**The result.** [Run 42146602190](https://github.com/mark1russell7/systems/actions/runs/42146602190), the first dispatch, holds all 7 cells with 4 counted runs each and 0 void. The kernel is 7.0 at HZ 1000.
+**The result.** [Run 42146602190](https://github.com/metrograph-labs/systems/actions/runs/42146602190), the first dispatch, holds all 7 cells with 4 counted runs each and 0 void. The kernel is 7.0 at HZ 1000.
 
 | Cell | What each run measured |
 | --- | --- |
@@ -2985,7 +2985,7 @@ The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of th
 - **Depends on:** S1
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-07
-- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), [run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142), [#339](https://github.com/metrograph-labs/systems/pull/339), [main CI 42381495516](https://github.com/mark1russell7/systems/actions/runs/42381495516)
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range), [run 42147210183](https://github.com/metrograph-labs/systems/actions/runs/42147210183), [run 42157027142](https://github.com/metrograph-labs/systems/actions/runs/42157027142), [#339](https://github.com/metrograph-labs/systems/pull/339), [main CI 42381495516](https://github.com/metrograph-labs/systems/actions/runs/42381495516)
 
 `connect` fails with `EADDRNOTAVAIL` when the range has no port for that destination. The sysctl is set for each network namespace, thus a cell can use a small range.
 
@@ -3003,7 +3003,7 @@ The second part is the test. The cells `AQ.1` to `AQ.7` operate the server of th
 
 **The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
 
-**The result.** [Run 42147210183](https://github.com/mark1russell7/systems/actions/runs/42147210183), the first dispatch, gives 6 of the 7 cells with 4 counted runs each and 0 void. The client of `PR.2` did not start: its control connection held one of the 2 ports. The fix closes that connection with a reset. [Run 42157027142](https://github.com/mark1russell7/systems/actions/runs/42157027142) gives `PR.2` alone. The kernel is 7.0 at HZ 1000.
+**The result.** [Run 42147210183](https://github.com/metrograph-labs/systems/actions/runs/42147210183), the first dispatch, gives 6 of the 7 cells with 4 counted runs each and 0 void. The client of `PR.2` did not start: its control connection held one of the 2 ports. The fix closes that connection with a reset. [Run 42157027142](https://github.com/metrograph-labs/systems/actions/runs/42157027142) gives `PR.2` alone. The kernel is 7.0 at HZ 1000.
 
 | Cell | Decision | What each run measured |
 | --- | --- | --- |
@@ -3045,7 +3045,7 @@ The side that closes second holds its port in `LAST_ACK` until its FIN has an AC
 - **Depends on:** S1
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/mark1russell7/systems/actions/runs/42140281705), [the PgBouncer run](https://github.com/mark1russell7/systems/actions/runs/42140605157), [#328](https://github.com/metrograph-labs/systems/pull/328), [#330](https://github.com/metrograph-labs/systems/pull/330)
+- **Links:** [The law](S3.md#q19-the-exhaustion), [the HikariCP run](https://github.com/metrograph-labs/systems/actions/runs/42140281705), [the PgBouncer run](https://github.com/metrograph-labs/systems/actions/runs/42140605157), [#328](https://github.com/metrograph-labs/systems/pull/328), [#330](https://github.com/metrograph-labs/systems/pull/330)
 
 Above the size of the pool, the wait grows with the queue. A client fails at `connectionTimeout` in HikariCP, or with FATAL 08P01 at `query_wait_timeout` in PgBouncer. HikariCP and PgBouncer are in the harness.
 
@@ -3102,7 +3102,7 @@ The result of PgBouncer (run 42140605157, 2026-11-06): each of the five cells ho
 - **Depends on:** SYS-63
 - **Started:** 2026-11-04
 - **Shipped:** 2026-11-07
-- **Links:** [#381](https://github.com/metrograph-labs/systems/pull/381), [the cells](../packages/cells/src/conntrack.ts), [the first run](https://github.com/mark1russell7/systems/actions/runs/42385278058), [the last run](https://github.com/mark1russell7/systems/actions/runs/42405337117)
+- **Links:** [#381](https://github.com/metrograph-labs/systems/pull/381), [the cells](../packages/cells/src/conntrack.ts), [the first run](https://github.com/metrograph-labs/systems/actions/runs/42385278058), [the last run](https://github.com/metrograph-labs/systems/actions/runs/42405337117)
 
 New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
 
@@ -3130,7 +3130,7 @@ The second prediction hit 10 of its 10 claims, with a Brier score of 0.0515. The
 - **Depends on:** S1
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-05
-- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/mark1russell7/systems/actions/runs/42101390324), [#325](https://github.com/metrograph-labs/systems/pull/325)
+- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/metrograph-labs/systems/actions/runs/42101390324), [#325](https://github.com/metrograph-labs/systems/pull/325)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
 
@@ -3151,7 +3151,7 @@ The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cel
 - **Depends on:**
 - **Started:** 2026-11-05
 - **Shipped:** 2026-11-07
-- **Links:** [#362](https://github.com/metrograph-labs/systems/pull/362), [the A/A run](https://github.com/mark1russell7/systems/actions/runs/42395390993), [the freeze run](https://github.com/mark1russell7/systems/actions/runs/42402610483)
+- **Links:** [#362](https://github.com/metrograph-labs/systems/pull/362), [the A/A run](https://github.com/metrograph-labs/systems/actions/runs/42395390993), [the freeze run](https://github.com/metrograph-labs/systems/actions/runs/42402610483)
 
 Each arrival keeps its scheduled time, with no coordinated omission. A/A cells with no fault check that. The schedule and its measure come from `@mark1russell7/rigor-chaos`, and the verdict of a quantile comes from `@mark1russell7/rigor-bench`. The drivers stay in the images of the harness.
 
@@ -3209,7 +3209,7 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 - **Depends on:** SYS-58
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), [#338](https://github.com/metrograph-labs/systems/pull/338)
+- **Links:** [run 42147017055](https://github.com/metrograph-labs/systems/actions/runs/42147017055), [#338](https://github.com/metrograph-labs/systems/pull/338)
 
 This item adds Kafka to the set, with a new group of three brokers and one controller. The plan said that `acks=1` loses the writes after the high watermark, and that `min.insync.replicas` 2 makes `acks=all` safe. The source of Apache Kafka 4.3.2 gives a different law:
 
@@ -3230,7 +3230,7 @@ The decision rule: a run counts if the harness does not void it. Each cell needs
 
 Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a cell with that band cannot fail.
 
-**The result.** [Run 42147017055](https://github.com/mark1russell7/systems/actions/runs/42147017055), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `K1.acks.1` loses 392 to 404 writes, and `K1.acks.2` loses 783 to 795. `K1.acks.3` to `K1.acks.5` lose 0, and `acks=all` makes 0 copies. The last lost write is acked 0.47 s to 1.18 s after the lift. The prediction hit 11 of 13 claims, Brier 0.1463. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-71) has each run.
+**The result.** [Run 42147017055](https://github.com/metrograph-labs/systems/actions/runs/42147017055), the first dispatch, holds all 5 cells with 4 counted runs each and 0 void. `K1.acks.1` loses 392 to 404 writes, and `K1.acks.2` loses 783 to 795. `K1.acks.3` to `K1.acks.5` lose 0, and `acks=all` makes 0 copies. The last lost write is acked 0.47 s to 1.18 s after the lift. The prediction hit 11 of 13 claims, Brier 0.1463. The two misses are the naive claims. [S3.md](S3.md#the-result-of-sys-71) has each run.
 
 ### SYS-72 · Kafka: a paused consumer
 
@@ -3245,7 +3245,7 @@ The source at the tag 4.3.2 changes the first sentence of this item. In the cons
 
 The finding is the commit after a rejoin. A poll after the thaw gives the member a new epoch. A commit at that epoch passes with no check of who owns the partition. The law says that this commit moves the committed offset back while another member owns the partition. The five cells `K2.pause` test each term, and the document `kafka-consumer-group` holds each citation.
 
-**The result.** The law holds. [Cells run 42384698068](https://github.com/mark1russell7/systems/actions/runs/42384698068) gave 4 counted runs for each of the 5 cells, with 0 void. Each cell holds.
+**The result.** The law holds. [Cells run 42384698068](https://github.com/metrograph-labs/systems/actions/runs/42384698068) gave 4 counted runs for each of the 5 cells, with 0 void. Each cell holds.
 
 | Cell | Fence | Takeover | Commit at the thaw |
 | --- | --- | --- | --- |
@@ -3271,7 +3271,7 @@ The prediction gives 14 of 14 law claims and 0 of 4 naive claims, with a Brier s
 - **Depends on:** SYS-74
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42103497696), [#329](https://github.com/metrograph-labs/systems/pull/329)
+- **Links:** [the run](https://github.com/metrograph-labs/systems/actions/runs/42103497696), [#329](https://github.com/metrograph-labs/systems/pull/329)
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
 
@@ -3286,7 +3286,7 @@ The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each c
 - **Depends on:** SYS-67
 - **Started:** 2026-11-03
 - **Shipped:** 2026-11-06
-- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/metrograph-labs/systems/pull/327)
+- **Links:** [the run](https://github.com/metrograph-labs/systems/actions/runs/42114436730), [#327](https://github.com/metrograph-labs/systems/pull/327)
 
 A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
 
@@ -3415,7 +3415,7 @@ The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with 
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
 - **Shipped:** 2026-11-16
-- **Links:** [#354](https://github.com/metrograph-labs/systems/pull/354), [#555](https://github.com/metrograph-labs/systems/pull/555), [run 43821694330](https://github.com/mark1russell7/systems/actions/runs/43821694330)
+- **Links:** [#354](https://github.com/metrograph-labs/systems/pull/354), [#555](https://github.com/metrograph-labs/systems/pull/555), [run 43821694330](https://github.com/metrograph-labs/systems/actions/runs/43821694330)
 
 The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
 
@@ -3423,11 +3423,11 @@ The first slice narrows this text. It has one guest, and that guest holds the wh
 
 Each item of E4 starts from this item: SYS-82 to SYS-86, the Proxmox guest of SYS-114, and rung 10,000 through SYS-85. The pair `e4 e4` gives the noise of the layer.
 
-The first dispatch ([43787980707](https://github.com/mark1russell7/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum.
+The first dispatch ([43787980707](https://github.com/metrograph-labs/systems/actions/runs/43787980707), 2026-11-15) had KVM, built the kernel 6.18.60, and booted the guest to Docker in 7 s. The two arms `e1` held each cell. The two arms `e4` stopped at the build of the harness image. The static bundle of Docker has no buildx plugin, and its legacy builder refuses `--progress`. The disk of the guest pins buildx 0.22.0 with its checksum.
 
-The second dispatch ([43796539153](https://github.com/mark1russell7/systems/actions/runs/43796539153), 2026-11-15) built the harness image in the guest. Each cell of the two arms `e4` held its band. Each arm `e4` still failed, because its record had no commit of the code. The image of the guest left out the folder `.git` and had no git. The image keeps the folder `.git` of the shallow checkout and installs git. Thus the guest reads its commit as the runner does, and the next dispatch gives the first record of the bridge.
+The second dispatch ([43796539153](https://github.com/metrograph-labs/systems/actions/runs/43796539153), 2026-11-15) built the harness image in the guest. Each cell of the two arms `e4` held its band. Each arm `e4` still failed, because its record had no commit of the code. The image of the guest left out the folder `.git` and had no git. The image keeps the folder `.git` of the shallow checkout and installs git. Thus the guest reads its commit as the runner does, and the next dispatch gives the first record of the bridge.
 
-The third dispatch ([43821694330](https://github.com/mark1russell7/systems/actions/runs/43821694330), 2026-11-16) gave the first record of the bridge. Each arm records the commit 3567648 with no change. Each of the 3 cells held its band in each of the 4 arms, with 11 counted runs and no void run. The kernel built in 632 s. In the guest of the last arm, the first container started at 10.3 s of uptime. The largest steal share of a run in the guest was 0.0009.
+The third dispatch ([43821694330](https://github.com/metrograph-labs/systems/actions/runs/43821694330), 2026-11-16) gave the first record of the bridge. Each arm records the commit 3567648 with no change. Each of the 3 cells held its band in each of the 4 arms, with 11 counted runs and no void run. The kernel built in 632 s. In the guest of the last arm, the first container started at 10.3 s of uptime. The largest steal share of a run in the guest was 0.0009.
 
 | Cell | Arm 1, `e1` | Arm 2, `e4` | Arm 3, `e4` | Arm 4, `e1` |
 | --- | --- | --- | --- | --- |
@@ -3506,7 +3506,7 @@ Socket.IO is a target on E1, and it needs no new layer. Its documents give a pin
 The work has two slices:
 
 - **Slice 1: detection and the reconnect.** The documents `socketio-client` and `socketio-server` of the machines package, from the tarballs of socket.io 4.8.4, socket.io-client 4.8.4, engine.io 6.6.11, engine.io-client 6.6.7 and ws 8.21.3. The subject image of `packages/cells/targets/socketio`. The 5 cells `SIO` of `packages/cells/src/socketio.ts`: a black hole (idle, and with a call in flight), a frozen server, a FIN, and the ping timeout of the server. The FIN cell has three tries of the reconnect. A dispatch of `^SIO` in CI holds each band.
-- **Slice 2: recovery and delivery.** The connection state recovery of the server, and the delivery of each mode. The modes are at most once, and at least once with an acknowledgement and a retry. The harness counts the lost and the repeated events (#475). The 6 cells `SIO D1` to `SIO U3` cross a stall of 5.6 s, and `deliveryOf` derives their bands from the documents (`docs/S7.md`). The dispatch [42663578929](https://github.com/mark1russell7/systems/actions/runs/42663578929) of `^SIO [DU]` holds each band in 11 of 11 runs of each cell. D3 and the repeats of a stall in one direction stay for later.
+- **Slice 2: recovery and delivery.** The connection state recovery of the server, and the delivery of each mode. The modes are at most once, and at least once with an acknowledgement and a retry. The harness counts the lost and the repeated events (#475). The 6 cells `SIO D1` to `SIO U3` cross a stall of 5.6 s, and `deliveryOf` derives their bands from the documents (`docs/S7.md`). The dispatch [42663578929](https://github.com/metrograph-labs/systems/actions/runs/42663578929) of `^SIO [DU]` holds each band in 11 of 11 runs of each cell. D3 and the repeats of a stall in one direction stay for later.
 
 ### SYS-88 · Loro: a merge after a long partition
 
@@ -3640,7 +3640,7 @@ The first fabric joins only the client and one server to the leaves, and its one
 - **Depends on:** SYS-81
 - **Started:** 2026-11-18
 - **Shipped:** 2026-11-18
-- **Links:** [#612](https://github.com/metrograph-labs/systems/pull/612), [the test in the guest](https://github.com/mark1russell7/systems/actions/runs/44442803478), [#619, `@mark1russell7/harness` 0.16.19](https://github.com/metrograph-labs/systems/pull/619)
+- **Links:** [#612](https://github.com/metrograph-labs/systems/pull/612), [the test in the guest](https://github.com/metrograph-labs/systems/actions/runs/44442803478), [#619, `@mark1russell7/harness` 0.16.19](https://github.com/metrograph-labs/systems/pull/619)
 
 The arm of SYS-81 operates only the cells of this repository in the guest. A consumer that finds the cause of a network fault has its own kernel world, and that world needs the kernel of the guest too. This item gives a run of one command of another repository in the guest.
 
@@ -3681,7 +3681,7 @@ A new export is a feature, thus the release of kind is a PATCH before 1.0.
 - **Depends on:** SYS-94
 - **Started:** 2026-11-22
 - **Shipped:**
-- **Links:** [the weekly Cells run of 2026-11-22](https://github.com/mark1russell7/systems/actions/runs/45007998288)
+- **Links:** [the weekly Cells run of 2026-11-22](https://github.com/metrograph-labs/systems/actions/runs/45007998288)
 
 The weekly Cells run of 2026-11-22 failed on `RD.100.restore`: 3 of 4 runs held, and the run "env 1 run 0" had the finding "the group failed over 14.794275 s after the fault, where it should not". The cause is in the measure, not in the runner or the commit. After a restore of each disk, the set starts again at term 0. Its first election (term 1, 14.4 to 14.8 s after the fault) can go to any member: m1, the old primary, won in "env 0 run 0", and m2 won in "env 1 run 0". The stage `elected` counted each election that a member other than the old primary wins.
 
@@ -3788,7 +3788,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 - **Depends on:** SYS-68, SYS-94
 - **Started:** 2026-11-07
 - **Shipped:**
-- **Links:** [#392](https://github.com/metrograph-labs/systems/pull/392), [#396](https://github.com/metrograph-labs/systems/pull/396), [#599](https://github.com/metrograph-labs/systems/pull/599), [#609](https://github.com/metrograph-labs/systems/pull/609), [the first verdicts of the ladder](https://github.com/mark1russell7/systems/actions/runs/44242359821)
+- **Links:** [#392](https://github.com/metrograph-labs/systems/pull/392), [#396](https://github.com/metrograph-labs/systems/pull/396), [#599](https://github.com/metrograph-labs/systems/pull/599), [#609](https://github.com/metrograph-labs/systems/pull/609), [the first verdicts of the ladder](https://github.com/metrograph-labs/systems/actions/runs/44242359821)
 
 SYS-68 and SYS-94 are done, thus this item started on 2026-11-07. The HTTP driver on a schedule is part of this item.
 
@@ -3832,7 +3832,7 @@ The flip test of the night also puts its fault into the open-loop cells. Each ru
 
 The claims of the capacity, the gap of the open loop and the noise are of later slices. Each gets its prediction from `base-rates.ts` before its dispatch. The first table of this item had probabilities that were not from the base rates, and this table replaces it.
 
-**The state on 2026-11-18.** Slices 1 and 2 are on main. The dispatch [44242359821](https://github.com/mark1russell7/systems/actions/runs/44242359821) of #396 gave the first verdicts of slice 3. Each of the 4 rungs holds, with 11 counted runs and no void run.
+**The state on 2026-11-18.** Slices 1 and 2 are on main. The dispatch [44242359821](https://github.com/metrograph-labs/systems/actions/runs/44242359821) of #396 gave the first verdicts of slice 3. Each of the 4 rungs holds, with 11 counted runs and no void run.
 
 | Rung | Arrivals | Failed | Median latency |
 | --- | --- | --- | --- |
@@ -3843,7 +3843,7 @@ The claims of the capacity, the gap of the open loop and the noise are of later 
 
 No run is outside its schedule, thus no send was more than 50 ms late. The earlier dispatches gave no verdict: a declaration that the service refused at its start, then an image lock that npm refused. Each claim of the prediction came true. The p95 and p99 budgets of slice 3 come next. A gate limit is the worst of 5 or more runs plus their spread. Since #609 merged on 2026-11-18, the nightly Cells run gives these runs, with no dispatch.
 
-**The first night.** The nightly Cells run [44452493478](https://github.com/mark1russell7/systems/actions/runs/44452493478) held each rung with 11 counted runs, no void run and no failed arrival. The rungs had 638, 957, 5,313 and 55,561 planned arrivals. The summary line of a cell kept its decision but not its load verdict, thus the night gave no quantile of the latency.
+**The first night.** The nightly Cells run [44452493478](https://github.com/metrograph-labs/systems/actions/runs/44452493478) held each rung with 11 counted runs, no void run and no failed arrival. The rungs had 638, 957, 5,313 and 55,561 planned arrivals. The summary line of a cell kept its decision but not its load verdict, thus the night gave no quantile of the latency.
 
 From this change, the line of an open-loop cell has the load verdict. Its latency has the p50, the p95, the p99 and the maximum of the arrivals of the counted runs, by the nearest rank. The budgets read 5 or more of these nights.
 
@@ -3886,7 +3886,7 @@ Each push to main gives the artifact `coverage` for the ten packages with Vitest
 - **The record.** The file `coverage-floors.json` at the root gives each floor, the id of each run and the formula. The Vitest config of each package reads its floors from that file.
 - **The gate.** CI starts the coverage on each pull request too, and a package under its floor fails its run. A pull request that lowers a floor gives the reason, as for the other limits. A pull request that raises the coverage can raise the floor.
 
-**The floors of 2026-11-09.** The runs are [42558826949](https://github.com/mark1russell7/systems/actions/runs/42558826949), [42561558394](https://github.com/mark1russell7/systems/actions/runs/42561558394), [42562850313](https://github.com/mark1russell7/systems/actions/runs/42562850313), [42565946464](https://github.com/mark1russell7/systems/actions/runs/42565946464) and [42568135335](https://github.com/mark1russell7/systems/actions/runs/42568135335). They are on five commits of main. The spread is 0 in eight packages. In service and site, the code changed between the commits (#461, #462). The spread is 0.03 or less in service, and 0.58 or less in site.
+**The floors of 2026-11-09.** The runs are [42558826949](https://github.com/metrograph-labs/systems/actions/runs/42558826949), [42561558394](https://github.com/metrograph-labs/systems/actions/runs/42561558394), [42562850313](https://github.com/metrograph-labs/systems/actions/runs/42562850313), [42565946464](https://github.com/metrograph-labs/systems/actions/runs/42565946464) and [42568135335](https://github.com/metrograph-labs/systems/actions/runs/42568135335). They are on five commits of main. The spread is 0 in eight packages. In service and site, the code changed between the commits (#461, #462). The spread is 0.03 or less in service, and 0.58 or less in site.
 
 | Package | Lines | Functions | Branches |
 | --- | --- | --- | --- |
@@ -3971,7 +3971,7 @@ The test: the self-test of the disk tier passes in CI with the import, and the w
 - **Depends on:** SYS-106
 - **Started:** 2026-11-16
 - **Shipped:** 2026-11-17
-- **Links:** [#589](https://github.com/metrograph-labs/systems/pull/589), [the release run of service 0.10.0](https://github.com/mark1russell7/systems/actions/runs/44204796977), [service 0.10.0 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.10.0), [kind 0.14.12 on npm](https://www.npmjs.com/package/@mark1russell7/kind/v/0.14.12)
+- **Links:** [#589](https://github.com/metrograph-labs/systems/pull/589), [the release run of service 0.10.0](https://github.com/metrograph-labs/systems/actions/runs/44204796977), [service 0.10.0 on npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.10.0), [kind 0.14.12 on npm](https://www.npmjs.com/package/@mark1russell7/kind/v/0.14.12)
 
 The pull request #589 gave this item the id SYS-131. SYS-131 is the item of the units of quantity, thus this item has the id SYS-132.
 
@@ -3990,7 +3990,7 @@ The test: seeded property tests hold the bound, the lease and the release on the
 - **Depends on:** SYS-28
 - **Started:** 2026-11-08
 - **Shipped:** 2026-11-08
-- **Links:** [#408](https://github.com/metrograph-labs/systems/pull/408), [#408 merged (da0db58)](https://github.com/metrograph-labs/systems/commit/da0db58), [service 0.7.0 #411](https://github.com/metrograph-labs/systems/pull/411), [service 0.7.0 release run](https://github.com/mark1russell7/systems/actions/runs/42460247618), [roadmap #418](https://github.com/metrograph-labs/systems/pull/418)
+- **Links:** [#408](https://github.com/metrograph-labs/systems/pull/408), [#408 merged (da0db58)](https://github.com/metrograph-labs/systems/commit/da0db58), [service 0.7.0 #411](https://github.com/metrograph-labs/systems/pull/411), [service 0.7.0 release run](https://github.com/metrograph-labs/systems/actions/runs/42460247618), [roadmap #418](https://github.com/metrograph-labs/systems/pull/418)
 
 A flush of the sync of `@procedures` writes many items in one call, thus it takes many units of a limiter at one time. `take(key, units)` takes them in one atomic step, or none. A take over the burst or the limit is refused with the cause `capacity`. No wait lets in such a take. The refusal is a union on its cause, thus the release is `0.7.0` (MINOR before 1.0). The test: seeded property tests hold the bound of each window and the exact wait, and the Redis script gives the decisions of `decide`. Service `0.7.0` is on npm, with provenance.
 
@@ -4012,7 +4012,7 @@ Mark decided on 2026-11-09 that one math repository holds the math packages. `@m
 - **Depends on:**
 - **Started:** 2026-11-17
 - **Shipped:** 2026-11-18
-- **Links:** [#592](https://github.com/metrograph-labs/systems/pull/592), [#601](https://github.com/metrograph-labs/systems/pull/601), [the release run](https://github.com/mark1russell7/systems/actions/runs/44258346642), [quantity 0.4.2 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.2)
+- **Links:** [#592](https://github.com/metrograph-labs/systems/pull/592), [#601](https://github.com/metrograph-labs/systems/pull/601), [the release run](https://github.com/metrograph-labs/systems/actions/runs/44258346642), [quantity 0.4.2 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.2)
 
 A consumer of public data feeds reads the unit of each measure with `tryParseUnit` of `@mark1russell7/quantity`. Version `0.4.1` does not parse these units of the feeds:
 
@@ -4045,7 +4045,7 @@ The test: each unit of the list parses, converts in its dimension and formats ag
 - **Depends on:**
 - **Started:** 2026-11-18
 - **Shipped:** 2026-11-18
-- **Links:** [#621](https://github.com/metrograph-labs/systems/pull/621), [the release run](https://github.com/mark1russell7/systems/actions/runs/44422507156), [quantity 0.4.3 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.3), [the consumer](https://github.com/mark1russell7/capacity/pull/11)
+- **Links:** [#621](https://github.com/metrograph-labs/systems/pull/621), [the release run](https://github.com/metrograph-labs/systems/actions/runs/44422507156), [quantity 0.4.3 on npm](https://www.npmjs.com/package/@mark1russell7/quantity/v/0.4.3), [the consumer](https://github.com/metrograph-labs/capacity/pull/11)
 
 A consumer that models the cost of one request multiplies a rate by a cost. For example, 900 `{request}/s` times 0.5 `{core}.ms/{request}` is 450 `{core}.ms/s`, and that converts to 0.45 `{core}`. Quantity `0.4.2` has no product of two amounts. Thus the consumer multiplies the values and writes the product unit by hand.
 
@@ -4066,7 +4066,7 @@ The test: the example above converts to 0.45 `{core}`. A property test holds tha
 - **Depends on:**
 - **Started:** 2026-11-18
 - **Shipped:** 2026-11-18
-- **Links:** [#624](https://github.com/metrograph-labs/systems/pull/624), [the first release run with the job](https://github.com/mark1russell7/systems/actions/runs/44439327902), [#628](https://github.com/metrograph-labs/systems/pull/628)
+- **Links:** [#624](https://github.com/metrograph-labs/systems/pull/624), [the first release run with the job](https://github.com/metrograph-labs/systems/actions/runs/44439327902), [#628](https://github.com/metrograph-labs/systems/pull/628)
 
 The release owner holds this item. The release of this repository makes no git tag and no GitHub release. Approximately 111 published versions have no tag. #624 adds a job `tag` to `release.yml`. The job uses the plan of the tags that the build job writes, and it operates after the publish job.
 
@@ -4106,7 +4106,7 @@ The test: `scale` with `by` equal to `NaN`, `Infinity` or `-Infinity` throws a `
 - **Depends on:**
 - **Started:** 2026-11-17
 - **Shipped:** 2026-11-17
-- **Links:** [#595](https://github.com/metrograph-labs/systems/pull/595), [#596](https://github.com/metrograph-labs/systems/pull/596), [the release run](https://github.com/mark1russell7/systems/actions/runs/44219498195), [algebra 0.9.7 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.9.7)
+- **Links:** [#595](https://github.com/metrograph-labs/systems/pull/595), [#596](https://github.com/metrograph-labs/systems/pull/596), [the release run](https://github.com/metrograph-labs/systems/actions/runs/44219498195), [algebra 0.9.7 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.9.7)
 
 A consumer that sums a measure for each calendar month needs the bounds of the month of an instant, in an IANA time zone. The clock entry of the state-machine package gives the wall-clock time of an instant (`localTime`) and the first instant of a wall-clock time (`firstInstantOf`). It gives no month, thus each consumer keeps a copy of its own.
 
@@ -4128,7 +4128,7 @@ The test:
 - **Depends on:**
 - **Started:** 2026-11-21
 - **Shipped:** 2026-11-21
-- **Links:** [#636](https://github.com/metrograph-labs/systems/pull/636), [the release run](https://github.com/mark1russell7/systems/actions/runs/44940752291), [algebra 0.9.10 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.9.10)
+- **Links:** [#636](https://github.com/metrograph-labs/systems/pull/636), [the release run](https://github.com/metrograph-labs/systems/actions/runs/44940752291), [algebra 0.9.10 on npm](https://www.npmjs.com/package/@mark1russell7/algebra/v/0.9.10)
 
 A consumer that keeps stock with due dates needs dates with no time and no zone, and tasks that repeat on dates. The clock entry gives the time of an instant in a zone, and the month of an instant. It gives no date arithmetic and no recurrence rule, thus the consumer keeps a copy of its own.
 
@@ -4342,7 +4342,7 @@ The state-machine package publishes as `@mark1russell7/algebra`, and that name c
 - **Depends on:** conventions `0.41.14` of the template repository ([template#350](https://github.com/mark1russell7/template/pull/350))
 - **Started:** 2026-11-15
 - **Shipped:** 2026-11-15
-- **Links:** [the red main of 2026-11-15](https://github.com/mark1russell7/systems/actions/runs/43729527230), [#538](https://github.com/metrograph-labs/systems/pull/538), [part 1, #539](https://github.com/metrograph-labs/systems/pull/539), [part 2, #546](https://github.com/metrograph-labs/systems/pull/546)
+- **Links:** [the red main of 2026-11-15](https://github.com/metrograph-labs/systems/actions/runs/43729527230), [#538](https://github.com/metrograph-labs/systems/pull/538), [part 1, #539](https://github.com/metrograph-labs/systems/pull/539), [part 2, #546](https://github.com/metrograph-labs/systems/pull/546)
 
 On 2026-11-15, two pull requests set service `0.8.18`. An update of the dependencies merged first, and the release published its `0.8.18`. Then #535 merged with the same version and other files. The two version lines had the same text, thus the merge had no conflict. The release check of #535 operated before `0.8.18` was on npm. Thus the pack step of `main` stopped, and #538 set `0.8.19`.
 
@@ -4619,7 +4619,7 @@ A hash of the data comes before the service starts, because a service writes. Th
 | Each measured RTO is at most a tenth of the budget of its rung | 0.90 |
 | The naive claim: an acknowledged write survives a restore | 0.03 |
 
-**The result.** The run [41896338150](https://github.com/mark1russell7/systems/actions/runs/41896338150) at commit 779d47e, on kernel 7.0.0 with HZ 1000, gave a verdict on the first dispatch. Each of the 6 drills holds in 4 of 4 counted runs, with no void run and no fix to a drill.
+**The result.** The run [41896338150](https://github.com/metrograph-labs/systems/actions/runs/41896338150) at commit 779d47e, on kernel 7.0.0 with HZ 1000, gave a verdict on the first dispatch. Each of the 6 drills holds in 4 of 4 counted runs, with no void run and no fix to a drill.
 
 | Rung | RPO budget | Worst RPO | RTO budget | Worst RTO | Verdict |
 | --- | --- | --- | --- | --- | --- |
@@ -4691,7 +4691,7 @@ Rung 10,000 has an RPO of 10 s and an RTO of 5 min, on k3s with shards of synthe
 - **Depends on:** WS, SYS-94
 - **Started:** 2026-11-05
 - **Shipped:** 2026-11-16
-- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/metrograph-labs/systems/pull/364), [the proof run](https://github.com/mark1russell7/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/mark1russell7/systems/actions/runs/42467630024), [#456](https://github.com/metrograph-labs/systems/pull/456), [#522](https://github.com/metrograph-labs/systems/pull/522), [#399](https://github.com/metrograph-labs/systems/pull/399), [#383](https://github.com/metrograph-labs/systems/pull/383)
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [#364](https://github.com/metrograph-labs/systems/pull/364), [the proof run](https://github.com/metrograph-labs/systems/actions/runs/42098411637), [the red Sunday run](https://github.com/metrograph-labs/systems/actions/runs/42467630024), [#456](https://github.com/metrograph-labs/systems/pull/456), [#522](https://github.com/metrograph-labs/systems/pull/522), [#399](https://github.com/metrograph-labs/systems/pull/399), [#383](https://github.com/metrograph-labs/systems/pull/383)
 
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
@@ -4721,7 +4721,7 @@ This is the read of false blocks, before the check blocks. The code and the cata
 - **Depends on:**
 - **Started:** 2026-11-05
 - **Shipped:** 2026-11-05
-- **Links:** [the run of the 22 flips](https://github.com/mark1russell7/systems/actions/runs/41990179106), [pull request](https://github.com/metrograph-labs/systems/pull/365)
+- **Links:** [the run of the 22 flips](https://github.com/metrograph-labs/systems/actions/runs/41990179106), [pull request](https://github.com/metrograph-labs/systems/pull/365)
 
 A gate check of a measure can pass for a reason that is not the measure. A flip test shows that the check can fail. In one job, the test passes on the copy with no fault. Then one source fault of a stated size turns the same test red on its named assertion. A crash does not count as a red.
 
@@ -4754,7 +4754,7 @@ The workflow `flip.yml` holds these faults. It starts at a change to a fault sit
 
 The first flip found a defect of the test. The shutdown of the F6 matrix had a bound of 2,050 ms, and the caps of the phases hold a slow close to 2 s. A close of 3 x its bound stayed green at 806 ms. Six green runs read 306 ms to 312 ms, thus the bound is the bound of the close and the noise of the test: 350 ms.
 
-In [run 41990179106](https://github.com/mark1russell7/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
+In [run 41990179106](https://github.com/metrograph-labs/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
 
 The method of the bound of 350 ms: the design gives it (a close of 300 ms and a noise of 50 ms), and the runs check it. The worst of the seven runs plus their spread is 312 ms + 6 ms = 318 ms, thus the margin is 32 ms. The run numbers stand next to the bound in `f6-redis.test.ts`.
 
