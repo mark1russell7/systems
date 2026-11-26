@@ -517,6 +517,21 @@ await Promise.all([refresher.stop(), sweeper.stop()]); // at the drain: no round
 - **The timer of a timeout.** `timeout` gives no cancel, as `time.After` of Go. Its timer stays until it comes due, also after `select` takes another case.
 - **A late timer.** A ticker gives the number of the last tick that came due, and skips the ticks that it missed. A slow receiver loses ticks, because the buffer has one tick.
 
+## The slices of long work
+
+`@mark1russell7/service/slices` does long synchronous work in short slices. The entry imports only the clock. Thus a client in a browser can use it. The root of the package does not give its functions.
+
+The work is a generator, and each `yield` ends one step. `runSlices(steps, options)` does the steps until a slice of `sliceMs` ends. Then it gives the event loop one turn. Thus the timers, the sockets and the probes of a server get their turns during a long calculation.
+
+| Option | What it does |
+| --- | --- |
+| `sliceMs` | The time of one slice, in milliseconds. The default is `SLICE_MS` (8). With 0, each slice does one step. |
+| `clock` | The clock that measures a slice. The default is the real clock. |
+| `turn` | The function that gives the event loop one turn. The default is `setImmediate`. |
+| `signal` | An abort stops the work between two slices. The function closes the steps and rejects with the reason. |
+
+The function gives the result with the counts of the steps and the slices, and the longest slice. A step is synchronous, thus a long step makes a long slice. Keep each step short.
+
 ## The scopes
 
 `@mark1russell7/service/scope` gives one scope for each part of the work. The parts are the process, the service, a phase, a request, a job, a loop round and a procedure. A scope holds the signal, the deadline, the clock, the trace, the identity and the values of keys of its work. It also holds the resources that close at its end.
