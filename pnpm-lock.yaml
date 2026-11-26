@@ -656,7 +656,7 @@ importers:
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
       '@mark1russell7/site-pages':
         specifier: ^0.8.0
-        version: 0.8.6
+        version: 0.8.7
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.6
@@ -1690,8 +1690,8 @@ packages:
       ltx:
         optional: true
 
-  '@mark1russell7/site-pages@0.8.6':
-    resolution: {integrity: sha512-WX/2Sna3H1bzLSleYuKQYuzrLF7kQjSMG79Pnysw0v1mNga95t18bS82u/zfQksPiZSicXSLmR+ye5YHfYNx4w==}
+  '@mark1russell7/site-pages@0.8.7':
+    resolution: {integrity: sha512-0U814F6nv69ueZ82B+PKkHH/Y8qapXNTFo2KMchvfqBcEkYh+2eQYAGdPzJANR+xni9HJZVpeC2nu+/lCeaEDQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -5383,7 +5383,7 @@ snapshots:
       '@opentelemetry/sdk-trace': 3.1.1(@opentelemetry/api@1.10.0)
       fast-check: 4.10.2
 
-  '@mark1russell7/site-pages@0.8.6':
+  '@mark1russell7/site-pages@0.8.7':
     dependencies:
       '@mark1russell7/rigor-statistics': 0.2.11
 
