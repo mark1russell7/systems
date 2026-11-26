@@ -2,13 +2,16 @@
 # container in the client's network namespace, as the harness's own TCP client does. It prints the
 # same JSON lines, with the state of the pool beside them.
 # lab.ts stages the build context: this folder, under harness/image/hikari. The build gets each jar
-# from Maven Central and checks its SHA-256 (jars.sha256), thus a build cannot get another jar.
+# from Maven Central, else from its Google mirror, and checks its SHA-256 (jars.sha256), thus a build cannot get
+# another jar. Central gives 429 to a burst of builds (8 shards at one time), so get() tries again after 15, 30, 60
+# and 120 s.
 FROM eclipse-temurin:21.0.12.1_1-jdk-alpine@sha256:0bfc69a4758a86710e5c474032d28400a8bd00874766f9e8b1642ac2fd293159 AS build
 WORKDIR /build
 COPY harness/image/hikari/jars.sha256 ./
-RUN wget -q https://repo1.maven.org/maven2/com/zaxxer/HikariCP/7.1.0/HikariCP-7.1.0.jar \
- && wget -q https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.13/postgresql-42.7.13.jar \
- && wget -q https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar \
+RUN get() { name="${1##*/}"; for wait in 0 15 30 60 120; do sleep "$wait"; for base in https://repo1.maven.org/maven2 https://maven-central.storage-download.googleapis.com/maven2; do rm -f "$name"; wget -q "$base/$1" && return 0; done; done; echo "no mirror gave $1" >&2; return 1; } \
+ && get com/zaxxer/HikariCP/7.1.0/HikariCP-7.1.0.jar \
+ && get org/postgresql/postgresql/42.7.13/postgresql-42.7.13.jar \
+ && get org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar \
  && sha256sum -c jars.sha256
 COPY harness/image/hikari/ClientHikari.java ./
 RUN javac --release 21 -cp "HikariCP-7.1.0.jar:postgresql-42.7.13.jar:slf4j-api-2.0.17.jar" -d classes ClientHikari.java
