@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalUnit,
   convert,
+  factorOf,
   format,
   isCanonicalUnit,
   kindOf,
@@ -74,6 +75,36 @@ describe("the units of the feeds of public data", () => {
     expect(canonicalUnit("{set 1.5}/wk")).toBe("{set 1.5}/wk");
     expect(tryParseUnit("kg.")).toBeUndefined();
     expect(tryParseUnit("kg.parsec")).toBeUndefined();
+  });
+
+  it.each([
+    ["[in_i]", "in"],
+    ["[ft_i]", "ft"],
+    ["[yd_i]", "yd"],
+    ["[mi_i]", "mi"],
+    ["[oz_av]", "oz"],
+    ["[lb_av]", "lb"],
+    ["[tsp_us]", "tsp"],
+    ["[tbs_us]", "tbsp"],
+    ["[foz_us]", "fl oz"],
+    ["[cup_us]", "cup"],
+    ["[pt_us]", "pt"],
+    ["[qt_us]", "qt"],
+    ["[gal_us]", "gal"],
+    ["[degF]", "degF"],
+    ["[Btu_IT]", "BTU"],
+  ])("reads the UCUM code %s as %s", (code, symbol) => {
+    expect(canonicalUnit(code)).toBe(symbol);
+    expect(canonicalUnit(`USD/${code}`)).toBe(`USD/${symbol}`);
+  });
+
+  it("gives the UCUM factors: 7000 grains of 64.79891 mg in a pound, and 231 cubic inches in a gallon", () => {
+    expect(factorOf("[lb_av]", "mg")).toBeCloseTo(7000 * 64.79891, 6);
+    expect(factorOf("[oz_av]", "[lb_av]")).toBeCloseTo(1 / 16, 12);
+    expect(factorOf("[gal_us]", "[in_i]^3")).toBeCloseTo(231, 9);
+    expect(factorOf("[foz_us]", "[tbs_us]")).toBeCloseTo(2, 12);
+    expect(factorOf("[tbs_us]", "[tsp_us]")).toBeCloseTo(3, 12);
+    expect(factorOf("[mi_i]", "[ft_i]")).toBeCloseTo(5280, 9);
   });
 
   it("keeps a weighted dose, a count of decays, each currency, a level and a steradian apart", () => {

@@ -37,10 +37,10 @@ export const ATOMS: readonly Atom[] = [
   atom("cm", "centimetre", L, r("0.01"), { aliases: ["centimeter", "centimeters"] }),
   atom("m", "metre", L, ONE, { aliases: ["meter", "meters", "metre", "metres"] }),
   atom("km", "kilometre", L, r("1000"), { aliases: ["kilometer", "kilometers"] }),
-  atom("in", "inch", L, r("0.0254"), { aliases: ["inch", "inches"] }),
-  atom("ft", "foot", L, r("0.3048"), { aliases: ["foot", "feet"] }),
-  atom("yd", "yard", L, r("0.9144"), { aliases: ["yard", "yards"] }),
-  atom("mi", "mile", L, r("1609.344"), { aliases: ["mile", "miles"] }),
+  atom("in", "inch", L, r("0.0254"), { aliases: ["inch", "inches", "[in_i]"] }),
+  atom("ft", "foot", L, r("0.3048"), { aliases: ["foot", "feet", "[ft_i]"] }),
+  atom("yd", "yard", L, r("0.9144"), { aliases: ["yard", "yards", "[yd_i]"] }),
+  atom("mi", "mile", L, r("1609.344"), { aliases: ["mile", "miles", "[mi_i]"] }),
   // mass (avoirdupois for oz and lb)
   atom("ug", "microgram", M, r("1e-6"), {
     display: "µg",
@@ -49,22 +49,22 @@ export const ATOMS: readonly Atom[] = [
   atom("mg", "milligram", M, r("0.001"), { aliases: ["milligram", "milligrams"] }),
   atom("g", "gram", M, ONE, { aliases: ["gram", "grams"] }),
   atom("kg", "kilogram", M, r("1000"), { aliases: ["kgs", "kilogram", "kilograms"] }),
-  atom("oz", "ounce", M, r("28.349523125"), { aliases: ["ounce", "ounces"] }),
-  atom("lb", "pound", M, r("453.59237"), { aliases: ["lbs", "pound", "pounds"] }),
+  atom("oz", "ounce", M, r("28.349523125"), { aliases: ["ounce", "ounces", "[oz_av]"] }),
+  atom("lb", "pound", M, r("453.59237"), { aliases: ["lbs", "pound", "pounds", "[lb_av]"] }),
   // volume (US customary for the kitchen measures)
   atom("mL", "millilitre", V, r("1e-6"), { aliases: ["ml", "milliliter", "milliliters"] }),
   atom("L", "litre", V, r("0.001"), { aliases: ["l", "liter", "liters", "litre", "litres"] }),
-  atom("tsp", "teaspoon", V, kitchen(768), { aliases: ["teaspoon", "teaspoons"] }),
+  atom("tsp", "teaspoon", V, kitchen(768), { aliases: ["teaspoon", "teaspoons", "[tsp_us]"] }),
   atom("tbsp", "tablespoon", V, kitchen(256), {
-    aliases: ["Tbsp", "Tbs", "tbs", "tablespoon", "tablespoons"],
+    aliases: ["Tbsp", "Tbs", "tbs", "tablespoon", "tablespoons", "[tbs_us]"],
   }),
   atom("fl oz", "fluid ounce", V, kitchen(128), {
-    aliases: ["floz", "fl. oz", "fl. oz.", "fluid ounce", "fluid ounces"],
+    aliases: ["floz", "fl. oz", "fl. oz.", "fluid ounce", "fluid ounces", "[foz_us]"],
   }),
-  atom("cup", "cup", V, kitchen(16), { aliases: ["cups"] }),
-  atom("pt", "pint", V, kitchen(8), { aliases: ["pint", "pints"] }),
-  atom("qt", "quart", V, kitchen(4), { aliases: ["quart", "quarts"] }),
-  atom("gal", "gallon", V, GALLON, { aliases: ["gallon", "gallons"] }),
+  atom("cup", "cup", V, kitchen(16), { aliases: ["cups", "[cup_us]"] }),
+  atom("pt", "pint", V, kitchen(8), { aliases: ["pint", "pints", "[pt_us]"] }),
+  atom("qt", "quart", V, kitchen(4), { aliases: ["quart", "quarts", "[qt_us]"] }),
+  atom("gal", "gallon", V, GALLON, { aliases: ["gallon", "gallons", "[gal_us]"] }),
   // temperature: kelvin is the base, and the Celsius and Fahrenheit scales are affine
   atom("K", "kelvin", { temperature: 1 }, ONE, { aliases: ["kelvin"] }),
   atom("degC", "degree Celsius", { temperature: 1 }, ONE, {
@@ -75,7 +75,7 @@ export const ATOMS: readonly Atom[] = [
   atom("degF", "degree Fahrenheit", { temperature: 1 }, div(r("5"), r("9")), {
     offset: r("459.67"),
     display: "°F",
-    aliases: ["°F", "fahrenheit"],
+    aliases: ["°F", "fahrenheit", "[degF]"],
   }),
   // data: decimal prefixes for decimal multiples (KB is 1000 bytes), binary ones for KiB
   atom("bit", "bit", D, ONE, { aliases: ["bits"] }),
@@ -106,7 +106,7 @@ export const ATOMS: readonly Atom[] = [
     aliases: ["Cal", "kilocalorie", "kilocalories"],
   }),
   // the international (IT) British thermal unit is 1055.05585262 J exactly (ISO 31-4, NIST SP 811, footnote 9 of Appendix B)
-  atom("BTU", "British thermal unit (IT)", E, mul(JOULE, r("1055.05585262")), { aliases: ["Btu"] }),
+  atom("BTU", "British thermal unit (IT)", E, mul(JOULE, r("1055.05585262")), { aliases: ["Btu", "[Btu_IT]"] }),
   atom("Wh", "watt-hour", E, mul(JOULE, r("3600"))),
   atom("kWh", "kilowatt-hour", E, mul(JOULE, r("3600000"))),
   atom("MWh", "megawatt-hour", E, mul(JOULE, r("3.6e9"))),
