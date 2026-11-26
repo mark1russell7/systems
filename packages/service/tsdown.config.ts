@@ -9,7 +9,7 @@ export default defineConfig({
   // the runtime, the seams for tests (a fake clock and a quiet server, which uses node:net), the
   // Redis, PostgreSQL, MongoDB and RabbitMQ clients, which load ioredis, pg, mongodb and amqplib only when they connect,
   // the HTTP client, which loads node:http only when it connects, the WebSocket client, which loads ws
-  // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod, the channels on the clock, which load only collections,
+  // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod, the channels on the clock, which load only collections, the slices of long work, which load only the clock,
   // the edge of a service in Node (node:http and node:net only), the files of a folder for that edge (node:fs, node:path and files), the keyed limiter, which loads only quantity,
   // the drain rules as data, which load no module, the host of a program in Node, which uses only node: built-ins, the trace ids, which load only @opentelemetry/api and the context entry of otel-ts, the scopes, which load only the clock, and the loop core, which loads only quantity and the clock
   entry: [
@@ -24,6 +24,7 @@ export default defineConfig({
     "src/grpc.ts",
     "src/clock.ts",
     "src/channel.ts",
+    "src/slices.ts",
     "src/heartbeat.ts",
     "src/backoff.ts",
     "src/http.ts",

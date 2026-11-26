@@ -770,6 +770,14 @@ unbuffered: build/channel.d.ts#unbuffered
 within: build/channel.d.ts#within
 workerPool: build/channel.d.ts#workerPool
 
+## ./slices (build/slices.d.ts): names
+
+SLICE_MS: build/slices.d.ts#SLICE_MS
+SliceOptions: build/slices.d.ts#SliceOptions
+SliceReport: build/slices.d.ts#SliceReport
+Steps: build/slices.d.ts#Steps
+runSlices: build/slices.d.ts#runSlices
+
 ## ./heartbeat (build/heartbeat.d.ts): names
 
 Heartbeat: build/heartbeat.d.ts#Heartbeat
@@ -5107,6 +5115,31 @@ export declare const scopeKey: <T>(name: string, meet?: (a: T, b: T) => T) => Sc
 
 ### build/scope.d.ts#timeoutHeaders
 export declare const timeoutHeaders: (scope: Pick<Scope, "deadline" | "remaining">) => Record<string, string>;
+
+### build/slices.d.ts#SLICE_MS
+export declare const SLICE_MS = 8;
+
+### build/slices.d.ts#SliceOptions
+export interface SliceOptions {
+  readonly sliceMs?: number | undefined;
+  readonly clock?: Clock | undefined;
+  readonly turn?: (() => Promise<void>) | undefined;
+  readonly signal?: AbortSignal | undefined;
+}
+
+### build/slices.d.ts#SliceReport
+export interface SliceReport<T> {
+  readonly value: T;
+  readonly steps: number;
+  readonly slices: number;
+  readonly longestMs: number;
+}
+
+### build/slices.d.ts#Steps
+export type Steps<T> = Iterator<unknown, T, undefined>;
+
+### build/slices.d.ts#runSlices
+export declare function runSlices<T>(steps: Steps<T>, options?: SliceOptions): Promise<SliceReport<T>>;
 
 ### build/stops.d.ts#DRAIN_RULE_IDS
 export declare const DRAIN_RULE_IDS: readonly string[];
