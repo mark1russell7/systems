@@ -30,7 +30,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@8ad943ea22c2a65479b648664765028cf981da78 # main
+        uses: mark1russell7/template/.github/actions/changes@7c83f30551e066c06852ea75bf0140eadfc49961 # main
         with:
           paths: |
             packages/site/**
@@ -82,6 +82,6 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@8ad943ea22c2a65479b648664765028cf981da78 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@7c83f30551e066c06852ea75bf0140eadfc49961 # main
         with:
           needs: ${{ toJSON(needs) }}
