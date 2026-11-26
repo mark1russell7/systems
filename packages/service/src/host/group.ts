@@ -102,7 +102,8 @@ export interface AliveSpec {
 /**
  * A stall excuse tells when a failure of the liveness probe does not count. In a full stall of memory or IO, each task of
  * the host waits. A program in such a stall does not answer, but it does not hang. The supervisor reads the full stall times of
- * a Linux host (`/proc/pressure`) at each use of the probe. On other hosts, each failure counts.
+ * a Linux host (`/proc/pressure`) at each use of the probe. On other hosts, each failure counts. The log record of each
+ * failure has the measured share in the field `stalledShare`, also for a failure that counts.
  */
 export interface AliveStall {
   /** This share of the span of a failure in a full stall excuses the failure: a number above 0 and not above 1. */
@@ -566,15 +567,17 @@ export const superviseGroup = (spec: GroupSpec, ports: HostPorts, options: Group
         return;
       }
       failures += 1;
+      // A counted failure also logs its measured share of the stall, thus a fit can set the share of the excuse.
+      const measured = share === null ? {} : { stalledShare: share };
       unit.detail = `the liveness probe failed ${failures} of ${alive.failures} times in sequence (${result.why})`;
       if (failures < alive.failures) {
-        say("warn", `${unit.spec.name}: ${unit.detail}`, { program: unit.spec.name, pid: child.pid, why: result.why });
+        say("warn", `${unit.spec.name}: ${unit.detail}`, { program: unit.spec.name, pid: child.pid, why: result.why, ...measured });
         next();
         return;
       }
       unit.reason = `its liveness probe failed ${failures} times in sequence (${result.why})`;
       unit.detail = unit.reason;
-      say("warn", `${unit.spec.name} is not alive, thus it stops`, { program: unit.spec.name, pid: child.pid, why: result.why });
+      say("warn", `${unit.spec.name} is not alive, thus it stops`, { program: unit.spec.name, pid: child.pid, why: result.why, ...measured });
       void stagedStop(unit, child);
     };
     if (alive.stall === undefined) next();
