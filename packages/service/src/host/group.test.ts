@@ -526,8 +526,9 @@ describe("superviseGroup does not count a liveness failure in a full stall of th
     expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
   });
 
-  it("counts each failure when the host is not in a stall", async () => {
-    const host = fakeHost({ files: { [MEMORY]: psi(0), [IO]: psi(0) } });
+  it("counts each failure when the host is not in a stall, and logs the measured share of each", async () => {
+    const logger = testLogger();
+    const host = fakeHost({ logger, files: { [MEMORY]: psi(0), [IO]: psi(0) } });
     host.http.set(ALIVE, 200);
     const group = superviseGroup(stalled(), host.ports);
     group.start();
@@ -538,6 +539,8 @@ describe("superviseGroup does not count a liveness failure in a full stall of th
     expect(host.signals).toEqual([]);
     await step(host, 1000);
     expect(host.signals).toEqual([{ pid: 1000, signal: "SIGTERM", group: false }]);
+    const failed = logger.entries.filter((entry) => entry.level === "warn" && entry.message.startsWith("api"));
+    expect(failed.map((entry) => entry.fields["stalledShare"])).toEqual([0, 0, 0]);
   });
 
   it("counts each failure on a host with no pressure files", async () => {
