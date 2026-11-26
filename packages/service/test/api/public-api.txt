@@ -205,6 +205,7 @@ TOKEN_BUCKET_MACHINE: build/limiter/machine.d.ts#TOKEN_BUCKET_MACHINE
 type TakeQuotasOptions: build/limiter/quota.d.ts#TakeQuotasOptions
 type TakeRequest: build/limiter/store.d.ts#TakeRequest
 type TakeStep: build/limiter/policy.d.ts#TakeStep
+type TelemetryOptions: build/telemetry.d.ts#TelemetryOptions
 type Term: build/law.d.ts#Term
 type TimerMark: build/law.d.ts#TimerMark
 type TimerMarks: build/law.d.ts#TimerMarks
@@ -3233,6 +3234,7 @@ export interface RunOptions extends StartOptions {
   readonly process?: ProcessPort | undefined;
   readonly scope?: Scope | undefined;
   readonly uncaught?: UncaughtOptions | undefined;
+  readonly telemetry?: false | TelemetryOptions | undefined;
 }
 
 ### build/lifecycle.d.ts#STAGES
@@ -5165,6 +5167,12 @@ export type StopWay = "deletion" | "liveness-restart" | "crash" | "oom";
 
 ### build/stops.d.ts#lintStop
 export declare const lintStop: (svc: ServiceDescription, scenario: Scenario, rules: readonly Rule[], way: StopWay) => Finding[];
+
+### build/telemetry.d.ts#TelemetryOptions
+export interface TelemetryOptions {
+  readonly env?: Readonly<Record<string, string | undefined>> | undefined;
+  readonly version?: string | undefined;
+}
 
 ### build/testing.d.ts#Behavior
 export type Behavior = Outcome | "throw" | "timeout" | "hang";

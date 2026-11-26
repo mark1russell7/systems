@@ -62,9 +62,9 @@ export const nodeLoad = (node: NodeProcess | undefined = (globalThis as { proces
 /**
  * This function starts the context of OpenTelemetry for a service, with `startNodeContext()` of otel-ts. It
  * starts nothing, and gives the reason, when:
- * - the options are `false` (`"off"`);
+ * - the options are `false` (`"off"`).
  * - otel-ts, or a package of its entry `/node/context`, is not installed, or its version has no `contextOwner()`
- *   (`"no otel-ts"`);
+ *   (`"no otel-ts"`).
  * - a part of the program registered the context first, for example the program itself or the capture of a test
  *   (`"owned"`). The service then uses that context.
  *
