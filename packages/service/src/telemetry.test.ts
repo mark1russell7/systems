@@ -3,12 +3,14 @@ import { context, isSpanContextValid, propagation, trace } from "@opentelemetry/
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CAPS, exited, rig, run } from "./rig.ts";
-import { type Load, startTelemetry } from "./telemetry.ts";
+import { type Load, nodeLoad, startTelemetry } from "./telemetry.ts";
 
 afterEach(() => {
   trace.disable();
   context.disable();
   propagation.disable();
+  // a test that leaves the context of otel-ts started fails here, not in the tests after it
+  expect(contextOwner(), "a test left a context of otel-ts started").toBeUndefined();
 });
 
 /** A loader with the entries of otel-ts as fakes. It records each specifier that it loads. */
@@ -76,7 +78,10 @@ describe("startTelemetry", () => {
     expect(startTelemetry("api", {}, missing("ERR_PACKAGE_PATH_NOT_EXPORTED"))).toBe("no otel-ts");
     // a version of otel-ts before contextOwner()
     expect(startTelemetry("api", {}, () => ({}))).toBe("no otel-ts");
-    expect(startTelemetry("api", {}, undefined)).toBe("no otel-ts");
+    // outside Node there is no loader: a process with no getBuiltinModule
+    expect(nodeLoad({})).toBeUndefined();
+    expect(startTelemetry("api", {}, null)).toBe("no otel-ts");
+    expect(typeof nodeLoad()).toBe("function");
   });
 
   it("throws an error of otel-ts that is not a missing package", () => {

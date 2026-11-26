@@ -49,9 +49,12 @@ const notFound = (error: unknown): boolean => {
   return code === "MODULE_NOT_FOUND" || code === "ERR_MODULE_NOT_FOUND" || code === "ERR_PACKAGE_PATH_NOT_EXPORTED";
 };
 
-/** This function gives the `require` of this file, or undefined outside Node. */
-const nodeLoad = (): Load | undefined => {
-  const node = (globalThis as { process?: { getBuiltinModule?: (id: string) => unknown } }).process;
+interface NodeProcess {
+  readonly getBuiltinModule?: (id: string) => unknown;
+}
+
+/** This function gives the `require` of this file, or undefined outside Node (a process with no `getBuiltinModule`). */
+export const nodeLoad = (node: NodeProcess | undefined = (globalThis as { process?: NodeProcess }).process): Load | undefined => {
   const module = node?.getBuiltinModule?.("node:module") as { createRequire(url: string): Load } | undefined;
   return module?.createRequire(import.meta.url);
 };
@@ -70,10 +73,11 @@ const nodeLoad = (): Load | undefined => {
 export const startTelemetry = (
   serviceName: string,
   options: false | TelemetryOptions | undefined,
-  load: Load | undefined = nodeLoad(),
+  // null, not undefined, is "no loader": undefined selects this default
+  load: Load | null = nodeLoad() ?? null,
 ): StartedTelemetry | NoTelemetry => {
   if (options === false) return "off";
-  if (load === undefined) return "no otel-ts";
+  if (load === null) return "no otel-ts";
   let owner: ContextEntry;
   let node: NodeContextEntry;
   try {
