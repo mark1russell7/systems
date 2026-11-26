@@ -31,6 +31,7 @@ import type {
   TransportImpl,
 } from "./lifecycle.ts";
 import { STAGES, lifecycle, lifecycleProblems, stageRank, uncaughtProblems } from "./lifecycle.ts";
+import { startTelemetry } from "./telemetry.ts";
 import type { Operation } from "./operation.ts";
 import { operationProblems } from "./operation.ts";
 import type { CheckFn } from "./poller.ts";
@@ -682,12 +683,28 @@ export const service = (name: string): ServiceBuilder => {
         const problems = [...lifecycleProblems(description, components), ...uncaughtProblems(options.uncaught)];
         if (problems.length > 0) throw new Error(`${name}: ${problems.join("; ")}`);
         const made = makeRuntime(options);
+        // the context of OpenTelemetry starts before the startup, thus the startup has its spans too
+        const startedTelemetry = startTelemetry(name, options.telemetry);
+        const telemetry = typeof startedTelemetry === "object" ? startedTelemetry : undefined;
+        const work =
+          telemetry === undefined
+            ? phaseWork
+            : new Map([...phaseWork, ["flush the output", [...(phaseWork.get("flush the output") ?? []), () => telemetry.shutdown()]]]);
         started = true;
         live = made.runtime;
-        // the builder holds the lifecycle before the first transport starts
-        const ran = lifecycle(made.description, made.runtime, { ...components, stopPollers: made.stopPollers }, made.options, (given) => {
-          life = given;
-        });
+        let ran: Lifecycle;
+        try {
+          // the builder holds the lifecycle before the first transport starts
+          ran = lifecycle(made.description, made.runtime, { ...components, phaseWork: work, stopPollers: made.stopPollers }, made.options, (given) => {
+            life = given;
+          });
+        } catch (error) {
+          void telemetry?.shutdown();
+          throw error;
+        }
+        // a service without the phase `flush the output` exits without a wait: the context then stops after the
+        // exit, for a process port that does not end the process (a test). A second shutdown does nothing
+        if (telemetry !== undefined) void ran.done.then(() => telemetry.shutdown()).catch(() => undefined);
         running = ran.started.then(() => ran);
       } catch (error) {
         return Promise.reject(error);

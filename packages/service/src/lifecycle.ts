@@ -12,6 +12,7 @@ import type { RequestFn, RequestOptions, RequestStream } from "./requests.ts";
 import { tracker } from "./requests.ts";
 import type { OperationOf } from "./routes.ts";
 import { rootScope, type Scope } from "./scope.ts";
+import type { TelemetryOptions } from "./telemetry.ts";
 
 /**
  * A transport is a source of work: a server, a consumer or a worker. Each has one contract. It
@@ -136,6 +137,13 @@ export interface RunOptions extends StartOptions {
    * starts the shutdown with its exit code, as a signal does. Without them, the runtime adds no handler.
    */
   readonly uncaught?: UncaughtOptions | undefined;
+  /**
+   * These options set the telemetry of the service. By default, `run()` starts the context of OpenTelemetry with
+   * `startNodeContext()` of @mark1russell7/otel-ts, an optional peer, and stops it in the phase `flush the output`.
+   * It starts nothing when otel-ts is not installed, or when a part of the program registered the context first.
+   * Without `OTEL_EXPORTER_OTLP_ENDPOINT`, no span leaves the process. `false` turns the telemetry off.
+   */
+  readonly telemetry?: false | TelemetryOptions | undefined;
 }
 
 /** This function gives the problems of the option `uncaught`: an exit code that is not from 0 to 255. */

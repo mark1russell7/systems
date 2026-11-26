@@ -154,6 +154,7 @@ export type {
   TransportImpl,
   UncaughtOptions,
 } from "./lifecycle.ts";
+export type { TelemetryOptions } from "./telemetry.ts";
 export { STAGES, cooperativeAbortAt, stageRank } from "./lifecycle.ts";
 export type {
   EmbeddedProcess,
