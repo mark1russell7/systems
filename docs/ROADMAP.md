@@ -3559,7 +3559,7 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | One request | 358 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 64 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
 | Closed loop, reply times | 18 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
-| Closed loop, first write | 73 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Closed loop, first write | 75 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 230 | The cells of kind, and the 6 delivery cells `SIO` of SYS-87, each send started by a timer | No send waits for a reply. The record keeps no planned time. A delivery cell gives counts of events, not times. |
 | Open loop | 10 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
 
@@ -3591,6 +3591,7 @@ The closed-loop families:
 | T12.writes | 3 | First write |
 | CAL | 1 | First write |
 | RD.1 | 1 | First write |
+| RD.10 | 2 | First write |
 | RD.100 | 2 | First write |
 | RD.1000 | 2 | First write |
 | RD.8000 | 1 | First write |
@@ -4664,7 +4665,14 @@ The work:
 - **Shipped:**
 - **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service), [SYS-113](#sys-113--recovery-rung-10000)
 
-SYS-94 holds rungs 1, 100 and 1,000. Rung 10 is one process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it operates on one runner. It needs only SYS-94. The milestone of the recovery rungs counts it as rung 4.
+SYS-94 holds rungs 1, 100 and 1,000. Rung 10 is one process with an RPO of 1 h and an RTO of 1 h. Its newest backup is at most 55 minutes old, thus the backup has 5 minutes of room. It is the law of `RD.1` at 10 MB, on another schedule, and it operates on one runner. It needs only SYS-94. The milestone of the recovery rungs counts it as rung 4.
+
+| Drill | Store | Fault | Recovery | The law |
+| --- | --- | --- | --- | --- |
+| `RD.10.restore` | One node, with an oplog, 10 MB | Stop, disk lost | A dump with its oplog | Each write after the end of the dump is lost, and no other |
+| `RD.10.control` | One node, with an oplog, 10 MB | Stop after the dump, with no later write | A dump with its oplog | No write is lost |
+
+The band of each drill is a tenth of the RTO of the rung: 0 to 360 s. The Sunday run of the drills holds the two drills, and the lock of the rungs reads rung 10 with the other three.
 
 - A drill case of rung 10 in the catalog of the recovery drills, with its budgets.
 - One cells dispatch of the case, and the read of its verdict. A rung counts only when it holds.
