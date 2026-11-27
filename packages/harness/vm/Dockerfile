@@ -3,7 +3,7 @@
 # version of the runner, and the cells operate in it with the command of the cells workflow. The
 # build context is the root of the repository. The context keeps the folder .git, and git in the
 # guest gives the commit of the code to each record (`codeHere` of the cells).
-FROM node:26-trixie-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39
+FROM node:26-trixie-slim@sha256:abe7e5a82b61a8ef67b315b85497c9e65173387ccf2f4a029248184b8e020be5
 RUN apt-get update \
  && apt-get install -y --no-install-recommends systemd systemd-sysv dbus openssh-server iproute2 iptables kmod ca-certificates curl git \
  && rm -rf /var/lib/apt/lists/*
