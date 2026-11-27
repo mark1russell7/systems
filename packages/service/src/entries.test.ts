@@ -116,16 +116,17 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside @grpc/grpc-js, otel-ts, amqplib, ioredis, pg, mongodb and ws", () => {
+  it("marks zod optional in the manifest, beside @grpc/grpc-js, otel-ts, the runtime metrics, amqplib, ioredis, pg, mongodb and ws", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "@mark1russell7/otel-ts", "@opentelemetry/api", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "@mark1russell7/otel-ts", "@opentelemetry/api", "@opentelemetry/instrumentation-runtime-node", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
       "@grpc/grpc-js": { optional: true },
       "@mark1russell7/otel-ts": { optional: true },
       "@opentelemetry/api": { optional: true },
+      "@opentelemetry/instrumentation-runtime-node": { optional: true },
       amqplib: { optional: true },
       ioredis: { optional: true },
       mongodb: { optional: true },

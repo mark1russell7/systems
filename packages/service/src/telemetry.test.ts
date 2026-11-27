@@ -1,9 +1,11 @@
 import { contextOwner } from "@mark1russell7/otel-ts/context";
 import { context, isSpanContextValid, propagation, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import type { Resource } from "@opentelemetry/resources";
+import { MeterProvider, MetricReader } from "@opentelemetry/sdk-metrics";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CAPS, exited, rig, run } from "./rig.ts";
-import { type Load, nodeLoad, startTelemetry } from "./telemetry.ts";
+import { type Load, RUNTIME_METRICS, nodeLoad, startTelemetry } from "./telemetry.ts";
 
 afterEach(() => {
   trace.disable();
@@ -91,6 +93,107 @@ describe("startTelemetry", () => {
     expect(() => startTelemetry("api", {}, broken)).toThrow(/a broken install/);
   });
 });
+
+/** A loader of fakes with a meter provider of otel-ts 0.11.2 and a fake of the runtime metrics. It records the order of the stops. */
+const fakeMetrics = (runtime: "ok" | "missing" | "broken" = "ok") => {
+  const otel = fakeOtel();
+  const stops: string[] = [];
+  otel.shutdown.mockImplementation(async () => {
+    stops.push("context");
+  });
+  const load: Load = (specifier) => {
+    if (specifier === "@mark1russell7/otel-ts/node/export") return { exportSpanProcessors: () => [], exportMeterProvider: () => "the meter provider" };
+    if (specifier === "@opentelemetry/api") return { metrics: { getMeterProvider: () => "the global meter provider" } };
+    if (specifier === RUNTIME_METRICS) {
+      otel.loads.push(specifier);
+      if (runtime === "missing") throw Object.assign(new Error(`Cannot find module '${RUNTIME_METRICS}'`), { code: "MODULE_NOT_FOUND" });
+      if (runtime === "broken") throw new Error("a broken runtime package");
+      return {
+        RuntimeNodeInstrumentation: class {
+          setMeterProvider(provider: unknown): void {
+            stops.push("meters of " + String(provider));
+          }
+          disable(): void {
+            stops.push("runtime");
+          }
+        },
+      };
+    }
+    return otel.load(specifier);
+  };
+  return { ...otel, load, stops };
+};
+
+describe("the metrics of startTelemetry", () => {
+  const env = { OTEL_EXPORTER_OTLP_ENDPOINT: "http://collector:4318" };
+
+  it("gives the meter provider of otel-ts to the context, starts the runtime metrics, and stops them before the context", async () => {
+    const otel = fakeMetrics();
+    const started = startTelemetry("api", { env }, otel.load);
+    expect(otel.starts).toEqual([{ serviceName: "api", env, spanProcessors: [], meterProvider: "the meter provider" }]);
+    expect(otel.loads.at(-1)).toBe(RUNTIME_METRICS);
+    if (typeof started === "string") throw new Error(started);
+    await Promise.all([started.shutdown(), started.shutdown()]);
+    await started.shutdown();
+    expect(otel.stops).toEqual(["meters of the global meter provider", "runtime", "context"]);
+  });
+
+  it("starts no runtime metrics without a meter provider: no endpoint, or a version of otel-ts before exportMeterProvider()", () => {
+    const none = fakeMetrics();
+    startTelemetry("api", { env: {} }, none.load);
+    expect(none.loads).not.toContain(RUNTIME_METRICS);
+    const old = fakeOtel();
+    startTelemetry("api", { env }, old.load);
+    expect(old.starts).toEqual([{ serviceName: "api", env, spanProcessors: [{ exporterOf: env }] }]);
+    expect(old.loads).not.toContain(RUNTIME_METRICS);
+  });
+
+  it("starts the context without the runtime metrics when their package is not installed", async () => {
+    const otel = fakeMetrics("missing");
+    const started = startTelemetry("api", { env }, otel.load);
+    expect(started).toMatchObject({ shutdown: otel.shutdown });
+    if (typeof started !== "string") await started.shutdown();
+  });
+
+  it("stops the context and throws an error of the runtime package that is not a missing package", () => {
+    const otel = fakeMetrics("broken");
+    expect(() => startTelemetry("api", { env }, otel.load)).toThrow(/a broken runtime package/);
+    expect(otel.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the metrics of the Node runtime with the real packages, in the meter provider of the service", async () => {
+    const real = nodeLoad();
+    if (real === undefined) throw new Error("no loader in Node");
+    let reader: TestReader | undefined;
+    const load: Load = (specifier) =>
+      specifier === "@mark1russell7/otel-ts/node/export"
+        ? {
+            exportSpanProcessors: () => [],
+            exportMeterProvider: () => (resource: Resource) => new MeterProvider({ resource, readers: [(reader = new TestReader())] }),
+          }
+        : real(specifier);
+    const started = startTelemetry("api", { env }, load);
+    if (typeof started === "string") throw new Error(started);
+    try {
+      const collected = await reader?.collect();
+      const names = collected?.resourceMetrics.scopeMetrics.flatMap((scope) => scope.metrics.map((metric) => metric.descriptor.name)) ?? [];
+      expect(names.some((name) => name.startsWith("nodejs.eventloop."))).toBe(true);
+      expect(collected?.resourceMetrics.resource.attributes["service.name"]).toBe("api");
+    } finally {
+      await started.shutdown();
+    }
+  });
+});
+
+/** A metric reader that the test collects by hand */
+class TestReader extends MetricReader {
+  protected override onForceFlush(): Promise<void> {
+    return Promise.resolve();
+  }
+  protected override onShutdown(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
 describe("the telemetry of run(), with otel-ts", () => {
   it("starts the context for the service, so a span has a trace, and stops it in the phase flush the output", async () => {

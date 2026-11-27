@@ -7,7 +7,7 @@
 export interface TelemetryOptions {
   /**
    * This environment gives `OTEL_EXPORTER_OTLP_ENDPOINT` and the variables of the exporters. The default is
-   * `process.env`. Without an endpoint, no span leaves the process, and the exporters do not load.
+   * `process.env`. Without an endpoint, no span and no metric leaves the process, and the exporters do not load.
    */
   readonly env?: Readonly<Record<string, string | undefined>> | undefined;
   /** This text is the version of the service: the resource attribute `service.version`. */
@@ -16,7 +16,7 @@ export interface TelemetryOptions {
 
 /** The telemetry that `startTelemetry` started: the lifecycle stops it in the phase `flush the output`. */
 export interface StartedTelemetry {
-  /** This method flushes the spans, and removes the registration of the context. A second call does nothing. */
+  /** This method flushes the spans and the metrics, and removes the registration of the context. A second call does nothing. */
   shutdown(): Promise<void>;
 }
 
@@ -36,12 +36,32 @@ interface NodeContextEntry {
     readonly env: Readonly<Record<string, string | undefined>>;
     readonly spanProcessors: readonly unknown[];
     readonly resourceAttributes?: Readonly<Record<string, string>>;
+    readonly meterProvider?: unknown;
   }) => StartedTelemetry;
 }
 
 interface ExportEntry {
   readonly exportSpanProcessors: (options: { readonly env: Readonly<Record<string, string | undefined>> }) => readonly unknown[];
+  /** otel-ts 0.11.2 and later: the factory of the meter provider, or undefined when no metric exporter is set */
+  readonly exportMeterProvider?: (options: { readonly env: Readonly<Record<string, string | undefined>> }) => unknown;
 }
+
+/** The entry of @opentelemetry/instrumentation-runtime-node: a new instrumentation is enabled at once. */
+interface RuntimeEntry {
+  readonly RuntimeNodeInstrumentation: new () => RuntimeInstrumentation;
+}
+
+interface RuntimeInstrumentation {
+  setMeterProvider(provider: unknown): void;
+  disable(): void;
+}
+
+interface ApiEntry {
+  readonly metrics: { getMeterProvider(): unknown };
+}
+
+/** The package of the metrics of the Node runtime: the delay and the use of the event loop, and the collections of the heap */
+export const RUNTIME_METRICS = "@opentelemetry/instrumentation-runtime-node";
 
 /** This function tells an error of a package that is not installed. */
 const notFound = (error: unknown): boolean => {
@@ -68,7 +88,10 @@ export const nodeLoad = (node: NodeProcess | undefined = (globalThis as { proces
  * - a part of the program registered the context first, for example the program itself or the capture of a test
  *   (`"owned"`). The service then uses that context.
  *
- * With `OTEL_EXPORTER_OTLP_ENDPOINT`, the spans go to the exporters of `exportSpanProcessors()` of otel-ts.
+ * With `OTEL_EXPORTER_OTLP_ENDPOINT`, the spans go to the exporters of `exportSpanProcessors()` of otel-ts. The
+ * metrics go to the meter provider of `exportMeterProvider()` of otel-ts 0.11.2 and later. With that meter provider
+ * and the package `RUNTIME_METRICS`, the service also records the metrics of the Node runtime, for example
+ * `nodejs.eventloop.delay.p99`. The shutdown stops them before it flushes the meter provider.
  */
 export const startTelemetry = (
   serviceName: string,
@@ -91,11 +114,33 @@ export const startTelemetry = (
   }
   const env = options?.env ?? (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
   // the exporters load only with an endpoint: without it, nothing leaves the process
-  const spanProcessors = env["OTEL_EXPORTER_OTLP_ENDPOINT"] ? (load("@mark1russell7/otel-ts/node/export") as ExportEntry).exportSpanProcessors({ env }) : [];
-  return node.startNodeContext({
+  const exporting = env["OTEL_EXPORTER_OTLP_ENDPOINT"] ? (load("@mark1russell7/otel-ts/node/export") as ExportEntry) : undefined;
+  const meterProvider = exporting?.exportMeterProvider?.({ env });
+  const started = node.startNodeContext({
     serviceName,
     env,
-    spanProcessors,
+    spanProcessors: exporting?.exportSpanProcessors({ env }) ?? [],
+    ...(meterProvider === undefined ? {} : { meterProvider }),
     ...(options?.version === undefined ? {} : { resourceAttributes: { "service.version": options.version } }),
   });
+  if (meterProvider === undefined) return started;
+  let runtime: RuntimeInstrumentation;
+  try {
+    const { metrics } = load("@opentelemetry/api") as ApiEntry;
+    runtime = new (load(RUNTIME_METRICS) as RuntimeEntry).RuntimeNodeInstrumentation();
+    // the instrumentation records nothing until it has a meter provider: the global one that the start set
+    runtime.setMeterProvider(metrics.getMeterProvider());
+  } catch (error) {
+    if (notFound(error)) return started;
+    void started.shutdown();
+    throw error;
+  }
+  let stopping: Promise<void> | undefined;
+  return {
+    shutdown: () =>
+      (stopping ??= (async () => {
+        runtime.disable();
+        await started.shutdown();
+      })()),
+  };
 };

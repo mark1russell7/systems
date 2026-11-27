@@ -156,6 +156,7 @@ type QuotaVerdict: build/limiter/quota.d.ts#QuotaVerdict
 type QuotaWaitRefused: build/limiter/quota.d.ts#QuotaWaitRefused
 type QuotaWindow: build/limiter/quota.d.ts#QuotaWindow
 type QuotasVerdict: build/limiter/quota.d.ts#QuotasVerdict
+RUNTIME_METRICS: build/telemetry.d.ts#RUNTIME_METRICS
 type Recorder: build/events.d.ts#Recorder
 type RedeliveryPolicy: build/queue.d.ts#RedeliveryPolicy
 type RefusalCause: build/limiter/policy.d.ts#RefusalCause
@@ -5167,6 +5168,9 @@ export type StopWay = "deletion" | "liveness-restart" | "crash" | "oom";
 
 ### build/stops.d.ts#lintStop
 export declare const lintStop: (svc: ServiceDescription, scenario: Scenario, rules: readonly Rule[], way: StopWay) => Finding[];
+
+### build/telemetry.d.ts#RUNTIME_METRICS
+export declare const RUNTIME_METRICS = "@opentelemetry/instrumentation-runtime-node";
 
 ### build/telemetry.d.ts#TelemetryOptions
 export interface TelemetryOptions {

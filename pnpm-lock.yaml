@@ -552,8 +552,8 @@ importers:
         specifier: workspace:^
         version: link:../harness
       '@mark1russell7/otel-ts':
-        specifier: ^0.11.1
-        version: 0.11.1(da7975cbfa090b39ff8efe05b2087921)
+        specifier: ^0.11.2
+        version: 0.11.2(829f46af36c17521ddc2392609d52e40)
       '@mark1russell7/rigor-testkit':
         specifier: ^0.2.0
         version: 0.2.0(@mark1russell7/rigor-chaos@0.3.3)(@mark1russell7/rigor-generators@0.1.19)(@opentelemetry/api-logs@0.223.0)(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-logs@3.1.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-metrics@3.1.1(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace@3.1.1(@opentelemetry/api@1.10.0))(fast-check@4.10.2)
@@ -569,6 +569,9 @@ importers:
       '@opentelemetry/core':
         specifier: ^3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
+      '@opentelemetry/instrumentation-runtime-node':
+        specifier: ^0.38.0
+        version: 0.38.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/resources':
         specifier: ^3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
@@ -1562,8 +1565,8 @@ packages:
     resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
     engines: {node: '>=22.12'}
 
-  '@mark1russell7/otel-ts@0.11.1':
-    resolution: {integrity: sha512-HVqNvjwRaon7RtPhlpgqEHgPoJ0M0IJGt5nYxlCL4rF0pMq29Pvd6s4UQH1roo2NsuG5luZtin+yRg6hSnGAcw==}
+  '@mark1russell7/otel-ts@0.11.2':
+    resolution: {integrity: sha512-3K4KWGMghShagQNyL31GZk33M01jsteLcyNUxskhso3uG+rmQGAJSZINb9aYN6DhBqcxiS8EA31lXmTg8XVVPg==}
     engines: {node: '>=22.15.0'}
     peerDependencies:
       '@grafana/faro-web-sdk': ^2.13.0
@@ -1575,6 +1578,7 @@ packages:
       '@opentelemetry/exporter-logs-otlp-http': ^0.301.2
       '@opentelemetry/exporter-logs-otlp-proto': ^0.301.2
       '@opentelemetry/exporter-metrics-otlp-http': ^0.301.2
+      '@opentelemetry/exporter-metrics-otlp-proto': ^0.301.2
       '@opentelemetry/exporter-trace-otlp-http': ^0.301.2
       '@opentelemetry/exporter-trace-otlp-proto': ^0.301.2
       '@opentelemetry/instrumentation': ^0.301.2
@@ -1605,6 +1609,8 @@ packages:
       '@opentelemetry/exporter-logs-otlp-proto':
         optional: true
       '@opentelemetry/exporter-metrics-otlp-http':
+        optional: true
+      '@opentelemetry/exporter-metrics-otlp-proto':
         optional: true
       '@opentelemetry/exporter-trace-otlp-http':
         optional: true
@@ -1925,6 +1931,12 @@ packages:
 
   '@opentelemetry/instrumentation-long-task@0.69.0':
     resolution: {integrity: sha512-AJz6IfmQnJwkKupOBvF1IiGg+ssHrui9KUCBer6fa5Spq4Pf/Rpmxq0U8s2HtBsIUc+dMHy+/kd+K7tLX2RLvQ==}
+    engines: {node: '>=22.15.0'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.10.0
+
+  '@opentelemetry/instrumentation-runtime-node@0.38.0':
+    resolution: {integrity: sha512-+q1AaCRYNujeNz/cY4lcw8l+Tnw6O6jmJd8Y+wd/7DaJpwNypHfDN7ZCwPzZXf5KgEJIdgISy/nAamkD4shb8g==}
     engines: {node: '>=22.15.0'}
     peerDependencies:
       '@opentelemetry/api': ^1.10.0
@@ -5374,7 +5386,7 @@ snapshots:
 
   '@mark1russell7/optional@1.2.0': {}
 
-  '@mark1russell7/otel-ts@0.11.1(da7975cbfa090b39ff8efe05b2087921)':
+  '@mark1russell7/otel-ts@0.11.2(829f46af36c17521ddc2392609d52e40)':
     dependencies:
       '@mark1russell7/text': 0.0.20
       '@opentelemetry/api': 1.10.0
@@ -5387,6 +5399,7 @@ snapshots:
       '@opentelemetry/exporter-logs-otlp-http': 0.301.2(@opentelemetry/api@1.10.0)
       '@opentelemetry/exporter-logs-otlp-proto': 0.301.2(@opentelemetry/api@1.10.0)
       '@opentelemetry/exporter-metrics-otlp-http': 0.301.2(@opentelemetry/api@1.10.0)
+      '@opentelemetry/exporter-metrics-otlp-proto': 0.301.2(@opentelemetry/api@1.10.0)
       '@opentelemetry/exporter-trace-otlp-http': 0.301.2(@opentelemetry/api@1.10.0)
       '@opentelemetry/exporter-trace-otlp-proto': 0.301.2(@opentelemetry/api@1.10.0)
       '@opentelemetry/instrumentation': 0.301.2(@opentelemetry/api@1.10.0)
@@ -5675,6 +5688,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
     optional: true
+
+  '@opentelemetry/instrumentation-runtime-node@0.38.0(@opentelemetry/api@1.10.0)':
+    dependencies:
+      '@opentelemetry/api': 1.10.0
+      '@opentelemetry/core': 3.1.1(@opentelemetry/api@1.10.0)
+      '@opentelemetry/instrumentation': 0.301.2(@opentelemetry/api@1.10.0)
+    transitivePeerDependencies:
+      - supports-color
 
   '@opentelemetry/instrumentation-user-interaction@0.69.1(@opentelemetry/api@1.10.0)(zone.js@0.16.3)':
     dependencies:
