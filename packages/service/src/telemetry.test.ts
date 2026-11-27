@@ -1,0 +1,135 @@
+import { contextOwner } from "@mark1russell7/otel-ts/context";
+import { context, isSpanContextValid, propagation, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { CAPS, exited, rig, run } from "./rig.ts";
+import { type Load, nodeLoad, startTelemetry } from "./telemetry.ts";
+
+afterEach(() => {
+  trace.disable();
+  context.disable();
+  propagation.disable();
+  // a test that leaves the context of otel-ts started fails here, not in the tests after it
+  expect(contextOwner(), "a test left a context of otel-ts started").toBeUndefined();
+});
+
+/** A loader with the entries of otel-ts as fakes. It records each specifier that it loads. */
+const fakeOtel = (owner: string | undefined = undefined) => {
+  const loads: string[] = [];
+  const starts: unknown[] = [];
+  const shutdown = vi.fn(async () => {});
+  const load: Load = (specifier) => {
+    loads.push(specifier);
+    if (specifier === "@mark1russell7/otel-ts/context") return { contextOwner: () => owner };
+    if (specifier === "@mark1russell7/otel-ts/node/context")
+      return {
+        startNodeContext: (options: unknown) => {
+          starts.push(options);
+          return { shutdown };
+        },
+      };
+    if (specifier === "@mark1russell7/otel-ts/node/export") return { exportSpanProcessors: ({ env }: { env: object }) => [{ exporterOf: env }] };
+    throw new Error(`no fake for ${specifier}`);
+  };
+  return { load, loads, starts, shutdown };
+};
+
+const missing = (code: string): Load => () => {
+  throw Object.assign(new Error("Cannot find module '@mark1russell7/otel-ts/context'"), { code });
+};
+
+describe("startTelemetry", () => {
+  it("starts the context with the name of the service, and loads no exporter without an endpoint", () => {
+    const otel = fakeOtel();
+    expect(startTelemetry("api", { env: {} }, otel.load)).toMatchObject({ shutdown: otel.shutdown });
+    expect(otel.loads).toEqual(["@mark1russell7/otel-ts/context", "@mark1russell7/otel-ts/node/context"]);
+    expect(otel.starts).toEqual([{ serviceName: "api", env: {}, spanProcessors: [] }]);
+    // an empty endpoint is no endpoint
+    const empty = fakeOtel();
+    startTelemetry("api", { env: { OTEL_EXPORTER_OTLP_ENDPOINT: "" } }, empty.load);
+    expect(empty.loads).not.toContain("@mark1russell7/otel-ts/node/export");
+  });
+
+  it("exports with the processors of otel-ts when the environment has an endpoint, and gives the version as service.version", () => {
+    const otel = fakeOtel();
+    const env = { OTEL_EXPORTER_OTLP_ENDPOINT: "http://collector:4318" };
+    startTelemetry("api", { env, version: "1.2.3" }, otel.load);
+    expect(otel.loads.at(-1)).toBe("@mark1russell7/otel-ts/node/export");
+    expect(otel.starts).toEqual([{ serviceName: "api", env, spanProcessors: [{ exporterOf: env }], resourceAttributes: { "service.version": "1.2.3" } }]);
+  });
+
+  it("starts nothing when a part of the program owns the context, and loads no SDK then", () => {
+    for (const owner of ["startNodeContext()", "another SDK"]) {
+      const otel = fakeOtel(owner);
+      expect(startTelemetry("api", {}, otel.load)).toBe("owned");
+      expect(otel.loads).toEqual(["@mark1russell7/otel-ts/context"]);
+    }
+  });
+
+  it("starts nothing when the option is false, and loads nothing", () => {
+    const otel = fakeOtel();
+    expect(startTelemetry("api", false, otel.load)).toBe("off");
+    expect(otel.loads).toEqual([]);
+  });
+
+  it("starts nothing without otel-ts, without a package of its entry, without contextOwner(), or outside Node", () => {
+    expect(startTelemetry("api", {}, missing("ERR_MODULE_NOT_FOUND"))).toBe("no otel-ts");
+    expect(startTelemetry("api", {}, missing("MODULE_NOT_FOUND"))).toBe("no otel-ts");
+    expect(startTelemetry("api", {}, missing("ERR_PACKAGE_PATH_NOT_EXPORTED"))).toBe("no otel-ts");
+    // a version of otel-ts before contextOwner()
+    expect(startTelemetry("api", {}, () => ({}))).toBe("no otel-ts");
+    // outside Node there is no loader: a process with no getBuiltinModule
+    expect(nodeLoad({})).toBeUndefined();
+    expect(startTelemetry("api", {}, null)).toBe("no otel-ts");
+    expect(typeof nodeLoad()).toBe("function");
+  });
+
+  it("throws an error of otel-ts that is not a missing package", () => {
+    const broken: Load = () => {
+      throw new Error("a broken install");
+    };
+    expect(() => startTelemetry("api", {}, broken)).toThrow(/a broken install/);
+  });
+});
+
+describe("the telemetry of run(), with otel-ts", () => {
+  it("starts the context for the service, so a span has a trace, and stops it in the phase flush the output", async () => {
+    const r = rig({ caps: { ...CAPS, "flush the output": 1 } });
+    const life = await run(r, () => {}, { telemetry: { env: {} } });
+    expect(contextOwner()).toBe("startNodeContext()");
+    const span = trace.getTracer("test").startSpan("work");
+    expect(isSpanContextValid(span.spanContext())).toBe(true);
+    span.end();
+    void life.shutdown();
+    expect(await exited(r, life)).toBe(0);
+    expect(contextOwner()).toBeUndefined();
+  });
+
+  it("stops the context after the exit, for a service without the phase flush the output", async () => {
+    const r = rig();
+    const life = await run(r, () => {}, { telemetry: { env: {} } });
+    expect(contextOwner()).toBe("startNodeContext()");
+    void life.shutdown();
+    await exited(r, life);
+    await vi.waitFor(() => expect(contextOwner()).toBeUndefined());
+  });
+
+  it("keeps the context of the program: it starts nothing, and the context stays after the exit", async () => {
+    expect(context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable())).toBe(true);
+    const r = rig({ caps: { ...CAPS, "flush the output": 1 } });
+    const life = await run(r, () => {}, { telemetry: { env: {} } });
+    expect(contextOwner()).toBe("another SDK");
+    void life.shutdown();
+    await exited(r, life);
+    // the manager of the program is still the global manager: a second one is refused
+    expect(context.setGlobalContextManager(new AsyncLocalStorageContextManager())).toBe(false);
+  });
+
+  it("starts nothing with the option false", async () => {
+    const r = rig();
+    const life = await run(r, () => {}, { telemetry: false });
+    expect(contextOwner()).toBeUndefined();
+    void life.shutdown();
+    await exited(r, life);
+  });
+});
