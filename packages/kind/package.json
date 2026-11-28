@@ -71,7 +71,7 @@
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/rigor-statistics": "^0.2.1",
     "@mark1russell7/service": "workspace:^",
-    "testcontainers": "12.2.1"
+    "testcontainers": "12.2.2"
   },
   "peerDependencies": {
     "zod": "^4.1.0"
