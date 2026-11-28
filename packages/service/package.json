@@ -142,7 +142,7 @@
     "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.3",
     "fast-check": "^4.10.2",
-    "ioredis": "6.0.0",
+    "ioredis": "6.1.0",
     "testcontainers": "12.2.1",
     "tsdown": "^0.23.7",
     "typescript": "^7.0.2",
